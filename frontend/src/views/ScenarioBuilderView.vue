@@ -7,14 +7,28 @@ const router = useRouter()
 
 const scenario = ref(null)
 const loading = ref(true)
+
+const seedText = ref('')
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
+const selectedPersonas = ref([])
+const selectedIndustries = ref([])
 
 onMounted(async () => {
   try {
     const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (res.ok) scenario.value = await res.json()
+    if (res.ok) {
+      const data = await res.json()
+      scenario.value = data
+
+      seedText.value = data.seed_text || ''
+      agentCount.value = data.agent_config?.count || 200
+      duration.value = data.simulation_config?.total_hours || 72
+      platformMode.value = data.simulation_config?.platform_mode || 'parallel'
+      selectedPersonas.value = [...(data.agent_config?.persona_types || [])]
+      selectedIndustries.value = [...(data.agent_config?.firmographic_mix?.industries || [])]
+    }
   } catch (e) {
     console.error('Failed to load scenario:', e)
   } finally {
@@ -22,50 +36,130 @@ onMounted(async () => {
   }
 })
 
+function togglePersona(persona) {
+  const idx = selectedPersonas.value.indexOf(persona)
+  if (idx === -1) {
+    selectedPersonas.value.push(persona)
+  } else {
+    selectedPersonas.value.splice(idx, 1)
+  }
+}
+
+function toggleIndustry(industry) {
+  const idx = selectedIndustries.value.indexOf(industry)
+  if (idx === -1) {
+    selectedIndustries.value.push(industry)
+  } else {
+    selectedIndustries.value.splice(idx, 1)
+  }
+}
+
 async function runSimulation() {
   // TODO: Call /api/graph/build with seed text, then navigate to graph view
-  router.push(`/graph/demo-task-id`)
+  router.push('/graph/demo-task-id')
 }
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto px-6 py-10">
-    <div v-if="loading" class="text-center text-[#888] py-20">Loading scenario...</div>
+  <div class="max-w-5xl mx-auto px-6 py-10">
+    <div v-if="loading" class="text-center text-[var(--color-text-muted)] py-20">Loading scenario...</div>
 
     <div v-else-if="scenario">
-      <h1 class="text-3xl font-semibold text-[#050505] mb-2">{{ scenario.name }}</h1>
-      <p class="text-sm text-[#555] mb-8">{{ scenario.description }}</p>
+      <!-- Header -->
+      <router-link to="/" class="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-4 inline-block">&larr; Back to scenarios</router-link>
+      <h1 class="text-3xl font-semibold text-[var(--color-text)] mb-2">{{ scenario.name }}</h1>
+      <p class="text-sm text-[var(--color-text-secondary)] mb-8">{{ scenario.description }}</p>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Seed Document -->
-        <div class="md:col-span-2">
-          <label class="block text-xs uppercase tracking-wider text-[#888] mb-2">Seed Document</label>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Seed Document (left 2/3) -->
+        <div class="lg:col-span-2">
+          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Seed Document</label>
           <textarea
-            v-model="scenario.seed_text"
-            rows="12"
-            class="w-full border border-black/10 rounded-lg p-4 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent resize-y"
+            v-model="seedText"
+            rows="16"
+            class="w-full border border-[var(--color-border)] rounded-lg p-4 text-sm leading-relaxed focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-y bg-[var(--color-surface)]"
+            placeholder="Paste or edit your scenario seed text..."
           ></textarea>
+
+          <!-- Persona Types Multiselect -->
+          <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Persona Types</label>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="persona in scenario.agent_config.persona_types"
+                :key="persona"
+                @click="togglePersona(persona)"
+                class="px-3 py-1.5 text-xs rounded-full border transition-colors"
+                :class="selectedPersonas.includes(persona)
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
+              >
+                {{ persona }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Industry Mix Checkboxes -->
+          <div v-if="scenario.agent_config?.firmographic_mix?.industries?.length" class="mt-6">
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Industry Mix</label>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <label
+                v-for="industry in scenario.agent_config.firmographic_mix.industries"
+                :key="industry"
+                class="flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors text-sm"
+                :class="selectedIndustries.includes(industry)
+                  ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
+                  : 'border-[var(--color-border)] hover:border-[var(--color-primary)]'"
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedIndustries.includes(industry)"
+                  @change="toggleIndustry(industry)"
+                  class="accent-[var(--color-primary)]"
+                />
+                <span :class="selectedIndustries.includes(industry) ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]'">{{ industry }}</span>
+              </label>
+            </div>
+          </div>
         </div>
 
-        <!-- Config Panel -->
+        <!-- Config Panel (right 1/3) -->
         <div class="space-y-6">
+          <!-- Agent Count Slider -->
           <div>
-            <label class="block text-xs uppercase tracking-wider text-[#888] mb-2">Agent Count</label>
-            <input type="range" v-model.number="agentCount" min="10" max="500" step="10" class="w-full" />
-            <div class="text-center text-2xl font-semibold text-[#2068FF]">{{ agentCount }}</div>
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Agent Count</label>
+            <input
+              type="range"
+              v-model.number="agentCount"
+              min="50"
+              max="500"
+              step="10"
+              class="w-full accent-[var(--color-primary)]"
+            />
+            <div class="text-center text-2xl font-semibold text-[var(--color-primary)]">{{ agentCount }}</div>
           </div>
 
+          <!-- Simulation Duration -->
           <div>
-            <label class="block text-xs uppercase tracking-wider text-[#888] mb-2">Duration (hours)</label>
-            <select v-model.number="duration" class="w-full border border-black/10 rounded-lg p-2 text-sm">
-              <option :value="24">24 hours</option>
-              <option :value="48">48 hours</option>
-              <option :value="72">72 hours (recommended)</option>
-            </select>
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Duration</label>
+            <div class="flex gap-2">
+              <button
+                v-for="hours in [24, 48, 72]"
+                :key="hours"
+                @click="duration = hours"
+                class="flex-1 px-3 py-2 text-xs rounded-lg border transition-colors"
+                :class="duration === hours
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
+              >
+                {{ hours }}h
+              </button>
+            </div>
           </div>
 
+          <!-- Platform Mode Toggle -->
           <div>
-            <label class="block text-xs uppercase tracking-wider text-[#888] mb-2">Platform</label>
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Platform</label>
             <div class="flex gap-2">
               <button
                 v-for="mode in ['twitter', 'reddit', 'parallel']"
@@ -73,17 +167,18 @@ async function runSimulation() {
                 @click="platformMode = mode"
                 class="flex-1 px-3 py-2 text-xs rounded-lg border transition-colors capitalize"
                 :class="platformMode === mode
-                  ? 'bg-[#2068FF] text-white border-[#2068FF]'
-                  : 'bg-white text-[#555] border-black/10 hover:border-[#2068FF]'"
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
               >
                 {{ mode === 'parallel' ? 'Both' : mode }}
               </button>
             </div>
           </div>
 
+          <!-- Run Simulation Button -->
           <button
             @click="runSimulation"
-            class="w-full bg-[#2068FF] hover:bg-[#1a5ae0] text-white font-semibold py-3 rounded-lg transition-colors"
+            class="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-semibold py-3 rounded-lg transition-colors mt-4"
           >
             Run Simulation
           </button>
@@ -91,9 +186,10 @@ async function runSimulation() {
       </div>
     </div>
 
+    <!-- Error State -->
     <div v-else class="text-center py-20">
-      <p class="text-[#888]">Scenario not found</p>
-      <router-link to="/" class="text-[#2068FF] text-sm mt-2 inline-block">Back to Home</router-link>
+      <p class="text-[var(--color-text-muted)]">Scenario not found</p>
+      <router-link to="/" class="text-[var(--color-primary)] text-sm mt-2 inline-block">Back to Home</router-link>
     </div>
   </div>
 </template>

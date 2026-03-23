@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import axios from 'axios'
+import { scenariosApi } from '../api/scenarios'
 
 export const useScenariosStore = defineStore('scenarios', () => {
   const scenarios = ref([])
@@ -19,7 +19,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
     loading.value = true
     error.value = null
     try {
-      const { data } = await axios.get('/api/gtm/scenarios')
+      const { data } = await scenariosApi.list()
       scenarios.value = data
       return data
     } catch (e) {
@@ -35,7 +35,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
     loading.value = true
     error.value = null
     try {
-      const { data } = await axios.get(`/api/gtm/scenarios/${id}`)
+      const { data } = await scenariosApi.get(id)
       scenarioDetails.value[id] = data
       return data
     } catch (e) {

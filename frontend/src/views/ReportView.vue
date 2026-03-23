@@ -42,9 +42,9 @@ const generating = ref(true)
       <!-- Content -->
       <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-8">
         <div v-if="generating" class="text-center py-16">
-          <div class="text-4xl mb-4">📝</div>
-          <p class="text-[#888]">Generating predictive report...</p>
-          <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
+          <div class="inline-block w-8 h-8 border-2 border-[#2068FF] border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p class="text-sm text-[#050505] font-medium">Generating predictive report...</p>
+          <p class="text-xs text-[#888] mt-2">Multi-chapter analysis with evidence from simulation</p>
         </div>
         <div v-else-if="chapters[activeChapter]" class="prose prose-sm max-w-none">
           <h2>{{ chapters[activeChapter].title }}</h2>

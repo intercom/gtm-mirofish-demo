@@ -7,20 +7,26 @@ const router = useRouter()
 
 const scenario = ref(null)
 const loading = ref(true)
+const error = ref(null)
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
 
-onMounted(async () => {
+async function loadScenario() {
+  loading.value = true
+  error.value = null
   try {
     const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (res.ok) scenario.value = await res.json()
+    if (!res.ok) throw new Error(`Server returned ${res.status}`)
+    scenario.value = await res.json()
   } catch (e) {
-    console.error('Failed to load scenario:', e)
+    error.value = e.message
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadScenario)
 
 async function runSimulation() {
   // TODO: Call /api/graph/build with seed text, then navigate to graph view
@@ -30,7 +36,10 @@ async function runSimulation() {
 
 <template>
   <div class="max-w-4xl mx-auto px-6 py-10">
-    <div v-if="loading" class="text-center text-[#888] py-20">Loading scenario...</div>
+    <div v-if="loading" class="text-center py-20">
+      <div class="inline-block w-6 h-6 border-2 border-[#2068FF] border-t-transparent rounded-full animate-spin mb-4"></div>
+      <p class="text-sm text-[#888]">Loading scenario...</p>
+    </div>
 
     <div v-else-if="scenario">
       <h1 class="text-3xl font-semibold text-[#050505] mb-2">{{ scenario.name }}</h1>
@@ -91,9 +100,22 @@ async function runSimulation() {
       </div>
     </div>
 
+    <div v-else-if="error" class="text-center py-20">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[rgba(255,86,0,0.1)] mb-4">
+        <span class="text-xl">⚠️</span>
+      </div>
+      <p class="text-sm text-[#050505] font-medium mb-1">Failed to load scenario</p>
+      <p class="text-xs text-[#888] mb-4">{{ error }}</p>
+      <div class="flex items-center justify-center gap-3">
+        <button @click="loadScenario" class="text-sm text-[#2068FF] hover:underline">Try again</button>
+        <span class="text-[#888]">·</span>
+        <router-link to="/" class="text-sm text-[#2068FF] hover:underline">Back to Home</router-link>
+      </div>
+    </div>
+
     <div v-else class="text-center py-20">
       <p class="text-[#888]">Scenario not found</p>
-      <router-link to="/" class="text-[#2068FF] text-sm mt-2 inline-block">Back to Home</router-link>
+      <router-link to="/" class="text-[#2068FF] text-sm mt-2 inline-block hover:underline">Back to Home</router-link>
     </div>
   </div>
 </template>

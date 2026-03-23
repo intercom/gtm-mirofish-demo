@@ -1,20 +1,30 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { getScenario, generateOntology, buildGraph } from '../api.js'
 
 const props = defineProps({ id: String })
 const router = useRouter()
 
 const scenario = ref(null)
 const loading = ref(true)
+const running = ref(false)
+const runError = ref(null)
+const runStep = ref('')
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
 
 onMounted(async () => {
   try {
-    const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (res.ok) scenario.value = await res.json()
+    const data = await getScenario(props.id)
+    if (data.error) throw new Error(data.error)
+    scenario.value = data
+    if (data.config) {
+      agentCount.value = data.config.agent_count || 200
+      duration.value = data.config.duration_hours || 72
+      platformMode.value = data.config.platform || 'parallel'
+    }
   } catch (e) {
     console.error('Failed to load scenario:', e)
   } finally {
@@ -23,8 +33,41 @@ onMounted(async () => {
 })
 
 async function runSimulation() {
-  // TODO: Call /api/graph/build with seed text, then navigate to graph view
-  router.push(`/graph/demo-task-id`)
+  if (running.value) return
+  running.value = true
+  runError.value = null
+
+  try {
+    // Step 1: Upload seed text to generate ontology and get a project
+    runStep.value = 'Analyzing seed document...'
+    const seedText = scenario.value.seed_text || ''
+    const blob = new Blob([seedText], { type: 'text/plain' })
+    const formData = new FormData()
+    formData.append('files', blob, `${props.id}_seed.txt`)
+    formData.append('simulation_requirement', scenario.value.description || 'GTM simulation')
+    formData.append('project_name', scenario.value.name || props.id)
+
+    const ontologyResult = await generateOntology(formData)
+    if (!ontologyResult.success) throw new Error(ontologyResult.error)
+    const projectId = ontologyResult.data.project_id
+
+    // Step 2: Build the knowledge graph
+    runStep.value = 'Building knowledge graph...'
+    const buildResult = await buildGraph(projectId)
+    const taskId = buildResult.data.task_id
+
+    // Navigate to graph view to watch progress
+    router.push({
+      name: 'graph',
+      params: { taskId },
+      query: { projectId, platform: platformMode.value },
+    })
+  } catch (e) {
+    runError.value = e.message
+    console.error('Simulation launch failed:', e)
+  } finally {
+    running.value = false
+  }
 }
 </script>
 
@@ -81,11 +124,21 @@ async function runSimulation() {
             </div>
           </div>
 
+          <!-- Error -->
+          <div v-if="runError" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+            {{ runError }}
+          </div>
+
+          <!-- Run Button -->
           <button
             @click="runSimulation"
-            class="w-full bg-[#2068FF] hover:bg-[#1a5ae0] text-white font-semibold py-3 rounded-lg transition-colors"
+            :disabled="running"
+            class="w-full bg-[#2068FF] hover:bg-[#1a5ae0] disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition-colors"
           >
-            Run Simulation
+            <template v-if="running">
+              <span class="inline-block animate-spin mr-2">⏳</span>{{ runStep }}
+            </template>
+            <template v-else>Run Simulation</template>
           </button>
         </div>
       </div>

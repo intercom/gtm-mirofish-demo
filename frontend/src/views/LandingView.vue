@@ -1,36 +1,36 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { listScenarios } from '../api.js'
 
 const router = useRouter()
 
-const scenarios = ref([
-  {
-    id: 'outbound_campaign',
-    name: 'Outbound Campaign Pre-Testing',
-    description: 'Simulate how AI-generated outbound emails land with synthetic prospect populations.',
-    icon: '📧',
-    hero: true,
-  },
-  {
-    id: 'signal_validation',
-    name: 'Sales Signal Validation',
-    description: 'Test whether signals actually predict buying behavior.',
-    icon: '📡',
-  },
-  {
-    id: 'pricing_simulation',
-    name: 'Pricing Change Simulation',
-    description: 'Predict customer reactions to P5 pricing migration.',
-    icon: '💰',
-  },
-  {
-    id: 'personalization',
-    name: 'Personalization Optimization',
-    description: 'Rank email variants by simulated engagement.',
-    icon: '✨',
-  },
-])
+const scenarios = ref([])
+const loading = ref(true)
+const error = ref(null)
+
+const icons = {
+  outbound_campaign: '📧',
+  signal_validation: '📡',
+  pricing_simulation: '💰',
+  personalization: '✨',
+}
+
+onMounted(async () => {
+  try {
+    const data = await listScenarios()
+    scenarios.value = (data.scenarios || []).map((s, i) => ({
+      ...s,
+      icon: icons[s.id] || '🐟',
+      hero: i === 0,
+    }))
+  } catch (e) {
+    error.value = e.message
+    console.error('Failed to load scenarios:', e)
+  } finally {
+    loading.value = false
+  }
+})
 
 function launchScenario(id) {
   router.push(`/scenarios/${id}`)
@@ -53,8 +53,12 @@ function launchScenario(id) {
           to your outbound, signals, and pricing changes.
         </p>
 
+        <!-- Loading / Error states -->
+        <div v-if="loading" class="text-white/40 text-sm py-8">Loading scenarios...</div>
+        <div v-else-if="error" class="text-red-400 text-sm py-8">{{ error }}</div>
+
         <!-- Scenario Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
           <button
             v-for="scenario in scenarios"
             :key="scenario.id"

@@ -1,10 +1,12 @@
 <script setup>
 import { ref, nextTick } from 'vue'
+import { chatWithReport } from '../api.js'
 
-const props = defineProps({ taskId: String })
+const props = defineProps({ simulationId: String })
 const messages = ref([])
 const input = ref('')
 const sending = ref(false)
+const messagesContainer = ref(null)
 
 async function send() {
   if (!input.value.trim() || sending.value) return
@@ -13,25 +15,38 @@ async function send() {
   input.value = ''
   messages.value.push({ role: 'user', content: text })
   sending.value = true
+  scrollToBottom()
 
   try {
-    // TODO: Call /api/chat with message
-    messages.value.push({
-      role: 'assistant',
-      content: 'Chat integration pending — connect to MiroFish backend /api/chat endpoint.',
-    })
+    const chatHistory = messages.value
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .slice(0, -1) // exclude current message since it's sent as `message`
+      .map(m => ({ role: m.role, content: m.content }))
+
+    const result = await chatWithReport(props.simulationId, text, chatHistory)
+    const response = result.data?.response || 'No response received.'
+    messages.value.push({ role: 'assistant', content: response })
   } catch (e) {
     messages.value.push({ role: 'assistant', content: 'Error: ' + e.message })
   } finally {
     sending.value = false
+    scrollToBottom()
   }
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (messagesContainer.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    }
+  })
 }
 </script>
 
 <template>
   <div class="flex flex-col h-[calc(100vh-120px)]">
     <!-- Messages -->
-    <div class="flex-1 overflow-y-auto px-6 py-8">
+    <div ref="messagesContainer" class="flex-1 overflow-y-auto px-6 py-8">
       <div class="max-w-2xl mx-auto space-y-4">
         <div v-if="messages.length === 0" class="text-center py-20">
           <div class="text-5xl mb-4">💬</div>
@@ -48,7 +63,7 @@ async function send() {
             :class="msg.role === 'user' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
             {{ msg.role === 'user' ? 'You' : 'MiroFish' }}
           </div>
-          {{ msg.content }}
+          <div class="whitespace-pre-wrap">{{ msg.content }}</div>
         </div>
 
         <div v-if="sending" class="bg-[#f5f5f5] rounded-lg px-4 py-3 mr-12">

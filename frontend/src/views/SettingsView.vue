@@ -26,10 +26,16 @@ function save() {
 
 async function testConnection(service) {
   connectionStatus.value[service] = 'testing'
-  // TODO: Implement connection test endpoints
-  setTimeout(() => {
-    connectionStatus.value[service] = 'success'
-  }, 1000)
+  try {
+    const res = await fetch('/health')
+    if (res.ok) {
+      connectionStatus.value[service] = 'success'
+    } else {
+      connectionStatus.value[service] = 'error'
+    }
+  } catch {
+    connectionStatus.value[service] = 'error'
+  }
 }
 
 const providers = [

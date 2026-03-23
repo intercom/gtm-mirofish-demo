@@ -1,0 +1,29 @@
+{
+  "id": "outbound_campaign",
+  "name": "Outbound Campaign Pre-Testing",
+  "description": "Simulate how AI-generated outbound emails land with synthetic prospect populations. Test messaging, subject lines, and cadence before sending to real prospects.",
+  "category": "outbound",
+  "icon": "mail",
+  "seed_text": "Intercom is launching an automated outbound campaign targeting mid-market SaaS companies with 500-2000 employees who currently use Zendesk for customer support. The campaign pitches Fin AI agent as a superior alternative that can resolve 50% of support conversations automatically.\n\nThe target audience includes VP of Support, CX Directors, IT Leaders, and Heads of Operations at companies in SaaS, Healthcare, Fintech, and E-commerce verticals.\n\nKey messaging angles:\n1. ROI: Reduce support costs by 40% with AI-first resolution\n2. Speed: Deploy Fin in weeks, not months\n3. Quality: AI that actually understands customer intent\n4. Scale: Handle 10x volume without hiring\n\nEmail subject line variants being tested:\n- 'Your Zendesk bill is 3x what it should be'\n- 'How [Company] cut support costs 40% with AI'\n- 'Replace Zendesk in 30 days — here is how'\n- 'The AI agent your support team actually wants'\n\nCurrent pain points from internal data:\n- 56K incorrect website records in account data\n- Clay enrichment accuracy is only 25-32% for support tool data\n- Previous AI SDR (Conversica) achieved 74% open rate but 0% conversion\n- Reps spend 5-30 minutes per account validating data before engaging\n\nThe simulation should reveal: Which messaging resonates by persona type, which subject lines trigger engagement vs spam perception, how different industries react to competitive displacement messaging, and optimal sequence cadence.",
+  "agent_config": {
+    "count": 200,
+    "persona_types": ["VP of Support", "CX Director", "IT Leader", "Head of Operations"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Healthcare", "Fintech", "E-commerce"],
+      "company_sizes": ["200-500", "500-1000", "1000-2000"],
+      "regions": ["North America", "EMEA", "APAC"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Engagement prediction by persona type",
+    "Subject line effectiveness ranking",
+    "Objection mapping by industry",
+    "Optimal sequence cadence recommendation",
+    "Competitive messaging sensitivity analysis"
+  ]
+}

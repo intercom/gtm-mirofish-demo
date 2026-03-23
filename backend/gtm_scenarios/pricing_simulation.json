@@ -1,0 +1,29 @@
+{
+  "id": "pricing_simulation",
+  "name": "Pricing Change Simulation",
+  "description": "Predict customer reactions to P5 pricing migration by simulating 2000 customer personas with varying contract values, usage patterns, and competitive alternatives.",
+  "category": "pricing",
+  "icon": "dollar-sign",
+  "seed_text": "Intercom is executing a major P5 pricing migration that changes pricing structure for existing customers. Historical context:\n\n1. P5.1 already reduced email, SMS, and PSP prices based on customer feedback that prices were 3x-20x competitors\n2. Some customers expressed 'budget uncertainty and unclear ROI' — overall dissatisfaction\n3. Phone transcripts pricing raised legal concerns about mid-subscription changes\n4. No systematic mechanism exists to predict customer reactions before rollout\n\nKey risk identified by leadership: 'Customer reaction to price increase — customers may be unwilling to accept price increase and churn or share their frustration publicly.'\n\nSimulation parameters:\n- 2000 customer personas across segments (SMB, Mid-Market, Enterprise)\n- Varying contract values ($500/mo to $50,000/mo)\n- Usage patterns: light, moderate, heavy, power users\n- Competitive alternatives awareness: Zendesk, Freshdesk, HubSpot Service Hub\n- Existing sentiment: satisfied, neutral, at-risk\n\nPricing scenarios to test:\n1. 10% across-the-board increase\n2. 15% increase with grandfathering for 12 months\n3. Usage-based repricing (some go up, some go down)\n4. Feature-gated increase (new features require upgrade)\n\nThe simulation should predict: Churn probability by segment, expansion opportunity, public sentiment risk (social media), competitive switch likelihood, and optimal migration strategy.",
+  "agent_config": {
+    "count": 500,
+    "persona_types": ["CFO", "VP Operations", "CX Leader", "Product Manager", "Support Manager"],
+    "firmographic_mix": {
+      "segments": ["SMB", "Mid-Market", "Enterprise"],
+      "contract_values": ["$500-2000/mo", "$2000-10000/mo", "$10000-50000/mo"],
+      "tenure": ["<1 year", "1-3 years", "3+ years"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Churn prediction by segment and price increase",
+    "Public sentiment risk assessment",
+    "Competitive switch likelihood matrix",
+    "Optimal migration strategy recommendation",
+    "Revenue impact forecast per scenario"
+  ]
+}

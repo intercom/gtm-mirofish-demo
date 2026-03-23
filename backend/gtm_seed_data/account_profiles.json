@@ -1,0 +1,49 @@
+{
+  "description": "Representative account profiles for agent persona generation. Anonymized from Intercom GTM data models.",
+  "profiles": [
+    {
+      "segment": "Mid-Market",
+      "industry": "SaaS",
+      "company_size": "500-1000",
+      "current_support_tool": "Zendesk",
+      "monthly_support_volume": 5000,
+      "arr_range": "$50K-200K",
+      "health_score": "B",
+      "churn_risk": "low",
+      "expansion_signals": ["feature_exploration", "usage_surge"]
+    },
+    {
+      "segment": "Enterprise",
+      "industry": "Healthcare",
+      "company_size": "2000-5000",
+      "current_support_tool": "Salesforce Service Cloud",
+      "monthly_support_volume": 25000,
+      "arr_range": "$200K-500K",
+      "health_score": "A",
+      "churn_risk": "low",
+      "expansion_signals": ["contract_approaching", "technographic_match"]
+    },
+    {
+      "segment": "SMB",
+      "industry": "Fintech",
+      "company_size": "50-200",
+      "current_support_tool": "Freshdesk",
+      "monthly_support_volume": 500,
+      "arr_range": "$5K-20K",
+      "health_score": "C",
+      "churn_risk": "medium",
+      "expansion_signals": ["competitor_research"]
+    },
+    {
+      "segment": "Mid-Market",
+      "industry": "E-commerce",
+      "company_size": "200-500",
+      "current_support_tool": "Intercom (existing customer)",
+      "monthly_support_volume": 8000,
+      "arr_range": "$30K-100K",
+      "health_score": "D",
+      "churn_risk": "high",
+      "expansion_signals": []
+    }
+  ]
+}

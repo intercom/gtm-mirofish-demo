@@ -1,0 +1,28 @@
+{
+  "id": "signal_validation",
+  "name": "Sales Signal Validation",
+  "description": "Test whether sales signals actually predict buying behavior by simulating 1000 accounts with varying signal exposure and observing conversion patterns.",
+  "category": "signals",
+  "icon": "signal",
+  "seed_text": "Intercom's Sales Signal system generates buying intent signals from DBT models in Snowflake, delivered to reps via custom Salesforce LWC inbox and Slack notifications. However, signal adoption has collapsed — unactioned accounts increased from 11% at launch to 76% currently.\n\nSignal types being evaluated:\n1. Product Usage Surge: Account adds 10+ support agents in 30 days\n2. Competitor Research: Visits Intercom pricing page after visiting Zendesk/Freshdesk\n3. Feature Exploration: Activates 3+ new features in a week\n4. Contract Approaching: Renewal date within 90 days with declining usage\n5. Expansion Indicator: Usage exceeds current plan limits by 20%+\n6. Champion Change: Key contact role change or departure detected\n7. Technographic Match: Company uses complementary tools (Salesforce, HubSpot)\n8. Intent Signal: Third-party intent data shows active evaluation\n\nThe core question: Which of these signals actually correlate with buying behavior, and which are noise? Simulate 1000 accounts — some receiving signals, some not — and observe whether signal-triggered outreach leads to engagement and pipeline creation.\n\nCurrent problems:\n- Signal setup does not support current business priorities (P5 migration, Fin-focused selling)\n- Accuracy is described as 'hit or miss' with current tool stack\n- Multiple competing notification channels make prioritization difficult\n- Low adoption means signals go unactioned, making ROI measurement impossible",
+  "agent_config": {
+    "count": 500,
+    "persona_types": ["Decision Maker", "Champion", "Technical Evaluator", "Blocker", "End User"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Healthcare", "Fintech", "E-commerce", "Manufacturing"],
+      "company_sizes": ["50-200", "200-500", "500-1000", "1000-5000"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Signal-to-buying correlation matrix",
+    "Top 3 most predictive signals",
+    "Signal combination effectiveness",
+    "False positive rate per signal type",
+    "Recommended signal priority ranking"
+  ]
+}

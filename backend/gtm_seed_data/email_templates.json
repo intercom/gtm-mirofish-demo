@@ -1,0 +1,35 @@
+{
+  "description": "Representative outbound email templates for campaign simulation. Based on Intercom GTM messaging patterns.",
+  "templates": [
+    {
+      "id": "roi_pitch",
+      "name": "ROI-Focused Pitch",
+      "subject": "Your Zendesk bill is 3x what it should be",
+      "body": "Hi {first_name},\n\nI noticed {company} is using Zendesk for customer support with roughly {agent_count} agents. Companies your size typically spend 3x more than needed on support tooling.\n\nIntercom's Fin AI agent resolves 50% of conversations automatically — that's real cost savings without sacrificing quality.\n\nWould a 15-minute demo be worth your time this week?\n\nBest,\n{sender_name}",
+      "tone": "formal",
+      "length": "short",
+      "personalization": "company-specific",
+      "cta": "soft_ask"
+    },
+    {
+      "id": "case_study",
+      "name": "Case Study Approach",
+      "subject": "How [Similar Company] cut support costs 40% with AI",
+      "body": "Hi {first_name},\n\nA {industry} company similar to {company} switched from {current_tool} to Intercom last quarter. Results:\n\n- 40% reduction in support costs\n- 50% of conversations resolved by Fin AI\n- 3-week deployment (not 3 months)\n\nI'd love to share the full case study and discuss what this could look like for {company}.\n\nOpen to a quick chat?\n\n{sender_name}",
+      "tone": "casual",
+      "length": "medium",
+      "personalization": "role-specific",
+      "cta": "question"
+    },
+    {
+      "id": "competitive_displacement",
+      "name": "Competitive Displacement",
+      "subject": "Replace Zendesk in 30 days — here's how",
+      "body": "Hi {first_name},\n\nI know this sounds aggressive, but we've helped 200+ companies migrate from {current_tool} to Intercom in under 30 days.\n\nThe key difference: Fin AI agent handles 50% of conversations from day one. No training period, no ramp-up.\n\nFor a {segment} {industry} company like {company}, we typically see:\n- 40% cost reduction\n- 2x faster first response times\n- 90%+ CSAT maintained during transition\n\nWorth exploring?\n\n{sender_name}",
+      "tone": "direct",
+      "length": "medium",
+      "personalization": "pain-point-specific",
+      "cta": "hard_ask"
+    }
+  ]
+}

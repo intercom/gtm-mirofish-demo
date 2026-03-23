@@ -1,0 +1,53 @@
+/* Intercom Brand Design Tokens */
+:root {
+  /* Primary Palette */
+  --color-primary: #2068FF;
+  --color-primary-hover: #1a5ae0;
+  --color-primary-light: rgba(32, 104, 255, 0.08);
+  --color-primary-border: rgba(32, 104, 255, 0.3);
+
+  /* Brand Colors */
+  --color-navy: #050505;
+  --color-navy-light: #1a1a3e;
+  --color-fin-orange: #ff5600;
+  --color-accent: #A0F;
+  --color-success: #090;
+  --color-bg-light: #f5f3ee;
+
+  /* Neutrals */
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-border: rgba(0, 0, 0, 0.1);
+  --color-border-dark: rgba(255, 255, 255, 0.1);
+  --color-text: #050505;
+  --color-text-secondary: #555;
+  --color-text-muted: #888;
+
+  /* Typography */
+  --font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  --letter-spacing-tight: -0.32px;
+  --letter-spacing-tighter: -0.64px;
+  --letter-spacing-tightest: -2.56px;
+
+  /* Spacing */
+  --radius: 0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-lg: 0.75rem;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 300ms ease;
+  --transition-slow: 500ms ease;
+}
+
+/* Dark mode overrides */
+.dark {
+  --color-bg: #0a0a1a;
+  --color-surface: #1a1a2e;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-text: #e0e0e0;
+  --color-text-secondary: #aaa;
+  --color-text-muted: #666;
+}

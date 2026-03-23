@@ -1,0 +1,13 @@
+{
+  "description": "Sales signal type definitions from Intercom GTM signal models. Used for signal validation scenarios.",
+  "signals": [
+    {"id": "product_usage_surge", "name": "Product Usage Surge", "category": "usage", "description": "Account adds 10+ support agents in 30 days", "current_accuracy": "unknown", "adoption_rate": "24%"},
+    {"id": "competitor_research", "name": "Competitor Research", "category": "intent", "description": "Visits Intercom pricing after visiting Zendesk/Freshdesk", "current_accuracy": "unknown", "adoption_rate": "18%"},
+    {"id": "feature_exploration", "name": "Feature Exploration", "category": "usage", "description": "Activates 3+ new features in a week", "current_accuracy": "unknown", "adoption_rate": "31%"},
+    {"id": "contract_approaching", "name": "Contract Approaching", "category": "lifecycle", "description": "Renewal within 90 days with declining usage", "current_accuracy": "unknown", "adoption_rate": "42%"},
+    {"id": "expansion_indicator", "name": "Expansion Indicator", "category": "usage", "description": "Usage exceeds current plan limits by 20%+", "current_accuracy": "unknown", "adoption_rate": "22%"},
+    {"id": "champion_change", "name": "Champion Change", "category": "people", "description": "Key contact role change or departure detected", "current_accuracy": "unknown", "adoption_rate": "15%"},
+    {"id": "technographic_match", "name": "Technographic Match", "category": "firmographic", "description": "Company uses complementary tools (Salesforce, HubSpot)", "current_accuracy": "25-32%", "adoption_rate": "29%"},
+    {"id": "intent_signal", "name": "Third-Party Intent", "category": "intent", "description": "Third-party intent data shows active evaluation", "current_accuracy": "unknown", "adoption_rate": "12%"}
+  ]
+}

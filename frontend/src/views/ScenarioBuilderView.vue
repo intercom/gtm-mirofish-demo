@@ -1,13 +1,18 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { useToast } from '../composables/useToast'
+import { useScenariosStore } from '../stores/scenarios'
+import { useSimulationStore } from '../stores/simulation'
+import { graphApi } from '../api/graph'
 
 const props = defineProps({ id: String })
 const router = useRouter()
 const toast = useToast()
+const scenariosStore = useScenariosStore()
+const simulationStore = useSimulationStore()
 
 const scenario = ref(null)
 const loading = ref(true)
@@ -20,13 +25,16 @@ const selectedPersonas = ref([])
 const selectedIndustries = ref([])
 const running = ref(false)
 
+const canRun = computed(() =>
+  seedText.value.trim().length > 0 && selectedPersonas.value.length > 0 && !running.value,
+)
+
 async function loadScenario() {
   loading.value = true
   error.value = null
   try {
-    const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (!res.ok) throw new Error(`Failed to load scenario (${res.status})`)
-    const data = await res.json()
+    const data = await scenariosStore.fetchOne(props.id)
+    if (!data) throw new Error('Scenario not found')
     scenario.value = data
 
     seedText.value = data.seed_text || ''
@@ -65,9 +73,18 @@ function toggleIndustry(industry) {
 async function runSimulation() {
   running.value = true
   try {
-    // TODO: Call /api/graph/build with seed text, then navigate to graph view
-    toast.success('Simulation started successfully')
-    router.push('/graph/demo-task-id')
+    const { data } = await graphApi.build({
+      seed_text: seedText.value,
+      agent_count: agentCount.value,
+      persona_types: selectedPersonas.value,
+      industries: selectedIndustries.value,
+      duration_hours: duration.value,
+      platform_mode: platformMode.value,
+    })
+    const taskId = data.task_id
+    simulationStore.startBuild(taskId)
+    toast.success('Building knowledge graph...')
+    router.push(`/graph/${taskId}`)
   } catch (e) {
     toast.error(`Failed to start simulation: ${e.message}`)
   } finally {
@@ -201,7 +218,7 @@ async function runSimulation() {
           <!-- Run Simulation Button -->
           <button
             @click="runSimulation"
-            :disabled="running"
+            :disabled="!canRun"
             class="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors mt-4"
           >
             {{ running ? 'Starting...' : 'Run Simulation' }}

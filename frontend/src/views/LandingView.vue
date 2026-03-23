@@ -50,6 +50,19 @@ const steps = [
   },
 ]
 
+const ICON_MAP = {
+  mail: '📧',
+  signal: '📡',
+  dollar: '💰',
+  sparkle: '✨',
+}
+
+function resolveIcon(icon) {
+  if (!icon) return '🐟'
+  if (/\p{Emoji}/u.test(icon)) return icon
+  return ICON_MAP[icon] || '🐟'
+}
+
 const scenarios = ref([])
 const loading = ref(true)
 const error = ref(null)
@@ -60,7 +73,10 @@ async function loadScenarios() {
   try {
     const res = await fetch('/api/gtm/scenarios')
     if (!res.ok) throw new Error(`Failed to load scenarios (${res.status})`)
-    scenarios.value = await res.json()
+    const json = await res.json()
+    const list = json.scenarios || json
+    if (list.length) list[0].hero = true
+    scenarios.value = list
   } catch (e) {
     error.value = e.message
     // Fallback to hardcoded scenarios so the page is still usable
@@ -180,7 +196,7 @@ function launchScenario(id) {
               : 'bg-white/5 border-white/10 hover:bg-white/10'"
           >
             <div class="flex items-start gap-3">
-              <span class="text-2xl">{{ scenario.icon }}</span>
+              <span class="text-2xl">{{ resolveIcon(scenario.icon) }}</span>
               <div>
                 <div class="flex items-center gap-2">
                   <h3 class="text-sm font-semibold text-white">{{ scenario.name }}</h3>

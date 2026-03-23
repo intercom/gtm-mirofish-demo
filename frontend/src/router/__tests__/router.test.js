@@ -1,18 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { createRouter, createWebHistory } from 'vue-router'
-import routerInstance from '../index.js'
-
-function createFreshRouter() {
-  const { options } = routerInstance
-  return createRouter({
-    history: createWebHistory(),
-    routes: options.routes,
-  })
-}
+import { setActivePinia, createPinia } from 'pinia'
+import { useAuthStore } from '../../stores/auth'
+import { routes, createAppRouter } from '../index.js'
 
 describe('Router routes', () => {
   it('defines all 8 required routes', () => {
-    const routes = routerInstance.options.routes
     const names = routes.map((r) => r.name)
     expect(names).toContain('landing')
     expect(names).toContain('login')
@@ -26,7 +18,6 @@ describe('Router routes', () => {
   })
 
   it('maps correct paths', () => {
-    const routes = routerInstance.options.routes
     const byName = Object.fromEntries(routes.map((r) => [r.name, r]))
     expect(byName['landing'].path).toBe('/')
     expect(byName['login'].path).toBe('/login')
@@ -39,7 +30,6 @@ describe('Router routes', () => {
   })
 
   it('passes props on parameterized routes', () => {
-    const routes = routerInstance.options.routes
     const byName = Object.fromEntries(routes.map((r) => [r.name, r]))
     expect(byName['scenario-builder'].props).toBe(true)
     expect(byName['graph'].props).toBe(true)
@@ -49,7 +39,6 @@ describe('Router routes', () => {
   })
 
   it('marks protected routes with requiresAuth', () => {
-    const routes = routerInstance.options.routes
     const protectedNames = routes
       .filter((r) => r.meta?.requiresAuth)
       .map((r) => r.name)
@@ -65,7 +54,6 @@ describe('Router routes', () => {
   })
 
   it('does not require auth for landing and login', () => {
-    const routes = routerInstance.options.routes
     const byName = Object.fromEntries(routes.map((r) => [r.name, r]))
     expect(byName['landing'].meta?.requiresAuth).toBeFalsy()
     expect(byName['login'].meta?.requiresAuth).toBeFalsy()
@@ -75,6 +63,7 @@ describe('Router routes', () => {
 describe('Auth guard', () => {
   beforeEach(() => {
     localStorage.clear()
+    setActivePinia(createPinia())
   })
 
   afterEach(() => {
@@ -82,18 +71,7 @@ describe('Auth guard', () => {
   })
 
   it('allows navigation when auth is disabled', async () => {
-    const router = createFreshRouter()
-    // Copy the guard from the real router
-    router.beforeEach((to) => {
-      if (
-        to.meta.requiresAuth &&
-        localStorage.getItem('auth_enabled') === 'true' &&
-        !localStorage.getItem('auth_token')
-      ) {
-        return { name: 'login', query: { redirect: to.fullPath } }
-      }
-    })
-
+    const router = createAppRouter()
     await router.push('/settings')
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('settings')
@@ -102,17 +80,7 @@ describe('Auth guard', () => {
   it('redirects to login when auth is enabled and user is not authenticated', async () => {
     localStorage.setItem('auth_enabled', 'true')
 
-    const router = createFreshRouter()
-    router.beforeEach((to) => {
-      if (
-        to.meta.requiresAuth &&
-        localStorage.getItem('auth_enabled') === 'true' &&
-        !localStorage.getItem('auth_token')
-      ) {
-        return { name: 'login', query: { redirect: to.fullPath } }
-      }
-    })
-
+    const router = createAppRouter()
     await router.push('/settings')
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('login')
@@ -121,19 +89,10 @@ describe('Auth guard', () => {
 
   it('allows navigation when auth is enabled and user is authenticated', async () => {
     localStorage.setItem('auth_enabled', 'true')
-    localStorage.setItem('auth_token', 'test-token')
+    const auth = useAuthStore()
+    auth.login('test-token', { name: 'Test User' })
 
-    const router = createFreshRouter()
-    router.beforeEach((to) => {
-      if (
-        to.meta.requiresAuth &&
-        localStorage.getItem('auth_enabled') === 'true' &&
-        !localStorage.getItem('auth_token')
-      ) {
-        return { name: 'login', query: { redirect: to.fullPath } }
-      }
-    })
-
+    const router = createAppRouter()
     await router.push('/settings')
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('settings')
@@ -142,17 +101,7 @@ describe('Auth guard', () => {
   it('preserves redirect path with route params', async () => {
     localStorage.setItem('auth_enabled', 'true')
 
-    const router = createFreshRouter()
-    router.beforeEach((to) => {
-      if (
-        to.meta.requiresAuth &&
-        localStorage.getItem('auth_enabled') === 'true' &&
-        !localStorage.getItem('auth_token')
-      ) {
-        return { name: 'login', query: { redirect: to.fullPath } }
-      }
-    })
-
+    const router = createAppRouter()
     await router.push('/graph/abc-123')
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('login')
@@ -162,17 +111,7 @@ describe('Auth guard', () => {
   it('allows unauthenticated access to landing page', async () => {
     localStorage.setItem('auth_enabled', 'true')
 
-    const router = createFreshRouter()
-    router.beforeEach((to) => {
-      if (
-        to.meta.requiresAuth &&
-        localStorage.getItem('auth_enabled') === 'true' &&
-        !localStorage.getItem('auth_token')
-      ) {
-        return { name: 'login', query: { redirect: to.fullPath } }
-      }
-    })
-
+    const router = createAppRouter()
     await router.push('/')
     await router.isReady()
     expect(router.currentRoute.value.name).toBe('landing')

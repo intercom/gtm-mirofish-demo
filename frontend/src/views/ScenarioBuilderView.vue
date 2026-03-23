@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { useToast } from '../composables/useToast'
+import { generateOntology, buildGraph } from '../services/api.js'
 
 const props = defineProps({ id: String })
 const router = useRouter()
@@ -13,6 +14,7 @@ const scenario = ref(null)
 const loading = ref(true)
 const error = ref(null)
 const seedText = ref('')
+const statusMessage = ref('')
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
@@ -63,15 +65,43 @@ function toggleIndustry(industry) {
 }
 
 async function runSimulation() {
+  if (running.value || !seedText.value) return
   running.value = true
+  error.value = ''
+
   try {
-    // TODO: Call /api/graph/build with seed text, then navigate to graph view
-    toast.success('Simulation started successfully')
-    router.push('/graph/demo-task-id')
+    // Step 1: Create project via ontology generation
+    statusMessage.value = 'Analyzing scenario and generating ontology...'
+    const text = seedText.value
+    const blob = new Blob([text], { type: 'text/plain' })
+
+    const formData = new FormData()
+    formData.append('files', blob, `${props.id}_seed.txt`)
+    formData.append('simulation_requirement', text)
+    formData.append('project_name', scenario.value.name || props.id)
+
+    const ontologyRes = await generateOntology(formData)
+    const projectId = ontologyRes.data.project_id
+
+    // Step 2: Build knowledge graph
+    statusMessage.value = 'Starting knowledge graph build...'
+    const buildRes = await buildGraph({
+      projectId,
+      graphName: scenario.value.name || 'GTM Simulation Graph',
+    })
+    const taskId = buildRes.data.task_id
+
+    // Navigate to graph view with task_id and project_id in query
+    router.push({
+      path: `/graph/${taskId}`,
+      query: { projectId },
+    })
   } catch (e) {
+    error.value = e.message
     toast.error(`Failed to start simulation: ${e.message}`)
   } finally {
     running.value = false
+    statusMessage.value = ''
   }
 }
 </script>
@@ -196,6 +226,16 @@ async function runSimulation() {
                 {{ mode === 'parallel' ? 'Both' : mode }}
               </button>
             </div>
+          </div>
+
+          <!-- Error display -->
+          <div v-if="error" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+            {{ error }}
+          </div>
+
+          <!-- Status display -->
+          <div v-if="statusMessage" class="text-xs text-[var(--color-primary)] bg-[rgba(32,104,255,0.05)] border border-[var(--color-primary)]/20 rounded-lg p-3">
+            {{ statusMessage }}
           </div>
 
           <!-- Run Simulation Button -->

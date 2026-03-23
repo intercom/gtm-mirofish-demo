@@ -2,10 +2,14 @@
 import { ref } from 'vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import { useToast } from '../composables/useToast'
+import { useRoute } from 'vue-router'
+import { chatWithReport } from '../services/api.js'
 
 const props = defineProps({ taskId: String })
 const toast = useToast()
+const route = useRoute()
 
+const simulationId = ref(route.query.simulationId || props.taskId)
 const messages = ref([])
 const input = ref('')
 const sending = ref(false)
@@ -19,10 +23,19 @@ async function send() {
   sending.value = true
 
   try {
-    // TODO: Call /api/chat with message
+    const chatHistory = messages.value
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .slice(0, -1) // exclude the message we just pushed
+
+    const res = await chatWithReport({
+      simulationId: simulationId.value,
+      message: text,
+      chatHistory,
+    })
+
     messages.value.push({
       role: 'assistant',
-      content: 'Chat integration pending — connect to MiroFish backend /api/chat endpoint.',
+      content: res.data?.response || 'No response received.',
     })
   } catch (e) {
     messages.value.push({ role: 'error', content: 'Something went wrong — check your connection and try again. (' + e.message + ')' })

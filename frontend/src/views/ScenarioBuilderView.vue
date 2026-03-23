@@ -1,12 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { generateOntology, buildGraph } from '../services/api.js'
 
 const props = defineProps({ id: String })
 const router = useRouter()
 
 const scenario = ref(null)
 const loading = ref(true)
+const running = ref(false)
+const error = ref('')
+const statusMessage = ref('')
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
@@ -23,8 +27,44 @@ onMounted(async () => {
 })
 
 async function runSimulation() {
-  // TODO: Call /api/graph/build with seed text, then navigate to graph view
-  router.push(`/graph/demo-task-id`)
+  if (running.value || !scenario.value?.seed_text) return
+  running.value = true
+  error.value = ''
+
+  try {
+    // Step 1: Create project via ontology generation
+    statusMessage.value = 'Analyzing scenario and generating ontology...'
+    const seedText = scenario.value.seed_text
+    const blob = new Blob([seedText], { type: 'text/plain' })
+
+    const formData = new FormData()
+    formData.append('files', blob, `${props.id}_seed.txt`)
+    formData.append('simulation_requirement', seedText)
+    formData.append('project_name', scenario.value.name || props.id)
+
+    const ontologyRes = await generateOntology(formData)
+    const projectId = ontologyRes.data.project_id
+
+    // Step 2: Build knowledge graph
+    statusMessage.value = 'Starting knowledge graph build...'
+    const buildRes = await buildGraph({
+      projectId,
+      graphName: scenario.value.name || 'GTM Simulation Graph',
+    })
+    const taskId = buildRes.data.task_id
+
+    // Navigate to graph view with task_id and project_id in query
+    router.push({
+      path: `/graph/${taskId}`,
+      query: { projectId },
+    })
+  } catch (e) {
+    error.value = e.message
+    console.error('Run simulation failed:', e)
+  } finally {
+    running.value = false
+    statusMessage.value = ''
+  }
 }
 </script>
 
@@ -81,11 +121,22 @@ async function runSimulation() {
             </div>
           </div>
 
+          <!-- Error display -->
+          <div v-if="error" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+            {{ error }}
+          </div>
+
+          <!-- Status display -->
+          <div v-if="statusMessage" class="text-xs text-[#2068FF] bg-[rgba(32,104,255,0.05)] border border-[#2068FF]/20 rounded-lg p-3">
+            {{ statusMessage }}
+          </div>
+
           <button
             @click="runSimulation"
-            class="w-full bg-[#2068FF] hover:bg-[#1a5ae0] text-white font-semibold py-3 rounded-lg transition-colors"
+            :disabled="running"
+            class="w-full bg-[#2068FF] hover:bg-[#1a5ae0] disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
           >
-            Run Simulation
+            {{ running ? 'Starting...' : 'Run Simulation' }}
           </button>
         </div>
       </div>

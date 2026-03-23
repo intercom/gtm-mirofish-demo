@@ -1,7 +1,12 @@
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { chatWithReport } from '../services/api.js'
 
 const props = defineProps({ taskId: String })
+const route = useRoute()
+
+const simulationId = ref(route.query.simulationId || props.taskId)
 const messages = ref([])
 const input = ref('')
 const sending = ref(false)
@@ -15,10 +20,19 @@ async function send() {
   sending.value = true
 
   try {
-    // TODO: Call /api/chat with message
+    const chatHistory = messages.value
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .slice(0, -1) // exclude the message we just pushed
+
+    const res = await chatWithReport({
+      simulationId: simulationId.value,
+      message: text,
+      chatHistory,
+    })
+
     messages.value.push({
       role: 'assistant',
-      content: 'Chat integration pending — connect to MiroFish backend /api/chat endpoint.',
+      content: res.data?.response || 'No response received.',
     })
   } catch (e) {
     messages.value.push({ role: 'assistant', content: 'Error: ' + e.message })
@@ -48,7 +62,7 @@ async function send() {
             :class="msg.role === 'user' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
             {{ msg.role === 'user' ? 'You' : 'MiroFish' }}
           </div>
-          {{ msg.content }}
+          <div class="whitespace-pre-wrap">{{ msg.content }}</div>
         </div>
 
         <div v-if="sending" class="bg-[#f5f5f5] rounded-lg px-4 py-3 mr-12">

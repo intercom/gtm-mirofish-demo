@@ -5,6 +5,7 @@ import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
 const toast = useToast()
+const errorMessage = ref('')
 
 const svgContainer = ref(null)
 const graphData = ref({ nodes: [], edges: [] })
@@ -97,16 +98,19 @@ async function pollStatus() {
       const graphId = data.data.result?.graph_id
       if (graphId) await fetchGraphData(graphId)
       else loadSampleData()
+      toast.success('Knowledge graph built successfully')
     } else if (data.data.status === 'failed') {
       status.value = 'error'
+      errorMessage.value = data.data.message || data.data.error || 'Knowledge graph build failed'
       clearInterval(pollInterval)
       pollInterval = null
       toast.error('Knowledge graph build failed')
     }
-  } catch {
+  } catch (e) {
     clearInterval(pollInterval)
     pollInterval = null
     loadSampleData()
+    toast.info('Using sample data — backend unavailable')
   }
 }
 
@@ -119,6 +123,14 @@ async function fetchGraphData(graphId) {
   } catch {
     loadSampleData()
   }
+}
+
+function retryBuild() {
+  status.value = 'building'
+  progress.value = 0
+  errorMessage.value = ''
+  pollInterval = setInterval(pollStatus, 2000)
+  pollStatus()
 }
 
 // --- Data processing ---
@@ -626,6 +638,28 @@ onUnmounted(() => {
         </div>
       </div>
     </transition>
+
+    <!-- Error Overlay -->
+    <div v-if="status === 'error'" class="absolute inset-0 z-20 flex items-center justify-center bg-[#0a0a1a]/80 backdrop-blur-sm">
+      <div class="flex flex-col items-center text-center px-8 py-10 max-w-md">
+        <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+          <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+        </div>
+        <h3 class="text-base font-semibold text-white mb-1">Graph Build Failed</h3>
+        <p class="text-sm text-white/50 mb-6 max-w-sm">{{ errorMessage || 'An unexpected error occurred during knowledge graph construction.' }}</p>
+        <button
+          @click="retryBuild"
+          class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+          </svg>
+          Try Again
+        </button>
+      </div>
+    </div>
 
     <!-- Continue to Simulation -->
     <Transition name="page">

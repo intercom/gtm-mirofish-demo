@@ -38,6 +38,7 @@
   --color-text: #050505;
   --color-text-secondary: #555555;
   --color-text-muted: #888888;
+  --color-text-inverse: #ffffff;
   --color-text-on-dark: #e0e0e0;
   --color-text-on-dark-muted: rgba(255, 255, 255, 0.4);
   --color-text-on-dark-subtle: rgba(255, 255, 255, 0.5);
@@ -141,6 +142,7 @@
   --card-border: var(--color-border);
   --card-radius: var(--radius-lg);
   --card-padding: var(--space-5);
+  --card-padding-sm: var(--space-4);
   --card-shadow: var(--shadow-sm);
   --card-shadow-hover: var(--shadow-md);
   --card-transition: var(--transition-base);
@@ -148,6 +150,9 @@
   --card-highlight-bg: var(--color-primary-tint-strong);
   --card-highlight-border: var(--color-primary-border);
   --card-highlight-bg-hover: var(--color-primary-tint-hover);
+
+  --card-info-bg: rgba(32, 104, 255, 0.04);
+  --card-info-border: rgba(32, 104, 255, 0.2);
 
   /* ── Component: Inputs ───────────────────────────────────────────────── */
   --input-bg: var(--color-surface);
@@ -191,6 +196,9 @@
   --badge-error-bg-soft: var(--color-error-light);
   --badge-error-text-soft: var(--color-error);
 
+  --badge-info-bg: var(--color-primary-light);
+  --badge-info-text: var(--color-primary);
+
   --badge-radius: var(--radius-full);
   --badge-padding-x: var(--space-2);
   --badge-padding-y: 0.125rem;
@@ -225,6 +233,9 @@
   /* Component: Cards */
   --card-bg: var(--color-surface);
   --card-bg-hover: #252540;
+  --card-highlight-bg: rgba(32, 104, 255, 0.1);
+  --card-highlight-bg-hover: rgba(32, 104, 255, 0.2);
+  --card-info-bg: rgba(32, 104, 255, 0.06);
 
   /* Component: Inputs */
   --input-bg: var(--color-surface);
@@ -232,4 +243,10 @@
 
   /* Component: Badges — soft variants */
   --badge-secondary-bg: rgba(32, 104, 255, 0.15);
+  --badge-success-bg-soft: rgba(0, 153, 0, 0.15);
+  --badge-success-text-soft: #4ade80;
+  --badge-warning-bg-soft: rgba(245, 158, 11, 0.15);
+  --badge-warning-text-soft: #fbbf24;
+  --badge-error-bg-soft: rgba(239, 68, 68, 0.15);
+  --badge-error-text-soft: #f87171;
 }

@@ -1,28 +1,35 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted } from 'vue'
 
-const provider = ref('anthropic')
-const apiKey = ref('')
-const zepKey = ref('')
+const settings = reactive({
+  provider: 'anthropic',
+  apiKey: '',
+  zepKey: '',
+})
 const connectionStatus = ref({ llm: null, zep: null })
+const saved = ref(false)
 
 onMounted(() => {
-  const saved = localStorage.getItem('mirofish-settings')
-  if (saved) {
-    const s = JSON.parse(saved)
-    provider.value = s.provider || 'anthropic'
-    apiKey.value = s.apiKey || ''
-    zepKey.value = s.zepKey || ''
+  try {
+    const raw = localStorage.getItem('mirofish-settings')
+    if (raw) {
+      const s = JSON.parse(raw)
+      settings.provider = s.provider || 'anthropic'
+      settings.apiKey = s.apiKey || ''
+      settings.zepKey = s.zepKey || ''
+    }
+  } catch {
+    localStorage.removeItem('mirofish-settings')
   }
 })
 
-function save() {
-  localStorage.setItem('mirofish-settings', JSON.stringify({
-    provider: provider.value,
-    apiKey: apiKey.value,
-    zepKey: zepKey.value,
-  }))
-}
+let saveTimeout = null
+watch(settings, () => {
+  localStorage.setItem('mirofish-settings', JSON.stringify({ ...settings }))
+  saved.value = true
+  clearTimeout(saveTimeout)
+  saveTimeout = setTimeout(() => { saved.value = false }, 1500)
+}, { deep: true })
 
 async function testConnection(service) {
   connectionStatus.value[service] = 'testing'
@@ -41,7 +48,12 @@ const providers = [
 
 <template>
   <div class="max-w-2xl mx-auto px-6 py-10">
-    <h1 class="text-2xl font-semibold text-[#050505] mb-8">Settings</h1>
+    <div class="flex items-center justify-between mb-8">
+      <h1 class="text-2xl font-semibold text-[#050505]">Settings</h1>
+      <transition name="page">
+        <span v-if="saved" class="text-xs text-[#090] font-medium">Saved</span>
+      </transition>
+    </div>
 
     <!-- LLM Provider -->
     <section class="mb-10">
@@ -49,8 +61,8 @@ const providers = [
       <div class="space-y-3">
         <label v-for="p in providers" :key="p.id"
           class="flex items-center gap-3 p-4 rounded-lg border cursor-pointer transition-colors"
-          :class="provider === p.id ? 'border-[#2068FF] bg-[rgba(32,104,255,0.04)]' : 'border-black/10 hover:border-[#2068FF]/50'">
-          <input type="radio" :value="p.id" v-model="provider" @change="save" class="accent-[#2068FF]" />
+          :class="settings.provider === p.id ? 'border-[#2068FF] bg-[rgba(32,104,255,0.04)]' : 'border-black/10 hover:border-[#2068FF]/50'">
+          <input type="radio" :value="p.id" v-model="settings.provider" class="accent-[#2068FF]" />
           <div>
             <div class="text-sm font-medium text-[#050505]">{{ p.name }}</div>
             <div class="text-xs text-[#888]">Model: {{ p.model }}</div>
@@ -61,9 +73,9 @@ const providers = [
       <div class="mt-4">
         <label class="block text-xs uppercase tracking-wider text-[#888] mb-2">API Key</label>
         <div class="flex gap-2">
-          <input type="password" v-model="apiKey" @change="save"
+          <input type="password" v-model="settings.apiKey"
             placeholder="Enter your API key"
-            class="flex-1 border border-black/10 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]" />
+            class="flex-1 border border-black/10 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent" />
           <button @click="testConnection('llm')"
             class="px-4 py-2 text-sm border border-black/10 rounded-lg hover:bg-black/5 transition-colors">
             {{ connectionStatus.llm === 'testing' ? 'Testing...' : connectionStatus.llm === 'success' ? '✓ Connected' : 'Test' }}
@@ -76,9 +88,9 @@ const providers = [
     <section class="mb-10">
       <h2 class="text-sm font-semibold text-[#050505] mb-4">Zep Cloud (Knowledge Graph)</h2>
       <div class="flex gap-2">
-        <input type="password" v-model="zepKey" @change="save"
+        <input type="password" v-model="settings.zepKey"
           placeholder="Enter Zep API key"
-          class="flex-1 border border-black/10 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]" />
+          class="flex-1 border border-black/10 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent" />
         <button @click="testConnection('zep')"
           class="px-4 py-2 text-sm border border-black/10 rounded-lg hover:bg-black/5 transition-colors">
           {{ connectionStatus.zep === 'testing' ? 'Testing...' : connectionStatus.zep === 'success' ? '✓ Connected' : 'Test' }}

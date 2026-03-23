@@ -15,8 +15,9 @@ const edgeCount = ref(0)
   <div class="h-[calc(100vh-120px)] bg-[#0a0a1a] relative">
     <!-- Status Bar -->
     <div class="absolute top-4 left-4 z-10 flex items-center gap-3">
-      <span class="px-3 py-1 rounded-full text-xs font-medium"
-        :class="status === 'building' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'">
+      <span class="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2"
+        :class="status === 'building' ? 'bg-[rgba(255,86,0,0.15)] text-[#ff5600]' : 'bg-[rgba(0,153,0,0.15)] text-[#090]'">
+        <span v-if="status === 'building'" class="w-3 h-3 border-[1.5px] border-[#ff5600] border-t-transparent rounded-full animate-spin"></span>
         {{ status === 'building' ? 'Building Graph...' : 'Complete' }}
       </span>
       <span class="text-xs text-white/40">{{ nodeCount }} nodes · {{ edgeCount }} edges</span>

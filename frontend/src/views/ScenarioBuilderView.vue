@@ -7,6 +7,7 @@ const router = useRouter()
 
 const scenario = ref(null)
 const loading = ref(true)
+const error = ref(null)
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
@@ -14,9 +15,15 @@ const platformMode = ref('parallel')
 onMounted(async () => {
   try {
     const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (res.ok) scenario.value = await res.json()
+    if (res.ok) {
+      scenario.value = await res.json()
+    } else {
+      error.value = res.status === 404
+        ? 'Scenario not found. It may have been removed or the URL is incorrect.'
+        : `Failed to load scenario (HTTP ${res.status}).`
+    }
   } catch (e) {
-    console.error('Failed to load scenario:', e)
+    error.value = 'Could not connect to the backend. Check that the server is running on port 5001.'
   } finally {
     loading.value = false
   }
@@ -30,7 +37,10 @@ async function runSimulation() {
 
 <template>
   <div class="max-w-4xl mx-auto px-6 py-10">
-    <div v-if="loading" class="text-center text-[#888] py-20">Loading scenario...</div>
+    <div v-if="loading" class="text-center py-20">
+      <div class="w-8 h-8 border-2 border-[#2068FF] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+      <p class="text-sm text-[#888]">Loading scenario...</p>
+    </div>
 
     <div v-else-if="scenario">
       <h1 class="text-3xl font-semibold text-[#050505] mb-2">{{ scenario.name }}</h1>
@@ -92,8 +102,10 @@ async function runSimulation() {
     </div>
 
     <div v-else class="text-center py-20">
-      <p class="text-[#888]">Scenario not found</p>
-      <router-link to="/" class="text-[#2068FF] text-sm mt-2 inline-block">Back to Home</router-link>
+      <div class="max-w-sm mx-auto bg-[rgba(255,86,0,0.06)] border border-[#ff5600]/20 rounded-lg p-6">
+        <p class="text-[#ff5600] text-sm font-medium mb-2">{{ error || 'Scenario not found' }}</p>
+        <router-link to="/" class="text-[#2068FF] text-sm hover:underline">Browse available scenarios</router-link>
+      </div>
     </div>
   </div>
 </template>

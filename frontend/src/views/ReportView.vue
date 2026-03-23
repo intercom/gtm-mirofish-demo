@@ -42,7 +42,7 @@ const generating = ref(true)
       <!-- Content -->
       <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-8">
         <div v-if="generating" class="text-center py-16">
-          <div class="text-4xl mb-4">📝</div>
+          <div class="w-10 h-10 border-2 border-[#2068FF] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p class="text-[#888]">Generating predictive report...</p>
           <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
         </div>

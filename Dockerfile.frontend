@@ -1,16 +1,18 @@
 FROM node:18-slim
 
+RUN corepack enable
+
 WORKDIR /app/frontend
 
 # Copy dependency files first for caching
-COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # Install Node dependencies
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # Copy frontend source
 COPY frontend/ .
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]

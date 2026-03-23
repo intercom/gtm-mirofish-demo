@@ -34,6 +34,10 @@ export const simulationApi = {
     client.get(`/simulation/${simulationId}/config`),
   getConfigRealtime: (simulationId) =>
     client.get(`/simulation/${simulationId}/config/realtime`),
+  downloadConfig: (simulationId) =>
+    client.get(`/simulation/${simulationId}/config/download`, { responseType: 'blob' }),
+  downloadScript: (scriptName) =>
+    client.get(`/simulation/script/${scriptName}/download`, { responseType: 'blob' }),
   generateProfiles: (data) =>
     client.post('/simulation/generate-profiles', data),
 

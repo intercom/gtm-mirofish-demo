@@ -258,6 +258,54 @@ describe('GraphView', () => {
     expect(wrapper.text()).toContain('Build Failed')
   })
 
+  it('shows error overlay with retry button on failure', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: { status: 'failed', progress: 0, message: 'Out of memory' },
+          }),
+      }),
+    )
+
+    const wrapper = mountGraph()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Graph Build Failed')
+    expect(wrapper.text()).toContain('Out of memory')
+    expect(wrapper.text()).toContain('Try Again')
+  })
+
+  it('retries polling when Try Again is clicked after failure', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: { status: 'failed', progress: 0, message: 'Network error' },
+        }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const wrapper = mountGraph()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Graph Build Failed')
+
+    // Reset fetch to succeed with sample data fallback
+    fetchMock.mockRejectedValue(new Error('Not found'))
+
+    const retryBtn = wrapper.find('button')
+    await retryBtn.trigger('click')
+    await flushPromises()
+    vi.advanceTimersByTime(2100)
+    await flushPromises()
+
+    // After retry, should have fallen back to sample data (fetch rejects)
+    expect(wrapper.text()).toContain('Complete')
+  })
+
   it('applies dark canvas background', () => {
     const wrapper = mountGraph()
     const root = wrapper.find('.bg-\\[\\#0a0a1a\\]')

@@ -103,4 +103,54 @@ describe('useTheme', () => {
     const { preference } = useTheme()
     expect(preference.value).toBe('system')
   })
+
+  describe('route-aware defaults', () => {
+    it('uses dark route default when no explicit preference is stored', () => {
+      const media = createMockMatchMedia(false)
+      window.matchMedia = media.mock
+
+      const { isDark, setRouteDefault } = useTheme()
+      expect(isDark.value).toBe(false)
+
+      setRouteDefault('dark')
+      expect(isDark.value).toBe(true)
+      expect(document.documentElement.classList.contains('dark')).toBe(true)
+    })
+
+    it('uses light route default when no explicit preference is stored', () => {
+      const media = createMockMatchMedia(true)
+      window.matchMedia = media.mock
+
+      const { isDark, setRouteDefault } = useTheme()
+      expect(isDark.value).toBe(true)
+
+      setRouteDefault('light')
+      expect(isDark.value).toBe(false)
+      expect(document.documentElement.classList.contains('dark')).toBe(false)
+    })
+
+    it('ignores route default when user has explicitly set a preference', () => {
+      localStorage.setItem('mirofish-theme', 'light')
+      const media = createMockMatchMedia(false)
+      window.matchMedia = media.mock
+
+      const { isDark, setRouteDefault } = useTheme()
+      setRouteDefault('dark')
+      expect(isDark.value).toBe(false)
+      expect(document.documentElement.classList.contains('dark')).toBe(false)
+    })
+
+    it('ignores route default after setTheme is called', () => {
+      const media = createMockMatchMedia(false)
+      window.matchMedia = media.mock
+
+      const { isDark, setTheme, setRouteDefault } = useTheme()
+      setRouteDefault('dark')
+      expect(isDark.value).toBe(true)
+
+      setTheme('light')
+      setRouteDefault('dark')
+      expect(isDark.value).toBe(false)
+    })
+  })
 })

@@ -9,7 +9,7 @@ defineProps({
 
 <template>
   <div
-    class="bg-white border border-black/10 rounded-lg"
+    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg"
     :class="{ 'p-6': padding }"
   >
     <slot />

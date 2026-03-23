@@ -16,12 +16,12 @@ describe('Button', () => {
   it('applies secondary variant classes', () => {
     const wrapper = mount(Button, { props: { variant: 'secondary' } })
     expect(wrapper.classes()).toContain('border')
-    expect(wrapper.classes()).toContain('border-black/10')
+    expect(wrapper.classes()).toContain('border-[var(--color-border)]')
   })
 
   it('applies ghost variant classes', () => {
     const wrapper = mount(Button, { props: { variant: 'ghost' } })
-    expect(wrapper.classes()).toContain('text-[#555]')
+    expect(wrapper.classes()).toContain('text-[var(--color-text-secondary)]')
   })
 
   it('applies size classes', () => {

@@ -169,15 +169,15 @@ onUnmounted(() => {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
       <div>
-        <h1 class="text-xl md:text-2xl font-semibold text-[#050505]">Live Simulation</h1>
-        <p class="text-xs md:text-sm text-[#888]">{{ simulationId || 'Initializing...' }}</p>
+        <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">Live Simulation</h1>
+        <p class="text-xs md:text-sm text-[var(--color-text-muted)]">{{ simulationId || 'Initializing...' }}</p>
       </div>
       <span class="self-start sm:self-auto px-4 py-1.5 rounded-full text-xs font-semibold"
         :class="{
-          'bg-yellow-100 text-yellow-700': status === 'preparing' || status === 'initializing',
-          'bg-green-100 text-green-700': status === 'running',
-          'bg-blue-100 text-blue-700': status === 'complete',
-          'bg-red-100 text-red-700': status === 'failed',
+          'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-400': status === 'preparing' || status === 'initializing',
+          'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400': status === 'running',
+          'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400': status === 'complete',
+          'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400': status === 'failed',
         }">
         {{ status === 'running' ? '● Running' : status === 'complete' ? '✓ Complete' : status === 'failed' ? '✗ Failed' : '◌ ' + (phase || 'Starting') }}
       </span>
@@ -185,56 +185,56 @@ onUnmounted(() => {
 
     <!-- Progress Bar (during prep/run) -->
     <div v-if="status !== 'complete' && status !== 'failed'" class="mb-6">
-      <div class="bg-black/5 rounded-full h-2 overflow-hidden">
+      <div class="bg-[var(--color-tint)] rounded-full h-2 overflow-hidden">
         <div class="bg-[#2068FF] h-full rounded-full transition-all duration-500" :style="{ width: progress + '%' }"></div>
       </div>
-      <p class="text-xs text-[#888] mt-1">{{ message }}</p>
+      <p class="text-xs text-[var(--color-text-muted)] mt-1">{{ message }}</p>
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
+    <div v-if="error" class="mb-6 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-4">
       {{ error }}
     </div>
 
     <!-- Metrics -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
-      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
         <div class="text-2xl md:text-3xl font-semibold text-[#2068FF]">{{ metrics.actions }}</div>
-        <div class="text-xs text-[#888] mt-1">Total Actions</div>
+        <div class="text-xs text-[var(--color-text-muted)] mt-1">Total Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
         <div class="text-2xl md:text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
-        <div class="text-xs text-[#888] mt-1">Reddit Actions</div>
+        <div class="text-xs text-[var(--color-text-muted)] mt-1">Reddit Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
         <div class="text-2xl md:text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
-        <div class="text-xs text-[#888] mt-1">Twitter Actions</div>
+        <div class="text-xs text-[var(--color-text-muted)] mt-1">Twitter Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
         <div class="text-2xl md:text-3xl font-semibold text-[#090]">{{ metrics.round }}</div>
-        <div class="text-xs text-[#888] mt-1">Round</div>
+        <div class="text-xs text-[var(--color-text-muted)] mt-1">Round</div>
       </div>
     </div>
 
     <!-- Activity Feed -->
-    <div class="bg-white border border-black/10 rounded-lg p-4 md:p-6">
-      <h3 class="text-sm font-semibold text-[#050505] mb-4">Agent Activity Feed</h3>
-      <div v-if="activities.length === 0" class="text-center text-[#888] py-8">
+    <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-6">
+      <h3 class="text-sm font-semibold text-[var(--color-text)] mb-4">Agent Activity Feed</h3>
+      <div v-if="activities.length === 0" class="text-center text-[var(--color-text-muted)] py-8">
         <p class="text-4xl mb-2">🐦</p>
         <p class="text-sm">{{ status === 'running' ? 'Waiting for agent actions...' : status === 'complete' ? 'Simulation completed' : 'Real-time agent actions will appear here' }}</p>
       </div>
       <div v-else class="space-y-3 max-h-80 overflow-y-auto">
         <div v-for="(act, i) in activities" :key="i"
-          class="flex items-start gap-3 p-3 bg-[#fafafa] rounded-lg">
+          class="flex items-start gap-3 p-3 bg-[var(--color-bg)] rounded-lg">
           <span class="text-xs px-2 py-0.5 rounded-full font-medium"
-            :class="act.platform === 'twitter' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'">
+            :class="act.platform === 'twitter' ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400'">
             {{ act.platform }}
           </span>
           <div class="flex-1 min-w-0">
-            <div class="text-xs font-medium text-[#050505]">{{ act.agent }} · Round {{ act.round }}</div>
-            <div class="text-xs text-[#555] mt-0.5 truncate">{{ act.content }}</div>
+            <div class="text-xs font-medium text-[var(--color-text)]">{{ act.agent }} · Round {{ act.round }}</div>
+            <div class="text-xs text-[var(--color-text-secondary)] mt-0.5 truncate">{{ act.content }}</div>
           </div>
-          <span class="text-[10px] text-[#aaa] uppercase shrink-0">{{ act.type }}</span>
+          <span class="text-[10px] text-[var(--color-text-muted)] uppercase shrink-0">{{ act.type }}</span>
         </div>
       </div>
     </div>

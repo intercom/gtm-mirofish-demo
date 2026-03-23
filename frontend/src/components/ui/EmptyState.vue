@@ -15,8 +15,8 @@ defineEmits(['action'])
     <div class="w-16 h-16 rounded-full bg-[rgba(32,104,255,0.08)] flex items-center justify-center mb-4">
       <span class="text-3xl">{{ icon }}</span>
     </div>
-    <h3 class="text-base font-semibold text-[#050505] mb-1">{{ title }}</h3>
-    <p v-if="description" class="text-sm text-[#888] mb-6 max-w-sm">{{ description }}</p>
+    <h3 class="text-base font-semibold text-[var(--color-text)] mb-1">{{ title }}</h3>
+    <p v-if="description" class="text-sm text-[var(--color-text-muted)] mb-6 max-w-sm">{{ description }}</p>
     <router-link
       v-if="actionLabel && actionTo"
       :to="actionTo"

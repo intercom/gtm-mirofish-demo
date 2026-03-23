@@ -17,7 +17,7 @@ const sizeClasses = {
       class="rounded-full border-[#2068FF] border-t-transparent animate-spin"
       :class="sizeClasses[size]"
     ></div>
-    <p v-if="label" class="text-sm text-[#888]">{{ label }}</p>
+    <p v-if="label" class="text-sm text-[var(--color-text-muted)]">{{ label }}</p>
     <span class="sr-only">{{ label }}</span>
   </div>
 </template>

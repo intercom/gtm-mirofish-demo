@@ -6,7 +6,7 @@ describe('StatusIndicator', () => {
   it('renders with idle status by default', () => {
     const wrapper = mount(StatusIndicator)
     const dot = wrapper.find('.rounded-full')
-    expect(dot.classes()).toContain('bg-[#888]')
+    expect(dot.classes()).toContain('bg-[var(--color-text-muted)]')
     expect(wrapper.text()).toBe('idle')
   })
 

@@ -129,14 +129,14 @@ async function runSimulation() {
         <button
           @click="activeTab = 'seed'"
           class="flex-1 py-2 text-sm font-medium rounded-lg transition-colors"
-          :class="activeTab === 'seed' ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555]'"
+          :class="activeTab === 'seed' ? 'bg-[#2068FF] text-white' : 'bg-[var(--color-tint)] text-[var(--color-text-secondary)]'"
         >
           Seed Document
         </button>
         <button
           @click="activeTab = 'config'"
           class="flex-1 py-2 text-sm font-medium rounded-lg transition-colors"
-          :class="activeTab === 'config' ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555]'"
+          :class="activeTab === 'config' ? 'bg-[#2068FF] text-white' : 'bg-[var(--color-tint)] text-[var(--color-text-secondary)]'"
         >
           Configuration
         </button>
@@ -247,7 +247,7 @@ async function runSimulation() {
           </div>
 
           <!-- Error display -->
-          <div v-if="error" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+          <div v-if="error" class="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3">
             {{ error }}
           </div>
 

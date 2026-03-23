@@ -24,14 +24,14 @@ function onOverlayClick(e) {
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
         @click="onOverlayClick"
       >
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
-          <div v-if="title || $slots.header" class="flex items-center justify-between px-6 py-4 border-b border-black/10">
+        <div class="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
+          <div v-if="title || $slots.header" class="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
             <slot name="header">
-              <h2 class="text-lg font-semibold text-[#050505]">{{ title }}</h2>
+              <h2 class="text-lg font-semibold text-[var(--color-text)]">{{ title }}</h2>
             </slot>
             <button
               @click="emit('close')"
-              class="text-[#888] hover:text-[#050505] transition-colors p-1 -mr-1 cursor-pointer"
+              class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors p-1 -mr-1 cursor-pointer"
               aria-label="Close"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -44,7 +44,7 @@ function onOverlayClick(e) {
             <slot />
           </div>
 
-          <div v-if="$slots.footer" class="px-6 py-4 border-t border-black/10">
+          <div v-if="$slots.footer" class="px-6 py-4 border-t border-[var(--color-border)]">
             <slot name="footer" />
           </div>
         </div>

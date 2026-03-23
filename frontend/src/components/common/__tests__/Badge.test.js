@@ -10,8 +10,8 @@ describe('Badge', () => {
 
   it('applies default variant classes', () => {
     const wrapper = mount(Badge)
-    expect(wrapper.classes()).toContain('bg-black/5')
-    expect(wrapper.classes()).toContain('text-[#555]')
+    expect(wrapper.classes()).toContain('bg-[var(--color-tint)]')
+    expect(wrapper.classes()).toContain('text-[var(--color-text-secondary)]')
   })
 
   it('applies success variant classes', () => {

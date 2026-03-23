@@ -63,7 +63,7 @@ async function send() {
             class="rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-sm"
             :class="{
               'bg-[rgba(32,104,255,0.08)] ml-6 md:ml-12': msg.role === 'user',
-              'bg-[#f5f3ee] mr-6 md:mr-12': msg.role === 'assistant',
+              'bg-[var(--color-bg-alt)] mr-6 md:mr-12': msg.role === 'assistant',
               'bg-[rgba(255,86,0,0.08)] border border-[rgba(255,86,0,0.2)] mr-6 md:mr-12': msg.role === 'error',
             }">
             <div class="text-xs font-medium mb-1"
@@ -77,21 +77,21 @@ async function send() {
           </div>
         </TransitionGroup>
 
-        <div v-if="sending" class="bg-[#f5f3ee] rounded-lg px-3 md:px-4 py-2.5 md:py-3 mr-6 md:mr-12">
+        <div v-if="sending" class="bg-[var(--color-bg-alt)] rounded-lg px-3 md:px-4 py-2.5 md:py-3 mr-6 md:mr-12">
           <div class="text-xs font-medium text-[#ff5600] mb-1">MiroFish</div>
-          <span class="text-sm text-[#888]">Thinking...</span>
+          <span class="text-sm text-[var(--color-text-muted)]">Thinking...</span>
         </div>
       </div>
     </div>
 
     <!-- Input -->
-    <div class="border-t border-black/10 px-4 md:px-6 py-3 md:py-4">
+    <div class="border-t border-[var(--color-border)] px-4 md:px-6 py-3 md:py-4">
       <div class="max-w-2xl mx-auto flex gap-2 md:gap-3">
         <input
           v-model="input"
           @keydown.enter.exact="send"
           placeholder="Ask about the simulation results..."
-          class="flex-1 border border-black/10 rounded-lg px-3 md:px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
+          class="flex-1 border border-[var(--color-border)] rounded-lg px-3 md:px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
         />
         <button
           @click="send"

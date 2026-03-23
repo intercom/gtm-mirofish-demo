@@ -107,7 +107,7 @@ onUnmounted(() => {
 <template>
   <div class="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
-      <h1 class="text-xl md:text-2xl font-semibold text-[#050505]">Simulation Report</h1>
+      <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">Simulation Report</h1>
       <div class="flex gap-2">
         <router-link v-if="!generating"
           :to="{ path: `/chat/${simulationId}`, query: { simulationId } }"
@@ -118,16 +118,16 @@ onUnmounted(() => {
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="mb-6 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-4">
+    <div v-if="error" class="mb-6 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-4">
       {{ error }}
     </div>
 
     <!-- Progress Bar -->
     <div v-if="generating" class="mb-6">
-      <div class="bg-black/5 rounded-full h-2 overflow-hidden">
+      <div class="bg-[var(--color-tint)] rounded-full h-2 overflow-hidden">
         <div class="bg-[#2068FF] h-full rounded-full transition-all duration-500" :style="{ width: progress + '%' }"></div>
       </div>
-      <p class="text-xs text-[#888] mt-1">{{ message }}</p>
+      <p class="text-xs text-[var(--color-text-muted)] mt-1">{{ message }}</p>
     </div>
 
     <!-- Mobile: horizontal tab bar -->
@@ -138,7 +138,7 @@ onUnmounted(() => {
           :key="i"
           @click="activeChapter = i"
           class="px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-colors"
-          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555] hover:bg-black/10'"
+          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'bg-[var(--color-tint)] text-[var(--color-text-secondary)] hover:bg-black/10'"
         >
           {{ chapter.title }}
         </button>
@@ -148,7 +148,7 @@ onUnmounted(() => {
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Desktop: Chapter Nav sidebar -->
       <div class="hidden md:block space-y-2">
-        <div v-if="chapters.length === 0" class="text-sm text-[#888]">
+        <div v-if="chapters.length === 0" class="text-sm text-[var(--color-text-muted)]">
           {{ generating ? 'Generating report...' : 'No chapters yet' }}
         </div>
         <button
@@ -156,24 +156,24 @@ onUnmounted(() => {
           :key="i"
           @click="activeChapter = i"
           class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
-          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'text-[#555] hover:bg-black/5'"
+          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-tint)]'"
         >
           {{ chapter.title }}
         </button>
       </div>
 
       <!-- Content -->
-      <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-4 md:p-8">
+      <div class="md:col-span-3 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-8">
         <div v-if="generating && chapters.length === 0" class="text-center py-12 md:py-16">
           <div class="text-4xl mb-4">📝</div>
-          <p class="text-[#888]">Generating predictive report...</p>
-          <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
+          <p class="text-[var(--color-text-muted)]">Generating predictive report...</p>
+          <p class="text-xs text-[var(--color-text-muted)] mt-2">Multi-chapter analysis with evidence from simulation</p>
         </div>
         <div v-else-if="chapters[activeChapter]" class="prose prose-sm max-w-none">
-          <div class="whitespace-pre-wrap text-sm text-[#333] leading-relaxed">{{ chapters[activeChapter].content }}</div>
+          <div class="whitespace-pre-wrap text-sm text-[var(--color-text)] leading-relaxed">{{ chapters[activeChapter].content }}</div>
         </div>
         <!-- Mobile: empty state when no chapters -->
-        <div v-if="!generating && chapters.length === 0" class="md:hidden text-sm text-[#888] text-center py-8">
+        <div v-if="!generating && chapters.length === 0" class="md:hidden text-sm text-[var(--color-text-muted)] text-center py-8">
           No chapters yet
         </div>
       </div>

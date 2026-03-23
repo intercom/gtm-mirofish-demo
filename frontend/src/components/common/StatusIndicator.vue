@@ -16,11 +16,11 @@ defineProps({
         'bg-green-500 animate-pulse': status === 'running',
         'bg-[#2068FF]': status === 'complete',
         'bg-red-500': status === 'error',
-        'bg-[#888]': status === 'idle',
+        'bg-[var(--color-text-muted)]': status === 'idle',
       }"
     />
     <slot>
-      <span class="text-[#555] capitalize">{{ status }}</span>
+      <span class="text-[var(--color-text-secondary)] capitalize">{{ status }}</span>
     </slot>
   </span>
 </template>

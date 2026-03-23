@@ -30,8 +30,8 @@ defineEmits(['click'])
     :class="[
       {
         'bg-[#2068FF] hover:bg-[#1a5ae0] text-white': variant === 'primary',
-        'bg-white border border-black/10 text-[#050505] hover:bg-black/5': variant === 'secondary',
-        'text-[#555] hover:bg-black/5': variant === 'ghost',
+        'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text)] hover:bg-black/5': variant === 'secondary',
+        'text-[var(--color-text-secondary)] hover:bg-black/5': variant === 'ghost',
       },
       {
         'px-3 py-1.5 text-xs gap-1.5': size === 'sm',

@@ -10,9 +10,9 @@ describe('Card', () => {
 
   it('has white bg and subtle border', () => {
     const wrapper = mount(Card)
-    expect(wrapper.classes()).toContain('bg-white')
+    expect(wrapper.classes()).toContain('bg-[var(--color-surface)]')
     expect(wrapper.classes()).toContain('border')
-    expect(wrapper.classes()).toContain('border-black/10')
+    expect(wrapper.classes()).toContain('border-[var(--color-border)]')
     expect(wrapper.classes()).toContain('rounded-lg')
   })
 

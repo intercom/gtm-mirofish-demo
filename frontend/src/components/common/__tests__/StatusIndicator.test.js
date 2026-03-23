@@ -6,27 +6,27 @@ describe('StatusIndicator', () => {
   it('renders with idle status by default', () => {
     const wrapper = mount(StatusIndicator)
     const dot = wrapper.find('.rounded-full')
-    expect(dot.classes()).toContain('bg-[#888]')
+    expect(dot.classes()).toContain('bg-[var(--color-text-muted)]')
     expect(wrapper.text()).toBe('idle')
   })
 
   it('shows green pulsing dot for running status', () => {
     const wrapper = mount(StatusIndicator, { props: { status: 'running' } })
     const dot = wrapper.find('.rounded-full')
-    expect(dot.classes()).toContain('bg-green-500')
+    expect(dot.classes()).toContain('bg-[var(--color-success)]')
     expect(dot.classes()).toContain('animate-pulse')
   })
 
-  it('shows blue dot for complete status', () => {
+  it('shows primary-colored dot for complete status', () => {
     const wrapper = mount(StatusIndicator, { props: { status: 'complete' } })
     const dot = wrapper.find('.rounded-full')
-    expect(dot.classes()).toContain('bg-[#2068FF]')
+    expect(dot.classes()).toContain('bg-[var(--color-primary)]')
   })
 
-  it('shows red dot for error status', () => {
+  it('shows error-colored dot for error status', () => {
     const wrapper = mount(StatusIndicator, { props: { status: 'error' } })
     const dot = wrapper.find('.rounded-full')
-    expect(dot.classes()).toContain('bg-red-500')
+    expect(dot.classes()).toContain('bg-[var(--color-error)]')
   })
 
   it('renders custom slot content instead of default label', () => {

@@ -10,18 +10,21 @@ describe('Button', () => {
 
   it('applies primary variant classes by default', () => {
     const wrapper = mount(Button)
-    expect(wrapper.classes()).toContain('bg-[#2068FF]')
+    expect(wrapper.classes()).toContain('bg-[var(--btn-primary-bg)]')
+    expect(wrapper.classes()).toContain('text-[var(--btn-primary-text)]')
   })
 
   it('applies secondary variant classes', () => {
     const wrapper = mount(Button, { props: { variant: 'secondary' } })
     expect(wrapper.classes()).toContain('border')
-    expect(wrapper.classes()).toContain('border-black/10')
+    expect(wrapper.classes()).toContain('border-[var(--btn-secondary-border)]')
+    expect(wrapper.classes()).toContain('bg-[var(--btn-secondary-bg)]')
   })
 
   it('applies ghost variant classes', () => {
     const wrapper = mount(Button, { props: { variant: 'ghost' } })
-    expect(wrapper.classes()).toContain('text-[#555]')
+    expect(wrapper.classes()).toContain('bg-transparent')
+    expect(wrapper.classes()).toContain('text-[var(--btn-ghost-text)]')
   })
 
   it('applies size classes', () => {

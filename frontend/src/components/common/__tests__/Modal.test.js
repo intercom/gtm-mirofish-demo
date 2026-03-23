@@ -29,6 +29,12 @@ describe('Modal', () => {
     expect(wrapper.text()).toContain('My Dialog')
   })
 
+  it('uses token-based surface color on dialog panel', () => {
+    const wrapper = mountModal({ title: 'Test' })
+    const panel = wrapper.find('.bg-\\[var\\(--color-surface\\)\\]')
+    expect(panel.exists()).toBe(true)
+  })
+
   it('emits close when close button is clicked', async () => {
     const wrapper = mountModal({ title: 'Test' })
     await wrapper.find('button[aria-label="Close"]').trigger('click')

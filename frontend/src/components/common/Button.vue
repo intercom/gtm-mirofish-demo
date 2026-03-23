@@ -26,12 +26,13 @@ defineEmits(['click'])
     :type="type"
     :disabled="disabled || loading"
     @click="$emit('click', $event)"
-    class="inline-flex items-center justify-center font-semibold transition-colors rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+    class="inline-flex items-center justify-center font-semibold rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+    style="transition: var(--btn-transition)"
     :class="[
       {
-        'bg-[#2068FF] hover:bg-[#1a5ae0] text-white': variant === 'primary',
-        'bg-white border border-black/10 text-[#050505] hover:bg-black/5': variant === 'secondary',
-        'text-[#555] hover:bg-black/5': variant === 'ghost',
+        'bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-bg-hover)] active:bg-[var(--btn-primary-bg-active)] text-[var(--btn-primary-text)]': variant === 'primary',
+        'bg-[var(--btn-secondary-bg)] border border-[var(--btn-secondary-border)] text-[var(--btn-secondary-text)] hover:bg-[var(--btn-secondary-bg-hover)]': variant === 'secondary',
+        'bg-transparent text-[var(--btn-ghost-text)] hover:bg-[var(--btn-ghost-bg-hover)]': variant === 'ghost',
       },
       {
         'px-3 py-1.5 text-xs gap-1.5': size === 'sm',

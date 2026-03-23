@@ -3,20 +3,23 @@ defineProps({
   variant: {
     type: String,
     default: 'default',
-    validator: (v) => ['default', 'success', 'warning', 'error', 'info'].includes(v),
+    validator: (v) => ['default', 'primary', 'success', 'warning', 'error', 'info', 'orange'].includes(v),
   },
 })
 </script>
 
 <template>
   <span
-    class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
+    class="inline-flex items-center rounded-full font-medium"
+    style="padding: var(--badge-padding-y) var(--badge-padding-x); font-size: var(--badge-font-size)"
     :class="{
-      'bg-black/5 text-[#555]': variant === 'default',
-      'bg-green-100 text-green-700': variant === 'success',
-      'bg-yellow-100 text-yellow-700': variant === 'warning',
-      'bg-red-100 text-red-700': variant === 'error',
-      'bg-blue-100 text-blue-700': variant === 'info',
+      'bg-black/5 text-[var(--color-text-secondary)]': variant === 'default',
+      'bg-[var(--badge-primary-bg)] text-[var(--badge-primary-text)]': variant === 'primary',
+      'bg-[var(--badge-success-bg-soft)] text-[var(--badge-success-text-soft)]': variant === 'success',
+      'bg-[var(--badge-warning-bg-soft)] text-[var(--badge-warning-text-soft)]': variant === 'warning',
+      'bg-[var(--badge-error-bg-soft)] text-[var(--badge-error-text-soft)]': variant === 'error',
+      'bg-[var(--badge-secondary-bg)] text-[var(--badge-secondary-text)]': variant === 'info',
+      'bg-[var(--badge-orange-bg-soft)] text-[var(--badge-orange-text-soft)]': variant === 'orange',
     }"
   >
     <slot />

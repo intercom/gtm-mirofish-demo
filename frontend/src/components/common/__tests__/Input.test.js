@@ -25,6 +25,14 @@ describe('Input', () => {
     expect(wrapper.findAll('option')).toHaveLength(2)
   })
 
+  it('applies token-based input styling classes', () => {
+    const wrapper = mount(Input)
+    const input = wrapper.find('input')
+    expect(input.classes()).toContain('bg-[var(--input-bg)]')
+    expect(input.classes()).toContain('border-[var(--input-border)]')
+    expect(input.classes()).toContain('text-[var(--input-text)]')
+  })
+
   it('renders label when provided', () => {
     const wrapper = mount(Input, { props: { label: 'Email' } })
     expect(wrapper.find('label').text()).toBe('Email')

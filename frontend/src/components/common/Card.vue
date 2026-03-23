@@ -9,7 +9,8 @@ defineProps({
 
 <template>
   <div
-    class="bg-white border border-black/10 rounded-lg"
+    class="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-[var(--card-radius)]"
+    style="box-shadow: var(--card-shadow)"
     :class="{ 'p-6': padding }"
   >
     <slot />

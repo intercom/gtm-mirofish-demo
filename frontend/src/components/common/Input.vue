@@ -25,12 +25,12 @@ const props = defineProps({
 defineEmits(['update:modelValue'])
 
 const inputClasses =
-  'w-full border border-black/10 rounded-lg px-4 py-2 text-sm bg-white text-[#050505] placeholder-[#888] focus:ring-2 focus:ring-[#2068FF] focus:border-transparent outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+  'w-full border border-[var(--input-border)] rounded-[var(--input-radius)] px-4 py-2 text-sm bg-[var(--input-bg)] text-[var(--input-text)] placeholder-[var(--input-placeholder)] focus:ring-2 focus:ring-[var(--input-ring)] focus:border-transparent outline-none disabled:opacity-50 disabled:cursor-not-allowed'
 </script>
 
 <template>
   <div>
-    <label v-if="label" class="block text-xs uppercase tracking-wider text-[#888] mb-2">
+    <label v-if="label" class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
       {{ label }}
     </label>
 
@@ -39,6 +39,7 @@ const inputClasses =
       :value="modelValue"
       :disabled="disabled"
       :class="inputClasses"
+      style="transition: var(--input-transition)"
       @change="$emit('update:modelValue', $event.target.value)"
     >
       <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
@@ -54,6 +55,7 @@ const inputClasses =
       :disabled="disabled"
       :rows="rows"
       :class="[inputClasses, 'resize-y']"
+      style="transition: var(--input-transition)"
       @input="$emit('update:modelValue', $event.target.value)"
     />
 
@@ -64,6 +66,7 @@ const inputClasses =
       :placeholder="placeholder"
       :disabled="disabled"
       :class="inputClasses"
+      style="transition: var(--input-transition)"
       @input="$emit('update:modelValue', $event.target.value)"
     />
   </div>

@@ -4,10 +4,10 @@
 
 ## Prerequisites
 
-- **Node.js** 18+ and npm
+- **Node.js** 18+ and pnpm
 - **Python** 3.11-3.12 and [uv](https://docs.astral.sh/uv/)
 - **Docker** and Docker Compose
-- **Ralphy CLI** — `npm install -g ralphy` ([GitHub](https://github.com/michaelshimeles/ralphy))
+- **Ralphy CLI** — `pnpm add -g ralphy` ([GitHub](https://github.com/michaelshimeles/ralphy))
 - **Claude Code** with Ralph Loop plugin (for inner-loop iteration)
 - **API Keys**: LLM provider (Anthropic/OpenAI/Google) + Zep Cloud
 
@@ -29,28 +29,34 @@
                         └───────────┘    └───────────────┘   └─────────────┘
 ```
 
-## Step 1: Initial Setup (Manual)
+## Step 1: Initial Setup (already done)
+
+The repo is already scaffolded with Vue 3 + Vite + Tailwind frontend, MiroFish Flask backend, GTM scenarios, and Ralphy config. Group 0 of the PRD is complete.
 
 ```bash
-# Clone the repo
-git clone https://github.com/intercom/gtm-mirofish-demo.git
-cd gtm-mirofish-demo
-
-# Copy environment configuration
-cp .env.example .env
-# Edit .env with your API keys
-
-# Initialize Ralphy
-ralphy --init
+cd /Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo
 ```
 
 ## Step 2: Run Ralphy — Full Build
 
+Open a **new terminal** and run:
+
 ```bash
-# Execute all tasks with parallel execution
-# Max 4 concurrent agents, each in isolated git worktrees
-ralphy --prd PRD.json --parallel --max-parallel 4 --branch-per-task --draft-pr
+cd /Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo
+ralphy --json PRD.json --parallel --max-parallel 4 --fast
 ```
+
+**Flag reference:**
+- `--json PRD.json` — reads the JSON task file (not `--prd` which expects markdown)
+- `--parallel` — enables parallel execution via git worktrees
+- `--max-parallel 4` — up to 4 Claude Code agents running simultaneously
+- `--fast` — skips lint/test checks (no test suite yet)
+
+**Optional flags you can add:**
+- `--branch-per-task` — creates a git branch per task (useful for review)
+- `--draft-pr` — auto-creates draft PRs for each task
+- `--verbose` — show detailed execution output
+- `--dry-run` — preview what would run without executing
 
 ### Parallel Group Execution Order
 

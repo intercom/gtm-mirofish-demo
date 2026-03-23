@@ -1,0 +1,19 @@
+project:
+  name: gtm-mirofish-demo
+  language: Unknown
+  framework: ""
+  description: ""
+commands:
+  test: ""
+  lint: ""
+  build: ""
+rules:
+  - Use pnpm, never npm
+  - "Use Intercom brand tokens: primary blue #2068FF, navy #050505, fin orange
+    #ff5600, accent purple #A0F"
+  - All Vue components use Composition API with script setup
+  - Use Tailwind CSS utility classes from frontend/src/assets/brand-tokens.css
+  - Backend services in backend/app/services/ are read-only - do not modify
+  - Frontend API requests use /api prefix which proxies to Flask backend
+boundaries:
+  never_touch: null

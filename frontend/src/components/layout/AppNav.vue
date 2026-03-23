@@ -1,11 +1,18 @@
 <script setup>
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
+const mobileMenuOpen = ref(false)
+
+watch(() => route.path, () => {
+  mobileMenuOpen.value = false
+})
 </script>
 
 <template>
-  <nav class="bg-[#050505] border-b border-white/10 px-6 py-3 flex items-center justify-between">
+  <nav class="bg-[#050505] border-b border-white/10 px-4 md:px-6 py-3 flex items-center justify-between relative">
     <div class="flex items-center gap-6">
       <!-- Intercom Logo -->
       <router-link to="/" class="flex items-center gap-2 text-white no-underline">
@@ -18,7 +25,7 @@ const router = useRouter()
           <path d="M8 20.5C9.5 22 11.5 23 14 23C16.5 23 18.5 22 20 20.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
         </svg>
         <span class="text-sm font-semibold tracking-tight">MiroFish</span>
-        <span class="text-xs text-white/40 ml-1">GTM Demo</span>
+        <span class="text-xs text-white/40 ml-1 hidden sm:inline">GTM Demo</span>
       </router-link>
 
       <div class="hidden md:flex items-center gap-4">
@@ -28,10 +35,51 @@ const router = useRouter()
     </div>
 
     <div class="flex items-center gap-3">
-      <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
+      <div class="hidden md:flex items-center gap-2 text-xs text-white/40">
         <span class="w-2 h-2 rounded-full bg-green-500"></span>
         Connected
       </div>
+
+      <!-- Hamburger button (mobile only) -->
+      <button
+        @click="mobileMenuOpen = !mobileMenuOpen"
+        class="md:hidden flex flex-col justify-center items-center w-8 h-8 gap-1.5"
+        aria-label="Toggle menu"
+      >
+        <span class="block w-5 h-0.5 bg-white/70 transition-transform duration-200"
+          :class="mobileMenuOpen ? 'rotate-45 translate-y-[4px]' : ''"></span>
+        <span class="block w-5 h-0.5 bg-white/70 transition-opacity duration-200"
+          :class="mobileMenuOpen ? 'opacity-0' : ''"></span>
+        <span class="block w-5 h-0.5 bg-white/70 transition-transform duration-200"
+          :class="mobileMenuOpen ? '-rotate-45 -translate-y-[4px]' : ''"></span>
+      </button>
     </div>
+
+    <!-- Mobile menu dropdown -->
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
+        <div class="px-4 py-3 space-y-1">
+          <router-link to="/"
+            class="block px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline">
+            Home
+          </router-link>
+          <router-link to="/settings"
+            class="block px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline">
+            Settings
+          </router-link>
+        </div>
+        <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          Connected
+        </div>
+      </div>
+    </Transition>
   </nav>
 </template>

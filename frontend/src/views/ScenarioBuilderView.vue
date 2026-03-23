@@ -10,6 +10,7 @@ const loading = ref(true)
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
+const activeTab = ref('seed')
 
 onMounted(async () => {
   try {
@@ -29,26 +30,44 @@ async function runSimulation() {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto px-6 py-10">
+  <div class="max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-10">
     <div v-if="loading" class="text-center text-[#888] py-20">Loading scenario...</div>
 
     <div v-else-if="scenario">
-      <h1 class="text-3xl font-semibold text-[#050505] mb-2">{{ scenario.name }}</h1>
-      <p class="text-sm text-[#555] mb-8">{{ scenario.description }}</p>
+      <h1 class="text-2xl md:text-3xl font-semibold text-[#050505] mb-2">{{ scenario.name }}</h1>
+      <p class="text-sm text-[#555] mb-6 md:mb-8">{{ scenario.description }}</p>
+
+      <!-- Mobile: tab switcher -->
+      <div class="md:hidden flex gap-2 mb-4">
+        <button
+          @click="activeTab = 'seed'"
+          class="flex-1 py-2 text-sm font-medium rounded-lg transition-colors"
+          :class="activeTab === 'seed' ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555]'"
+        >
+          Seed Document
+        </button>
+        <button
+          @click="activeTab = 'config'"
+          class="flex-1 py-2 text-sm font-medium rounded-lg transition-colors"
+          :class="activeTab === 'config' ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555]'"
+        >
+          Configuration
+        </button>
+      </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <!-- Seed Document -->
-        <div class="md:col-span-2">
-          <label class="block text-xs uppercase tracking-wider text-[#888] mb-2">Seed Document</label>
+        <div class="md:col-span-2" :class="{ 'hidden md:block': activeTab !== 'seed' }">
+          <label class="hidden md:block text-xs uppercase tracking-wider text-[#888] mb-2">Seed Document</label>
           <textarea
             v-model="scenario.seed_text"
             rows="12"
-            class="w-full border border-black/10 rounded-lg p-4 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent resize-y"
+            class="w-full border border-black/10 rounded-lg p-3 md:p-4 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent resize-y"
           ></textarea>
         </div>
 
         <!-- Config Panel -->
-        <div class="space-y-6">
+        <div class="space-y-6" :class="{ 'hidden md:block': activeTab !== 'config' }">
           <div>
             <label class="block text-xs uppercase tracking-wider text-[#888] mb-2">Agent Count</label>
             <input type="range" v-model.number="agentCount" min="10" max="500" step="10" class="w-full" />

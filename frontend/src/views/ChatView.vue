@@ -31,19 +31,19 @@ async function send() {
 <template>
   <div class="flex flex-col h-[calc(100vh-120px)]">
     <!-- Messages -->
-    <div class="flex-1 overflow-y-auto px-6 py-8">
-      <div class="max-w-2xl mx-auto space-y-4">
-        <div v-if="messages.length === 0" class="text-center py-20">
-          <div class="text-5xl mb-4">💬</div>
-          <h2 class="text-xl font-semibold text-[#050505] mb-2">Chat with the Simulation</h2>
+    <div class="flex-1 overflow-y-auto px-4 md:px-6 py-6 md:py-8">
+      <div class="max-w-2xl mx-auto space-y-3 md:space-y-4">
+        <div v-if="messages.length === 0" class="text-center py-12 md:py-20">
+          <div class="text-4xl md:text-5xl mb-4">💬</div>
+          <h2 class="text-lg md:text-xl font-semibold text-[#050505] mb-2">Chat with the Simulation</h2>
           <p class="text-sm text-[#888]">Ask follow-up questions about the simulated world and its predictions.</p>
         </div>
 
         <div v-for="(msg, i) in messages" :key="i"
-          class="rounded-lg px-4 py-3 text-sm"
+          class="rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-sm"
           :class="msg.role === 'user'
-            ? 'bg-[rgba(32,104,255,0.08)] ml-12'
-            : 'bg-[#f5f5f5] mr-12'">
+            ? 'bg-[rgba(32,104,255,0.08)] ml-6 md:ml-12'
+            : 'bg-[#f5f5f5] mr-6 md:mr-12'">
           <div class="text-xs font-medium mb-1"
             :class="msg.role === 'user' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
             {{ msg.role === 'user' ? 'You' : 'MiroFish' }}
@@ -51,7 +51,7 @@ async function send() {
           {{ msg.content }}
         </div>
 
-        <div v-if="sending" class="bg-[#f5f5f5] rounded-lg px-4 py-3 mr-12">
+        <div v-if="sending" class="bg-[#f5f5f5] rounded-lg px-3 md:px-4 py-2.5 md:py-3 mr-6 md:mr-12">
           <div class="text-xs font-medium text-[#ff5600] mb-1">MiroFish</div>
           <span class="text-sm text-[#888]">Thinking...</span>
         </div>
@@ -59,18 +59,18 @@ async function send() {
     </div>
 
     <!-- Input -->
-    <div class="border-t border-black/10 px-6 py-4">
-      <div class="max-w-2xl mx-auto flex gap-3">
+    <div class="border-t border-black/10 px-4 md:px-6 py-3 md:py-4">
+      <div class="max-w-2xl mx-auto flex gap-2 md:gap-3">
         <input
           v-model="input"
           @keydown.enter.exact="send"
           placeholder="Ask about the simulation results..."
-          class="flex-1 border border-black/10 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
+          class="flex-1 border border-black/10 rounded-lg px-3 md:px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
         />
         <button
           @click="send"
           :disabled="sending || !input.trim()"
-          class="bg-[#2068FF] hover:bg-[#1a5ae0] disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          class="bg-[#2068FF] hover:bg-[#1a5ae0] disabled:opacity-50 text-white px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
         >
           Send
         </button>

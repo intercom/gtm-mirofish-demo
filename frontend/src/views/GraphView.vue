@@ -14,7 +14,7 @@ const edgeCount = ref(0)
 <template>
   <div class="h-[calc(100vh-120px)] bg-[#0a0a1a] relative">
     <!-- Status Bar -->
-    <div class="absolute top-4 left-4 z-10 flex items-center gap-3">
+    <div class="absolute top-4 left-4 right-4 md:right-auto z-10 flex flex-wrap items-center gap-2 md:gap-3">
       <span class="px-3 py-1 rounded-full text-xs font-medium"
         :class="status === 'building' ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'">
         {{ status === 'building' ? 'Building Graph...' : 'Complete' }}
@@ -33,9 +33,9 @@ const edgeCount = ref(0)
     </div>
 
     <!-- Continue Button -->
-    <div v-if="status === 'complete'" class="absolute bottom-6 right-6">
+    <div v-if="status === 'complete'" class="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 text-center md:text-right">
       <router-link :to="`/simulation/${taskId}`"
-        class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline">
+        class="inline-block bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline">
         Continue to Simulation →
       </router-link>
     </div>

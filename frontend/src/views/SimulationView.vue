@@ -272,6 +272,7 @@ const METRIC_CARDS = computed(() => [
         </div>
         <div class="text-xs text-[#888] mt-1">Current Round</div>
       </div>
+    </div>
 
     <!-- Two Column: Feed + Chart -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">

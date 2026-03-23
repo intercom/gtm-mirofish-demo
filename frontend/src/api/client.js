@@ -5,6 +5,7 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Inject auth token when available
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('auth_token')
   if (token) {
@@ -13,14 +14,26 @@ client.interceptors.request.use((config) => {
   return config
 })
 
+// Normalize errors so callers always get { message, status, data }
 client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token')
       window.location.href = '/login'
+      return Promise.reject(error)
     }
-    return Promise.reject(error)
+
+    const normalized = {
+      message:
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Network error',
+      status: error.response?.status || 0,
+      data: error.response?.data || null,
+    }
+    return Promise.reject(normalized)
   },
 )
 

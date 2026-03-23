@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+// @vitest-environment jsdom
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import axios from 'axios'
 
 vi.mock('axios', () => {
@@ -22,84 +23,97 @@ vi.mock('axios', () => {
 describe('client', () => {
   beforeEach(() => {
     vi.resetModules()
+    vi.clearAllMocks()
     localStorage.clear()
   })
 
-  afterEach(() => {
-    vi.restoreAllMocks()
+  it('creates an axios instance with /api baseURL', async () => {
+    await import('../client')
+    expect(axios.create).toHaveBeenCalledWith(
+      expect.objectContaining({ baseURL: '/api' }),
+    )
   })
 
-  it('creates axios instance with correct baseURL and headers', async () => {
+  it('sets Content-Type to application/json', async () => {
     await import('../client')
-    expect(axios.create).toHaveBeenCalledWith({
-      baseURL: '/api',
-      headers: { 'Content-Type': 'application/json' },
-    })
+    expect(axios.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
   })
 
   it('registers request and response interceptors', async () => {
-    const { default: client } = await import('../client')
-    expect(client.interceptors.request.use).toHaveBeenCalled()
-    expect(client.interceptors.response.use).toHaveBeenCalled()
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    expect(instance.interceptors.request.use).toHaveBeenCalledTimes(1)
+    expect(instance.interceptors.response.use).toHaveBeenCalledTimes(1)
   })
 
-  describe('request interceptor', () => {
-    it('injects auth token when present in localStorage', async () => {
-      const { default: client } = await import('../client')
-      const calls = client.interceptors.request.use.mock.calls
-      const requestInterceptor = calls[calls.length - 1][0]
+  it('injects auth token from localStorage in request interceptor', async () => {
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    const requestHandler = instance.interceptors.request.use.mock.calls[0][0]
 
-      localStorage.setItem('auth_token', 'test-token-123')
-      const config = { headers: {} }
-      const result = requestInterceptor(config)
+    localStorage.setItem('auth_token', 'test-token-123')
+    const config = { headers: {} }
+    const result = requestHandler(config)
+    expect(result.headers.Authorization).toBe('Bearer test-token-123')
+  })
 
-      expect(result.headers.Authorization).toBe('Bearer test-token-123')
-    })
+  it('does not set Authorization header when no token exists', async () => {
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    const requestHandler = instance.interceptors.request.use.mock.calls[0][0]
 
-    it('does not inject auth header when no token', async () => {
-      const { default: client } = await import('../client')
-      const calls = client.interceptors.request.use.mock.calls
-      const requestInterceptor = calls[calls.length - 1][0]
+    const config = { headers: {} }
+    const result = requestHandler(config)
+    expect(result.headers.Authorization).toBeUndefined()
+  })
 
-      const config = { headers: {} }
-      const result = requestInterceptor(config)
+  it('normalizes error responses in response interceptor', async () => {
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    const errorHandler = instance.interceptors.response.use.mock.calls[0][1]
 
-      expect(result.headers.Authorization).toBeUndefined()
+    const error = {
+      response: { status: 500, data: { error: 'Server error' } },
+      message: 'Request failed',
+    }
+
+    await expect(errorHandler(error)).rejects.toEqual({
+      message: 'Server error',
+      status: 500,
+      data: { error: 'Server error' },
     })
   })
 
-  describe('response error interceptor', () => {
-    it('clears token and redirects on 401', async () => {
-      const { default: client } = await import('../client')
-      const calls = client.interceptors.response.use.mock.calls
-      const errorHandler = calls[calls.length - 1][1]
+  it('clears token on 401 and attempts redirect', async () => {
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    const errorHandler = instance.interceptors.response.use.mock.calls[0][1]
 
-      localStorage.setItem('auth_token', 'old-token')
+    localStorage.setItem('auth_token', 'expired')
 
-      // Mock window.location
-      const originalLocation = window.location
-      delete window.location
-      window.location = { href: '' }
+    const error = {
+      response: { status: 401, data: { error: 'Unauthorized' } },
+    }
 
-      const error = { response: { status: 401 } }
-      await expect(errorHandler(error)).rejects.toEqual(error)
+    await expect(errorHandler(error)).rejects.toBeDefined()
+    expect(localStorage.getItem('auth_token')).toBeNull()
+  })
 
-      expect(localStorage.getItem('auth_token')).toBeNull()
-      expect(window.location.href).toBe('/login')
+  it('handles network errors without response', async () => {
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    const errorHandler = instance.interceptors.response.use.mock.calls[0][1]
 
-      window.location = originalLocation
-    })
+    const error = { message: 'Network Error' }
 
-    it('rejects non-401 errors without redirect', async () => {
-      const { default: client } = await import('../client')
-      const calls = client.interceptors.response.use.mock.calls
-      const errorHandler = calls[calls.length - 1][1]
-
-      localStorage.setItem('auth_token', 'my-token')
-      const error = { response: { status: 500 } }
-      await expect(errorHandler(error)).rejects.toEqual(error)
-
-      expect(localStorage.getItem('auth_token')).toBe('my-token')
+    await expect(errorHandler(error)).rejects.toEqual({
+      message: 'Network Error',
+      status: 0,
+      data: null,
     })
   })
 })

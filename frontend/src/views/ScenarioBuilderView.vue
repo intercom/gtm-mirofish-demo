@@ -1,14 +1,18 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { useToast } from '../composables/useToast'
-import { generateOntology, buildGraph } from '../services/api.js'
+import { useScenariosStore } from '../stores/scenarios'
+import { useSimulationStore } from '../stores/simulation'
+import { graphApi } from '../api/graph'
 
 const props = defineProps({ id: String })
 const router = useRouter()
 const toast = useToast()
+const scenariosStore = useScenariosStore()
+const simulationStore = useSimulationStore()
 
 const scenario = ref(null)
 const loading = ref(true)
@@ -23,13 +27,16 @@ const selectedIndustries = ref([])
 const running = ref(false)
 const activeTab = ref('seed')
 
+const canRun = computed(() =>
+  seedText.value.trim().length > 0 && selectedPersonas.value.length > 0 && !running.value,
+)
+
 async function loadScenario() {
   loading.value = true
   error.value = null
   try {
-    const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (!res.ok) throw new Error(`Failed to load scenario (${res.status})`)
-    const data = await res.json()
+    const data = await scenariosStore.fetchOne(props.id)
+    if (!data) throw new Error('Scenario not found')
     scenario.value = data
 
     seedText.value = data.seed_text || ''
@@ -71,32 +78,18 @@ async function runSimulation() {
   error.value = ''
 
   try {
-    // Step 1: Create project via ontology generation
-    statusMessage.value = 'Analyzing scenario and generating ontology...'
-    const text = seedText.value
-    const blob = new Blob([text], { type: 'text/plain' })
-
-    const formData = new FormData()
-    formData.append('files', blob, `${props.id}_seed.txt`)
-    formData.append('simulation_requirement', text)
-    formData.append('project_name', scenario.value.name || props.id)
-
-    const ontologyRes = await generateOntology(formData)
-    const projectId = ontologyRes.data.project_id
-
-    // Step 2: Build knowledge graph
-    statusMessage.value = 'Starting knowledge graph build...'
-    const buildRes = await buildGraph({
-      projectId,
-      graphName: scenario.value.name || 'GTM Simulation Graph',
+    const { data } = await graphApi.build({
+      seed_text: seedText.value,
+      agent_count: agentCount.value,
+      persona_types: selectedPersonas.value,
+      industries: selectedIndustries.value,
+      duration_hours: duration.value,
+      platform_mode: platformMode.value,
     })
-    const taskId = buildRes.data.task_id
-
-    // Navigate to graph view with task_id and project_id in query
-    router.push({
-      path: `/graph/${taskId}`,
-      query: { projectId },
-    })
+    const taskId = data.task_id
+    simulationStore.startBuild(taskId)
+    toast.success('Building knowledge graph...')
+    router.push(`/graph/${taskId}`)
   } catch (e) {
     error.value = e.message
     toast.error(`Failed to start simulation: ${e.message}`)
@@ -259,7 +252,7 @@ async function runSimulation() {
           <!-- Run Simulation Button -->
           <button
             @click="runSimulation"
-            :disabled="running"
+            :disabled="!canRun"
             class="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors mt-4"
           >
             {{ running ? 'Starting...' : 'Run Simulation' }}

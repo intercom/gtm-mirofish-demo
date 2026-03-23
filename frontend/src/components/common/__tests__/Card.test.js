@@ -8,12 +8,17 @@ describe('Card', () => {
     expect(wrapper.text()).toBe('Card content')
   })
 
-  it('has white bg and subtle border', () => {
+  it('has token-based bg, border, and radius', () => {
     const wrapper = mount(Card)
-    expect(wrapper.classes()).toContain('bg-white')
+    expect(wrapper.classes()).toContain('bg-[var(--card-bg)]')
     expect(wrapper.classes()).toContain('border')
-    expect(wrapper.classes()).toContain('border-black/10')
-    expect(wrapper.classes()).toContain('rounded-lg')
+    expect(wrapper.classes()).toContain('border-[var(--card-border)]')
+    expect(wrapper.classes()).toContain('rounded-[var(--card-radius)]')
+  })
+
+  it('applies card shadow via inline style', () => {
+    const wrapper = mount(Card)
+    expect(wrapper.attributes('style')).toContain('box-shadow')
   })
 
   it('applies padding by default', () => {

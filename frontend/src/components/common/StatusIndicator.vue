@@ -13,14 +13,14 @@ defineProps({
     <span
       class="w-2 h-2 rounded-full shrink-0"
       :class="{
-        'bg-green-500 animate-pulse': status === 'running',
-        'bg-[#2068FF]': status === 'complete',
-        'bg-red-500': status === 'error',
-        'bg-[#888]': status === 'idle',
+        'bg-[var(--color-success)] animate-pulse': status === 'running',
+        'bg-[var(--color-primary)]': status === 'complete',
+        'bg-[var(--color-error)]': status === 'error',
+        'bg-[var(--color-text-muted)]': status === 'idle',
       }"
     />
     <slot>
-      <span class="text-[#555] capitalize">{{ status }}</span>
+      <span class="text-[var(--color-text-secondary)] capitalize">{{ status }}</span>
     </slot>
   </span>
 </template>

@@ -29,7 +29,7 @@ async function runSimulation() {
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto px-6 py-10">
+  <div class="max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-10">
     <div v-if="loading" class="text-center text-[#888] py-20">Loading scenario...</div>
 
     <div v-else-if="scenario">

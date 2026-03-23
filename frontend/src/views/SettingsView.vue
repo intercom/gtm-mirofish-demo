@@ -40,7 +40,7 @@ const providers = [
 </script>
 
 <template>
-  <div class="max-w-2xl mx-auto px-6 py-10">
+  <div class="max-w-2xl mx-auto px-4 md:px-6 py-8 md:py-10">
     <h1 class="text-2xl font-semibold text-[#050505] mb-8">Settings</h1>
 
     <!-- LLM Provider -->

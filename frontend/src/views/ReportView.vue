@@ -11,8 +11,8 @@ const generating = ref(true)
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-6 py-8">
-    <div class="flex items-center justify-between mb-8">
+  <div class="max-w-6xl mx-auto px-4 md:px-6 py-8">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8">
       <h1 class="text-2xl font-semibold text-[#050505]">Simulation Report</h1>
       <div class="flex gap-2">
         <router-link :to="`/chat/${taskId}`"
@@ -22,9 +22,24 @@ const generating = ref(true)
       </div>
     </div>
 
+    <!-- Mobile: horizontal tab bar -->
+    <div v-if="chapters.length > 0" class="md:hidden mb-4 -mx-4 px-4 overflow-x-auto">
+      <div class="flex gap-2 min-w-max">
+        <button
+          v-for="(chapter, i) in chapters"
+          :key="i"
+          @click="activeChapter = i"
+          class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors"
+          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555] hover:bg-black/10'"
+        >
+          {{ chapter.title }}
+        </button>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <!-- Chapter Nav -->
-      <div class="space-y-2">
+      <!-- Chapter Nav (desktop sidebar) -->
+      <div class="hidden md:block space-y-2">
         <div v-if="chapters.length === 0" class="text-sm text-[#888]">
           {{ generating ? 'Generating report...' : 'No chapters yet' }}
         </div>
@@ -40,7 +55,7 @@ const generating = ref(true)
       </div>
 
       <!-- Content -->
-      <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-8">
+      <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-5 md:p-8">
         <div v-if="generating" class="text-center py-16">
           <div class="text-4xl mb-4">📝</div>
           <p class="text-[#888]">Generating predictive report...</p>

@@ -1,8 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
+const toast = useToast()
 
 const svgContainer = ref(null)
 const graphData = ref({ nodes: [], edges: [] })
@@ -99,6 +101,7 @@ async function pollStatus() {
       status.value = 'error'
       clearInterval(pollInterval)
       pollInterval = null
+      toast.error('Knowledge graph build failed')
     }
   } catch {
     clearInterval(pollInterval)

@@ -1,12 +1,18 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
+const toast = useToast()
 
 const runStatus = ref(null)
 const allActions = ref([])
 const activePlatform = ref('all')
 const loading = ref(true)
+const error = ref(null)
 
 let pollTimer = null
 
@@ -107,8 +113,9 @@ async function fetchStatus() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const json = await res.json()
     if (json.success) runStatus.value = json.data
-  } catch {
-    // retry on next poll
+  } catch (e) {
+    error.value = e.message
+    toast.error('Failed to fetch simulation status')
   } finally {
     loading.value = false
   }
@@ -138,6 +145,12 @@ function startPolling() {
 function stopPolling() {
   clearInterval(pollTimer)
   pollTimer = null
+}
+
+function retry() {
+  loading.value = true
+  error.value = null
+  startPolling()
 }
 
 onMounted(startPolling)
@@ -181,6 +194,19 @@ const METRIC_CARDS = computed(() => [
 
 <template>
   <div class="max-w-6xl mx-auto px-6 py-8">
+    <!-- Loading State -->
+    <LoadingSpinner v-if="loading" label="Connecting to simulation..." />
+
+    <!-- Error State -->
+    <ErrorState
+      v-else-if="error"
+      title="Simulation unavailable"
+      :message="error"
+      @retry="retry"
+    />
+
+    <!-- Simulation Content -->
+    <template v-else>
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
       <div>
@@ -246,7 +272,6 @@ const METRIC_CARDS = computed(() => [
         </div>
         <div class="text-xs text-[#888] mt-1">Current Round</div>
       </div>
-    </div>
 
     <!-- Two Column: Feed + Chart -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
@@ -333,5 +358,6 @@ const METRIC_CARDS = computed(() => [
         Generate Report
       </router-link>
     </div>
+    </template>
   </div>
 </template>

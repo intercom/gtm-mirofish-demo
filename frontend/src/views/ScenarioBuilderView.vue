@@ -1,9 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import { useToast } from '../composables/useToast'
 
 const props = defineProps({ id: String })
 const router = useRouter()
+const toast = useToast()
 
 const scenario = ref(null)
 const loading = ref(true)
@@ -14,23 +18,23 @@ const duration = ref(72)
 const platformMode = ref('parallel')
 const selectedPersonas = ref([])
 const selectedIndustries = ref([])
+const running = ref(false)
 
 async function loadScenario() {
   loading.value = true
   error.value = null
   try {
     const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (res.ok) {
-      const data = await res.json()
-      scenario.value = data
+    if (!res.ok) throw new Error(`Failed to load scenario (${res.status})`)
+    const data = await res.json()
+    scenario.value = data
 
-      seedText.value = data.seed_text || ''
-      agentCount.value = data.agent_config?.count || 200
-      duration.value = data.simulation_config?.total_hours || 72
-      platformMode.value = data.simulation_config?.platform_mode || 'parallel'
-      selectedPersonas.value = [...(data.agent_config?.persona_types || [])]
-      selectedIndustries.value = [...(data.agent_config?.firmographic_mix?.industries || [])]
-    }
+    seedText.value = data.seed_text || ''
+    agentCount.value = data.agent_config?.count || 200
+    duration.value = data.simulation_config?.total_hours || 72
+    platformMode.value = data.simulation_config?.platform_mode || 'parallel'
+    selectedPersonas.value = [...(data.agent_config?.persona_types || [])]
+    selectedIndustries.value = [...(data.agent_config?.firmographic_mix?.industries || [])]
   } catch (e) {
     error.value = e.message
   } finally {
@@ -59,17 +63,29 @@ function toggleIndustry(industry) {
 }
 
 async function runSimulation() {
-  // TODO: Call /api/graph/build with seed text, then navigate to graph view
-  router.push('/graph/demo-task-id')
+  running.value = true
+  try {
+    // TODO: Call /api/graph/build with seed text, then navigate to graph view
+    toast.success('Simulation started successfully')
+    router.push('/graph/demo-task-id')
+  } catch (e) {
+    toast.error(`Failed to start simulation: ${e.message}`)
+  } finally {
+    running.value = false
+  }
 }
 </script>
 
 <template>
   <div class="max-w-5xl mx-auto px-6 py-10">
-    <div v-if="loading" class="text-center py-20">
-      <div class="inline-block w-6 h-6 border-2 border-[#2068FF] border-t-transparent rounded-full animate-spin mb-4"></div>
-      <p class="text-sm text-[var(--color-text-muted)]">Loading scenario...</p>
-    </div>
+    <LoadingSpinner v-if="loading" label="Loading scenario..." />
+
+    <ErrorState
+      v-else-if="error"
+      title="Failed to load scenario"
+      :message="error"
+      @retry="loadScenario"
+    />
 
     <div v-else-if="scenario">
       <!-- Header -->
@@ -185,24 +201,12 @@ async function runSimulation() {
           <!-- Run Simulation Button -->
           <button
             @click="runSimulation"
-            class="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-semibold py-3 rounded-lg transition-colors mt-4"
+            :disabled="running"
+            class="w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors mt-4"
           >
-            Run Simulation
+            {{ running ? 'Starting...' : 'Run Simulation' }}
           </button>
         </div>
-      </div>
-    </div>
-
-    <div v-else-if="error" class="text-center py-20">
-      <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[rgba(255,86,0,0.1)] mb-4">
-        <span class="text-xl">⚠️</span>
-      </div>
-      <p class="text-sm text-[var(--color-text)] font-medium mb-1">Failed to load scenario</p>
-      <p class="text-xs text-[var(--color-text-muted)] mb-4">{{ error }}</p>
-      <div class="flex items-center justify-center gap-3">
-        <button @click="loadScenario" class="text-sm text-[var(--color-primary)] hover:underline">Try again</button>
-        <span class="text-[var(--color-text-muted)]">·</span>
-        <router-link to="/" class="text-sm text-[var(--color-primary)] hover:underline">Back to Home</router-link>
       </div>
     </div>
 

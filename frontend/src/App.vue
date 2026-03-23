@@ -1,5 +1,6 @@
 <script setup>
 import AppLayout from './components/layout/AppLayout.vue'
+import ToastContainer from './components/ui/ToastContainer.vue'
 import { useTheme } from './composables/useTheme'
 
 useTheme()
@@ -13,4 +14,5 @@ useTheme()
       </Transition>
     </router-view>
   </AppLayout>
+  <ToastContainer />
 </template>

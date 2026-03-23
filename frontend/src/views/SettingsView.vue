@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useTheme } from '../composables/useTheme'
+import { useToast } from '../composables/useToast'
 
 const { preference: themePreference, setTheme } = useTheme()
+const toast = useToast()
 
 const themeOptions = [
   { id: 'system', label: 'System', icon: '💻' },
@@ -20,22 +22,31 @@ let savedTimer = null
 onMounted(() => {
   const stored = localStorage.getItem('mirofish-settings')
   if (stored) {
-    const s = JSON.parse(stored)
-    provider.value = s.provider || 'anthropic'
-    apiKey.value = s.apiKey || ''
-    zepKey.value = s.zepKey || ''
+    try {
+      const s = JSON.parse(stored)
+      provider.value = s.provider || 'anthropic'
+      apiKey.value = s.apiKey || ''
+      zepKey.value = s.zepKey || ''
+    } catch {
+      toast.error('Failed to load saved settings')
+    }
   }
 })
 
 function save() {
-  localStorage.setItem('mirofish-settings', JSON.stringify({
-    provider: provider.value,
-    apiKey: apiKey.value,
-    zepKey: zepKey.value,
-  }))
-  saved.value = true
-  clearTimeout(savedTimer)
-  savedTimer = setTimeout(() => { saved.value = false }, 2000)
+  try {
+    localStorage.setItem('mirofish-settings', JSON.stringify({
+      provider: provider.value,
+      apiKey: apiKey.value,
+      zepKey: zepKey.value,
+    }))
+    saved.value = true
+    clearTimeout(savedTimer)
+    savedTimer = setTimeout(() => { saved.value = false }, 2000)
+    toast.success('Settings saved')
+  } catch {
+    toast.error('Failed to save settings')
+  }
 }
 
 async function testConnection(service) {
@@ -44,8 +55,10 @@ async function testConnection(service) {
     // TODO: Replace with real connection test endpoint
     await new Promise(resolve => setTimeout(resolve, 1000))
     connectionStatus.value[service] = 'success'
+    toast.success(`${service === 'llm' ? 'LLM' : 'Zep'} connection successful`)
   } catch {
     connectionStatus.value[service] = 'error'
+    toast.error(`${service === 'llm' ? 'LLM' : 'Zep'} connection failed`)
   }
 }
 

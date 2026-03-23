@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { useToast } from '../composables/useToast'
+import { useCountUp } from '../composables/useCountUp'
 import {
   createSimulation,
   prepareSimulation,
@@ -29,6 +30,33 @@ const loading = ref(true)
 const error = ref('')
 const metrics = ref({ actions: 0, replies: 0, likes: 0, round: '0/0' })
 const activities = ref([])
+
+const actionsCount = computed(() => metrics.value.actions)
+const repliesCount = computed(() => metrics.value.replies)
+const likesCount = computed(() => metrics.value.likes)
+const currentRound = computed(() => parseInt(metrics.value.round) || 0)
+const totalRounds = computed(() => parseInt(metrics.value.round.split('/')[1]) || 0)
+
+const displayActions = useCountUp(actionsCount)
+const displayReplies = useCountUp(repliesCount)
+const displayLikes = useCountUp(likesCount)
+const displayCurrentRound = useCountUp(currentRound)
+const displayTotalRounds = useCountUp(totalRounds)
+
+function onActivityBeforeEnter(el) {
+  el.style.opacity = 0
+  el.style.transform = 'translateY(12px)'
+}
+
+function onActivityEnter(el, done) {
+  const delay = el.dataset.index * 60
+  setTimeout(() => {
+    el.style.transition = 'opacity var(--transition-base), transform var(--transition-base)'
+    el.style.opacity = 1
+    el.style.transform = 'translateY(0)'
+    el.addEventListener('transitionend', done, { once: true })
+  }, delay)
+}
 
 let cancelled = false
 let pollInterval = null
@@ -199,19 +227,19 @@ onUnmounted(() => {
     <!-- Metrics -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
       <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#2068FF]">{{ metrics.actions }}</div>
+        <div class="text-3xl font-semibold text-[#2068FF]" data-testid="metric-actions">{{ displayActions }}</div>
         <div class="text-xs text-[#888] mt-1">Total Actions</div>
       </div>
       <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
+        <div class="text-3xl font-semibold text-[#ff5600]" data-testid="metric-replies">{{ displayReplies }}</div>
         <div class="text-xs text-[#888] mt-1">Reddit Actions</div>
       </div>
       <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
+        <div class="text-3xl font-semibold text-[#A0F]" data-testid="metric-likes">{{ displayLikes }}</div>
         <div class="text-xs text-[#888] mt-1">Twitter Actions</div>
       </div>
       <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#090]">{{ metrics.round }}</div>
+        <div class="text-3xl font-semibold text-[#090]" data-testid="metric-round">{{ displayCurrentRound }}/{{ displayTotalRounds }}</div>
         <div class="text-xs text-[#888] mt-1">Round</div>
       </div>
     </div>
@@ -223,8 +251,16 @@ onUnmounted(() => {
         <p class="text-4xl mb-2">🐦</p>
         <p class="text-sm">{{ status === 'running' ? 'Waiting for agent actions...' : status === 'complete' ? 'Simulation completed' : 'Real-time agent actions will appear here' }}</p>
       </div>
-      <div v-else class="space-y-3 max-h-80 overflow-y-auto">
-        <div v-for="(act, i) in activities" :key="i"
+      <TransitionGroup
+        v-else
+        tag="div"
+        class="space-y-3 max-h-80 overflow-y-auto"
+        :css="false"
+        @before-enter="onActivityBeforeEnter"
+        @enter="onActivityEnter"
+      >
+        <div v-for="(act, i) in activities" :key="'act-' + i"
+          :data-index="i"
           class="flex items-start gap-3 p-3 bg-[#fafafa] rounded-lg">
           <span class="text-xs px-2 py-0.5 rounded-full font-medium"
             :class="act.platform === 'twitter' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'">
@@ -236,7 +272,7 @@ onUnmounted(() => {
           </div>
           <span class="text-[10px] text-[#aaa] uppercase shrink-0">{{ act.type }}</span>
         </div>
-      </div>
+      </TransitionGroup>
     </div>
 
     <!-- Generate Report Button -->

@@ -132,17 +132,17 @@ onUnmounted(() => {
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Chapter Nav -->
-      <div class="space-y-2">
+      <TransitionGroup tag="div" name="card-list" class="space-y-2">
         <button
           v-for="(chapter, i) in chapters"
-          :key="i"
+          :key="'ch-' + i"
           @click="activeChapter = i"
           class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
           :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'text-[#555] hover:bg-black/5'"
         >
           {{ chapter.title }}
         </button>
-      </div>
+      </TransitionGroup>
 
       <!-- Content -->
       <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-8">
@@ -151,9 +151,11 @@ onUnmounted(() => {
           <p class="text-[#888]">Generating predictive report...</p>
           <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
         </div>
-        <div v-else-if="chapters[activeChapter]" class="prose prose-sm max-w-none">
-          <div class="whitespace-pre-wrap text-sm text-[#333] leading-relaxed">{{ chapters[activeChapter].content }}</div>
-        </div>
+        <Transition v-else name="fade" mode="out-in">
+          <div v-if="chapters[activeChapter]" :key="activeChapter" class="prose prose-sm max-w-none">
+            <div class="whitespace-pre-wrap text-sm text-[#333] leading-relaxed">{{ chapters[activeChapter].content }}</div>
+          </div>
+        </Transition>
       </div>
     </div>
   </div>

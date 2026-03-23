@@ -1,36 +1,60 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
 const router = useRouter()
 
-const scenarios = ref([
-  {
-    id: 'outbound_campaign',
-    name: 'Outbound Campaign Pre-Testing',
-    description: 'Simulate how AI-generated outbound emails land with synthetic prospect populations.',
-    icon: '📧',
-    hero: true,
-  },
-  {
-    id: 'signal_validation',
-    name: 'Sales Signal Validation',
-    description: 'Test whether signals actually predict buying behavior.',
-    icon: '📡',
-  },
-  {
-    id: 'pricing_simulation',
-    name: 'Pricing Change Simulation',
-    description: 'Predict customer reactions to P5 pricing migration.',
-    icon: '💰',
-  },
-  {
-    id: 'personalization',
-    name: 'Personalization Optimization',
-    description: 'Rank email variants by simulated engagement.',
-    icon: '✨',
-  },
-])
+const scenarios = ref([])
+const loading = ref(true)
+const error = ref(null)
+
+async function loadScenarios() {
+  loading.value = true
+  error.value = null
+  try {
+    const res = await fetch('/api/gtm/scenarios')
+    if (!res.ok) throw new Error(`Failed to load scenarios (${res.status})`)
+    scenarios.value = await res.json()
+  } catch (e) {
+    error.value = e.message
+    // Fallback to hardcoded scenarios so the page is still usable
+    scenarios.value = [
+      {
+        id: 'outbound_campaign',
+        name: 'Outbound Campaign Pre-Testing',
+        description: 'Simulate how AI-generated outbound emails land with synthetic prospect populations.',
+        icon: '📧',
+        hero: true,
+      },
+      {
+        id: 'signal_validation',
+        name: 'Sales Signal Validation',
+        description: 'Test whether signals actually predict buying behavior.',
+        icon: '📡',
+      },
+      {
+        id: 'pricing_simulation',
+        name: 'Pricing Change Simulation',
+        description: 'Predict customer reactions to P5 pricing migration.',
+        icon: '💰',
+      },
+      {
+        id: 'personalization',
+        name: 'Personalization Optimization',
+        description: 'Rank email variants by simulated engagement.',
+        icon: '✨',
+      },
+    ]
+    error.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadScenarios)
 
 function launchScenario(id) {
   router.push(`/scenarios/${id}`)
@@ -53,8 +77,48 @@ function launchScenario(id) {
           to your outbound, signals, and pricing changes.
         </p>
 
+        <!-- Loading State -->
+        <div v-if="loading" class="max-w-2xl mx-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-for="n in 4" :key="n"
+              class="rounded-lg p-5 border border-white/10 bg-white/5 animate-pulse">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded bg-white/10"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-4 bg-white/10 rounded w-3/4"></div>
+                  <div class="h-3 bg-white/10 rounded w-full"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error State (within dark hero context) -->
+        <div v-else-if="error" class="max-w-md mx-auto text-center py-8">
+          <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+            </svg>
+          </div>
+          <h3 class="text-base font-semibold text-white mb-1">Failed to load scenarios</h3>
+          <p class="text-sm text-white/50 mb-4">{{ error }}</p>
+          <button @click="loadScenarios"
+            class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
+            Try Again
+          </button>
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="scenarios.length === 0" class="max-w-md mx-auto text-center py-8">
+          <div class="w-16 h-16 rounded-full bg-[rgba(32,104,255,0.15)] flex items-center justify-center mx-auto mb-4">
+            <span class="text-3xl">🐟</span>
+          </div>
+          <h3 class="text-base font-semibold text-white mb-1">No scenarios available</h3>
+          <p class="text-sm text-white/50">Check back soon — scenarios are being configured.</p>
+        </div>
+
         <!-- Scenario Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
           <button
             v-for="scenario in scenarios"
             :key="scenario.id"

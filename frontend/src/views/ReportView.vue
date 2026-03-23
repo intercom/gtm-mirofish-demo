@@ -1,13 +1,34 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
+const toast = useToast()
+
 const chapters = ref([])
 const activeChapter = ref(0)
-const generating = ref(true)
+const loading = ref(true)
+const error = ref(null)
 
-// TODO: Call /api/report/generate, poll for chapters
-// Render markdown with 'marked' library
+async function generateReport() {
+  loading.value = true
+  error.value = null
+  try {
+    // TODO: Call /api/report/generate, poll for chapters
+    // Render markdown with 'marked' library
+    // Simulating load for now
+    loading.value = false
+  } catch (e) {
+    error.value = e.message
+    loading.value = false
+    toast.error('Failed to generate report')
+  }
+}
+
+onMounted(generateReport)
 </script>
 
 <template>
@@ -22,12 +43,31 @@ const generating = ref(true)
       </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <!-- Loading State -->
+    <LoadingSpinner v-if="loading" label="Generating predictive report..." />
+
+    <!-- Error State -->
+    <ErrorState
+      v-else-if="error"
+      title="Report generation failed"
+      :message="error"
+      @retry="generateReport"
+    />
+
+    <!-- Empty State -->
+    <EmptyState
+      v-else-if="chapters.length === 0"
+      icon="📊"
+      title="No report data yet"
+      description="Run a simulation first to generate a predictive report with multi-chapter analysis."
+      action-label="Go to Scenarios"
+      action-to="/"
+    />
+
+    <!-- Report Content -->
+    <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Chapter Nav -->
       <div class="space-y-2">
-        <div v-if="chapters.length === 0" class="text-sm text-[#888]">
-          {{ generating ? 'Generating report...' : 'No chapters yet' }}
-        </div>
         <button
           v-for="(chapter, i) in chapters"
           :key="i"
@@ -41,12 +81,7 @@ const generating = ref(true)
 
       <!-- Content -->
       <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-8">
-        <div v-if="generating" class="text-center py-16">
-          <div class="text-4xl mb-4">📝</div>
-          <p class="text-[#888]">Generating predictive report...</p>
-          <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
-        </div>
-        <div v-else-if="chapters[activeChapter]" class="prose prose-sm max-w-none">
+        <div v-if="chapters[activeChapter]" class="prose prose-sm max-w-none">
           <h2>{{ chapters[activeChapter].title }}</h2>
           <div v-html="chapters[activeChapter].html"></div>
         </div>

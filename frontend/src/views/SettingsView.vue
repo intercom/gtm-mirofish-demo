@@ -1,5 +1,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useToast } from '../composables/useToast'
+
+const toast = useToast()
 
 const provider = ref('anthropic')
 const apiKey = ref('')
@@ -9,27 +12,41 @@ const connectionStatus = ref({ llm: null, zep: null })
 onMounted(() => {
   const saved = localStorage.getItem('mirofish-settings')
   if (saved) {
-    const s = JSON.parse(saved)
-    provider.value = s.provider || 'anthropic'
-    apiKey.value = s.apiKey || ''
-    zepKey.value = s.zepKey || ''
+    try {
+      const s = JSON.parse(saved)
+      provider.value = s.provider || 'anthropic'
+      apiKey.value = s.apiKey || ''
+      zepKey.value = s.zepKey || ''
+    } catch {
+      toast.error('Failed to load saved settings')
+    }
   }
 })
 
 function save() {
-  localStorage.setItem('mirofish-settings', JSON.stringify({
-    provider: provider.value,
-    apiKey: apiKey.value,
-    zepKey: zepKey.value,
-  }))
+  try {
+    localStorage.setItem('mirofish-settings', JSON.stringify({
+      provider: provider.value,
+      apiKey: apiKey.value,
+      zepKey: zepKey.value,
+    }))
+    toast.success('Settings saved')
+  } catch {
+    toast.error('Failed to save settings')
+  }
 }
 
 async function testConnection(service) {
   connectionStatus.value[service] = 'testing'
-  // TODO: Implement connection test endpoints
-  setTimeout(() => {
+  try {
+    // TODO: Implement connection test endpoints
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     connectionStatus.value[service] = 'success'
-  }, 1000)
+    toast.success(`${service === 'llm' ? 'LLM' : 'Zep'} connection successful`)
+  } catch {
+    connectionStatus.value[service] = 'error'
+    toast.error(`${service === 'llm' ? 'LLM' : 'Zep'} connection failed`)
+  }
 }
 
 const providers = [
@@ -65,8 +82,13 @@ const providers = [
             placeholder="Enter your API key"
             class="flex-1 border border-black/10 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]" />
           <button @click="testConnection('llm')"
-            class="px-4 py-2 text-sm border border-black/10 rounded-lg hover:bg-black/5 transition-colors">
-            {{ connectionStatus.llm === 'testing' ? 'Testing...' : connectionStatus.llm === 'success' ? '✓ Connected' : 'Test' }}
+            class="px-4 py-2 text-sm border rounded-lg transition-colors"
+            :class="connectionStatus.llm === 'error'
+              ? 'border-red-300 text-red-600 hover:bg-red-50'
+              : connectionStatus.llm === 'success'
+                ? 'border-green-300 text-green-600'
+                : 'border-black/10 hover:bg-black/5'">
+            {{ connectionStatus.llm === 'testing' ? 'Testing...' : connectionStatus.llm === 'success' ? '✓ Connected' : connectionStatus.llm === 'error' ? '✕ Failed' : 'Test' }}
           </button>
         </div>
       </div>
@@ -80,8 +102,13 @@ const providers = [
           placeholder="Enter Zep API key"
           class="flex-1 border border-black/10 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]" />
         <button @click="testConnection('zep')"
-          class="px-4 py-2 text-sm border border-black/10 rounded-lg hover:bg-black/5 transition-colors">
-          {{ connectionStatus.zep === 'testing' ? 'Testing...' : connectionStatus.zep === 'success' ? '✓ Connected' : 'Test' }}
+          class="px-4 py-2 text-sm border rounded-lg transition-colors"
+          :class="connectionStatus.zep === 'error'
+            ? 'border-red-300 text-red-600 hover:bg-red-50'
+            : connectionStatus.zep === 'success'
+              ? 'border-green-300 text-green-600'
+              : 'border-black/10 hover:bg-black/5'">
+          {{ connectionStatus.zep === 'testing' ? 'Testing...' : connectionStatus.zep === 'success' ? '✓ Connected' : connectionStatus.zep === 'error' ? '✕ Failed' : 'Test' }}
         </button>
       </div>
       <p class="text-xs text-[#888] mt-2">

@@ -1,7 +1,11 @@
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref } from 'vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
+const toast = useToast()
+
 const messages = ref([])
 const input = ref('')
 const sending = ref(false)
@@ -21,7 +25,8 @@ async function send() {
       content: 'Chat integration pending — connect to MiroFish backend /api/chat endpoint.',
     })
   } catch (e) {
-    messages.value.push({ role: 'assistant', content: 'Error: ' + e.message })
+    messages.value.push({ role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' })
+    toast.error(`Chat error: ${e.message}`)
   } finally {
     sending.value = false
   }
@@ -33,11 +38,12 @@ async function send() {
     <!-- Messages -->
     <div class="flex-1 overflow-y-auto px-6 py-8">
       <div class="max-w-2xl mx-auto space-y-4">
-        <div v-if="messages.length === 0" class="text-center py-20">
-          <div class="text-5xl mb-4">💬</div>
-          <h2 class="text-xl font-semibold text-[#050505] mb-2">Chat with the Simulation</h2>
-          <p class="text-sm text-[#888]">Ask follow-up questions about the simulated world and its predictions.</p>
-        </div>
+        <EmptyState
+          v-if="messages.length === 0"
+          icon="💬"
+          title="Chat with the Simulation"
+          description="Ask follow-up questions about the simulated world and its predictions."
+        />
 
         <div v-for="(msg, i) in messages" :key="i"
           class="rounded-lg px-4 py-3 text-sm"

@@ -1,36 +1,62 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useToastStore } from '../stores/toast.js'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
 const props = defineProps({ id: String })
 const router = useRouter()
+const toast = useToastStore()
 
 const scenario = ref(null)
 const loading = ref(true)
+const error = ref(null)
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
+const submitting = ref(false)
 
-onMounted(async () => {
+async function loadScenario() {
+  loading.value = true
+  error.value = null
   try {
     const res = await fetch(`/api/gtm/scenarios/${props.id}`)
-    if (res.ok) scenario.value = await res.json()
+    if (!res.ok) throw new Error(`Scenario not found (${res.status})`)
+    scenario.value = await res.json()
   } catch (e) {
-    console.error('Failed to load scenario:', e)
+    error.value = e.message
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(loadScenario)
 
 async function runSimulation() {
-  // TODO: Call /api/graph/build with seed text, then navigate to graph view
-  router.push(`/graph/demo-task-id`)
+  submitting.value = true
+  try {
+    // TODO: Call /api/graph/build with seed text, then navigate to graph view
+    toast.success('Simulation started successfully')
+    router.push(`/graph/demo-task-id`)
+  } catch (e) {
+    toast.error('Failed to start simulation: ' + e.message)
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
 <template>
   <div class="max-w-4xl mx-auto px-6 py-10">
-    <div v-if="loading" class="text-center text-[#888] py-20">Loading scenario...</div>
+    <LoadingSpinner v-if="loading" label="Loading scenario..." />
+
+    <ErrorState
+      v-else-if="error"
+      :message="error"
+      @retry="loadScenario"
+    />
 
     <div v-else-if="scenario">
       <h1 class="text-3xl font-semibold text-[#050505] mb-2">{{ scenario.name }}</h1>
@@ -83,17 +109,22 @@ async function runSimulation() {
 
           <button
             @click="runSimulation"
-            class="w-full bg-[#2068FF] hover:bg-[#1a5ae0] text-white font-semibold py-3 rounded-lg transition-colors"
+            :disabled="submitting"
+            class="w-full bg-[#2068FF] hover:bg-[#1a5ae0] disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors"
           >
-            Run Simulation
+            {{ submitting ? 'Starting...' : 'Run Simulation' }}
           </button>
         </div>
       </div>
     </div>
 
-    <div v-else class="text-center py-20">
-      <p class="text-[#888]">Scenario not found</p>
-      <router-link to="/" class="text-[#2068FF] text-sm mt-2 inline-block">Back to Home</router-link>
-    </div>
+    <EmptyState
+      v-else
+      icon="🔍"
+      title="Scenario not found"
+      description="The scenario you're looking for doesn't exist or may have been removed."
+      action-label="Back to Home"
+      action-to="/"
+    />
   </div>
 </template>

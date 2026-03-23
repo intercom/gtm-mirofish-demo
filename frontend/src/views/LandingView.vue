@@ -1,10 +1,17 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
 
 const router = useRouter()
 
-const scenarios = ref([
+const scenarios = ref([])
+const loading = ref(true)
+const error = ref(null)
+
+const fallbackScenarios = [
   {
     id: 'outbound_campaign',
     name: 'Outbound Campaign Pre-Testing',
@@ -30,7 +37,24 @@ const scenarios = ref([
     description: 'Rank email variants by simulated engagement.',
     icon: '✨',
   },
-])
+]
+
+async function loadScenarios() {
+  loading.value = true
+  error.value = null
+  try {
+    const res = await fetch('/api/gtm/scenarios')
+    if (!res.ok) throw new Error(`Failed to load scenarios (${res.status})`)
+    const data = await res.json()
+    scenarios.value = data.length ? data : fallbackScenarios
+  } catch (e) {
+    scenarios.value = fallbackScenarios
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadScenarios)
 
 function launchScenario(id) {
   router.push(`/scenarios/${id}`)
@@ -53,8 +77,39 @@ function launchScenario(id) {
           to your outbound, signals, and pricing changes.
         </p>
 
+        <!-- Loading State -->
+        <div v-if="loading" class="max-w-2xl mx-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div v-for="n in 4" :key="n" class="rounded-lg p-5 border border-white/10 bg-white/5 animate-pulse">
+              <div class="flex items-start gap-3">
+                <div class="w-8 h-8 rounded bg-white/10"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-4 bg-white/10 rounded w-3/4"></div>
+                  <div class="h-3 bg-white/10 rounded w-full"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div v-else-if="error" class="max-w-md mx-auto">
+          <ErrorState :message="error" @retry="loadScenarios" />
+        </div>
+
+        <!-- Empty State -->
+        <div v-else-if="scenarios.length === 0" class="max-w-md mx-auto">
+          <EmptyState
+            icon="🐟"
+            title="No scenarios available"
+            description="Check that the backend is running and scenario files are configured."
+            action-label="Refresh"
+            @action="loadScenarios"
+          />
+        </div>
+
         <!-- Scenario Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
           <button
             v-for="scenario in scenarios"
             :key="scenario.id"

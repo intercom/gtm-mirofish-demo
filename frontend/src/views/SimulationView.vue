@@ -19,7 +19,7 @@ const activities = ref([])
         <p class="text-sm text-[#888]">Task: {{ taskId }}</p>
       </div>
       <span class="px-4 py-1.5 rounded-full text-xs font-semibold"
-        :class="status === 'running' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'">
+        :class="status === 'running' ? 'bg-[rgba(0,153,0,0.1)] text-[#090]' : 'bg-[rgba(32,104,255,0.1)] text-[#2068FF]'">
         {{ status === 'running' ? '● Running' : '✓ Complete' }}
       </span>
     </div>

@@ -21,7 +21,7 @@ async function send() {
       content: 'Chat integration pending — connect to MiroFish backend /api/chat endpoint.',
     })
   } catch (e) {
-    messages.value.push({ role: 'assistant', content: 'Error: ' + e.message })
+    messages.value.push({ role: 'error', content: 'Something went wrong — check your connection and try again. (' + e.message + ')' })
   } finally {
     sending.value = false
   }
@@ -39,19 +39,26 @@ async function send() {
           <p class="text-sm text-[#888]">Ask follow-up questions about the simulated world and its predictions.</p>
         </div>
 
-        <div v-for="(msg, i) in messages" :key="i"
-          class="rounded-lg px-4 py-3 text-sm"
-          :class="msg.role === 'user'
-            ? 'bg-[rgba(32,104,255,0.08)] ml-12'
-            : 'bg-[#f5f5f5] mr-12'">
-          <div class="text-xs font-medium mb-1"
-            :class="msg.role === 'user' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
-            {{ msg.role === 'user' ? 'You' : 'MiroFish' }}
+        <TransitionGroup name="slide-up">
+          <div v-for="(msg, i) in messages" :key="i"
+            class="rounded-lg px-4 py-3 text-sm"
+            :class="{
+              'bg-[rgba(32,104,255,0.08)] ml-12': msg.role === 'user',
+              'bg-[#f5f3ee] mr-12': msg.role === 'assistant',
+              'bg-[rgba(255,86,0,0.08)] border border-[rgba(255,86,0,0.2)] mr-12': msg.role === 'error',
+            }">
+            <div class="text-xs font-medium mb-1"
+              :class="{
+                'text-[#2068FF]': msg.role === 'user',
+                'text-[#ff5600]': msg.role === 'assistant' || msg.role === 'error',
+              }">
+              {{ msg.role === 'user' ? 'You' : msg.role === 'error' ? 'Error' : 'MiroFish' }}
+            </div>
+            {{ msg.content }}
           </div>
-          {{ msg.content }}
-        </div>
+        </TransitionGroup>
 
-        <div v-if="sending" class="bg-[#f5f5f5] rounded-lg px-4 py-3 mr-12">
+        <div v-if="sending" class="bg-[#f5f3ee] rounded-lg px-4 py-3 mr-12">
           <div class="text-xs font-medium text-[#ff5600] mb-1">MiroFish</div>
           <span class="text-sm text-[#888]">Thinking...</span>
         </div>

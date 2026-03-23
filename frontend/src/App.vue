@@ -7,7 +7,11 @@ import AppFooter from './components/layout/AppFooter.vue'
   <div class="min-h-screen flex flex-col">
     <AppNav />
     <main class="flex-1">
-      <router-view />
+      <router-view v-slot="{ Component }">
+        <Transition name="page-fade-slide" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </router-view>
     </main>
     <AppFooter />
   </div>

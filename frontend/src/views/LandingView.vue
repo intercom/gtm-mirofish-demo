@@ -3,6 +3,11 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const visible = ref(false)
+
+onMounted(() => {
+  visible.value = true
+})
 
 const scenarios = ref([
   {
@@ -56,13 +61,17 @@ function launchScenario(id) {
         <!-- Scenario Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
           <button
-            v-for="scenario in scenarios"
+            v-for="(scenario, index) in scenarios"
             :key="scenario.id"
             @click="launchScenario(scenario.id)"
             class="text-left rounded-lg p-5 transition-all duration-300 cursor-pointer border"
-            :class="scenario.hero
-              ? 'bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
-              : 'bg-white/5 border-white/10 hover:bg-white/10'"
+            :class="[
+              scenario.hero
+                ? 'bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
+                : 'bg-white/5 border-white/10 hover:bg-white/10',
+              visible ? 'card-stagger' : 'opacity-0',
+            ]"
+            :style="visible ? { animationDelay: `${index * 80}ms` } : {}"
           >
             <div class="flex items-start gap-3">
               <span class="text-2xl">{{ scenario.icon }}</span>
@@ -86,26 +95,21 @@ function launchScenario(id) {
       <div class="max-w-4xl mx-auto text-center">
         <h2 class="text-2xl font-semibold text-[#050505] mb-8">How It Works</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <div class="w-12 h-12 rounded-full bg-[rgba(32,104,255,0.1)] flex items-center justify-center mx-auto mb-4">
-              <span class="text-xl">🧠</span>
+          <div
+            v-for="(step, index) in [
+              { icon: '🧠', title: '1. Seed Your Scenario', desc: 'Upload campaign copy, signal definitions, or pricing scenarios as seed information.', color: 'rgba(32,104,255,0.1)' },
+              { icon: '🐟', title: '2. Simulate the Swarm', desc: 'Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.', color: 'rgba(255,86,0,0.1)' },
+              { icon: '📊', title: '3. Get Predictive Reports', desc: 'Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.', color: 'rgba(170,0,255,0.1)' },
+            ]"
+            :key="step.title"
+            :class="visible ? 'card-stagger' : 'opacity-0'"
+            :style="visible ? { animationDelay: `${400 + index * 100}ms` } : {}"
+          >
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" :style="{ background: step.color }">
+              <span class="text-xl">{{ step.icon }}</span>
             </div>
-            <h3 class="text-sm font-semibold text-[#050505] mb-2">1. Seed Your Scenario</h3>
-            <p class="text-xs text-[#555]">Upload campaign copy, signal definitions, or pricing scenarios as seed information.</p>
-          </div>
-          <div>
-            <div class="w-12 h-12 rounded-full bg-[rgba(255,86,0,0.1)] flex items-center justify-center mx-auto mb-4">
-              <span class="text-xl">🐟</span>
-            </div>
-            <h3 class="text-sm font-semibold text-[#050505] mb-2">2. Simulate the Swarm</h3>
-            <p class="text-xs text-[#555]">Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.</p>
-          </div>
-          <div>
-            <div class="w-12 h-12 rounded-full bg-[rgba(170,0,255,0.1)] flex items-center justify-center mx-auto mb-4">
-              <span class="text-xl">📊</span>
-            </div>
-            <h3 class="text-sm font-semibold text-[#050505] mb-2">3. Get Predictive Reports</h3>
-            <p class="text-xs text-[#555]">Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.</p>
+            <h3 class="text-sm font-semibold text-[#050505] mb-2">{{ step.title }}</h3>
+            <p class="text-xs text-[#555]">{{ step.desc }}</p>
           </div>
         </div>
       </div>
@@ -114,21 +118,19 @@ function launchScenario(id) {
     <!-- Stats Banner -->
     <section class="bg-[#050505] text-white px-6 py-10">
       <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-        <div>
-          <div class="text-2xl font-semibold text-[#2068FF]">1M+</div>
-          <div class="text-xs text-white/40 mt-1">Max Agents</div>
-        </div>
-        <div>
-          <div class="text-2xl font-semibold text-[#ff5600]">23</div>
-          <div class="text-xs text-white/40 mt-1">Action Types</div>
-        </div>
-        <div>
-          <div class="text-2xl font-semibold text-[#A0F]">4</div>
-          <div class="text-xs text-white/40 mt-1">Analysis Tools</div>
-        </div>
-        <div>
-          <div class="text-2xl font-semibold text-[#090]">2</div>
-          <div class="text-xs text-white/40 mt-1">Platforms</div>
+        <div
+          v-for="(stat, index) in [
+            { value: '1M+', label: 'Max Agents', color: '#2068FF' },
+            { value: '23', label: 'Action Types', color: '#ff5600' },
+            { value: '4', label: 'Analysis Tools', color: '#A0F' },
+            { value: '2', label: 'Platforms', color: '#090' },
+          ]"
+          :key="stat.label"
+          :class="visible ? 'card-stagger' : 'opacity-0'"
+          :style="visible ? { animationDelay: `${700 + index * 80}ms` } : {}"
+        >
+          <div class="text-2xl font-semibold" :style="{ color: stat.color }">{{ stat.value }}</div>
+          <div class="text-xs text-white/40 mt-1">{{ stat.label }}</div>
         </div>
       </div>
     </section>

@@ -1,10 +1,52 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useCountUp } from '../composables/useCountUp.js'
 
 const props = defineProps({ taskId: String })
 const status = ref('running')
-const metrics = ref({ actions: 0, replies: 0, likes: 0, round: '0/24' })
+const actions = ref(0)
+const replies = ref(0)
+const likes = ref(0)
+const round = ref(0)
+const totalRounds = 24
 const activities = ref([])
+const showMetrics = ref(false)
+
+const actionsDisplay = useCountUp(actions)
+const repliesDisplay = useCountUp(replies)
+const likesDisplay = useCountUp(likes)
+const roundDisplay = useCountUp(round)
+
+const metricCards = computed(() => [
+  { key: 'actions', value: actionsDisplay.value, label: 'Total Actions', color: 'text-[#2068FF]' },
+  { key: 'replies', value: repliesDisplay.value, label: 'Replies', color: 'text-[#ff5600]' },
+  { key: 'likes', value: likesDisplay.value, label: 'Likes', color: 'text-[#A0F]' },
+  { key: 'round', value: `${roundDisplay.value}/${totalRounds}`, label: 'Round', color: 'text-[#090]' },
+])
+
+function onCardBeforeEnter(el) {
+  el.style.opacity = 0
+  el.style.transform = 'translateY(12px)'
+}
+
+function onCardEnter(el, done) {
+  const delay = el.dataset.index * 100
+  setTimeout(() => {
+    el.style.transition = 'opacity var(--transition-base), transform var(--transition-base)'
+    el.style.opacity = 1
+    el.style.transform = 'translateY(0)'
+    el.addEventListener('transitionend', done, { once: true })
+  }, delay)
+}
+
+onMounted(() => {
+  showMetrics.value = true
+  // Simulate metrics counting up as data arrives
+  setTimeout(() => { actions.value = 142 }, 400)
+  setTimeout(() => { replies.value = 38 }, 500)
+  setTimeout(() => { likes.value = 87 }, 600)
+  setTimeout(() => { round.value = 6 }, 700)
+})
 
 // TODO: Poll /api/simulation/status every 3s
 // Parse JSONL activity logs
@@ -25,24 +67,23 @@ const activities = ref([])
     </div>
 
     <!-- Metrics -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#2068FF]">{{ metrics.actions }}</div>
-        <div class="text-xs text-[#888] mt-1">Total Actions</div>
+    <TransitionGroup
+      tag="div"
+      class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+      :css="false"
+      @before-enter="onCardBeforeEnter"
+      @enter="onCardEnter"
+    >
+      <div
+        v-for="(card, i) in showMetrics ? metricCards : []"
+        :key="card.key"
+        :data-index="i"
+        class="bg-white border border-black/10 rounded-lg p-4 text-center"
+      >
+        <div class="text-3xl font-semibold" :class="card.color">{{ card.value }}</div>
+        <div class="text-xs text-[#888] mt-1">{{ card.label }}</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
-        <div class="text-xs text-[#888] mt-1">Replies</div>
-      </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
-        <div class="text-xs text-[#888] mt-1">Likes</div>
-      </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#090]">{{ metrics.round }}</div>
-        <div class="text-xs text-[#888] mt-1">Round</div>
-      </div>
-    </div>
+    </TransitionGroup>
 
     <!-- Activity Feed Placeholder -->
     <div class="bg-white border border-black/10 rounded-lg p-6">

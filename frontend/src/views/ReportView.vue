@@ -309,9 +309,10 @@ onUnmounted(stopPolling)
         <div class="h-px bg-black/10 my-2" />
 
         <!-- Chapter Items -->
+        <TransitionGroup tag="div" name="card-list" class="space-y-1">
         <button
           v-for="(chapter, i) in chapters"
-          :key="i"
+          :key="'ch-' + i"
           @click="activeChapter = i"
           class="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2.5"
           :class="activeChapter === i
@@ -348,6 +349,7 @@ onUnmounted(stopPolling)
           </span>
           <span class="truncate">{{ chapter.title }}</span>
         </button>
+        </TransitionGroup>
 
         <!-- Progress during generation -->
         <div v-if="generating" class="mt-4 px-3">
@@ -406,9 +408,11 @@ onUnmounted(stopPolling)
         </div>
 
         <!-- Chapter Content -->
-        <div v-else-if="activeContent" class="bg-white border border-black/10 rounded-lg p-8">
-          <div class="report-content" v-html="activeContent.html" />
-        </div>
+        <Transition v-else name="fade" mode="out-in">
+          <div v-if="activeContent" :key="activeChapter" class="bg-white border border-black/10 rounded-lg p-8">
+            <div class="report-content" v-html="activeContent.html" />
+          </div>
+        </Transition>
       </div>
     </div>
   </div>

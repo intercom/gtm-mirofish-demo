@@ -246,7 +246,6 @@ describe('ReportView', () => {
     })
     await flushPromises()
 
-    // Completed chapters should have checkmark SVGs
     const checkmarks = wrapper.findAll('nav svg path[d="m4.5 12.75 6 6 9-13.5"]')
     expect(checkmarks.length).toBe(3)
   })
@@ -355,8 +354,6 @@ describe('ReportView', () => {
     })
     await flushPromises()
 
-    // Should show generating state with sections as they appear
-    // After fetch, one section is available so it shows the report layout with progress
     expect(wrapper.text()).toContain('Executive Summary')
     expect(wrapper.text()).toContain('complete')
   })
@@ -384,16 +381,42 @@ describe('ReportView', () => {
     })
     await flushPromises()
 
-    // Default: summary view
     expect(wrapper.text()).toContain('Key Findings')
 
-    // Click a chapter
     const buttons = wrapper.findAll('nav button')
-    await buttons[1].trigger('click') // First chapter
+    await buttons[1].trigger('click')
     expect(wrapper.find('.report-content').exists()).toBe(true)
 
-    // Click back to summary
     await buttons[0].trigger('click')
     expect(wrapper.text()).toContain('Key Findings')
+  })
+
+  it('uses TransitionGroup for chapter nav', async () => {
+    globalThis.fetch = mockFetchForGenerated()
+    const router = createTestRouter()
+    const wrapper = mount(ReportView, {
+      props: { taskId: 'sim_test' },
+      global: { plugins: [router] },
+    })
+    await flushPromises()
+
+    const tg = wrapper.findComponent({ name: 'TransitionGroup' })
+    expect(tg.exists()).toBe(true)
+  })
+
+  it('uses Transition for chapter content switching', async () => {
+    globalThis.fetch = mockFetchForGenerated()
+    const router = createTestRouter()
+    const wrapper = mount(ReportView, {
+      props: { taskId: 'sim_test' },
+      global: { plugins: [router] },
+    })
+    await flushPromises()
+
+    const buttons = wrapper.findAll('nav button')
+    await buttons[1].trigger('click')
+
+    const transition = wrapper.findComponent({ name: 'Transition' })
+    expect(transition.exists()).toBe(true)
   })
 })

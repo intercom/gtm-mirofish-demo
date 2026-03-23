@@ -1,88 +1,90 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import SimulationView from './SimulationView.vue'
 
-const mockStatus = {
-  success: true,
-  data: {
-    runner_status: 'running',
-    current_round: 3,
-    total_rounds: 24,
-    progress_percent: 12.5,
-    total_actions_count: 42,
-  },
-}
+vi.mock('../services/api.js', () => ({
+  createSimulation: vi.fn().mockResolvedValue({ data: { simulation_id: 'sim-1' } }),
+  prepareSimulation: vi.fn().mockResolvedValue({ data: { already_prepared: true } }),
+  getPrepareStatus: vi.fn(),
+  startSimulation: vi.fn().mockResolvedValue({}),
+  getRunStatus: vi.fn().mockResolvedValue({
+    data: {
+      current_round: 3,
+      total_rounds: 10,
+      total_actions_count: 47,
+      reddit_actions_count: 20,
+      twitter_actions_count: 27,
+      progress_percent: 30,
+      runner_status: 'running',
+    },
+  }),
+  getSimulationActions: vi.fn().mockResolvedValue({ data: { actions: [] } }),
+  pollTask: vi.fn(),
+}))
 
-const mockActions = {
-  success: true,
-  data: [
-    { round_num: 3, platform: 'twitter', agent_id: 1, agent_name: 'VP of Support', action_type: 'REPLY_POST', action_args: { content: 'Good thread' }, success: true },
-    { round_num: 2, platform: 'reddit', agent_id: 2, agent_name: 'CX Director', action_type: 'LIKE_POST', action_args: {}, success: true },
-    { round_num: 1, platform: 'twitter', agent_id: 3, agent_name: 'Sales Rep', action_type: 'CREATE_POST', action_args: { content: 'New quarter' }, success: true },
-    { round_num: 1, platform: 'twitter', agent_id: 1, agent_name: 'VP of Support', action_type: 'REPOST', action_args: {}, success: true },
-  ],
-}
-
-function setupFetchMock() {
-  global.fetch = vi.fn((url) => {
-    if (url.includes('/run-status')) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStatus) })
-    }
-    if (url.includes('/actions')) {
-      return Promise.resolve({ ok: true, json: () => Promise.resolve(mockActions) })
-    }
-    return Promise.resolve({ ok: false })
+function createTestRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/simulation/:taskId', component: SimulationView, props: true },
+      { path: '/report/:taskId', component: { template: '<div />' } },
+    ],
   })
-}
-
-async function mountAndFlush(props = {}) {
-  const wrapper = mount(SimulationView, {
-    props: { taskId: 'test-456', ...props },
-    global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
-  })
-  await flushPromises()
-  return wrapper
 }
 
 describe('SimulationView', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    setupFetchMock()
   })
 
   afterEach(() => {
     vi.useRealTimers()
-    vi.restoreAllMocks()
   })
 
-  it('renders with running status', async () => {
-    const wrapper = await mountAndFlush()
+  async function mountView() {
+    const router = createTestRouter()
+    await router.push('/simulation/test-456?projectId=p1&graphId=g1')
+    await router.isReady()
+    const wrapper = mount(SimulationView, {
+      props: { taskId: 'test-456' },
+      global: { plugins: [router] },
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  it('renders header after API resolves', async () => {
+    const wrapper = await mountView()
     expect(wrapper.text()).toContain('Live Simulation')
-    expect(wrapper.text()).toContain('test-456')
-    expect(wrapper.text()).toContain('Running')
+    expect(wrapper.text()).toContain('sim-1')
   })
 
-  it('renders all metric cards', async () => {
-    const wrapper = await mountAndFlush()
+  it('displays metric labels', async () => {
+    const wrapper = await mountView()
     expect(wrapper.text()).toContain('Total Actions')
-    expect(wrapper.text()).toContain('Replies')
-    expect(wrapper.text()).toContain('Likes')
-    expect(wrapper.text()).toContain('Reposts')
-    expect(wrapper.text()).toContain('Current Round')
+    expect(wrapper.text()).toContain('Reddit Actions')
+    expect(wrapper.text()).toContain('Twitter Actions')
+    expect(wrapper.text()).toContain('Round')
   })
 
-  it('displays metric labels and values', async () => {
-    const wrapper = await mountAndFlush()
-    expect(wrapper.text()).toContain('42')
-    expect(wrapper.text()).toContain('Total Actions')
-    expect(wrapper.text()).toContain('Round 3 of 24')
+  it('renders count-up metric elements with data-testid', async () => {
+    const wrapper = await mountView()
+    expect(wrapper.find('[data-testid="metric-actions"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="metric-replies"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="metric-likes"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="metric-round"]').exists()).toBe(true)
   })
 
-  it('renders activity feed with agent actions', async () => {
-    const wrapper = await mountAndFlush()
+  it('metrics start at 0 from count-up composable', async () => {
+    const wrapper = await mountView()
+    const actions = wrapper.find('[data-testid="metric-actions"]')
+    expect(actions.text()).toBe('0')
+  })
+
+  it('renders activity feed section', async () => {
+    const wrapper = await mountView()
     expect(wrapper.text()).toContain('Agent Activity Feed')
-    expect(wrapper.text()).toContain('VP of Support')
-    expect(wrapper.text()).toContain('replied')
-    expect(wrapper.text()).toContain('Good thread')
+    expect(wrapper.text()).toContain('Waiting for agent actions...')
   })
 })

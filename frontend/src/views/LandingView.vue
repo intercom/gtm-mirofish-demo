@@ -3,6 +3,49 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
+const showCards = ref(false)
+const showSteps = ref(false)
+
+function onStaggerBeforeEnter(el) {
+  el.style.opacity = 0
+  el.style.transform = 'translateY(12px)'
+}
+
+function onStaggerEnter(el, done) {
+  const delay = el.dataset.index * 80
+  setTimeout(() => {
+    el.style.transition = 'opacity var(--transition-base), transform var(--transition-base)'
+    el.style.opacity = 1
+    el.style.transform = 'translateY(0)'
+    el.addEventListener('transitionend', done, { once: true })
+  }, delay)
+}
+
+onMounted(() => {
+  showCards.value = true
+  setTimeout(() => { showSteps.value = true }, 200)
+})
+
+const steps = [
+  {
+    icon: '🧠',
+    bgClass: 'bg-[rgba(32,104,255,0.1)]',
+    title: '1. Seed Your Scenario',
+    description: 'Upload campaign copy, signal definitions, or pricing scenarios as seed information.',
+  },
+  {
+    icon: '🐟',
+    bgClass: 'bg-[rgba(255,86,0,0.1)]',
+    title: '2. Simulate the Swarm',
+    description: 'Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.',
+  },
+  {
+    icon: '📊',
+    bgClass: 'bg-[rgba(170,0,255,0.1)]',
+    title: '3. Get Predictive Reports',
+    description: 'Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.',
+  },
+]
 
 const scenarios = ref([
   {
@@ -54,10 +97,17 @@ function launchScenario(id) {
         </p>
 
         <!-- Scenario Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+        <TransitionGroup
+          tag="div"
+          class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto"
+          :css="false"
+          @before-enter="onStaggerBeforeEnter"
+          @enter="onStaggerEnter"
+        >
           <button
-            v-for="scenario in scenarios"
+            v-for="(scenario, i) in showCards ? scenarios : []"
             :key="scenario.id"
+            :data-index="i"
             @click="launchScenario(scenario.id)"
             class="text-left rounded-lg p-5 transition-all duration-300 cursor-pointer border"
             :class="scenario.hero
@@ -77,7 +127,7 @@ function launchScenario(id) {
               </div>
             </div>
           </button>
-        </div>
+        </TransitionGroup>
       </div>
     </section>
 
@@ -85,29 +135,21 @@ function launchScenario(id) {
     <section class="px-6 py-16 bg-[var(--color-bg)]">
       <div class="max-w-4xl mx-auto text-center">
         <h2 class="text-2xl font-semibold text-[var(--color-text)] mb-8">How It Works</h2>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <div class="w-12 h-12 rounded-full bg-[rgba(32,104,255,0.1)] flex items-center justify-center mx-auto mb-4">
-              <span class="text-xl">🧠</span>
+        <TransitionGroup
+          tag="div"
+          class="grid grid-cols-1 md:grid-cols-3 gap-8"
+          :css="false"
+          @before-enter="onStaggerBeforeEnter"
+          @enter="onStaggerEnter"
+        >
+          <div v-for="(step, i) in showSteps ? steps : []" :key="step.title" :data-index="i">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4" :class="step.bgClass">
+              <span class="text-xl">{{ step.icon }}</span>
             </div>
-            <h3 class="text-sm font-semibold text-[var(--color-text)] mb-2">1. Seed Your Scenario</h3>
-            <p class="text-xs text-[var(--color-text-secondary)]">Upload campaign copy, signal definitions, or pricing scenarios as seed information.</p>
+            <h3 class="text-sm font-semibold text-[var(--color-text)] mb-2">{{ step.title }}</h3>
+            <p class="text-xs text-[var(--color-text-secondary)]">{{ step.description }}</p>
           </div>
-          <div>
-            <div class="w-12 h-12 rounded-full bg-[rgba(255,86,0,0.1)] flex items-center justify-center mx-auto mb-4">
-              <span class="text-xl">🐟</span>
-            </div>
-            <h3 class="text-sm font-semibold text-[var(--color-text)] mb-2">2. Simulate the Swarm</h3>
-            <p class="text-xs text-[var(--color-text-secondary)]">Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.</p>
-          </div>
-          <div>
-            <div class="w-12 h-12 rounded-full bg-[rgba(170,0,255,0.1)] flex items-center justify-center mx-auto mb-4">
-              <span class="text-xl">📊</span>
-            </div>
-            <h3 class="text-sm font-semibold text-[var(--color-text)] mb-2">3. Get Predictive Reports</h3>
-            <p class="text-xs text-[var(--color-text-secondary)]">Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.</p>
-          </div>
-        </div>
+        </TransitionGroup>
       </div>
     </section>
 

@@ -625,15 +625,17 @@ onUnmounted(() => {
     </transition>
 
     <!-- Continue to Simulation -->
-    <div v-if="status === 'complete'" class="absolute bottom-6 right-6 z-10">
-      <router-link
-        :to="`/simulation/${taskId}`"
-        class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline inline-flex items-center gap-2"
-      >
-        Continue to Simulation
-        <span class="text-white/60">&rarr;</span>
-      </router-link>
-    </div>
+    <Transition name="page">
+      <div v-if="status === 'complete'" class="absolute bottom-6 right-6 z-10">
+        <router-link
+          :to="`/simulation/${taskId}`"
+          class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline inline-flex items-center gap-2"
+        >
+          Continue to Simulation
+          <span class="text-white/60">&rarr;</span>
+        </router-link>
+      </div>
+    </Transition>
   </div>
 </template>
 

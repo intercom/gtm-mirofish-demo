@@ -81,6 +81,16 @@ describe('simulationApi', () => {
     expect(mockClient.post).toHaveBeenCalledWith('/simulation/stop', { simulation_id: 's1' })
   })
 
+  it('wraps config and download endpoints', async () => {
+    const { simulationApi } = await import('../simulation')
+
+    simulationApi.downloadConfig('s1')
+    expect(mockClient.get).toHaveBeenCalledWith('/simulation/s1/config/download', { responseType: 'blob' })
+
+    simulationApi.downloadScript('run.py')
+    expect(mockClient.get).toHaveBeenCalledWith('/simulation/script/run.py/download', { responseType: 'blob' })
+  })
+
   it('wraps status and results endpoints', async () => {
     const { simulationApi } = await import('../simulation')
 

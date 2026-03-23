@@ -1,10 +1,8 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch, onMounted } from 'vue'
 import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 
-const router = useRouter()
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
 
@@ -14,6 +12,8 @@ const themeOptions = [
   { id: 'dark', label: 'Dark', icon: '🌙' },
 ]
 
+const STORAGE_KEY = 'mirofish-settings'
+
 const provider = ref('anthropic')
 const apiKey = ref('')
 const zepKey = ref('')
@@ -21,39 +21,48 @@ const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
 const connectionStatus = ref({ llm: null, zep: null })
+const connectionError = ref({ llm: '', zep: '' })
+const authStatus = ref({ authEnabled: false, user: null, provider: null })
 const saved = ref(false)
 let savedTimer = null
 
-const authEnabled = computed(() => localStorage.getItem('auth_enabled') === 'true')
-const authUser = computed(() => {
-  try {
-    const raw = localStorage.getItem('auth_user')
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-})
+const providers = [
+  { id: 'anthropic', name: 'Claude (Anthropic)', model: 'claude-sonnet-4-20250514' },
+  { id: 'openai', name: 'OpenAI (GPT-4o)', model: 'gpt-4o' },
+  { id: 'gemini', name: 'Google Gemini', model: 'gemini-2.5-flash' },
+]
 
-onMounted(() => {
-  const stored = localStorage.getItem('mirofish-settings')
-  if (stored) {
-    try {
-      const s = JSON.parse(stored)
-      provider.value = s.provider || 'anthropic'
-      apiKey.value = s.apiKey || ''
-      zepKey.value = s.zepKey || ''
-      agentCount.value = s.agentCount ?? 200
-      duration.value = s.duration ?? 72
-      platformMode.value = s.platformMode || 'parallel'
-    } catch {
-      toast.error('Failed to load saved settings')
-    }
+const durations = [
+  { value: 24, label: '24 hours' },
+  { value: 48, label: '48 hours' },
+  { value: 72, label: '72 hours (recommended)' },
+]
+
+const platforms = [
+  { id: 'twitter', label: 'Twitter' },
+  { id: 'reddit', label: 'Reddit' },
+  { id: 'parallel', label: 'Both' },
+]
+
+function load() {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (!stored) return
+  try {
+    const s = JSON.parse(stored)
+    provider.value = s.provider || 'anthropic'
+    apiKey.value = s.apiKey || ''
+    zepKey.value = s.zepKey || ''
+    agentCount.value = s.agentCount ?? 200
+    duration.value = s.duration ?? 72
+    platformMode.value = s.platformMode || 'parallel'
+  } catch {
+    toast.error('Failed to load saved settings')
   }
-})
+}
 
 function save() {
   try {
-    localStorage.setItem('mirofish-settings', JSON.stringify({
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
       provider: provider.value,
       apiKey: apiKey.value,
       zepKey: zepKey.value,
@@ -64,58 +73,79 @@ function save() {
     saved.value = true
     clearTimeout(savedTimer)
     savedTimer = setTimeout(() => { saved.value = false }, 2000)
-    toast.success('Settings saved')
   } catch {
     toast.error('Failed to save settings')
   }
 }
 
+watch([provider, apiKey, zepKey, agentCount, duration, platformMode], save, { deep: true })
+
 async function testConnection(service) {
   connectionStatus.value[service] = 'testing'
+  connectionError.value[service] = ''
+
+  const endpoint = service === 'llm' ? '/api/settings/test-llm' : '/api/settings/test-zep'
+  const body = service === 'llm'
+    ? { provider: provider.value, apiKey: apiKey.value }
+    : { apiKey: zepKey.value }
+
   try {
-    const url = service === 'llm' ? '/api/graph/build' : '/api/graph/build'
-    const res = await fetch(url, { method: 'HEAD' }).catch(() => null)
-    if (res && res.ok) {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await res.json()
+    if (data.ok) {
       connectionStatus.value[service] = 'success'
+      toast.success(`${service === 'llm' ? 'LLM' : 'Zep'} connection successful`)
     } else {
-      // Fall back to a simple timeout-based check for demo
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      connectionStatus.value[service] = 'success'
+      connectionStatus.value[service] = 'error'
+      connectionError.value[service] = data.error || 'Connection failed'
+      toast.error(`${service === 'llm' ? 'LLM' : 'Zep'} connection failed`)
     }
-    toast.success(`${service === 'llm' ? 'LLM' : 'Zep'} connection successful`)
   } catch {
     connectionStatus.value[service] = 'error'
+    connectionError.value[service] = 'Network error — is the backend running?'
     toast.error(`${service === 'llm' ? 'LLM' : 'Zep'} connection failed`)
   }
 }
 
-function statusLabel(service) {
-  const s = connectionStatus.value[service]
-  if (s === 'testing') return 'Testing...'
-  if (s === 'success') return '✓ Connected'
-  if (s === 'error') return '✗ Failed'
-  return 'Test'
-}
-
-function statusClass(service) {
-  const s = connectionStatus.value[service]
-  if (s === 'success') return 'text-[var(--color-success)]'
-  if (s === 'error') return 'text-[var(--color-fin-orange)]'
-  return ''
+async function fetchAuthStatus() {
+  try {
+    const res = await fetch('/api/settings/auth-status')
+    if (res.ok) authStatus.value = await res.json()
+  } catch {
+    // Auth status is best-effort; silently ignore
+  }
 }
 
 function logout() {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('auth_user')
   toast.success('Logged out successfully')
-  router.push('/login')
+  window.location.href = '/api/auth/logout'
 }
 
-const providers = [
-  { id: 'anthropic', name: 'Claude (Anthropic)', model: 'claude-sonnet-4-20250514' },
-  { id: 'openai', name: 'OpenAI (GPT-4o)', model: 'gpt-4o' },
-  { id: 'gemini', name: 'Google Gemini', model: 'gemini-2.5-flash' },
-]
+function testButtonLabel(service) {
+  const status = connectionStatus.value[service]
+  if (status === 'testing') return 'Testing…'
+  if (status === 'success') return '✓ Connected'
+  if (status === 'error') return '✗ Failed'
+  return 'Test Connection'
+}
+
+function testButtonClass(service) {
+  const status = connectionStatus.value[service]
+  if (status === 'success') return 'border-[var(--color-success)] text-[var(--color-success)]'
+  if (status === 'error') return 'border-[var(--color-fin-orange)] text-[var(--color-fin-orange)]'
+  return 'border-[var(--color-border)] hover:bg-[var(--color-primary-light)]'
+}
+
+onMounted(() => {
+  load()
+  fetchAuthStatus()
+})
 </script>
 
 <template>
@@ -152,12 +182,15 @@ const providers = [
     <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">LLM Provider</h2>
       <div class="space-y-3">
-        <label v-for="p in providers" :key="p.id"
+        <label
+          v-for="p in providers"
+          :key="p.id"
           class="flex items-center gap-3 p-3 md:p-4 rounded-lg border cursor-pointer transition-colors"
           :class="provider === p.id
             ? 'border-[#2068FF] bg-[rgba(32,104,255,0.04)]'
-            : 'border-[var(--color-border)] hover:border-[#2068FF]/50'">
-          <input type="radio" :value="p.id" v-model="provider" @change="save" class="accent-[#2068FF]" />
+            : 'border-[var(--color-border)] hover:border-[#2068FF]/50'"
+        >
+          <input type="radio" :value="p.id" v-model="provider" class="accent-[#2068FF]" />
           <div>
             <div class="text-sm font-medium text-[var(--color-text)]">{{ p.name }}</div>
             <div class="text-xs text-[var(--color-text-muted)]">Model: {{ p.model }}</div>
@@ -168,15 +201,22 @@ const providers = [
       <div class="mt-4">
         <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">API Key</label>
         <div class="flex flex-col sm:flex-row gap-2">
-          <input type="password" v-model="apiKey" @change="save"
+          <input
+            type="password"
+            v-model="apiKey"
             placeholder="Enter your API key"
-            class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]" />
-          <button @click="testConnection('llm')"
-            class="px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-primary-light)] transition-colors"
-            :class="statusClass('llm')">
-            {{ statusLabel('llm') }}
+            class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
+          />
+          <button
+            @click="testConnection('llm')"
+            :disabled="!apiKey || connectionStatus.llm === 'testing'"
+            class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+            :class="testButtonClass('llm')"
+          >
+            {{ testButtonLabel('llm') }}
           </button>
         </div>
+        <p v-if="connectionError.llm" class="text-xs text-red-500 mt-1">{{ connectionError.llm }}</p>
       </div>
     </section>
 
@@ -184,22 +224,31 @@ const providers = [
     <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Zep Cloud (Knowledge Graph)</h2>
       <div class="flex flex-col sm:flex-row gap-2">
-        <input type="password" v-model="zepKey" @change="save"
+        <input
+          type="password"
+          v-model="zepKey"
           placeholder="Enter Zep API key"
-          class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]" />
-        <button @click="testConnection('zep')"
-          class="px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg hover:bg-[var(--color-primary-light)] transition-colors"
-          :class="statusClass('zep')">
-          {{ statusLabel('zep') }}
+          class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
+        />
+        <button
+          @click="testConnection('zep')"
+          :disabled="!zepKey || connectionStatus.zep === 'testing'"
+          class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
+          :class="testButtonClass('zep')"
+        >
+          {{ testButtonLabel('zep') }}
         </button>
       </div>
-      <p class="text-xs text-[var(--color-text-muted)] mt-2">
-        Sign up at <a href="https://app.getzep.com/" target="_blank" class="text-[#2068FF]">app.getzep.com</a> — free tier is sufficient for PoC.
+      <p v-if="connectionError.zep" class="text-xs text-red-500 mt-1">{{ connectionError.zep }}</p>
+      <p v-else class="text-xs text-[var(--color-text-muted)] mt-2">
+        Sign up at
+        <a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[#2068FF] hover:underline">app.getzep.com</a>
+        — free tier is sufficient for PoC.
       </p>
     </section>
 
     <!-- Simulation Defaults -->
-    <section class="mb-10">
+    <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Simulation Defaults</h2>
       <div class="space-y-6">
         <!-- Agent Count -->
@@ -208,10 +257,9 @@ const providers = [
           <input
             type="range"
             v-model.number="agentCount"
-            min="50"
+            min="10"
             max="500"
             step="10"
-            @change="save"
             class="w-full accent-[var(--color-primary)]"
           />
           <div class="text-center text-2xl font-semibold text-[var(--color-primary)]">{{ agentCount }}</div>
@@ -222,15 +270,15 @@ const providers = [
           <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Duration</label>
           <div class="flex gap-2">
             <button
-              v-for="hours in [24, 48, 72]"
-              :key="hours"
-              @click="duration = hours; save()"
+              v-for="d in durations"
+              :key="d.value"
+              @click="duration = d.value"
               class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors cursor-pointer"
-              :class="duration === hours
+              :class="duration === d.value
                 ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
                 : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
             >
-              {{ hours }}h
+              {{ d.label }}
             </button>
           </div>
         </div>
@@ -240,33 +288,48 @@ const providers = [
           <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Platform</label>
           <div class="flex gap-2">
             <button
-              v-for="mode in ['twitter', 'reddit', 'parallel']"
-              :key="mode"
-              @click="platformMode = mode; save()"
-              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors capitalize cursor-pointer"
-              :class="platformMode === mode
+              v-for="p in platforms"
+              :key="p.id"
+              @click="platformMode = p.id"
+              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors cursor-pointer"
+              :class="platformMode === p.id
                 ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
                 : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
             >
-              {{ mode === 'parallel' ? 'Both' : mode }}
+              {{ p.label }}
             </button>
           </div>
         </div>
       </div>
+
+      <p class="text-xs text-[var(--color-text-muted)] mt-4">
+        These defaults pre-fill the Scenario Builder. You can override them per-simulation.
+      </p>
     </section>
 
     <!-- Auth -->
-    <section class="mb-10">
+    <section v-if="authStatus.authEnabled" class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Authentication</h2>
-      <div v-if="authEnabled" class="p-4 border border-[var(--color-border)] rounded-lg">
-        <div v-if="authUser" class="flex items-center justify-between">
-          <div>
-            <div class="text-sm font-medium text-[var(--color-text)]">{{ authUser.name || authUser.email }}</div>
-            <div v-if="authUser.name && authUser.email" class="text-xs text-[var(--color-text-muted)]">{{ authUser.email }}</div>
+      <div class="border border-[var(--color-border)] rounded-lg p-4">
+        <div v-if="authStatus.user" class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img
+              v-if="authStatus.user.picture"
+              :src="authStatus.user.picture"
+              :alt="authStatus.user.name"
+              class="w-8 h-8 rounded-full"
+            />
+            <div v-else class="w-8 h-8 rounded-full bg-[#2068FF] flex items-center justify-center text-white text-sm font-medium">
+              {{ (authStatus.user.name || authStatus.user.email || '?')[0].toUpperCase() }}
+            </div>
+            <div>
+              <div class="text-sm font-medium text-[var(--color-text)]">{{ authStatus.user.name || 'User' }}</div>
+              <div class="text-xs text-[var(--color-text-muted)]">{{ authStatus.user.email }}</div>
+            </div>
           </div>
           <button
             @click="logout"
-            class="px-4 py-2 text-sm border border-[var(--color-error)] text-[var(--color-error)] rounded-lg hover:bg-[var(--color-error-light)] transition-colors cursor-pointer"
+            class="px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors cursor-pointer"
           >
             Log Out
           </button>
@@ -281,11 +344,9 @@ const providers = [
           </router-link>
         </div>
       </div>
-      <div v-else class="p-4 border border-[var(--color-border)] rounded-lg">
-        <p class="text-sm text-[var(--color-text-muted)]">
-          Authentication is not enabled. Set <code class="bg-[var(--color-border)] px-1 rounded text-[var(--color-text-secondary)]">AUTH_ENABLED=true</code> in your environment to require sign-in.
-        </p>
-      </div>
+      <p class="text-xs text-[var(--color-text-muted)] mt-2">
+        Auth provider: {{ authStatus.provider }} · Domain: @{{ authStatus.allowedDomain }}
+      </p>
     </section>
 
     <!-- Info -->

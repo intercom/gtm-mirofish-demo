@@ -1,14 +1,9 @@
 <script setup>
-import AppNav from './components/layout/AppNav.vue'
-import AppFooter from './components/layout/AppFooter.vue'
+import AppLayout from './components/layout/AppLayout.vue'
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
-    <AppNav />
-    <main class="flex-1">
-      <router-view />
-    </main>
-    <AppFooter />
-  </div>
+  <AppLayout>
+    <router-view />
+  </AppLayout>
 </template>

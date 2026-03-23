@@ -3,7 +3,17 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import GraphView from '../GraphView.vue'
 
-// Mock ResizeObserver (not available in jsdom)
+// Mock graphApi module
+vi.mock('../../api/graph', () => ({
+  graphApi: {
+    getTask: vi.fn(),
+    getData: vi.fn(),
+  },
+}))
+
+import { graphApi } from '../../api/graph'
+
+// Mock ResizeObserver (not available in happy-dom)
 class MockResizeObserver {
   observe() {}
   unobserve() {}
@@ -33,11 +43,9 @@ function mountGraph(taskId = 'test-task-123') {
 describe('GraphView', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    // Default: fetch always 404s → triggers sample data
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockRejectedValue(new Error('Not found')),
-    )
+    // Default: API rejects → triggers sample data fallback
+    graphApi.getTask.mockRejectedValue(new Error('Not found'))
+    graphApi.getData.mockRejectedValue(new Error('Not found'))
   })
 
   afterEach(() => {
@@ -61,9 +69,7 @@ describe('GraphView', () => {
   it('loads sample data when API is unavailable', async () => {
     const wrapper = mountGraph()
 
-    // First poll fires immediately on mount
     await flushPromises()
-    // Advance past the polling interval
     vi.advanceTimersByTime(100)
     await flushPromises()
 
@@ -120,20 +126,11 @@ describe('GraphView', () => {
   })
 
   it('does not show continue button while building', () => {
-    // Override fetch to return pending status so we stay in "building"
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: { status: 'processing', progress: 50 },
-          }),
-      }),
-    )
+    graphApi.getTask.mockResolvedValue({
+      data: { data: { status: 'processing', progress: 50 } },
+    })
 
     const wrapper = mountGraph()
-    // Before poll resolves
     expect(wrapper.find('a[href*="simulation"]').exists()).toBe(false)
   })
 
@@ -149,33 +146,21 @@ describe('GraphView', () => {
     expect(link.attributes('href')).toContain('/simulation/test-task-123')
   })
 
-  it('polls the task status endpoint', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          data: { status: 'processing', progress: 45 },
-        }),
+  it('calls graphApi.getTask with the taskId', async () => {
+    graphApi.getTask.mockResolvedValue({
+      data: { data: { status: 'processing', progress: 45 } },
     })
-    vi.stubGlobal('fetch', fetchMock)
 
     mountGraph('my-task')
     await flushPromises()
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/graph/task/my-task')
+    expect(graphApi.getTask).toHaveBeenCalledWith('my-task')
   })
 
   it('updates progress from polling response', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: { status: 'processing', progress: 65 },
-          }),
-      }),
-    )
+    graphApi.getTask.mockResolvedValue({
+      data: { data: { status: 'processing', progress: 65 } },
+    })
 
     const wrapper = mountGraph()
     await flushPromises()
@@ -184,45 +169,35 @@ describe('GraphView', () => {
   })
 
   it('fetches graph data when task completes', async () => {
-    const fetchMock = vi.fn()
-
-    // First call: task completed with graph_id
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          data: {
-            status: 'completed',
-            progress: 100,
-            result: { graph_id: 'graph-abc' },
-          },
-        }),
+    graphApi.getTask.mockResolvedValue({
+      data: {
+        data: {
+          status: 'completed',
+          progress: 100,
+          result: { graph_id: 'graph-abc' },
+        },
+      },
     })
-    // Second call: graph data
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: () =>
-        Promise.resolve({
-          data: {
-            nodes: [
-              { uuid: 'n1', name: 'Test Person', labels: ['Person'], summary: 'A person', attributes: {} },
-              { uuid: 'n2', name: 'Test Topic', labels: ['Topic'], summary: 'A topic', attributes: {} },
-            ],
-            edges: [
-              { uuid: 'e1', source_node_uuid: 'n1', target_node_uuid: 'n2', name: 'discusses', fact: 'Test', fact_type: 'engagement' },
-            ],
-          },
-        }),
+    graphApi.getData.mockResolvedValue({
+      data: {
+        data: {
+          nodes: [
+            { uuid: 'n1', name: 'Test Person', labels: ['Person'], summary: 'A person', attributes: {} },
+            { uuid: 'n2', name: 'Test Topic', labels: ['Topic'], summary: 'A topic', attributes: {} },
+          ],
+          edges: [
+            { uuid: 'e1', source_node_uuid: 'n1', target_node_uuid: 'n2', name: 'discusses', fact: 'Test', fact_type: 'engagement' },
+          ],
+        },
+      },
     })
-
-    vi.stubGlobal('fetch', fetchMock)
 
     const wrapper = mountGraph()
     await flushPromises()
     vi.advanceTimersByTime(100)
     await flushPromises()
 
-    expect(fetchMock).toHaveBeenCalledWith('/api/graph/data/graph-abc')
+    expect(graphApi.getData).toHaveBeenCalledWith('graph-abc')
     expect(wrapper.find('[data-testid="node-count"]').text()).toBe('2')
     expect(wrapper.find('[data-testid="edge-count"]').text()).toBe('1')
   })
@@ -269,21 +244,13 @@ describe('GraphView', () => {
     const circles = wrapper.findAll('circle')
     const radii = circles.map((c) => parseFloat(c.attributes('r')))
     const uniqueRadii = [...new Set(radii)]
-    // Multiple different radii indicates degree-based sizing
     expect(uniqueRadii.length).toBeGreaterThan(1)
   })
 
   it('shows error state when task fails', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: { status: 'failed', progress: 0 },
-          }),
-      }),
-    )
+    graphApi.getTask.mockResolvedValue({
+      data: { data: { status: 'failed', progress: 0 } },
+    })
 
     const wrapper = mountGraph()
     await flushPromises()

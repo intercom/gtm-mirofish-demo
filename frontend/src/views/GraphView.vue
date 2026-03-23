@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { graphApi } from '../api/graph'
 import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
@@ -84,20 +85,19 @@ const typeCounts = computed(() => {
 
 async function pollStatus() {
   try {
-    const res = await fetch(`/api/graph/task/${props.taskId}`)
-    if (!res.ok) throw new Error('Task not found')
-    const data = await res.json()
-    if (!data.data) return
+    const res = await graphApi.getTask(props.taskId)
+    const task = res.data?.data
+    if (!task) return
 
-    progress.value = data.data.progress || 0
+    progress.value = task.progress || 0
 
-    if (data.data.status === 'completed') {
+    if (task.status === 'completed') {
       clearInterval(pollInterval)
       pollInterval = null
-      const graphId = data.data.result?.graph_id
+      const graphId = task.result?.graph_id
       if (graphId) await fetchGraphData(graphId)
       else loadSampleData()
-    } else if (data.data.status === 'failed') {
+    } else if (task.status === 'failed') {
       status.value = 'error'
       clearInterval(pollInterval)
       pollInterval = null
@@ -112,10 +112,8 @@ async function pollStatus() {
 
 async function fetchGraphData(graphId) {
   try {
-    const res = await fetch(`/api/graph/data/${graphId}`)
-    if (!res.ok) throw new Error('Graph fetch failed')
-    const data = await res.json()
-    processAndRender(data.data)
+    const res = await graphApi.getData(graphId)
+    processAndRender(res.data?.data)
   } catch {
     loadSampleData()
   }

@@ -49,8 +49,8 @@ async function send() {
 <template>
   <div class="flex flex-col h-[calc(100vh-120px)]">
     <!-- Messages -->
-    <div class="flex-1 overflow-y-auto px-6 py-8">
-      <div class="max-w-2xl mx-auto space-y-4">
+    <div class="flex-1 overflow-y-auto px-4 md:px-6 py-6 md:py-8">
+      <div class="max-w-2xl mx-auto space-y-3 md:space-y-4">
         <EmptyState
           v-if="messages.length === 0"
           icon="💬"
@@ -60,11 +60,11 @@ async function send() {
 
         <TransitionGroup name="slide-up">
           <div v-for="(msg, i) in messages" :key="i"
-            class="rounded-lg px-4 py-3 text-sm"
+            class="rounded-lg px-3 md:px-4 py-2.5 md:py-3 text-sm"
             :class="{
-              'bg-[rgba(32,104,255,0.08)] ml-12': msg.role === 'user',
-              'bg-[#f5f3ee] mr-12': msg.role === 'assistant',
-              'bg-[rgba(255,86,0,0.08)] border border-[rgba(255,86,0,0.2)] mr-12': msg.role === 'error',
+              'bg-[rgba(32,104,255,0.08)] ml-6 md:ml-12': msg.role === 'user',
+              'bg-[#f5f3ee] mr-6 md:mr-12': msg.role === 'assistant',
+              'bg-[rgba(255,86,0,0.08)] border border-[rgba(255,86,0,0.2)] mr-6 md:mr-12': msg.role === 'error',
             }">
             <div class="text-xs font-medium mb-1"
               :class="{
@@ -77,7 +77,7 @@ async function send() {
           </div>
         </TransitionGroup>
 
-        <div v-if="sending" class="bg-[#f5f3ee] rounded-lg px-4 py-3 mr-12">
+        <div v-if="sending" class="bg-[#f5f3ee] rounded-lg px-3 md:px-4 py-2.5 md:py-3 mr-6 md:mr-12">
           <div class="text-xs font-medium text-[#ff5600] mb-1">MiroFish</div>
           <span class="text-sm text-[#888]">Thinking...</span>
         </div>
@@ -85,18 +85,18 @@ async function send() {
     </div>
 
     <!-- Input -->
-    <div class="border-t border-black/10 px-6 py-4">
-      <div class="max-w-2xl mx-auto flex gap-3">
+    <div class="border-t border-black/10 px-4 md:px-6 py-3 md:py-4">
+      <div class="max-w-2xl mx-auto flex gap-2 md:gap-3">
         <input
           v-model="input"
           @keydown.enter.exact="send"
           placeholder="Ask about the simulation results..."
-          class="flex-1 border border-black/10 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
+          class="flex-1 border border-black/10 rounded-lg px-3 md:px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
         />
         <button
           @click="send"
           :disabled="sending || !input.trim()"
-          class="bg-[#2068FF] hover:bg-[#1a5ae0] disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
+          class="bg-[#2068FF] hover:bg-[#1a5ae0] disabled:opacity-50 text-white px-4 md:px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
         >
           Send
         </button>

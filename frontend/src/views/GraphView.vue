@@ -485,7 +485,7 @@ onUnmounted(() => {
     <div ref="svgContainer" class="w-full h-full" />
 
     <!-- Status Bar (top-left) -->
-    <div class="absolute top-4 left-4 z-10 flex items-center gap-3">
+    <div class="absolute top-4 left-4 right-4 md:right-auto z-10 flex flex-wrap items-center gap-2 md:gap-3">
       <span
         class="px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border"
         :class="
@@ -629,10 +629,10 @@ onUnmounted(() => {
 
     <!-- Continue to Simulation -->
     <Transition name="page">
-      <div v-if="status === 'complete'" class="absolute bottom-6 right-6 z-10">
+      <div v-if="status === 'complete'" class="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 z-10 text-center md:text-right">
         <router-link
           :to="`/simulation/${taskId}`"
-          class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline inline-flex items-center gap-2"
+          class="inline-block bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline"
         >
           Continue to Simulation
           <span class="text-white/60">&rarr;</span>

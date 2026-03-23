@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const mobileMenuOpen = ref(false)
 
 const authUser = computed(() => {
@@ -23,10 +24,14 @@ function logout() {
   localStorage.removeItem('auth_user')
   router.push('/login')
 }
+
+watch(() => route.path, () => {
+  mobileMenuOpen.value = false
+})
 </script>
 
 <template>
-  <nav class="bg-[var(--color-navy)] border-b border-white/10 px-6 py-3">
+  <nav class="bg-[var(--color-navy)] border-b border-white/10 px-4 md:px-6 py-3 relative">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-6">
         <router-link to="/" class="flex items-center gap-2 text-white no-underline">
@@ -39,7 +44,7 @@ function logout() {
             <path d="M8 20.5C9.5 22 11.5 23 14 23C16.5 23 18.5 22 20 20.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
           <span class="text-sm font-semibold tracking-tight">MiroFish</span>
-          <span class="text-xs text-white/40 ml-1">GTM Demo</span>
+          <span class="text-xs text-white/40 ml-1 hidden sm:inline">GTM Demo</span>
         </router-link>
 
         <div class="hidden md:flex items-center gap-1">
@@ -91,19 +96,32 @@ function logout() {
       </div>
     </div>
 
-    <div v-if="mobileMenuOpen" class="md:hidden mt-3 pt-3 border-t border-white/10 flex flex-col gap-2">
-      <router-link
-        v-for="link in navLinks"
-        :key="link.to"
-        :to="link.to"
-        :exact="link.exact"
-        class="nav-link"
-        :class="{ 'nav-link--exact': link.exact }"
-        @click="mobileMenuOpen = false"
-      >
-        {{ link.label }}
-      </router-link>
-    </div>
+    <!-- Mobile menu dropdown -->
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
+        <div class="px-4 py-3 space-y-1">
+          <router-link
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="block px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
+          >
+            {{ link.label }}
+          </router-link>
+        </div>
+        <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          Connected
+        </div>
+      </div>
+    </Transition>
   </nav>
 </template>
 

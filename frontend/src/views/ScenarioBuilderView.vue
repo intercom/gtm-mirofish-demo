@@ -21,6 +21,7 @@ const platformMode = ref('parallel')
 const selectedPersonas = ref([])
 const selectedIndustries = ref([])
 const running = ref(false)
+const activeTab = ref('seed')
 
 async function loadScenario() {
   loading.value = true
@@ -107,7 +108,7 @@ async function runSimulation() {
 </script>
 
 <template>
-  <div class="max-w-5xl mx-auto px-6 py-10">
+  <div class="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
     <LoadingSpinner v-if="loading" label="Loading scenario..." />
 
     <ErrorState
@@ -120,17 +121,35 @@ async function runSimulation() {
     <div v-else-if="scenario">
       <!-- Header -->
       <router-link to="/" class="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-4 inline-block">&larr; Back to scenarios</router-link>
-      <h1 class="text-3xl font-semibold text-[var(--color-text)] mb-2">{{ scenario.name }}</h1>
-      <p class="text-sm text-[var(--color-text-secondary)] mb-8">{{ scenario.description }}</p>
+      <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)] mb-2">{{ scenario.name }}</h1>
+      <p class="text-sm text-[var(--color-text-secondary)] mb-6 md:mb-8">{{ scenario.description }}</p>
+
+      <!-- Mobile: tab switcher -->
+      <div class="md:hidden flex gap-2 mb-4">
+        <button
+          @click="activeTab = 'seed'"
+          class="flex-1 py-2 text-sm font-medium rounded-lg transition-colors"
+          :class="activeTab === 'seed' ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555]'"
+        >
+          Seed Document
+        </button>
+        <button
+          @click="activeTab = 'config'"
+          class="flex-1 py-2 text-sm font-medium rounded-lg transition-colors"
+          :class="activeTab === 'config' ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555]'"
+        >
+          Configuration
+        </button>
+      </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Seed Document (left 2/3) -->
-        <div class="lg:col-span-2">
+        <div class="lg:col-span-2" :class="{ 'hidden md:block': activeTab !== 'seed' }">
           <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Seed Document</label>
           <textarea
             v-model="seedText"
             rows="16"
-            class="w-full border border-[var(--color-border)] rounded-lg p-4 text-sm leading-relaxed focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-y bg-[var(--color-surface)]"
+            class="w-full border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-sm leading-relaxed focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-y bg-[var(--color-surface)]"
             placeholder="Paste or edit your scenario seed text..."
           ></textarea>
 
@@ -177,8 +196,7 @@ async function runSimulation() {
         </div>
 
         <!-- Config Panel (right 1/3) -->
-        <div class="space-y-6">
-          <!-- Agent Count Slider -->
+        <div class="space-y-6" :class="{ 'hidden md:block': activeTab !== 'config' }">
           <div>
             <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Agent Count</label>
             <input

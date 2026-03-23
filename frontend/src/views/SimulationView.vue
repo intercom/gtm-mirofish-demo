@@ -152,7 +152,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-6 py-8">
+  <div class="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
     <!-- Loading State -->
     <LoadingSpinner v-if="loading" label="Connecting to simulation..." />
 
@@ -167,12 +167,12 @@ onUnmounted(() => {
     <!-- Simulation Content -->
     <template v-else>
     <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
       <div>
-        <h1 class="text-2xl font-semibold text-[#050505]">Live Simulation</h1>
-        <p class="text-sm text-[#888]">{{ simulationId || 'Initializing...' }}</p>
+        <h1 class="text-xl md:text-2xl font-semibold text-[#050505]">Live Simulation</h1>
+        <p class="text-xs md:text-sm text-[#888]">{{ simulationId || 'Initializing...' }}</p>
       </div>
-      <span class="px-4 py-1.5 rounded-full text-xs font-semibold"
+      <span class="self-start sm:self-auto px-4 py-1.5 rounded-full text-xs font-semibold"
         :class="{
           'bg-yellow-100 text-yellow-700': status === 'preparing' || status === 'initializing',
           'bg-green-100 text-green-700': status === 'running',
@@ -197,27 +197,27 @@ onUnmounted(() => {
     </div>
 
     <!-- Metrics -->
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#2068FF]">{{ metrics.actions }}</div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#2068FF]">{{ metrics.actions }}</div>
         <div class="text-xs text-[#888] mt-1">Total Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
         <div class="text-xs text-[#888] mt-1">Reddit Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
         <div class="text-xs text-[#888] mt-1">Twitter Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#090]">{{ metrics.round }}</div>
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#090]">{{ metrics.round }}</div>
         <div class="text-xs text-[#888] mt-1">Round</div>
       </div>
     </div>
 
     <!-- Activity Feed -->
-    <div class="bg-white border border-black/10 rounded-lg p-6">
+    <div class="bg-white border border-black/10 rounded-lg p-4 md:p-6">
       <h3 class="text-sm font-semibold text-[#050505] mb-4">Agent Activity Feed</h3>
       <div v-if="activities.length === 0" class="text-center text-[#888] py-8">
         <p class="text-4xl mb-2">🐦</p>

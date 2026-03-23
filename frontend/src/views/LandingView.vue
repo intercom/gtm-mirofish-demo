@@ -107,15 +107,15 @@ function launchScenario(id) {
 <template>
   <div>
     <!-- Hero Section -->
-    <section class="bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-6 py-20 md:py-32">
+    <section class="bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-12 md:py-32">
       <div class="max-w-4xl mx-auto text-center">
-        <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-4">
+        <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
           Intercom GTM Systems
         </p>
-        <h1 class="text-4xl md:text-6xl font-semibold mb-4">
+        <h1 class="text-3xl md:text-6xl font-semibold mb-3 md:mb-4">
           MiroFish Swarm Intelligence
         </h1>
-        <p class="text-lg text-white/60 max-w-2xl mx-auto mb-12">
+        <p class="text-base md:text-lg text-white/60 max-w-2xl mx-auto mb-8 md:mb-12">
           Predict campaign outcomes before they happen. Simulate how prospects react
           to your outbound, signals, and pricing changes.
         </p>
@@ -164,7 +164,7 @@ function launchScenario(id) {
         <TransitionGroup
           v-else
           tag="div"
-          class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto"
+          class="grid grid-cols-1 gap-3 md:gap-4 max-w-2xl mx-auto md:grid-cols-2"
           :css="false"
           @before-enter="onStaggerBeforeEnter"
           @enter="onStaggerEnter"
@@ -197,12 +197,12 @@ function launchScenario(id) {
     </section>
 
     <!-- How It Works -->
-    <section class="px-6 py-16 bg-[var(--color-bg)]">
+    <section class="px-4 md:px-6 py-10 md:py-16 bg-[var(--color-bg)]">
       <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-2xl font-semibold text-[var(--color-text)] mb-8">How It Works</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8">How It Works</h2>
         <TransitionGroup
           tag="div"
-          class="grid grid-cols-1 md:grid-cols-3 gap-8"
+          class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
           :css="false"
           @before-enter="onStaggerBeforeEnter"
           @enter="onStaggerEnter"
@@ -219,8 +219,8 @@ function launchScenario(id) {
     </section>
 
     <!-- Stats Banner -->
-    <section class="bg-[#050505] text-white px-6 py-10">
-      <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+    <section class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
+      <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-center">
         <div>
           <div class="text-2xl font-semibold text-[#2068FF]">1M+</div>
           <div class="text-xs text-white/40 mt-1">Max Agents</div>

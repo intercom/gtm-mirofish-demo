@@ -1,9 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 import LandingView from '../views/LandingView.vue'
 import LoginView from '../views/LoginView.vue'
 
-const routes = [
+export const routes = [
   {
     path: '/',
     name: 'landing',
@@ -57,23 +58,23 @@ const routes = [
   },
 ]
 
-function isAuthenticated() {
-  return !!localStorage.getItem('auth_token')
+export function createAppRouter() {
+  const router = createRouter({
+    history: createWebHistory(),
+    routes,
+  })
+
+  router.beforeEach((to) => {
+    if (!to.meta.requiresAuth) return
+    if (localStorage.getItem('auth_enabled') !== 'true') return
+
+    const auth = useAuthStore()
+    if (!auth.isAuthenticated) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+  })
+
+  return router
 }
 
-function isAuthEnabled() {
-  return localStorage.getItem('auth_enabled') === 'true'
-}
-
-const router = createRouter({
-  history: createWebHistory(),
-  routes,
-})
-
-router.beforeEach((to) => {
-  if (to.meta.requiresAuth && isAuthEnabled() && !isAuthenticated()) {
-    return { name: 'login', query: { redirect: to.fullPath } }
-  }
-})
-
-export default router
+export default createAppRouter()

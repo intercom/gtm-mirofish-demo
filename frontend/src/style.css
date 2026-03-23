@@ -1,11 +1,14 @@
 @import "tailwindcss";
 @import "./assets/brand-tokens.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
   margin: 0;
   font-family: var(--font-family);
   color: var(--color-text);
   background: var(--color-bg);
+  transition: color var(--transition-base), background var(--transition-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

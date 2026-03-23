@@ -15,42 +15,42 @@ const activities = ref([])
   <div class="max-w-6xl mx-auto px-6 py-8">
     <div class="flex items-center justify-between mb-8">
       <div>
-        <h1 class="text-2xl font-semibold text-[#050505]">Live Simulation</h1>
-        <p class="text-sm text-[#888]">Task: {{ taskId }}</p>
+        <h1 class="text-2xl font-semibold text-[#050505] dark:text-[#e0e0e0]">Live Simulation</h1>
+        <p class="text-sm text-[#888] dark:text-[#666]">Task: {{ taskId }}</p>
       </div>
       <span class="px-4 py-1.5 rounded-full text-xs font-semibold"
-        :class="status === 'running' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'">
+        :class="status === 'running' ? 'bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400'">
         {{ status === 'running' ? '● Running' : '✓ Complete' }}
       </span>
     </div>
 
     <!-- Metrics -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
+      <div class="bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-lg p-4 text-center">
         <div class="text-3xl font-semibold text-[#2068FF]">{{ metrics.actions }}</div>
-        <div class="text-xs text-[#888] mt-1">Total Actions</div>
+        <div class="text-xs text-[#888] dark:text-[#666] mt-1">Total Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
+      <div class="bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-lg p-4 text-center">
         <div class="text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
-        <div class="text-xs text-[#888] mt-1">Replies</div>
+        <div class="text-xs text-[#888] dark:text-[#666] mt-1">Replies</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
+      <div class="bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-lg p-4 text-center">
         <div class="text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
-        <div class="text-xs text-[#888] mt-1">Likes</div>
+        <div class="text-xs text-[#888] dark:text-[#666] mt-1">Likes</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
+      <div class="bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-lg p-4 text-center">
         <div class="text-3xl font-semibold text-[#090]">{{ metrics.round }}</div>
-        <div class="text-xs text-[#888] mt-1">Round</div>
+        <div class="text-xs text-[#888] dark:text-[#666] mt-1">Round</div>
       </div>
     </div>
 
     <!-- Activity Feed Placeholder -->
-    <div class="bg-white border border-black/10 rounded-lg p-6">
-      <h3 class="text-sm font-semibold text-[#050505] mb-4">Agent Activity Feed</h3>
-      <div class="text-center text-[#888] py-8">
+    <div class="bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-lg p-6">
+      <h3 class="text-sm font-semibold text-[#050505] dark:text-[#e0e0e0] mb-4">Agent Activity Feed</h3>
+      <div class="text-center text-[#888] dark:text-[#666] py-8">
         <p class="text-4xl mb-2">🐦</p>
         <p class="text-sm">Real-time agent actions will appear here</p>
-        <p class="text-xs mt-2 text-[#aaa]">Showing posts, replies, likes, and reposts from simulated agents</p>
+        <p class="text-xs mt-2 text-[#aaa] dark:text-[#555]">Showing posts, replies, likes, and reposts from simulated agents</p>
       </div>
     </div>
 

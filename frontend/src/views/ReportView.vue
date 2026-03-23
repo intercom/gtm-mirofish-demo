@@ -13,7 +13,7 @@ const generating = ref(true)
 <template>
   <div class="max-w-6xl mx-auto px-6 py-8">
     <div class="flex items-center justify-between mb-8">
-      <h1 class="text-2xl font-semibold text-[#050505]">Simulation Report</h1>
+      <h1 class="text-2xl font-semibold text-[#050505] dark:text-[#e0e0e0]">Simulation Report</h1>
       <div class="flex gap-2">
         <router-link :to="`/chat/${taskId}`"
           class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors no-underline">
@@ -25,7 +25,7 @@ const generating = ref(true)
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Chapter Nav -->
       <div class="space-y-2">
-        <div v-if="chapters.length === 0" class="text-sm text-[#888]">
+        <div v-if="chapters.length === 0" class="text-sm text-[#888] dark:text-[#666]">
           {{ generating ? 'Generating report...' : 'No chapters yet' }}
         </div>
         <button
@@ -33,20 +33,20 @@ const generating = ref(true)
           :key="i"
           @click="activeChapter = i"
           class="w-full text-left px-3 py-2 rounded-lg text-sm transition-colors"
-          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'text-[#555] hover:bg-black/5'"
+          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'text-[#555] dark:text-[#aaa] hover:bg-black/5 dark:hover:bg-white/5'"
         >
           {{ chapter.title }}
         </button>
       </div>
 
       <!-- Content -->
-      <div class="md:col-span-3 bg-white border border-black/10 rounded-lg p-8">
+      <div class="md:col-span-3 bg-white dark:bg-[#1a1a2e] border border-black/10 dark:border-white/10 rounded-lg p-8">
         <div v-if="generating" class="text-center py-16">
           <div class="text-4xl mb-4">📝</div>
-          <p class="text-[#888]">Generating predictive report...</p>
-          <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
+          <p class="text-[#888] dark:text-[#666]">Generating predictive report...</p>
+          <p class="text-xs text-[#aaa] dark:text-[#555] mt-2">Multi-chapter analysis with evidence from simulation</p>
         </div>
-        <div v-else-if="chapters[activeChapter]" class="prose prose-sm max-w-none">
+        <div v-else-if="chapters[activeChapter]" class="prose prose-sm dark:prose-invert max-w-none">
           <h2>{{ chapters[activeChapter].title }}</h2>
           <div v-html="chapters[activeChapter].html"></div>
         </div>

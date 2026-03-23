@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref } from 'vue'
 
 const props = defineProps({ taskId: String })
 const messages = ref([])
@@ -35,37 +35,37 @@ async function send() {
       <div class="max-w-2xl mx-auto space-y-4">
         <div v-if="messages.length === 0" class="text-center py-20">
           <div class="text-5xl mb-4">💬</div>
-          <h2 class="text-xl font-semibold text-[#050505] mb-2">Chat with the Simulation</h2>
-          <p class="text-sm text-[#888]">Ask follow-up questions about the simulated world and its predictions.</p>
+          <h2 class="text-xl font-semibold text-[#050505] dark:text-[#e0e0e0] mb-2">Chat with the Simulation</h2>
+          <p class="text-sm text-[#888] dark:text-[#666]">Ask follow-up questions about the simulated world and its predictions.</p>
         </div>
 
         <div v-for="(msg, i) in messages" :key="i"
           class="rounded-lg px-4 py-3 text-sm"
           :class="msg.role === 'user'
-            ? 'bg-[rgba(32,104,255,0.08)] ml-12'
-            : 'bg-[#f5f5f5] mr-12'">
+            ? 'bg-[rgba(32,104,255,0.08)] dark:bg-[rgba(32,104,255,0.15)] ml-12'
+            : 'bg-[#f5f5f5] dark:bg-[#1a1a2e] mr-12'">
           <div class="text-xs font-medium mb-1"
             :class="msg.role === 'user' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
             {{ msg.role === 'user' ? 'You' : 'MiroFish' }}
           </div>
-          {{ msg.content }}
+          <span class="text-[#050505] dark:text-[#e0e0e0]">{{ msg.content }}</span>
         </div>
 
-        <div v-if="sending" class="bg-[#f5f5f5] rounded-lg px-4 py-3 mr-12">
+        <div v-if="sending" class="bg-[#f5f5f5] dark:bg-[#1a1a2e] rounded-lg px-4 py-3 mr-12">
           <div class="text-xs font-medium text-[#ff5600] mb-1">MiroFish</div>
-          <span class="text-sm text-[#888]">Thinking...</span>
+          <span class="text-sm text-[#888] dark:text-[#666]">Thinking...</span>
         </div>
       </div>
     </div>
 
     <!-- Input -->
-    <div class="border-t border-black/10 px-6 py-4">
+    <div class="border-t border-black/10 dark:border-white/10 px-6 py-4">
       <div class="max-w-2xl mx-auto flex gap-3">
         <input
           v-model="input"
           @keydown.enter.exact="send"
           placeholder="Ask about the simulation results..."
-          class="flex-1 border border-black/10 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
+          class="flex-1 border border-black/10 dark:border-white/10 rounded-lg px-4 py-2.5 text-sm bg-white dark:bg-white/5 text-[#050505] dark:text-[#e0e0e0] focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
         />
         <button
           @click="send"

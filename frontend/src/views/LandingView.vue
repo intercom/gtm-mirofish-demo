@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -82,30 +82,30 @@ function launchScenario(id) {
     </section>
 
     <!-- How It Works -->
-    <section class="px-6 py-16 bg-[#fafafa]">
+    <section class="px-6 py-16 bg-[#fafafa] dark:bg-[#0a0a1a] transition-colors duration-300">
       <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-2xl font-semibold text-[#050505] mb-8">How It Works</h2>
+        <h2 class="text-2xl font-semibold text-[#050505] dark:text-[#e0e0e0] mb-8">How It Works</h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div class="w-12 h-12 rounded-full bg-[rgba(32,104,255,0.1)] flex items-center justify-center mx-auto mb-4">
               <span class="text-xl">🧠</span>
             </div>
-            <h3 class="text-sm font-semibold text-[#050505] mb-2">1. Seed Your Scenario</h3>
-            <p class="text-xs text-[#555]">Upload campaign copy, signal definitions, or pricing scenarios as seed information.</p>
+            <h3 class="text-sm font-semibold text-[#050505] dark:text-[#e0e0e0] mb-2">1. Seed Your Scenario</h3>
+            <p class="text-xs text-[#555] dark:text-[#aaa]">Upload campaign copy, signal definitions, or pricing scenarios as seed information.</p>
           </div>
           <div>
             <div class="w-12 h-12 rounded-full bg-[rgba(255,86,0,0.1)] flex items-center justify-center mx-auto mb-4">
               <span class="text-xl">🐟</span>
             </div>
-            <h3 class="text-sm font-semibold text-[#050505] mb-2">2. Simulate the Swarm</h3>
-            <p class="text-xs text-[#555]">Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.</p>
+            <h3 class="text-sm font-semibold text-[#050505] dark:text-[#e0e0e0] mb-2">2. Simulate the Swarm</h3>
+            <p class="text-xs text-[#555] dark:text-[#aaa]">Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.</p>
           </div>
           <div>
             <div class="w-12 h-12 rounded-full bg-[rgba(170,0,255,0.1)] flex items-center justify-center mx-auto mb-4">
               <span class="text-xl">📊</span>
             </div>
-            <h3 class="text-sm font-semibold text-[#050505] mb-2">3. Get Predictive Reports</h3>
-            <p class="text-xs text-[#555]">Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.</p>
+            <h3 class="text-sm font-semibold text-[#050505] dark:text-[#e0e0e0] mb-2">3. Get Predictive Reports</h3>
+            <p class="text-xs text-[#555] dark:text-[#aaa]">Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.</p>
           </div>
         </div>
       </div>

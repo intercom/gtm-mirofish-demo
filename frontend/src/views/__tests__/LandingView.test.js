@@ -7,39 +7,10 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
-const SCENARIOS = [
-  {
-    id: 'outbound_campaign',
-    name: 'Outbound Campaign Pre-Testing',
-    description: 'Simulate how AI-generated outbound emails land with synthetic prospect populations.',
-    icon: '📧',
-    hero: true,
-  },
-  {
-    id: 'signal_validation',
-    name: 'Sales Signal Validation',
-    description: 'Test whether signals actually predict buying behavior.',
-    icon: '📡',
-  },
-  {
-    id: 'pricing_simulation',
-    name: 'Pricing Change Simulation',
-    description: 'Predict customer reactions to P5 pricing migration.',
-    icon: '💰',
-  },
-  {
-    id: 'personalization',
-    name: 'Personalization Optimization',
-    description: 'Rank email variants by simulated engagement.',
-    icon: '✨',
-  },
-]
-
 beforeEach(() => {
-  mockPush.mockClear()
-  vi.stubGlobal('fetch', vi.fn(() =>
-    Promise.resolve({ ok: true, json: () => Promise.resolve(SCENARIOS) }),
-  ))
+  vi.clearAllMocks()
+  // Mock fetch to reject so the fallback scenario data is used
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('No server')))
 })
 
 async function mountLanding() {
@@ -82,7 +53,8 @@ describe('LandingView', () => {
 
   it('highlights the outbound campaign card as hero with blue accent', async () => {
     const wrapper = await mountLanding()
-    const heroButton = wrapper.findAll('button')[0]
+    const buttons = wrapper.findAll('button')
+    const heroButton = buttons[0]
     expect(heroButton.classes()).toContain('border-[rgba(32,104,255,0.3)]')
     expect(heroButton.classes()).toContain('bg-[rgba(32,104,255,0.15)]')
   })
@@ -152,5 +124,19 @@ describe('LandingView', () => {
     await flushPromises()
     expect(wrapper.findAll('button').length).toBe(4)
     expect(wrapper.text()).toContain('Outbound Campaign Pre-Testing')
+  })
+
+  it('unwraps {scenarios:[...]} response from backend', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        scenarios: [
+          { id: 'test_scenario', name: 'Test', description: 'A test', icon: 'mail' },
+        ],
+      }),
+    }))
+    const wrapper = mount(LandingView)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Test')
   })
 })

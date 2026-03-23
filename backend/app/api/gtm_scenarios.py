@@ -35,6 +35,7 @@ def list_scenarios():
                         'name': data.get('name', ''),
                         'description': data.get('description', ''),
                         'category': data.get('category', 'general'),
+                        'icon': data.get('icon', ''),
                     })
     return jsonify({'scenarios': scenarios})
 

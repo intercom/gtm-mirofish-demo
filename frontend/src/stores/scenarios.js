@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { scenariosApi } from '../api/scenarios'
+import client from '../api/client'
 
 export const useScenariosStore = defineStore('scenarios', () => {
   const scenarios = ref([])
@@ -19,9 +19,10 @@ export const useScenariosStore = defineStore('scenarios', () => {
     loading.value = true
     error.value = null
     try {
-      const { data } = await scenariosApi.list()
-      scenarios.value = data
-      return data
+      const { data } = await client.get('/gtm/scenarios')
+      const list = data.scenarios || data
+      scenarios.value = list
+      return list
     } catch (e) {
       error.value = e.message
       return []
@@ -35,7 +36,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
     loading.value = true
     error.value = null
     try {
-      const { data } = await scenariosApi.get(id)
+      const { data } = await client.get(`/gtm/scenarios/${id}`)
       scenarioDetails.value[id] = data
       return data
     } catch (e) {

@@ -1,11 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import * as d3 from 'd3'
 import { graphApi } from '../api/graph'
 import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
+const route = useRoute()
 const toast = useToast()
+const projectId = ref(route.query.projectId || '')
+const graphId = ref('')
 
 const svgContainer = ref(null)
 const graphData = ref({ nodes: [], edges: [] })
@@ -94,9 +98,13 @@ async function pollStatus() {
     if (task.status === 'completed') {
       clearInterval(pollInterval)
       pollInterval = null
-      const graphId = task.result?.graph_id
-      if (graphId) await fetchGraphData(graphId)
-      else loadSampleData()
+      const resultGraphId = task.result?.graph_id
+      if (resultGraphId) {
+        graphId.value = resultGraphId
+        await fetchGraphData(resultGraphId)
+      } else {
+        loadSampleData()
+      }
     } else if (task.status === 'failed') {
       status.value = 'error'
       clearInterval(pollInterval)
@@ -629,8 +637,8 @@ onUnmounted(() => {
     <Transition name="page">
       <div v-if="status === 'complete'" class="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 z-10 text-center md:text-right">
         <router-link
-          :to="`/simulation/${taskId}`"
-          class="inline-block bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline"
+          :to="{ path: `/simulation/${taskId}`, query: { projectId, graphId } }"
+          class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline inline-flex items-center gap-2"
         >
           Continue to Simulation
           <span class="text-white/60">&rarr;</span>

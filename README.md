@@ -59,25 +59,27 @@ Your Scenario (email copy, signals, pricing)
 
 ## Screenshots
 
-> Screenshots will be added after the UI is finalized.
+> Screenshots will be added after the first full simulation run.
 
 | View | Description |
 |------|-------------|
 | **Landing** | Dark hero with scenario cards and "How It Works" section |
-| **Scenario Builder** | Seed document upload, agent count slider, persona multiselect |
-| **Knowledge Graph** | D3.js force-directed graph with colored entity nodes |
+| **Scenario Builder** | Select pre-built GTM scenarios or upload custom seed text |
+| **Knowledge Graph** | D3.js force-directed graph with zoom/pan and entity details |
 | **Simulation** | Real-time dashboard with metrics, activity feed, timeline chart |
-| **Report** | Multi-chapter report with sidebar navigation and markdown rendering |
-| **Chat** | Full-height chat interface for Q&A with simulated agents |
+| **Report** | Predictive analysis with key findings, charts, and recommendations |
+| **Chat** | Interactive Q&A with the simulated world using Report Agent |
 | **Settings** | LLM provider selection, API key management, theme toggle |
 
-<!-- To add screenshots:
-1. Capture each view at 1280x800
-2. Save to docs/screenshots/ as landing.png, builder.png, graph.png, etc.
-3. Replace this section with:
-   ![Landing](docs/screenshots/landing.png)
-   ![Scenario Builder](docs/screenshots/builder.png)
-   etc.
+<!--
+To add screenshots, place images in a docs/screenshots/ directory and update paths:
+![Landing View](docs/screenshots/landing.png)
+![Scenario Builder](docs/screenshots/scenario-builder.png)
+![Knowledge Graph](docs/screenshots/knowledge-graph.png)
+![Simulation](docs/screenshots/simulation.png)
+![Report](docs/screenshots/report.png)
+![Chat](docs/screenshots/chat.png)
+![Settings](docs/screenshots/settings.png)
 -->
 
 ---
@@ -86,13 +88,13 @@ Your Scenario (email copy, signals, pricing)
 
 - **4 Pre-Built GTM Scenarios** — Outbound campaign pre-testing (hero), signal validation, pricing simulation, personalization optimization
 - **Multi-LLM Support** — Claude (Anthropic), OpenAI (GPT-4o), Google Gemini — switchable in settings
-- **Intercom Branding** — Full Intercom design language with brand colors (#2068FF blue, #050505 navy, #ff5600 fin orange)
+- **Intercom Branding** — Full Intercom design language with brand colors (#2068FF blue, #050505 navy, #ff5600 Fin orange), typography, and logo
 - **Real GTM Seed Data** — Anonymized data from Intercom's actual GTM models (accounts, signals, templates, personas)
 - **8 Interactive Views** — Landing, Scenario Builder, Knowledge Graph, Live Simulation, Report Explorer, Chat, Settings, Login
-- **D3.js Knowledge Graphs** — Force-directed graph visualization with entity type coloring and click-to-inspect
+- **D3.js Knowledge Graphs** — Force-directed graph visualization with entity type coloring, zoom/pan, and click-to-inspect
 - **Async Task System** — All long-running operations (graph build, simulation, report gen) return task IDs for progress polling
-- **Agent Interviews** — Chat with individual simulated agents or batch-interview entire populations
 - **Report Agent** — AI-powered report generation with section-by-section streaming and tool-call logging
+- **Agent Interviews** — Chat with individual simulated agents or batch-interview entire populations
 - **Optional Auth** — Google OAuth / Okta SSO with @intercom.io email enforcement (toggle via `.env`)
 - **Docker Deployment** — Single `docker compose up` for Railway or local development
 
@@ -100,43 +102,76 @@ Your Scenario (email copy, signals, pricing)
 
 ## Quick Start
 
+### Prerequisites
+
+- **Docker** (recommended) or:
+  - Python 3.11+ with [uv](https://docs.astral.sh/uv/) package manager
+  - Node 18+ with [pnpm](https://pnpm.io/)
+- **API Keys:**
+  - An LLM API key (Anthropic, OpenAI, or Google)
+  - A [Zep Cloud](https://app.getzep.com/) API key (free tier sufficient for PoC)
+
 ### Docker (Recommended)
 
 ```bash
 git clone https://github.com/intercom/gtm-mirofish-demo.git
 cd gtm-mirofish-demo
 cp .env.example .env
-# Edit .env with your LLM_API_KEY and ZEP_API_KEY
+# Edit .env — set LLM_API_KEY and ZEP_API_KEY at minimum
 docker compose up -d
 ```
 
 - **Frontend:** http://localhost:3000
 - **Backend:** http://localhost:5001
+- **Health check:** http://localhost:5001/health
 
 ### Manual Development
 
 ```bash
-# Backend
-cd backend && uv sync && uv run python run.py
+# 1. Clone and configure
+git clone https://github.com/intercom/gtm-mirofish-demo.git
+cd gtm-mirofish-demo
+cp .env.example .env
+# Edit .env with your API keys
 
-# Frontend (separate terminal)
-cd frontend && pnpm install && pnpm dev
+# 2. Backend (terminal 1)
+cd backend
+uv sync
+uv run python run.py
+# Backend runs on http://localhost:5001
+
+# 3. Frontend (terminal 2)
+cd frontend
+pnpm install
+pnpm dev
+# Frontend runs on http://localhost:3000
+```
+
+### Verify Installation
+
+```bash
+# Check backend health
+curl http://localhost:5001/health
+# Expected: {"status":"ok","service":"MiroFish Backend"}
+
+# List available GTM scenarios
+curl http://localhost:5001/api/gtm/scenarios
 ```
 
 ---
 
 ## Configuration
 
-All configuration is via `.env` file (see [.env.example](.env.example)).
+All configuration is via the `.env` file. Copy [.env.example](.env.example) to get started.
 
 ### LLM Provider
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `LLM_PROVIDER` | Yes | `anthropic` | LLM provider: `anthropic`, `openai`, or `gemini` |
-| `LLM_API_KEY` | Yes | — | API key for chosen provider |
-| `LLM_BASE_URL` | No | Auto-configured | Override provider's default API URL |
-| `LLM_MODEL_NAME` | No | Auto-configured | Override provider's default model |
+| `LLM_API_KEY` | Yes | — | API key for the chosen provider |
+| `LLM_BASE_URL` | No | Auto-configured | Override the provider's default base URL |
+| `LLM_MODEL_NAME` | No | Auto-configured | Override the provider's default model |
 
 Setting `LLM_PROVIDER` auto-configures the base URL and model:
 
@@ -156,12 +191,12 @@ Setting `LLM_PROVIDER` auto-configures the base URL and model:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `AUTH_ENABLED` | No | `false` | Enable OAuth login (for production) |
+| `AUTH_ENABLED` | No | `false` | Enable OAuth login gate |
 | `AUTH_PROVIDER` | No | `google` | OAuth provider: `google` or `okta` |
-| `AUTH_ALLOWED_DOMAIN` | No | `intercom.io` | Allowed email domain |
-| `GOOGLE_CLIENT_ID` | No | — | Google OAuth client ID (when `AUTH_PROVIDER=google`) |
-| `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth client secret |
-| `OKTA_ISSUER` | No | — | Okta issuer URL (when `AUTH_PROVIDER=okta`) |
+| `AUTH_ALLOWED_DOMAIN` | No | `intercom.io` | Restrict login to this email domain |
+| `GOOGLE_CLIENT_ID` | No | — | Google OAuth 2.0 client ID |
+| `GOOGLE_CLIENT_SECRET` | No | — | Google OAuth 2.0 client secret |
+| `OKTA_ISSUER` | No | — | Okta SSO issuer URL |
 | `OKTA_CLIENT_ID` | No | — | Okta client ID |
 
 ### Accelerated LLM (Optional)
@@ -170,16 +205,16 @@ For parallel processing with a secondary LLM provider:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `LLM_BOOST_API_KEY` | No | — | API key for accelerated provider |
-| `LLM_BOOST_BASE_URL` | No | — | Base URL for accelerated provider |
-| `LLM_BOOST_MODEL_NAME` | No | — | Model name for accelerated provider |
+| `LLM_BOOST_API_KEY` | No | — | Separate LLM key for parallel processing |
+| `LLM_BOOST_BASE_URL` | No | — | Base URL for boost provider |
+| `LLM_BOOST_MODEL_NAME` | No | — | Model name for boost provider |
 
 ### Server
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `BACKEND_PORT` | No | `5001` | Backend Flask server port |
-| `FRONTEND_PORT` | No | `3000` | Frontend Vite dev server port |
+| `BACKEND_PORT` | No | `5001` | Flask backend port |
+| `FRONTEND_PORT` | No | `3000` | Vite dev server port |
 | `FLASK_DEBUG` | No | `true` | Enable Flask debug mode |
 | `SECRET_KEY` | No | `change-me-in-production` | Flask session secret key |
 
@@ -188,22 +223,41 @@ For parallel processing with a secondary LLM provider:
 ## Architecture
 
 ```
-+-----------------------------------+     +-----------------------------------+
-|  Frontend                         |     |  Backend                          |
-|  Vue 3 + Vite + Tailwind CSS      |---->|  Flask + OASIS + Zep              |
-|  D3.js + Pinia + Vue Router       |     |  (MiroFish Fork + GTM Extensions) |
-|  Port 3000                        |     |  Port 5001                        |
-+-----------------------------------+     +---------+-----------+-------------+
-                                                    |           |
-                          +-------------------------+           |
-                          |                         |           |
-                     +----+----+          +---------+----+ +----+--------+
-                     |Zep Cloud|          |LLM Provider  | |GTM Seed    |
-                     |Temporal |          |Claude / GPT  | |Data (JSON) |
-                     |Knowledge|          |/ Gemini      | |Scenarios,  |
-                     |Graphs   |          |(OpenAI-compat| |Personas,   |
-                     +---------+          | API)         | |Signals     |
-                                          +--------------+ +------------+
+                          +-----------------------------------------+
+                          |              Frontend (Vue 3)            |
+                          |  Vite + Tailwind + Pinia + D3.js        |
+                          |  Port 3000                              |
+                          +---+-----+-----+-----+-----+-----+------+
+                              |     |     |     |     |     |
+                         /api/graph  |  /api/sim |  /api/report  /api/gtm
+                              |     |     |     |     |     |
+                          +---v-----v-----v-----v-----v-----v------+
+                          |             Backend (Flask)             |
+                          |  OASIS Simulation + Zep GraphRAG        |
+                          |  Port 5001                              |
+                          +-----+-------------+-------------+------+
+                                |             |             |
+                          +-----v-----+ +----v------+ +----v------+
+                          | Zep Cloud | | LLM API   | | GTM Seed  |
+                          | (GraphRAG | | Claude /  | | Data      |
+                          |  Memory)  | | GPT / Gem | | (JSON)    |
+                          +-----------+ +-----------+ +-----------+
+```
+
+### Data Flow
+
+```
+1. UPLOAD        User selects scenario or uploads custom seed text
+                       |
+2. GRAPH BUILD   Text -> chunks -> Zep Cloud -> knowledge graph
+                       |
+3. SIMULATE      Graph entities -> OASIS agent personas
+                 Agents interact on simulated Twitter/Reddit (23 action types)
+                       |
+4. REPORT        Report Agent searches graph + simulation data
+                 Generates evidence-based predictive analysis
+                       |
+5. INTERVIEW     User chats with individual agents or the Report Agent
 ```
 
 ### Request Flow
@@ -225,127 +279,135 @@ Client                         Server
 
 | Component | Technology |
 |-----------|-----------|
-| Frontend | Vue 3.5 + Vite 8 + Tailwind CSS 4 + Pinia + Vue Router |
+| Frontend | Vue 3.5 + Vite 8 + Tailwind CSS 4 + Pinia 3 + Vue Router 4 |
 | Visualization | D3.js v7 (force-directed knowledge graphs) |
-| Markdown | marked v17 (report rendering) |
-| Backend | Flask 3.0+ (Python 3.11-3.12) |
+| Markdown | Marked 17 (report rendering) |
+| HTTP Client | Axios 1.13 |
+| Backend | Flask 3.0+ (Python 3.11+) |
 | Simulation | OASIS (camel-oasis 0.2.5) — up to 1M agents |
 | AI Framework | CAMEL-AI 0.2.78 (multi-agent orchestration) |
-| Memory | Zep Cloud 3.13.0 (temporal knowledge graphs) |
+| Memory | Zep Cloud 3.13 (temporal knowledge graphs) |
 | LLM | Any OpenAI-compatible API (via openai SDK) |
+| File Processing | PyMuPDF (PDF), charset-normalizer (encoding) |
+| Validation | Pydantic 2.0+ |
 | Auth | Google OAuth / Okta SSO (optional) |
+| Package Mgmt | uv (Python), pnpm (Node) |
 | Deploy | Docker Compose + Railway |
 
 ---
 
 ## GTM Scenarios
 
-Four pre-built scenarios ship in `backend/gtm_scenarios/`. Each includes seed text, agent configuration, simulation parameters, and expected output types.
+Four pre-built scenarios ship in `backend/gtm_scenarios/`. Each includes seed text, agent persona definitions, simulation configuration, and expected output types.
 
 ### 1. Outbound Campaign Pre-Testing (Hero)
 
 Simulate how AI-generated outbound emails land with synthetic prospect populations.
 
+- **Agent count:** 200 personas (VP of Support, CX Director, IT Leader, Head of Operations)
 - **Seeds:** Email copy, target segment description, firmographic data
-- **Agents:** 200 synthetic prospects across 4 persona types
 - **Tests:** 4 subject line variants
-- **Outputs:** Engagement prediction by persona, subject line effectiveness, objection mapping by industry, optimal cadence
+- **Key outputs:** Engagement prediction by persona, subject line effectiveness, objection mapping by industry, optimal cadence
 
 ### 2. Sales Signal Validation
 
 Test whether sales signals actually predict buying behavior.
 
+- **Agent count:** 500 personas across 5 decision-making roles
 - **Seeds:** 8 signal definitions from Intercom's DBT models
-- **Agents:** 500 synthetic prospects
 - **Signals tested:** Product Usage Surge, Competitor Research, Feature Exploration, Contract Approaching, Expansion Indicator, Champion Change, Technographic Match, Third-Party Intent
-- **Outputs:** Signal-to-buying correlation, false positive rates, recommended priority ranking
+- **Key outputs:** Signal-to-buying correlation, false positive rates, recommended signal priority ranking
 
 ### 3. Pricing Change Simulation
 
 Predict customer reactions to P5 pricing migration.
 
-- **Seeds:** Pricing scenarios and customer mix (4 account archetypes)
-- **Agents:** 500 synthetic customers across segments
+- **Agent count:** 500 customer personas (SMB / Mid-Market / Enterprise)
+- **Seeds:** 4 pricing scenarios and customer segment mix
 - **Tests:** 4 pricing scenarios
-- **Outputs:** Churn probability by segment, public sentiment risk, competitive switch likelihood, optimal migration strategy
+- **Key outputs:** Churn probability by segment, public sentiment risk, competitive switch likelihood, optimal migration strategy
 
 ### 4. Personalization Optimization
 
 Rank email personalization variants by simulated engagement.
 
+- **Agent count:** 200 personas
 - **Seeds:** 10 message variants across dimensions (tone, length, personalization depth, CTA style)
-- **Agents:** 200 synthetic prospects
-- **Outputs:** Variant ranking, most impactful personalization dimensions, segment-specific recommendations
+- **Key outputs:** Variant ranking by segment, most impactful personalization dimensions, segment-specific recommendations
 
 ### Seed Data
 
-Pre-built seed data lives in `backend/gtm_seed_data/`:
+Anonymized GTM data is provided in `backend/gtm_seed_data/`:
 
 | File | Contents |
 |------|----------|
-| `account_profiles.json` | 4 representative account archetypes (Mid-Market SaaS, Enterprise Healthcare, SMB Fintech, Mid-Market E-commerce) |
-| `persona_templates.json` | 4 decision-maker personas (VP of Support, CX Director, IT Leader, Head of Operations) with priorities, objections, communication style |
-| `signal_definitions.json` | 8 sales signal types with category, accuracy, and adoption metrics |
-| `email_templates.json` | Sample email templates for campaign testing |
+| `account_profiles.json` | 4 company profiles with segment, industry, ARR, health score, churn risk |
+| `persona_templates.json` | 4 buyer personas with role, priorities, objections, communication style |
+| `signal_definitions.json` | 8 sales signal types with accuracy and adoption metrics |
+| `email_templates.json` | 3 outbound email templates (ROI pitch, case study, competitive displacement) |
 
 ---
 
 ## Development Guide
 
-### Prerequisites
+### Project Structure
 
-- **Node.js** 18+ (with pnpm)
-- **Python** 3.11-3.12
-- **uv** (Python package manager) — `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **Docker** (optional, for containerized development)
-
-### Backend Setup
-
-```bash
-cd backend
-
-# Install dependencies
-uv sync
-
-# Run the dev server (port 5001)
-uv run python run.py
+```
+gtm-mirofish-demo/
+├── backend/                    # Flask backend (MiroFish fork)
+│   ├── app/
+│   │   ├── __init__.py         # Flask app factory, blueprint registration
+│   │   ├── config.py           # Multi-LLM provider configuration
+│   │   ├── api/
+│   │   │   ├── graph.py        # Knowledge graph CRUD + build routes
+│   │   │   ├── simulation.py   # OASIS simulation lifecycle routes
+│   │   │   ├── report.py       # Report generation + chat routes
+│   │   │   └── gtm_scenarios.py # GTM scenario template API
+│   │   ├── models/             # Project + task persistence
+│   │   ├── services/           # Core business logic (READ-ONLY)
+│   │   └── utils/              # LLM client, file parser, logger
+│   ├── auth/                   # OAuth middleware (Google/Okta)
+│   ├── gtm_scenarios/          # Pre-built scenario JSON files
+│   ├── gtm_seed_data/          # Anonymized GTM data
+│   ├── scripts/                # Utility scripts for direct simulation
+│   ├── run.py                  # Backend entry point
+│   └── pyproject.toml          # Python dependencies (uv)
+├── frontend/                   # Vue 3 frontend (complete rebuild)
+│   ├── src/
+│   │   ├── assets/
+│   │   │   └── brand-tokens.css # Intercom design tokens
+│   │   ├── components/layout/  # AppNav, AppFooter
+│   │   └── views/              # 8 views (Landing through Settings)
+│   ├── package.json
+│   └── vite.config.js          # Proxy /api -> backend:5001
+├── docker-compose.yml          # Two-service Docker setup
+├── Dockerfile.backend          # Python 3.11 + uv
+├── Dockerfile.frontend         # Node 18
+└── .env.example                # All environment variables
 ```
 
-The backend validates `LLM_API_KEY` and `ZEP_API_KEY` on startup. If either is missing, it exits with an error.
+### Frontend Development
 
-Key directories:
-
-| Directory | Purpose |
-|-----------|---------|
-| `app/api/` | Flask route blueprints (graph, simulation, report, gtm_scenarios) |
-| `app/services/` | Business logic (graph builder, simulation runner, report agent, etc.) |
-| `app/models/` | Data models (project state, task lifecycle) |
-| `app/utils/` | Utilities (LLM client, logger, file parser, retry) |
-| `gtm_scenarios/` | Pre-built scenario JSON files |
-| `gtm_seed_data/` | Anonymized seed data for agent generation |
-| `auth/` | OAuth middleware (Google/Okta) |
-
-### Frontend Setup
+The frontend is a complete Vue 3 rebuild with Intercom branding.
 
 ```bash
 cd frontend
-
-# Install dependencies
 pnpm install
-
-# Run dev server (port 3000, proxies /api to backend)
-pnpm dev
-
-# Production build
-pnpm build
-
-# Preview production build
-pnpm preview
+pnpm dev          # Dev server on http://localhost:3000
+pnpm build        # Production build to dist/
+pnpm preview      # Preview production build
 ```
 
 The Vite dev server proxies all `/api` requests to `http://localhost:5001` (configurable via `VITE_API_URL`).
 
-### Frontend Views
+**Conventions:**
+- All components use Composition API with `<script setup>`
+- Styling uses Tailwind CSS utility classes with brand tokens from `src/assets/brand-tokens.css`
+- API requests use the `/api` prefix, which Vite proxies to the Flask backend
+- State management via Pinia stores
+- Routing via Vue Router
+
+**Frontend Views:**
 
 | Route | View | Purpose |
 |-------|------|---------|
@@ -358,17 +420,32 @@ The Vite dev server proxies all `/api` requests to `http://localhost:5001` (conf
 | `/settings` | SettingsView | LLM provider, API keys, theme |
 | `/login` | LoginView | OAuth login (when `AUTH_ENABLED=true`) |
 
-### Brand Tokens
+**Intercom Design Tokens:**
+- Primary blue: `#2068FF`
+- Navy: `#050505`
+- Fin orange: `#ff5600`
+- Accent purple: `#A0F`
+- Success green: `#090`
+- Font: system-ui stack (Segoe UI, Roboto, Helvetica, Arial)
 
-Intercom design tokens are defined in `frontend/src/assets/brand-tokens.css`:
+### Backend Development
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| Primary Blue | `#2068FF` | Buttons, links, active states |
-| Navy | `#050505` | Dark backgrounds, text |
-| Fin Orange | `#ff5600` | Accents, alerts |
-| Accent Purple | `#A0F` | Highlights |
-| Success Green | `#090` | Status indicators |
+The backend is a minimally patched fork of the MiroFish Flask server.
+
+```bash
+cd backend
+uv sync             # Install dependencies
+uv run python run.py # Start on http://localhost:5001
+```
+
+The backend validates `LLM_API_KEY` and `ZEP_API_KEY` on startup. If either is missing, it exits with an error.
+
+**Conventions:**
+- Services in `app/services/` are **read-only** — do not modify
+- New GTM-specific routes go in `app/api/gtm_scenarios.py`
+- Configuration is resolved via `app/config.py` from `.env`
+- All routes return JSON with `{success: bool, data: ..., error: ...}` shape
+- Async operations return a `task_id` for polling via `/api/graph/task/<task_id>`
 
 ### Running with Docker
 
@@ -388,30 +465,46 @@ docker compose down
 
 The Docker setup mounts source code as volumes for hot-reloading during development.
 
+### Running Tests
+
+```bash
+# Backend
+cd backend
+uv run pytest
+
+# Frontend
+cd frontend
+pnpm test          # If test runner is configured
+```
+
 ---
 
 ## Deployment to Railway
 
-### Setup
+[Railway](https://railway.app) supports multi-service Docker Compose deployments.
+
+### Step 1: Install Railway CLI
 
 ```bash
-# Install Railway CLI
 pnpm add -g @railway/cli
+```
 
-# Login and initialize
+### Step 2: Login and Initialize
+
+```bash
 railway login
 railway init
 ```
 
-### Configure Environment Variables
+### Step 3: Set Environment Variables
 
 ```bash
 # Required
 railway variables set LLM_PROVIDER=anthropic
-railway variables set LLM_API_KEY=your-key
-railway variables set ZEP_API_KEY=your-key
+railway variables set LLM_API_KEY=your-anthropic-key
+railway variables set ZEP_API_KEY=your-zep-key
 
-# Production auth
+# Production auth (recommended)
 railway variables set AUTH_ENABLED=true
 railway variables set AUTH_PROVIDER=google
 railway variables set GOOGLE_CLIENT_ID=your-client-id
@@ -422,112 +515,141 @@ railway variables set SECRET_KEY=$(openssl rand -hex 32)
 railway variables set FLASK_DEBUG=false
 ```
 
-### Deploy
+### Step 4: Deploy
 
 ```bash
 railway up
 ```
 
-Railway auto-detects the `docker-compose.yml` and provisions both services. The frontend service depends on the backend and connects via the internal Docker network.
+Railway will detect the `docker-compose.yml` and deploy both services. The frontend service depends on the backend and will start after it's healthy.
 
-### Post-Deploy Checklist
+### Post-Deployment Checklist
 
-1. Verify health check: `curl https://your-app.railway.app/health`
-2. Test frontend loads at the Railway-provided URL
-3. Confirm OAuth redirect URLs are configured for your Railway domain
-4. Run a quick scenario to verify LLM and Zep connectivity
+- [ ] Verify `/health` endpoint returns `{"status":"ok"}`
+- [ ] Confirm `AUTH_ENABLED=true` is set for production
+- [ ] Set a strong `SECRET_KEY` (not the default)
+- [ ] Test OAuth flow with an @intercom.io email
+- [ ] Verify GTM scenarios load: `GET /api/gtm/scenarios`
 
 ---
 
 ## API Reference
 
-All endpoints are prefixed with `/api`. The frontend proxies requests to the Flask backend.
+All endpoints are prefixed with `/api`. The backend registers four blueprint groups.
 
-### Health
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Backend health check |
-
-### Graph (Knowledge Graph Construction)
+### Health Check
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/graph/ontology/generate` | Upload files and generate ontology definition |
-| POST | `/api/graph/build` | Build knowledge graph from project (async, returns `task_id`) |
-| GET | `/api/graph/task/:taskId` | Check task progress |
-| GET | `/api/graph/tasks` | List all tasks |
-| GET | `/api/graph/data/:graphId` | Get graph data (nodes and edges) |
-| DELETE | `/api/graph/delete/:graphId` | Delete a Zep graph |
-| GET | `/api/graph/project/:projectId` | Get project details |
+| GET | `/health` | Returns `{status: "ok", service: "MiroFish Backend"}` |
+
+### Graph (`/api/graph`)
+
+Project and knowledge graph management.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/graph/ontology/generate` | Upload files (PDF/MD/TXT) and generate entity/edge ontology |
+| POST | `/api/graph/build` | Start async knowledge graph build from a project |
+| GET | `/api/graph/project/<project_id>` | Get project details |
 | GET | `/api/graph/project/list` | List all projects |
-| DELETE | `/api/graph/project/:projectId` | Delete a project |
-| POST | `/api/graph/project/:projectId/reset` | Reset project state |
+| DELETE | `/api/graph/project/<project_id>` | Delete a project |
+| POST | `/api/graph/project/<project_id>/reset` | Reset project state for rebuild |
+| GET | `/api/graph/task/<task_id>` | Get async task status and progress |
+| GET | `/api/graph/tasks` | List all tasks |
+| GET | `/api/graph/data/<graph_id>` | Get graph nodes and edges |
+| DELETE | `/api/graph/delete/<graph_id>` | Delete a Zep graph |
 
-### Simulation (OASIS Agent Execution)
+### Simulation (`/api/simulation`)
+
+Simulation lifecycle, agent management, and interview system.
+
+**Lifecycle:**
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/simulation/create` | Create a new simulation |
-| POST | `/api/simulation/prepare` | Prepare simulation environment (async, LLM-generated config) |
-| POST | `/api/simulation/prepare/status` | Check preparation progress |
-| POST | `/api/simulation/start` | Start running the simulation (async) |
+| POST | `/api/simulation/prepare` | Prepare simulation environment (async, LLM generates config) |
+| POST | `/api/simulation/prepare/status` | Check preparation task progress |
+| POST | `/api/simulation/start` | Start running the simulation |
 | POST | `/api/simulation/stop` | Stop a running simulation |
-| GET | `/api/simulation/:simId` | Get simulation state |
+| GET | `/api/simulation/<simulation_id>` | Get simulation state |
 | GET | `/api/simulation/list` | List all simulations |
 | GET | `/api/simulation/history` | Get simulation history with project details |
-| GET | `/api/simulation/entities/:graphId` | Get graph entities (filtered) |
-| GET | `/api/simulation/entities/:graphId/:uuid` | Get single entity details |
-| GET | `/api/simulation/entities/:graphId/by-type/:type` | Get entities by type |
-| GET | `/api/simulation/:simId/profiles` | Get agent profiles |
-| GET | `/api/simulation/:simId/profiles/realtime` | Get profiles in real-time during generation |
-| GET | `/api/simulation/:simId/config` | Get simulation config |
-| GET | `/api/simulation/:simId/config/realtime` | Get config in real-time during generation |
-| GET | `/api/simulation/:simId/config/download` | Download simulation config file |
-| GET | `/api/simulation/:simId/run-status` | Get run status (for polling) |
-| GET | `/api/simulation/:simId/run-status/detail` | Get detailed run status with all actions |
-| GET | `/api/simulation/:simId/actions` | Get agent action history |
-| GET | `/api/simulation/:simId/timeline` | Get timeline grouped by round |
-| GET | `/api/simulation/:simId/agent-stats` | Get per-agent statistics |
-| GET | `/api/simulation/:simId/posts` | Get simulation posts |
-| GET | `/api/simulation/:simId/comments` | Get simulation comments (Reddit only) |
+
+**Entities & Profiles:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/simulation/entities/<graph_id>` | Get all entities from a graph |
+| GET | `/api/simulation/entities/<graph_id>/<entity_uuid>` | Get single entity detail |
+| GET | `/api/simulation/entities/<graph_id>/by-type/<type>` | Get entities filtered by type |
 | POST | `/api/simulation/generate-profiles` | Generate OASIS agent profiles from graph |
+| GET | `/api/simulation/<sim_id>/profiles` | Get simulation agent profiles |
+| GET | `/api/simulation/<sim_id>/profiles/realtime` | Realtime profile generation progress |
+| GET | `/api/simulation/<sim_id>/config` | Get LLM-generated simulation config |
+| GET | `/api/simulation/<sim_id>/config/realtime` | Realtime config generation progress |
+| GET | `/api/simulation/<sim_id>/config/download` | Download simulation config file |
+| GET | `/api/simulation/script/<name>/download` | Download simulation run script |
+
+**Runtime & Data:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/simulation/<sim_id>/run-status` | Realtime simulation run status |
+| GET | `/api/simulation/<sim_id>/run-status/detail` | Detailed run status with all actions |
+| GET | `/api/simulation/<sim_id>/actions` | Agent action history |
+| GET | `/api/simulation/<sim_id>/timeline` | Round-by-round timeline |
+| GET | `/api/simulation/<sim_id>/agent-stats` | Per-agent statistics |
+| GET | `/api/simulation/<sim_id>/posts` | Simulated posts (Twitter/Reddit) |
+| GET | `/api/simulation/<sim_id>/comments` | Simulated comments (Reddit) |
+
+**Interviews:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | POST | `/api/simulation/interview` | Interview a single agent |
 | POST | `/api/simulation/interview/batch` | Batch interview multiple agents |
-| POST | `/api/simulation/interview/all` | Interview all agents with the same question |
+| POST | `/api/simulation/interview/all` | Interview all agents with same question |
 | POST | `/api/simulation/interview/history` | Get interview history |
-| POST | `/api/simulation/env-status` | Get simulation environment status |
-| POST | `/api/simulation/close-env` | Close simulation environment |
+| POST | `/api/simulation/env-status` | Check if simulation env is alive |
+| POST | `/api/simulation/close-env` | Gracefully close simulation env |
 
-### Report (AI-Powered Analysis)
+### Report (`/api/report`)
+
+Report generation, retrieval, and analysis chat.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/report/generate` | Generate predictive report (async) |
 | POST | `/api/report/generate/status` | Check report generation progress |
-| GET | `/api/report/:reportId` | Get report details |
-| GET | `/api/report/by-simulation/:simId` | Get report by simulation ID |
+| GET | `/api/report/<report_id>` | Get completed report |
+| GET | `/api/report/by-simulation/<sim_id>` | Get report by simulation ID |
 | GET | `/api/report/list` | List all reports |
-| GET | `/api/report/:reportId/download` | Download report as Markdown |
-| DELETE | `/api/report/:reportId` | Delete a report |
+| GET | `/api/report/<report_id>/download` | Download report as Markdown |
+| DELETE | `/api/report/<report_id>` | Delete a report |
 | POST | `/api/report/chat` | Chat with Report Agent (Q&A with simulated world) |
-| GET | `/api/report/:reportId/progress` | Get real-time generation progress |
-| GET | `/api/report/:reportId/sections` | Get generated sections (for streaming display) |
-| GET | `/api/report/:reportId/section/:index` | Get a single section |
-| GET | `/api/report/check/:simId` | Check if simulation has a report |
-| GET | `/api/report/:reportId/agent-log` | Get Report Agent execution log |
-| GET | `/api/report/:reportId/agent-log/stream` | Get full agent log |
-| GET | `/api/report/:reportId/console-log` | Get console output log |
-| GET | `/api/report/:reportId/console-log/stream` | Get full console log |
+| GET | `/api/report/check/<sim_id>` | Check if simulation has a report |
+| GET | `/api/report/<report_id>/progress` | Realtime report generation progress |
+| GET | `/api/report/<report_id>/sections` | Get generated sections (incremental) |
+| GET | `/api/report/<report_id>/section/<index>` | Get single section content |
+| GET | `/api/report/<report_id>/agent-log` | Report Agent execution log |
+| GET | `/api/report/<report_id>/agent-log/stream` | Full agent log (one-shot) |
+| GET | `/api/report/<report_id>/console-log` | Console output log |
+| GET | `/api/report/<report_id>/console-log/stream` | Full console log (one-shot) |
+| POST | `/api/report/tools/search` | Graph search tool (debug) |
+| POST | `/api/report/tools/statistics` | Graph statistics tool (debug) |
 
-### GTM Extensions
+### GTM Extensions (`/api/gtm`)
+
+Pre-built GTM scenario templates and seed data.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/gtm/scenarios` | List all GTM scenario templates |
-| GET | `/api/gtm/scenarios/:id` | Get scenario with full config |
-| GET | `/api/gtm/scenarios/:id/seed-text` | Get scenario seed text |
-| GET | `/api/gtm/seed-data/:type` | Get seed data by type (`account_profiles`, `persona_templates`, `signal_definitions`, `email_templates`) |
+| GET | `/api/gtm/scenarios/<scenario_id>` | Get scenario with full configuration |
+| GET | `/api/gtm/scenarios/<scenario_id>/seed-text` | Get ready-to-use seed text for graph building |
+| GET | `/api/gtm/seed-data/<data_type>` | Get seed data by type (`account_profiles`, `signal_definitions`, `email_templates`, `persona_templates`) |
 
 ---
 
@@ -537,48 +659,25 @@ All endpoints are prefixed with `/api`. The frontend proxies requests to the Fla
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make your changes
-4. Run linting and tests
-5. Commit with a descriptive message
-6. Push and open a pull request
+3. Follow the [Development Guide](#development-guide) to set up your environment
+4. Make your changes
 
 ### Guidelines
 
-- **Frontend:** All Vue components use Composition API with `<script setup>`. Use Tailwind CSS utility classes from `frontend/src/assets/brand-tokens.css`.
-- **Backend:** Services in `backend/app/services/` are core MiroFish logic — avoid modifying them unless necessary. Add new GTM-specific logic in `backend/app/api/gtm_scenarios.py` or new blueprint files.
-- **API routes:** All frontend API requests use the `/api` prefix, which Vite proxies to the Flask backend.
-- **Brand consistency:** Use Intercom brand tokens (primary blue `#2068FF`, navy `#050505`, fin orange `#ff5600`, accent purple `#A0F`).
-- **Package manager:** Use `pnpm` for the frontend, `uv` for the backend.
+- **Backend services are read-only** — `backend/app/services/` contains the core MiroFish simulation logic and should not be modified
+- **Frontend uses Composition API** — All Vue components must use `<script setup>` syntax
+- **Use Intercom brand tokens** — Reference `frontend/src/assets/brand-tokens.css` for colors and spacing (primary blue `#2068FF`, navy `#050505`, fin orange `#ff5600`, accent purple `#A0F`)
+- **Use pnpm** for frontend package management (not npm or yarn)
+- **Use uv** for backend package management
+- **API responses** follow the `{success: bool, data: ..., error: ...}` convention
+- **API routes** — All frontend API requests use the `/api` prefix, which Vite proxies to the Flask backend
+- Keep commits focused — one logical change per commit
 
-### Project Structure
+### Submitting Changes
 
-```
-gtm-mirofish-demo/
-├── backend/
-│   ├── app/
-│   │   ├── api/              # Flask route blueprints
-│   │   ├── services/         # Business logic (read-only core)
-│   │   ├── models/           # Data models
-│   │   ├── utils/            # Utilities
-│   │   └── config.py         # Configuration
-│   ├── auth/                 # OAuth middleware
-│   ├── gtm_scenarios/        # Pre-built scenario JSON files
-│   ├── gtm_seed_data/        # Anonymized seed data
-│   └── run.py                # Entry point
-├── frontend/
-│   ├── src/
-│   │   ├── views/            # 8 page components
-│   │   ├── components/       # Layout components (AppNav, AppFooter)
-│   │   ├── assets/           # Brand tokens, images
-│   │   └── main.js           # Vue app setup with routing
-│   ├── tailwind.config.js
-│   └── vite.config.js
-├── docker-compose.yml
-├── Dockerfile.backend
-├── Dockerfile.frontend
-├── .env.example
-└── README.md
-```
+1. Ensure your code follows existing patterns and conventions
+2. Test your changes locally (both Docker and manual setups)
+3. Submit a pull request with a clear description of what changed and why
 
 ---
 
@@ -591,6 +690,6 @@ AGPL-3.0 — inherited from [MiroFish](https://github.com/666ghj/MiroFish). See 
 ## Credits
 
 - **[MiroFish](https://github.com/666ghj/MiroFish)** by Shanda Group — the swarm intelligence engine powering this demo
-- **[OASIS](https://github.com/camel-ai/oasis)** — social simulation framework
+- **[OASIS](https://github.com/camel-ai/oasis)** — social simulation framework (up to 1M agents)
 - **[Zep Cloud](https://www.getzep.com/)** — temporal knowledge graph memory
 - **Intercom GTM Systems Team** — Spenser Wellen, Spencer Cross, Bil Erdenekhuyag

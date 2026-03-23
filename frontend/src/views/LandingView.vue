@@ -1,9 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
-import ErrorState from '../components/ui/ErrorState.vue'
-import EmptyState from '../components/ui/EmptyState.vue'
 
 const router = useRouter()
 const showCards = ref(false)

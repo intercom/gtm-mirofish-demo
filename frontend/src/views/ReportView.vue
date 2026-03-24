@@ -209,9 +209,24 @@ onUnmounted(stopPolling)
       <p class="text-xs text-[#888] mt-1 text-right">{{ progress }}%</p>
     </div>
 
+    <!-- Mobile: horizontal tab bar -->
+    <div v-if="chapters.length > 0" class="md:hidden mb-4 -mx-4 px-4 overflow-x-auto">
+      <div class="flex gap-2 min-w-max">
+        <button
+          v-for="(chapter, i) in chapters"
+          :key="'tab-' + i"
+          @click="activeChapter = i"
+          class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors"
+          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555] hover:bg-black/10'"
+        >
+          {{ chapter.title }}
+        </button>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Chapter Nav Sidebar -->
-      <nav class="space-y-1">
+      <nav class="hidden md:block space-y-1">
         <h3 class="text-xs font-semibold text-[#888] uppercase tracking-wider mb-3 px-3">Chapters</h3>
 
         <div v-if="chapters.length === 0 && generating" class="px-3">

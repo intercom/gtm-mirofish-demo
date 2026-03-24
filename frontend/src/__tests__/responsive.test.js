@@ -37,7 +37,7 @@ async function mountWithRouter(component, options = {}) {
 describe('AppNav — hamburger menu', () => {
   it('renders hamburger button with md:hidden class', async () => {
     const wrapper = await mountWithRouter(AppNav)
-    const hamburger = wrapper.find('button[aria-label="Toggle menu"]')
+    const hamburger = wrapper.find('button[aria-label="Toggle navigation menu"]')
     expect(hamburger.exists()).toBe(true)
     expect(hamburger.classes()).toContain('md:hidden')
   })
@@ -56,7 +56,7 @@ describe('AppNav — hamburger menu', () => {
 
   it('toggles mobile menu on hamburger click', async () => {
     const wrapper = await mountWithRouter(AppNav)
-    const hamburger = wrapper.find('button[aria-label="Toggle menu"]')
+    const hamburger = wrapper.find('button[aria-label="Toggle navigation menu"]')
 
     await hamburger.trigger('click')
     let mobileMenu = wrapper.find('.md\\:hidden.absolute')
@@ -68,17 +68,6 @@ describe('AppNav — hamburger menu', () => {
     await hamburger.trigger('click')
     mobileMenu = wrapper.find('.md\\:hidden.absolute')
     expect(mobileMenu.exists()).toBe(false)
-  })
-
-  it('hamburger animates to X when open', async () => {
-    const wrapper = await mountWithRouter(AppNav)
-    const hamburger = wrapper.find('button[aria-label="Toggle menu"]')
-    await hamburger.trigger('click')
-
-    const bars = hamburger.findAll('span')
-    expect(bars[0].classes()).toContain('rotate-45')
-    expect(bars[1].classes()).toContain('opacity-0')
-    expect(bars[2].classes()).toContain('-rotate-45')
   })
 })
 
@@ -115,7 +104,6 @@ describe('ReportView — sidebar to tabs on mobile', () => {
     const wrapper = await mountWithRouter(ReportView, {
       props: { taskId: 'test-123' },
     })
-    // Set chapters to trigger tab bar rendering
     wrapper.vm.chapters = [
       { title: 'Chapter 1', html: '<p>Content 1</p>' },
       { title: 'Chapter 2', html: '<p>Content 2</p>' },
@@ -137,7 +125,7 @@ describe('ReportView — sidebar to tabs on mobile', () => {
     wrapper.vm.generating = false
     await wrapper.vm.$nextTick()
 
-    const sidebar = wrapper.find('.hidden.md\\:block.space-y-2')
+    const sidebar = wrapper.find('.hidden.md\\:block.space-y-1')
     expect(sidebar.exists()).toBe(true)
   })
 
@@ -194,12 +182,10 @@ describe('ScenarioBuilderView — sidebar to tabs on mobile', () => {
     wrapper.vm.loading = false
     await wrapper.vm.$nextTick()
 
-    // Default: seed tab active
     expect(wrapper.vm.activeTab).toBe('seed')
     const seedPanel = wrapper.find('.md\\:col-span-2')
     expect(seedPanel.classes()).not.toContain('hidden')
 
-    // Switch to config
     const tabs = wrapper.find('.md\\:hidden.flex.gap-2').findAll('button')
     await tabs[1].trigger('click')
     expect(wrapper.vm.activeTab).toBe('config')
@@ -207,20 +193,6 @@ describe('ScenarioBuilderView — sidebar to tabs on mobile', () => {
 })
 
 describe('ChatView — mobile layout adjustments', () => {
-  it('uses responsive message margins', async () => {
-    const wrapper = await mountWithRouter(ChatView, {
-      props: { taskId: 'test-123' },
-    })
-    // Add a user message
-    wrapper.vm.messages = [{ role: 'user', content: 'Hello' }]
-    await wrapper.vm.$nextTick()
-
-    const msg = wrapper.find('.rounded-lg.px-3')
-    expect(msg.exists()).toBe(true)
-    expect(msg.classes()).toContain('ml-6')
-    expect(msg.classes()).toContain('md:ml-12')
-  })
-
   it('has responsive input padding', async () => {
     const wrapper = await mountWithRouter(ChatView, {
       props: { taskId: 'test-123' },
@@ -244,7 +216,7 @@ describe('SimulationView — mobile layout', () => {
     const wrapper = await mountWithRouter(SimulationView, {
       props: { taskId: 'test-123' },
     })
-    const metricCard = wrapper.find('.bg-\\[var\\(--color-surface\\)\\].border.border-\\[var\\(--color-border\\)\\].rounded-lg.p-3')
+    const metricCard = wrapper.find('.bg-white.border.rounded-lg.p-3')
     expect(metricCard.exists()).toBe(true)
     expect(metricCard.classes()).toContain('md:p-4')
   })

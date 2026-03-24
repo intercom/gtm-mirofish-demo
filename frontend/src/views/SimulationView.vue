@@ -280,12 +280,12 @@ watch(activePlatform, () => drawChart())
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-6 py-8">
+  <div class="max-w-6xl mx-auto px-4 md:px-6 py-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8">
       <div>
         <h1 class="text-xl md:text-2xl font-semibold text-[#050505]">Live Simulation</h1>
-        <p class="text-xs md:text-sm text-[#888] mt-1">Task: {{ taskId }}</p>
+        <p class="text-xs md:text-sm text-[#888] mt-1 break-all">Task: {{ taskId }}</p>
       </div>
       <span class="px-4 py-1.5 rounded-full text-xs font-semibold" :class="statusStyle">
         {{ statusIcon }} {{ statusLabel }}

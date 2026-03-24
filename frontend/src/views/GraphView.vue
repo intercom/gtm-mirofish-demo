@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import * as d3 from 'd3'
 import { graphApi } from '../api/graph'
@@ -10,475 +10,453 @@ const route = useRoute()
 const toast = useToast()
 const projectId = ref(route.query.projectId || '')
 const graphId = ref('')
-const errorMessage = ref('')
 
-const svgContainer = ref(null)
-const graphData = ref({ nodes: [], edges: [] })
+// Task polling state
+const task = ref(null)
 const status = ref('building')
 const progress = ref(0)
+const errorMsg = ref('')
+
+// Graph data
+const graphData = ref({ nodes: [], edges: [] })
 const nodeCount = ref(0)
 const edgeCount = ref(0)
 const selectedNode = ref(null)
 
-let pollInterval = null
+// D3 visualization
+const svgRef = ref(null)
+const containerRef = ref(null)
 let simulation = null
+let svg = null
+let zoomGroup = null
+let pollTimer = null
 let resizeObserver = null
 let resizeTimer = null
 
+// Entity type color mapping
 const TYPE_COLORS = {
   persona: '#ff5600',
+  person: '#ff5600',
+  agent: '#ff5600',
+  user: '#ff5600',
+  customer: '#ff5600',
+  stakeholder: '#ff5600',
+  role: '#ff5600',
   topic: '#2068FF',
+  theme: '#2068FF',
+  subject: '#2068FF',
+  concept: '#2068FF',
+  category: '#2068FF',
+  product: '#2068FF',
+  feature: '#2068FF',
+  technology: '#2068FF',
   relationship: '#AA00FF',
+  interaction: '#AA00FF',
+  connection: '#AA00FF',
+  event: '#AA00FF',
+  action: '#AA00FF',
+  process: '#AA00FF',
+}
+const DEFAULT_COLOR = '#667'
+const GENERIC_LABELS = new Set(['Entity', 'Node'])
+
+function getNodeColor(labels) {
+  const meaningful = (labels || []).filter(l => !GENERIC_LABELS.has(l))
+  if (!meaningful.length) return DEFAULT_COLOR
+  const label = meaningful[0].toLowerCase()
+  for (const [key, color] of Object.entries(TYPE_COLORS)) {
+    if (label.includes(key)) return color
+  }
+  // Deterministic color from a fixed palette for unknown types
+  const palette = ['#ff5600', '#2068FF', '#AA00FF']
+  let hash = 0
+  for (const ch of label) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0
+  return palette[Math.abs(hash) % palette.length]
 }
 
-function classifyNodeType(labels) {
-  const text = labels.map((l) => l.toLowerCase()).join(' ')
-  if (
-    /person|persona|user|student|teacher|agent|customer|rep|manager|employee|founder|ceo|director|vp|engineer|designer/.test(
-      text,
-    )
-  )
-    return 'persona'
-  if (
-    /topic|concept|theme|subject|technology|tool|product|service|platform|feature|category|strategy|metric|channel/.test(
-      text,
-    )
-  )
-    return 'topic'
-  return 'relationship'
+function getEntityType(labels) {
+  const meaningful = (labels || []).filter(l => !GENERIC_LABELS.has(l))
+  return meaningful[0] || 'Entity'
 }
 
-function nodeColor(type) {
-  return TYPE_COLORS[type] || '#666'
+// Centrality: count edges connected to each node
+function computeCentrality(nodes, edges) {
+  const degree = {}
+  for (const n of nodes) degree[n.uuid] = 0
+  for (const e of edges) {
+    if (degree[e.source_node_uuid] !== undefined) degree[e.source_node_uuid]++
+    if (degree[e.target_node_uuid] !== undefined) degree[e.target_node_uuid]++
+  }
+  const max = Math.max(1, ...Object.values(degree))
+  const result = {}
+  for (const [id, d] of Object.entries(degree)) result[id] = d / max
+  return result
 }
 
-function nodeRadius(degree) {
-  return 5 + Math.sqrt(Math.max(degree, 1)) * 4
-}
-
-const selectedConnections = computed(() => {
-  if (!selectedNode.value) return []
-  const id = selectedNode.value.id
-  return graphData.value.edges
-    .filter((e) => {
-      const src = typeof e.source === 'object' ? e.source.id : e.source
-      const tgt = typeof e.target === 'object' ? e.target.id : e.target
-      return src === id || tgt === id
-    })
-    .map((e) => {
-      const src =
-        typeof e.source === 'object'
-          ? e.source
-          : graphData.value.nodes.find((n) => n.id === e.source)
-      const tgt =
-        typeof e.target === 'object'
-          ? e.target
-          : graphData.value.nodes.find((n) => n.id === e.target)
-      return { edge: e, neighbor: src?.id === id ? tgt : src }
-    })
+// Entity type stats for the stats panel
+const entityTypeStats = computed(() => {
+  const counts = {}
+  for (const n of graphData.value.nodes) {
+    const type = getEntityType(n.labels)
+    counts[type] = (counts[type] || 0) + 1
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => ({
+      type,
+      count,
+      color: getNodeColor([type]),
+    }))
 })
 
-const typeCounts = computed(() => {
-  const counts = { persona: 0, topic: 0, relationship: 0 }
-  graphData.value.nodes.forEach((n) => {
-    if (counts[n.type] !== undefined) counts[n.type]++
-  })
-  return counts
-})
+// --- Task Polling ---
 
-// --- API polling ---
+async function pollTask() {
+  if (!props.taskId) return
 
-async function pollStatus() {
   try {
     const res = await graphApi.getTask(props.taskId)
-    const task = res.data?.data
-    if (!task) return
+    const json = res.data
+    if (!json.success) {
+      errorMsg.value = json.error || 'Unknown error'
+      return
+    }
 
-    progress.value = task.progress || 0
+    task.value = json.data
+    progress.value = json.data.progress || 0
 
-    if (task.status === 'completed') {
-      clearInterval(pollInterval)
-      pollInterval = null
-      const resultGraphId = task.result?.graph_id
-      if (resultGraphId) {
-        graphId.value = resultGraphId
-        await fetchGraphData(resultGraphId)
-      } else {
-        loadSampleData()
+    if (json.data.status === 'completed') {
+      status.value = 'complete'
+      clearInterval(pollTimer)
+      pollTimer = null
+      const gid = json.data.result?.graph_id
+      if (gid) {
+        graphId.value = gid
+        await loadGraphData(gid)
       }
       toast.success('Knowledge graph built successfully')
-    } else if (task.status === 'failed') {
-      status.value = 'error'
-      errorMessage.value = task.message || task.error || 'Knowledge graph build failed'
-      clearInterval(pollInterval)
-      pollInterval = null
+    } else if (json.data.status === 'failed') {
+      status.value = 'failed'
+      errorMsg.value = json.data.message || 'Build failed'
+      clearInterval(pollTimer)
+      pollTimer = null
       toast.error('Knowledge graph build failed')
+    } else {
+      status.value = 'building'
     }
-  } catch (e) {
-    clearInterval(pollInterval)
-    pollInterval = null
-    loadSampleData()
-    toast.info('Using sample data — backend unavailable')
+  } catch {
+    // Task not found or backend unreachable — try as graph_id or use demo data
+    try {
+      await loadGraphDirect(props.taskId)
+    } catch {
+      loadDemoData()
+      toast.info('Using sample data — backend unavailable')
+    }
   }
 }
 
-async function fetchGraphData(graphId) {
-  try {
-    const res = await graphApi.getData(graphId)
-    processAndRender(res.data?.data)
-  } catch {
-    loadSampleData()
+async function loadGraphDirect(gid) {
+  clearInterval(pollTimer)
+  pollTimer = null
+  const res = await graphApi.getData(gid)
+  if (res.data?.success) {
+    graphId.value = gid
+    applyGraphData(res.data.data)
+    status.value = 'complete'
+    toast.success('Knowledge graph loaded')
+  } else {
+    loadDemoData()
   }
+}
+
+async function loadGraphData(gid) {
+  try {
+    const res = await graphApi.getData(gid)
+    if (res.data?.success) applyGraphData(res.data.data)
+  } catch (e) {
+    console.error('Failed to load graph data:', e)
+  }
+}
+
+function applyGraphData(data) {
+  graphData.value = data
+  nodeCount.value = data.node_count || data.nodes.length
+  edgeCount.value = data.edge_count || data.edges.length
+  nextTick(() => renderGraph())
 }
 
 function retryBuild() {
   status.value = 'building'
   progress.value = 0
-  errorMessage.value = ''
-  pollInterval = setInterval(pollStatus, 2000)
-  pollStatus()
+  errorMsg.value = ''
+  selectedNode.value = null
+  graphData.value = { nodes: [], edges: [] }
+  if (simulation) simulation.stop()
+  pollTask()
+  pollTimer = setInterval(pollTask, 2000)
 }
 
-// --- Data processing ---
+function loadDemoData() {
+  clearInterval(pollTimer)
+  pollTimer = null
+  status.value = 'complete'
 
-function processAndRender(data) {
-  const nodes = (data.nodes || []).map((n) => ({
-    id: n.uuid,
-    name: n.name,
-    labels: n.labels || [],
-    summary: n.summary || '',
-    type: classifyNodeType(n.labels || []),
-    attributes: n.attributes || {},
-    degree: 0,
-  }))
+  const demoNodes = [
+    { uuid: '1', name: 'Enterprise Buyer', labels: ['Entity', 'Persona'], summary: 'Decision-maker at large organizations evaluating platform purchases.' },
+    { uuid: '2', name: 'SMB Founder', labels: ['Entity', 'Persona'], summary: 'Small business owner seeking affordable customer support tools.' },
+    { uuid: '3', name: 'Customer Support', labels: ['Entity', 'Topic'], summary: 'Core product area for ticket management and live chat.' },
+    { uuid: '4', name: 'AI Automation', labels: ['Entity', 'Topic'], summary: 'Machine learning-powered features like Fin AI agent.' },
+    { uuid: '5', name: 'Pricing Strategy', labels: ['Entity', 'Topic'], summary: 'Seat-based vs usage-based pricing models.' },
+    { uuid: '6', name: 'Competitor Analysis', labels: ['Entity', 'Topic'], summary: 'Comparative positioning against Zendesk, Freshdesk, HubSpot.' },
+    { uuid: '7', name: 'Product-Led Growth', labels: ['Entity', 'Process'], summary: 'GTM motion focusing on self-serve onboarding and expansion.' },
+    { uuid: '8', name: 'Sales-Led Motion', labels: ['Entity', 'Process'], summary: 'Enterprise sales cycle with demos, pilots, and procurement.' },
+    { uuid: '9', name: 'Developer Advocate', labels: ['Entity', 'Persona'], summary: 'Technical influencer evaluating APIs and integrations.' },
+    { uuid: '10', name: 'Onboarding Flow', labels: ['Entity', 'Feature'], summary: 'First-run experience guiding users through product setup.' },
+    { uuid: '11', name: 'Churn Risk', labels: ['Entity', 'Event'], summary: 'Signals indicating potential customer attrition.' },
+    { uuid: '12', name: 'Expansion Revenue', labels: ['Entity', 'Topic'], summary: 'Upsell and cross-sell motions within existing accounts.' },
+  ]
+  const demoEdges = [
+    { uuid: 'e1', source_node_uuid: '1', target_node_uuid: '3', name: 'evaluates', fact: 'Enterprise buyers evaluate customer support platforms.' },
+    { uuid: 'e2', source_node_uuid: '1', target_node_uuid: '8', name: 'engages_via', fact: 'Enterprise buyers engage through sales-led motions.' },
+    { uuid: 'e3', source_node_uuid: '2', target_node_uuid: '7', name: 'converts_through', fact: 'SMB founders convert through product-led growth.' },
+    { uuid: 'e4', source_node_uuid: '2', target_node_uuid: '5', name: 'influenced_by', fact: 'SMB founders are price-sensitive.' },
+    { uuid: 'e5', source_node_uuid: '3', target_node_uuid: '4', name: 'enhanced_by', fact: 'Support is enhanced by AI automation.' },
+    { uuid: 'e6', source_node_uuid: '4', target_node_uuid: '6', name: 'differentiates_in', fact: 'AI capabilities are a competitive differentiator.' },
+    { uuid: 'e7', source_node_uuid: '9', target_node_uuid: '10', name: 'tests', fact: 'Developer advocates evaluate the onboarding flow.' },
+    { uuid: 'e8', source_node_uuid: '9', target_node_uuid: '4', name: 'integrates', fact: 'Developers integrate AI features via APIs.' },
+    { uuid: 'e9', source_node_uuid: '7', target_node_uuid: '10', name: 'depends_on', fact: 'PLG relies on smooth onboarding.' },
+    { uuid: 'e10', source_node_uuid: '11', target_node_uuid: '3', name: 'triggered_by', fact: 'Churn risk signals relate to support quality.' },
+    { uuid: 'e11', source_node_uuid: '12', target_node_uuid: '1', name: 'targets', fact: 'Expansion revenue targets enterprise accounts.' },
+    { uuid: 'e12', source_node_uuid: '5', target_node_uuid: '12', name: 'enables', fact: 'Pricing strategy enables expansion revenue.' },
+    { uuid: 'e13', source_node_uuid: '8', target_node_uuid: '1', name: 'serves', fact: 'Sales-led motion serves enterprise buyers.' },
+    { uuid: 'e14', source_node_uuid: '6', target_node_uuid: '5', name: 'informs', fact: 'Competitor analysis informs pricing strategy.' },
+    { uuid: 'e15', source_node_uuid: '11', target_node_uuid: '2', name: 'affects', fact: 'Churn risk is higher for SMB segment.' },
+  ]
 
-  const nodeIds = new Set(nodes.map((n) => n.id))
-  const edges = (data.edges || [])
-    .map((e) => ({
-      id: e.uuid,
+  applyGraphData({
+    nodes: demoNodes,
+    edges: demoEdges,
+    node_count: demoNodes.length,
+    edge_count: demoEdges.length,
+  })
+}
+
+// --- D3 Rendering ---
+
+function renderGraph() {
+  if (!svgRef.value || !graphData.value.nodes.length) return
+
+  const container = containerRef.value
+  const width = container.clientWidth
+  const height = container.clientHeight
+
+  // Compute centrality for node sizing
+  const centrality = computeCentrality(graphData.value.nodes, graphData.value.edges)
+
+  // Build D3 data structures
+  const nodeMap = new Map()
+  const nodes = graphData.value.nodes.map(n => {
+    const obj = {
+      id: n.uuid,
+      name: n.name,
+      labels: n.labels,
+      summary: n.summary || '',
+      attributes: n.attributes || {},
+      centrality: centrality[n.uuid] || 0,
+      color: getNodeColor(n.labels),
+      radius: 6 + (centrality[n.uuid] || 0) * 18,
+    }
+    nodeMap.set(n.uuid, obj)
+    return obj
+  })
+
+  const links = graphData.value.edges
+    .filter(e => nodeMap.has(e.source_node_uuid) && nodeMap.has(e.target_node_uuid))
+    .map(e => ({
       source: e.source_node_uuid,
       target: e.target_node_uuid,
       name: e.name || '',
       fact: e.fact || '',
-      factType: e.fact_type || '',
     }))
-    .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
 
-  edges.forEach((e) => {
-    const src = nodes.find((n) => n.id === e.source)
-    const tgt = nodes.find((n) => n.id === e.target)
-    if (src) src.degree++
-    if (tgt) tgt.degree++
-  })
+  // Clear previous
+  d3.select(svgRef.value).selectAll('*').remove()
 
-  graphData.value = { nodes, edges }
-  nodeCount.value = nodes.length
-  edgeCount.value = edges.length
-  status.value = 'complete'
+  svg = d3.select(svgRef.value)
+    .attr('width', width)
+    .attr('height', height)
 
-  nextTick(() => renderGraph())
-}
-
-// --- Demo / sample data ---
-
-function loadSampleData() {
-  const personas = [
-    'Sarah Chen',
-    'Marcus Johnson',
-    'Elena Rodriguez',
-    'David Kim',
-    'Priya Patel',
-    'James Wilson',
-    'Aisha Ibrahim',
-    'Tom Baker',
-    'Lisa Zhang',
-    "Ryan O'Brien",
-    'Olivia Martinez',
-    'Noah Tanaka',
-  ]
-  const topics = [
-    'Product-Led Growth',
-    'Enterprise Sales',
-    'Customer Success',
-    'Onboarding Flow',
-    'Churn Prevention',
-    'Feature Adoption',
-    'Support Automation',
-    'Revenue Expansion',
-    'Market Positioning',
-    'Competitive Intel',
-    'Pricing Strategy',
-    'User Segmentation',
-  ]
-  const rels = [
-    'Influences',
-    'Drives',
-    'Blocks',
-    'Enables',
-    'Requires',
-    'Competes With',
-    'Supports',
-    'Correlates',
-  ]
-
-  const nodes = [
-    ...personas.map((name, i) => ({
-      id: `p${i}`,
-      name,
-      labels: ['Person', 'GTM Stakeholder'],
-      type: 'persona',
-      summary: 'GTM stakeholder involved in go-to-market strategy',
-      attributes: {},
-      degree: 0,
-    })),
-    ...topics.map((name, i) => ({
-      id: `t${i}`,
-      name,
-      labels: ['Topic', 'Strategy'],
-      type: 'topic',
-      summary: `Strategic GTM topic: ${name}`,
-      attributes: {},
-      degree: 0,
-    })),
-    ...rels.map((name, i) => ({
-      id: `r${i}`,
-      name,
-      labels: ['Relationship', 'Dynamic'],
-      type: 'relationship',
-      summary: `Interaction pattern: ${name}`,
-      attributes: {},
-      degree: 0,
-    })),
-  ]
-
-  const edges = []
-  let eid = 0
-  // Seeded PRNG for deterministic demo layout
-  let seed = 42
-  const rand = () => {
-    seed = (seed * 16807) % 2147483647
-    return seed / 2147483647
-  }
-
-  personas.forEach((_, pi) => {
-    const count = 2 + Math.floor(rand() * 3)
-    const shuffled = Array.from({ length: topics.length }, (__, i) => i).sort(
-      () => rand() - 0.5,
-    )
-    for (let j = 0; j < count; j++) {
-      edges.push({
-        id: `e${eid++}`,
-        source: `p${pi}`,
-        target: `t${shuffled[j]}`,
-        name: 'Focuses on',
-        fact: `${personas[pi]} focuses on ${topics[shuffled[j]]}`,
-        factType: 'engagement',
-      })
-    }
-  })
-
-  topics.forEach((_, ti) => {
-    const count = 1 + Math.floor(rand() * 2)
-    const shuffled = Array.from({ length: rels.length }, (__, i) => i).sort(
-      () => rand() - 0.5,
-    )
-    for (let j = 0; j < count; j++) {
-      edges.push({
-        id: `e${eid++}`,
-        source: `t${ti}`,
-        target: `r${shuffled[j]}`,
-        name: rels[shuffled[j]],
-        fact: `${topics[ti]} ${rels[shuffled[j]].toLowerCase()} other factors`,
-        factType: 'dynamic',
-      })
-    }
-  })
-
-  for (let i = 0; i < 6; i++) {
-    const a = Math.floor(rand() * personas.length)
-    let b = Math.floor(rand() * personas.length)
-    if (b === a) b = (a + 1) % personas.length
-    edges.push({
-      id: `e${eid++}`,
-      source: `p${a}`,
-      target: `p${b}`,
-      name: 'Collaborates with',
-      fact: `${personas[a]} collaborates with ${personas[b]}`,
-      factType: 'social',
+  // Zoom
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 5])
+    .on('zoom', (event) => {
+      zoomGroup.attr('transform', event.transform)
     })
-  }
+  svg.call(zoom)
 
-  const nodeMap = new Map(nodes.map((n) => [n.id, n]))
-  edges.forEach((e) => {
-    const src = nodeMap.get(e.source)
-    const tgt = nodeMap.get(e.target)
-    if (src) src.degree++
-    if (tgt) tgt.degree++
-  })
+  zoomGroup = svg.append('g')
 
-  graphData.value = { nodes, edges }
-  nodeCount.value = nodes.length
-  edgeCount.value = edges.length
-  status.value = 'complete'
+  // Arrow marker
+  svg.append('defs').append('marker')
+    .attr('id', 'arrow')
+    .attr('viewBox', '0 -4 8 8')
+    .attr('refX', 20)
+    .attr('refY', 0)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,-4L8,0L0,4')
+    .attr('fill', 'rgba(255,255,255,0.15)')
 
-  nextTick(() => renderGraph())
-}
-
-// --- D3 rendering ---
-
-function renderGraph() {
-  const container = svgContainer.value
-  if (!container) return
-
-  const { nodes, edges } = graphData.value
-  if (!nodes.length) return
-
-  d3.select(container).selectAll('*').remove()
-  if (simulation) simulation.stop()
-
-  const width = container.clientWidth || 800
-  const height = container.clientHeight || 600
-
-  const svg = d3.select(container).append('svg').attr('width', width).attr('height', height)
-
-  const g = svg.append('g')
-
-  svg.call(
-    d3
-      .zoom()
-      .scaleExtent([0.1, 4])
-      .on('zoom', (event) => g.attr('transform', event.transform)),
-  )
-
-  // Glow filter for nodes
-  const defs = svg.append('defs')
-  const filter = defs.append('filter').attr('id', 'node-glow')
-  filter.append('feGaussianBlur').attr('stdDeviation', 3).attr('result', 'blur')
-  const merge = filter.append('feMerge')
-  merge.append('feMergeNode').attr('in', 'blur')
-  merge.append('feMergeNode').attr('in', 'SourceGraphic')
-
-  simulation = d3
-    .forceSimulation(nodes)
-    .force(
-      'link',
-      d3.forceLink(edges).id((d) => d.id).distance(80),
-    )
-    .force('charge', d3.forceManyBody().strength(-180))
+  // Force simulation
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
+    .force('charge', d3.forceManyBody().strength(-300))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force(
-      'collision',
-      d3.forceCollide().radius((d) => nodeRadius(d.degree) + 4),
-    )
+    .force('collision', d3.forceCollide().radius(d => d.radius + 4))
 
-  // Draw edges
-  const link = g
-    .append('g')
-    .attr('class', 'edges')
+  // Links
+  const link = zoomGroup.append('g')
     .selectAll('line')
-    .data(edges)
+    .data(links)
     .join('line')
-    .attr('stroke', 'rgba(255,255,255,0.06)')
+    .attr('stroke', 'rgba(255,255,255,0.08)')
     .attr('stroke-width', 1)
+    .attr('marker-end', 'url(#arrow)')
     .style('opacity', 0)
 
-  // Draw nodes
-  const node = g
-    .append('g')
-    .attr('class', 'nodes')
-    .selectAll('circle')
-    .data(nodes)
-    .join('circle')
-    .attr('r', (d) => nodeRadius(d.degree))
-    .attr('fill', (d) => nodeColor(d.type))
-    .attr('fill-opacity', 0.8)
-    .attr('stroke', (d) => nodeColor(d.type))
-    .attr('stroke-width', 1.5)
-    .attr('stroke-opacity', 0.3)
-    .style('filter', 'url(#node-glow)')
-    .style('cursor', 'pointer')
-    .style('opacity', 0)
-    .on('click', (event, d) => {
-      event.stopPropagation()
-      selectedNode.value = d
-    })
-    .call(
-      d3
-        .drag()
-        .on('start', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart()
-          d.fx = d.x
-          d.fy = d.y
-        })
-        .on('drag', (event, d) => {
-          d.fx = event.x
-          d.fy = event.y
-        })
-        .on('end', (event, d) => {
-          if (!event.active) simulation.alphaTarget(0)
-          d.fx = null
-          d.fy = null
-        }),
-    )
-
-  // Labels for high-degree nodes
-  const label = g
-    .append('g')
-    .attr('class', 'labels')
+  // Edge labels
+  const edgeLabel = zoomGroup.append('g')
     .selectAll('text')
-    .data(nodes.filter((n) => n.degree >= 3))
+    .data(links)
     .join('text')
-    .text((d) => (d.name.length > 18 ? d.name.slice(0, 16) + '\u2026' : d.name))
-    .attr('font-size', 10)
-    .attr('fill', 'rgba(255,255,255,0.5)')
+    .text(d => d.name)
+    .attr('fill', 'rgba(255,255,255,0.2)')
+    .attr('font-size', '8px')
     .attr('text-anchor', 'middle')
-    .attr('dy', (d) => nodeRadius(d.degree) + 14)
     .style('pointer-events', 'none')
     .style('opacity', 0)
 
-  // Build animation — staggered entrance
-  link
-    .transition()
-    .delay((_, i) => i * 8)
+  // Node groups
+  const node = zoomGroup.append('g')
+    .selectAll('g')
+    .data(nodes)
+    .join('g')
+    .style('cursor', 'pointer')
+    .style('opacity', 0)
+    .call(d3.drag()
+      .on('start', dragstarted)
+      .on('drag', dragged)
+      .on('end', dragended)
+    )
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      selectNode(d)
+    })
+
+  // Node glow
+  node.append('circle')
+    .attr('r', d => d.radius + 4)
+    .attr('fill', d => d.color)
+    .attr('opacity', 0.12)
+
+  // Node circle
+  node.append('circle')
+    .attr('r', d => d.radius)
+    .attr('fill', d => d.color)
+    .attr('stroke', d => d.color)
+    .attr('stroke-width', 1.5)
+    .attr('stroke-opacity', 0.4)
+    .attr('fill-opacity', 0.85)
+
+  // Node label
+  node.append('text')
+    .text(d => d.name)
+    .attr('dy', d => d.radius + 14)
+    .attr('text-anchor', 'middle')
+    .attr('fill', 'rgba(255,255,255,0.7)')
+    .attr('font-size', '10px')
+    .style('pointer-events', 'none')
+
+  // Build animation: stagger node/edge appearance
+  node.transition()
+    .delay((d, i) => i * 60)
     .duration(400)
     .style('opacity', 1)
 
-  node
-    .transition()
-    .delay((_, i) => i * 25)
+  link.transition()
+    .delay((d, i) => nodes.length * 60 + i * 30)
     .duration(300)
     .style('opacity', 1)
 
-  label
-    .transition()
-    .delay((_, i) => nodes.length * 25 + i * 40)
-    .duration(400)
+  edgeLabel.transition()
+    .delay((d, i) => nodes.length * 60 + i * 30)
+    .duration(300)
     .style('opacity', 1)
 
-  // Physics tick — update positions each frame
+  // Tick
   simulation.on('tick', () => {
     link
-      .attr('x1', (d) => d.source.x)
-      .attr('y1', (d) => d.source.y)
-      .attr('x2', (d) => d.target.x)
-      .attr('y2', (d) => d.target.y)
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y)
 
-    node.attr('cx', (d) => d.x).attr('cy', (d) => d.y)
+    edgeLabel
+      .attr('x', d => (d.source.x + d.target.x) / 2)
+      .attr('y', d => (d.source.y + d.target.y) / 2)
 
-    label.attr('x', (d) => d.x).attr('y', (d) => d.y)
+    node.attr('transform', d => `translate(${d.x},${d.y})`)
   })
 
-  // Click canvas background to deselect
-  svg.on('click', () => {
-    selectedNode.value = null
-  })
+  // Click background to deselect
+  svg.on('click', () => { selectedNode.value = null })
 }
 
-// --- Lifecycle ---
+function dragstarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart()
+  d.fx = d.x
+  d.fy = d.y
+}
+
+function dragged(event, d) {
+  d.fx = event.x
+  d.fy = event.y
+}
+
+function dragended(event, d) {
+  if (!event.active) simulation.alphaTarget(0)
+  d.fx = null
+  d.fy = null
+}
+
+function selectNode(d) {
+  const raw = graphData.value.nodes.find(n => n.uuid === d.id)
+  const connections = graphData.value.edges.filter(
+    e => e.source_node_uuid === d.id || e.target_node_uuid === d.id
+  )
+  selectedNode.value = {
+    ...d,
+    summary: raw?.summary || d.summary,
+    attributes: raw?.attributes || {},
+    entityType: getEntityType(d.labels),
+    connections: connections.map(e => ({
+      name: e.name || e.fact_type || '',
+      fact: e.fact || '',
+      direction: e.source_node_uuid === d.id ? 'outgoing' : 'incoming',
+      target: e.source_node_uuid === d.id
+        ? graphData.value.nodes.find(n => n.uuid === e.target_node_uuid)?.name || ''
+        : graphData.value.nodes.find(n => n.uuid === e.source_node_uuid)?.name || '',
+    })),
+  }
+}
+
+// Lifecycle
 
 onMounted(() => {
-  pollInterval = setInterval(pollStatus, 2000)
-  pollStatus()
+  pollTask()
+  pollTimer = setInterval(pollTask, 2000)
 
   resizeObserver = new ResizeObserver(() => {
     clearTimeout(resizeTimer)
@@ -486,175 +464,75 @@ onMounted(() => {
       if (graphData.value.nodes.length) renderGraph()
     }, 200)
   })
-  if (svgContainer.value) resizeObserver.observe(svgContainer.value)
+  if (containerRef.value) resizeObserver.observe(containerRef.value)
 })
 
 onUnmounted(() => {
-  if (pollInterval) clearInterval(pollInterval)
+  if (pollTimer) clearInterval(pollTimer)
   if (simulation) simulation.stop()
   if (resizeObserver) resizeObserver.disconnect()
   clearTimeout(resizeTimer)
 })
+
+watch(() => props.taskId, () => {
+  status.value = 'building'
+  progress.value = 0
+  errorMsg.value = ''
+  selectedNode.value = null
+  graphData.value = { nodes: [], edges: [] }
+  if (simulation) simulation.stop()
+  if (pollTimer) clearInterval(pollTimer)
+  pollTask()
+  pollTimer = setInterval(pollTask, 2000)
+})
 </script>
 
 <template>
-  <div class="h-[calc(100vh-120px)] bg-[#0a0a1a] relative overflow-hidden">
-    <!-- D3 SVG Canvas -->
-    <div ref="svgContainer" class="w-full h-full" />
-
-    <!-- Status Bar (top-left) -->
-    <div class="absolute top-4 left-4 right-4 md:right-auto z-10 flex flex-wrap items-center gap-2 md:gap-3">
-      <span
-        class="px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-sm border"
-        :class="
-          status === 'building'
-            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/20'
-            : status === 'error'
-              ? 'bg-red-500/20 text-red-400 border-red-500/20'
-              : 'bg-green-500/20 text-green-400 border-green-500/20'
-        "
-      >
-        <span
-          v-if="status === 'building'"
-          class="inline-block w-1.5 h-1.5 bg-yellow-400 rounded-full mr-1.5 animate-pulse"
-        />
-        <span
-          v-else-if="status === 'complete'"
-          class="inline-block w-1.5 h-1.5 bg-green-400 rounded-full mr-1.5"
-        />
-        {{
-          status === 'building'
-            ? `Building\u2026 ${progress}%`
-            : status === 'error'
-              ? 'Build Failed'
-              : 'Complete'
-        }}
+  <div ref="containerRef" class="h-[calc(100vh-120px)] bg-[#0a0a1a] relative overflow-hidden">
+    <!-- Status Bar -->
+    <div class="absolute top-4 left-4 z-10 flex items-center gap-3">
+      <span class="px-3 py-1 rounded-full text-xs font-medium"
+        :class="{
+          'bg-yellow-500/20 text-yellow-400': status === 'building',
+          'bg-green-500/20 text-green-400': status === 'complete',
+          'bg-red-500/20 text-red-400': status === 'failed',
+        }">
+        <template v-if="status === 'building'">Building Graph... {{ progress }}%</template>
+        <template v-else-if="status === 'complete'">Complete</template>
+        <template v-else>Failed</template>
       </span>
     </div>
 
-    <!-- Stats Panel (top-right) -->
-    <div
-      class="absolute top-4 right-4 z-10 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4 min-w-[180px]"
-    >
-      <div class="text-xs text-white/40 uppercase tracking-wider mb-3">Graph Stats</div>
-      <div class="space-y-2">
-        <div class="flex justify-between text-sm">
-          <span class="text-white/60">Nodes</span>
-          <span class="text-white font-medium" data-testid="node-count">{{ nodeCount }}</span>
+    <!-- Build Progress Overlay -->
+    <div v-if="status === 'building'" class="absolute inset-0 flex items-center justify-center z-20">
+      <div class="text-center">
+        <div class="relative w-24 h-24 mx-auto mb-6">
+          <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke="#2068FF" stroke-width="4"
+              stroke-linecap="round"
+              :stroke-dasharray="264"
+              :stroke-dashoffset="264 - (264 * progress / 100)" />
+          </svg>
+          <span class="absolute inset-0 flex items-center justify-center text-white text-lg font-semibold">
+            {{ progress }}%
+          </span>
         </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-white/60">Edges</span>
-          <span class="text-white font-medium" data-testid="edge-count">{{ edgeCount }}</span>
-        </div>
-        <div class="h-px bg-white/10 my-2" />
-        <div class="flex items-center gap-2 text-xs">
-          <span class="w-2 h-2 rounded-full bg-[#ff5600]" />
-          <span class="text-white/50">Personas</span>
-          <span class="text-white/80 ml-auto" data-testid="persona-count">{{
-            typeCounts.persona
-          }}</span>
-        </div>
-        <div class="flex items-center gap-2 text-xs">
-          <span class="w-2 h-2 rounded-full bg-[#2068FF]" />
-          <span class="text-white/50">Topics</span>
-          <span class="text-white/80 ml-auto" data-testid="topic-count">{{
-            typeCounts.topic
-          }}</span>
-        </div>
-        <div class="flex items-center gap-2 text-xs">
-          <span class="w-2 h-2 rounded-full bg-[#AA00FF]" />
-          <span class="text-white/50">Relationships</span>
-          <span class="text-white/80 ml-auto" data-testid="relationship-count">{{
-            typeCounts.relationship
-          }}</span>
-        </div>
+        <p class="text-white/60 text-sm">{{ task?.message || 'Initializing...' }}</p>
+        <p class="text-white/30 text-xs mt-2">Task: {{ taskId }}</p>
       </div>
     </div>
 
-    <!-- Node Detail Panel (slides in from right on click) -->
-    <transition name="slide">
-      <div
-        v-if="selectedNode"
-        class="absolute top-20 right-4 z-20 bg-[#1a1a2e]/95 backdrop-blur-md border border-white/10 rounded-lg p-5 w-[280px] max-h-[60vh] overflow-y-auto"
-        data-testid="detail-panel"
-      >
-        <div class="flex items-start justify-between mb-3">
-          <h3 class="text-white font-semibold text-sm leading-tight pr-2">
-            {{ selectedNode.name }}
-          </h3>
-          <button
-            @click="selectedNode = null"
-            class="text-white/40 hover:text-white/80 text-lg leading-none shrink-0"
-          >
-            &times;
-          </button>
-        </div>
-
-        <span
-          class="inline-block px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider mb-3"
-          :style="{
-            backgroundColor: nodeColor(selectedNode.type) + '20',
-            color: nodeColor(selectedNode.type),
-          }"
-        >
-          {{ selectedNode.type }}
-        </span>
-
-        <p v-if="selectedNode.summary" class="text-xs text-white/50 mb-4 leading-relaxed">
-          {{ selectedNode.summary }}
-        </p>
-
-        <div v-if="selectedNode.labels?.length" class="mb-4">
-          <div class="text-[10px] text-white/30 uppercase tracking-wider mb-1.5">Labels</div>
-          <div class="flex flex-wrap gap-1">
-            <span
-              v-for="lbl in selectedNode.labels"
-              :key="lbl"
-              class="px-1.5 py-0.5 bg-white/5 text-white/50 rounded text-[10px]"
-              >{{ lbl }}</span
-            >
-          </div>
-        </div>
-
-        <div v-if="selectedConnections.length">
-          <div class="text-[10px] text-white/30 uppercase tracking-wider mb-1.5">
-            Connections ({{ selectedConnections.length }})
-          </div>
-          <div class="space-y-1.5">
-            <div
-              v-for="conn in selectedConnections.slice(0, 10)"
-              :key="conn.edge.id"
-              class="flex items-center gap-2 text-xs cursor-pointer hover:bg-white/5 rounded px-1.5 py-1 -mx-1.5"
-              @click="selectedNode = conn.neighbor"
-            >
-              <span
-                class="w-1.5 h-1.5 rounded-full shrink-0"
-                :style="{ backgroundColor: nodeColor(conn.neighbor?.type) }"
-              />
-              <span class="text-white/60 truncate">{{ conn.neighbor?.name }}</span>
-              <span class="text-white/20 text-[10px] ml-auto shrink-0">{{ conn.edge.name }}</span>
-            </div>
-            <div
-              v-if="selectedConnections.length > 10"
-              class="text-[10px] text-white/30 pl-1.5"
-            >
-              +{{ selectedConnections.length - 10 }} more
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-
-    <!-- Error Overlay -->
-    <div v-if="status === 'error'" class="absolute inset-0 z-20 flex items-center justify-center bg-[#0a0a1a]/80 backdrop-blur-sm">
-      <div class="flex flex-col items-center text-center px-8 py-10 max-w-md">
+    <!-- Error State -->
+    <div v-if="status === 'failed'" class="absolute inset-0 flex items-center justify-center z-20 bg-[#0a0a1a]/80 backdrop-blur-sm">
+      <div class="flex flex-col items-center text-center max-w-md">
         <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
           <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
           </svg>
         </div>
-        <h3 class="text-base font-semibold text-white mb-1">Graph Build Failed</h3>
-        <p class="text-sm text-white/50 mb-6 max-w-sm">{{ errorMessage || 'An unexpected error occurred during knowledge graph construction.' }}</p>
+        <p class="text-white/80 text-sm font-medium mb-2">Graph build failed</p>
+        <p class="text-white/40 text-xs mb-6">{{ errorMsg }}</p>
         <button
           @click="retryBuild"
           class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
@@ -666,6 +544,89 @@ onUnmounted(() => {
         </button>
       </div>
     </div>
+
+    <!-- D3 SVG Canvas -->
+    <svg ref="svgRef" class="w-full h-full" />
+
+    <!-- Stats Panel (bottom-left) -->
+    <div v-if="status === 'complete' && entityTypeStats.length"
+      class="absolute bottom-6 left-4 z-10 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4 max-w-56">
+      <h3 class="text-[10px] uppercase tracking-widest text-white/40 mb-3">Entity Types</h3>
+      <div class="space-y-2">
+        <div v-for="stat in entityTypeStats" :key="stat.type" class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: stat.color }" />
+          <span class="text-xs text-white/60 flex-1 truncate">{{ stat.type }}</span>
+          <span class="text-xs text-white/30 tabular-nums">{{ stat.count }}</span>
+        </div>
+      </div>
+      <div class="mt-3 pt-3 border-t border-white/10 flex justify-between text-xs text-white/30">
+        <span data-testid="node-count">{{ nodeCount }} nodes</span>
+        <span data-testid="edge-count">{{ edgeCount }} edges</span>
+      </div>
+    </div>
+
+    <!-- Node Detail Panel (right side) -->
+    <transition name="slide">
+      <div v-if="selectedNode"
+        class="absolute top-0 right-0 z-20 h-full w-80 bg-[#0f0f24]/95 backdrop-blur-md border-l border-white/10 overflow-y-auto"
+        data-testid="detail-panel">
+        <div class="p-5">
+          <!-- Header -->
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-2.5">
+              <span class="w-3.5 h-3.5 rounded-full" :style="{ backgroundColor: selectedNode.color }" />
+              <h3 class="text-white font-semibold text-sm">{{ selectedNode.name }}</h3>
+            </div>
+            <button @click="selectedNode = null"
+              class="text-white/30 hover:text-white/60 text-lg leading-none transition-colors">&times;</button>
+          </div>
+
+          <!-- Type badge -->
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] uppercase tracking-wider mb-4"
+            :style="{ backgroundColor: selectedNode.color + '22', color: selectedNode.color }">
+            {{ selectedNode.entityType }}
+          </span>
+
+          <!-- Summary -->
+          <div v-if="selectedNode.summary" class="mb-5">
+            <h4 class="text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Summary</h4>
+            <p class="text-xs text-white/60 leading-relaxed">{{ selectedNode.summary }}</p>
+          </div>
+
+          <!-- Centrality -->
+          <div class="mb-5">
+            <h4 class="text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Centrality</h4>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-1.5 rounded-full bg-white/10">
+                <div class="h-full rounded-full transition-all duration-300"
+                  :style="{ width: (selectedNode.centrality * 100) + '%', backgroundColor: selectedNode.color }" />
+              </div>
+              <span class="text-xs text-white/40 tabular-nums">{{ Math.round(selectedNode.centrality * 100) }}%</span>
+            </div>
+          </div>
+
+          <!-- Connections -->
+          <div v-if="selectedNode.connections.length">
+            <h4 class="text-[10px] uppercase tracking-widest text-white/40 mb-2">
+              Connections ({{ selectedNode.connections.length }})
+            </h4>
+            <div class="space-y-2">
+              <div v-for="(conn, i) in selectedNode.connections" :key="i"
+                class="bg-white/5 rounded-lg p-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-[10px]" :class="conn.direction === 'outgoing' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
+                    {{ conn.direction === 'outgoing' ? '→' : '←' }}
+                  </span>
+                  <span class="text-xs text-white/50">{{ conn.name }}</span>
+                  <span class="text-xs text-white/70 font-medium">{{ conn.target }}</span>
+                </div>
+                <p v-if="conn.fact" class="text-[11px] text-white/35 leading-relaxed">{{ conn.fact }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- Continue to Simulation -->
     <Transition name="page">
@@ -685,13 +646,10 @@ onUnmounted(() => {
 <style scoped>
 .slide-enter-active,
 .slide-leave-active {
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease;
+  transition: transform 0.25s ease;
 }
 .slide-enter-from,
 .slide-leave-to {
-  transform: translateX(20px);
-  opacity: 0;
+  transform: translateX(100%);
 }
 </style>

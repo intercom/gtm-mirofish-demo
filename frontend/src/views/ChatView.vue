@@ -45,6 +45,7 @@ async function send() {
   messages.value.push({ role: 'user', content: text })
   scrollToBottom()
   sending.value = true
+  scrollToBottom()
 
   try {
     const { data: res } = await chatApi.send({

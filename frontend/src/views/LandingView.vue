@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { listScenarios } from '../api.js'
 
 const router = useRouter()
 const showCards = ref(false)

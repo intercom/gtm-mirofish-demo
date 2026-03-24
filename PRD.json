@@ -4,79 +4,79 @@
   "tasks": [
     {
       "title": "Production Dockerfile with gunicorn + multi-stage build",
-      "completed": false,
+      "completed": true,
       "parallel_group": 0,
       "description": "Replace the current single-stage backend/Dockerfile (which uses `python demo_app.py` directly) with a production-ready multi-stage build. Stage 1 (builder): use node:20-slim to build the frontend from frontend/ — copy package.json and pnpm-lock.yaml, run `corepack enable && pnpm install --frozen-lockfile`, copy source, run `pnpm run build`. Stage 2 (runtime): use python:3.11-slim, install gunicorn via pip alongside existing Flask dependencies, copy backend/ source and the built frontend dist/ into a static directory. Add a non-root user (`useradd -r appuser`), a HEALTHCHECK instruction hitting /api/health, and optimize layer caching by copying requirements before source. The CMD should run `gunicorn -w 4 -b 0.0.0.0:5001 demo_app:app`. Create this as a root-level Dockerfile replacing the two separate ones."
     },
     {
       "title": "/api/health/detailed endpoint with LLM/dependency status",
-      "completed": false,
+      "completed": true,
       "parallel_group": 0,
       "description": "Add a new GET endpoint `/api/health/detailed` in backend/demo_app.py that returns a JSON object with comprehensive health information. Check: Flask app status (always ok), LLM provider connectivity (attempt a minimal API call to the configured provider using llm_client.py — catch exceptions and report status/error), Zep connection status (if ZEP_API_KEY is set, test the connection), current memory usage via `resource.getrusage` or `psutil`, server uptime (track app start time in a module-level variable), and version info read from frontend/package.json if available. Return a top-level `status` field that is 'healthy' only if all critical checks pass, 'degraded' if optional services are down, or 'unhealthy' if Flask itself has issues. Include a `checks` object with individual service statuses."
     },
     {
       "title": "Environment validation on startup with error messages",
-      "completed": false,
+      "completed": true,
       "parallel_group": 0,
       "description": "Add a startup validation function in backend/demo_app.py that runs before the Flask app begins serving requests. Define required env vars (none currently — the app works without LLM keys) and optional env vars (LLM_PROVIDER, LLM_API_KEY, LLM_MODEL_NAME, ZEP_API_KEY, DEMO_SPEED, ALLOWED_ORIGINS, LOG_FILE, PORT). For each optional var, log a clear INFO message like 'LLM_API_KEY not set — LLM features will use fallback keyword matching'. For invalid configurations (e.g., LLM_PROVIDER set to an unsupported value, or LLM_PROVIDER set but LLM_API_KEY missing), log a WARNING with specific remediation steps. Call this function at module level after `load_dotenv()` but before route registration. Use Python's logging module with a structured format."
     },
     {
       "title": "CORS configuration with explicit origin allowlist",
-      "completed": false,
+      "completed": true,
       "parallel_group": 0,
       "description": "Replace the current wildcard `CORS(app)` call in backend/demo_app.py with an explicit origin allowlist. Read the ALLOWED_ORIGINS environment variable (comma-separated string, e.g., 'http://localhost:5173,http://localhost:3000,https://gtm-mirofish.up.railway.app'). If ALLOWED_ORIGINS is not set, default to ['http://localhost:5173', 'http://localhost:3000'] for development. Parse the comma-separated string, strip whitespace, and pass to `CORS(app, origins=allowed_origins)`. Also set `supports_credentials=True` for auth cookie support. Log the configured origins at startup for debugging."
     },
     {
       "title": "docker-compose.production.yml with gunicorn + nginx",
-      "completed": false,
+      "completed": true,
       "parallel_group": 0,
       "description": "Create a new docker-compose.production.yml file at the project root alongside the existing docker-compose.yml. Define three services: 1) `nginx` — use nginx:alpine image, mount a custom nginx.conf that proxies /api/* to the backend, serves frontend static files from a shared volume, and includes SSL-ready configuration (commented out Let's Encrypt blocks). 2) `backend` — build from the new production Dockerfile, run with gunicorn (4 workers, 120s timeout), expose only to the internal Docker network (not host), include health check, restart: always, and resource limits. 3) Define a shared network and named volumes for static files and simulation data. Include environment variable passthrough for all LLM/Zep/auth keys. Add a `nginx/nginx.conf` file with gzip compression, proxy headers (X-Real-IP, X-Forwarded-For), and static file caching headers."
     },
     {
       "title": "Streaming chat via SSE (/api/report/chat/stream)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Add a new POST endpoint `/api/report/chat/stream` in backend/demo_app.py that returns Server-Sent Events for streaming LLM responses. Use Flask's `Response` class with `mimetype='text/event-stream'` and a Python generator function. The generator should: send an initial `event: start` with metadata, then for each token/chunk from the LLM, send `data: {\"token\": \"...\"}` as an SSE event. Add streaming support to backend/llm_client.py by creating a `chat_completion_stream()` function that uses the Anthropic `client.messages.stream()` and OpenAI `stream=True` parameter. On error, send `event: error` with the error message. On completion, send `event: done`. If no LLM key is configured, fall back to simulating streaming by yielding the existing keyword-match response word-by-word with small delays."
     },
     {
       "title": "Gemini provider in llm_client.py",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Add Google Gemini as a third LLM provider in backend/llm_client.py alongside the existing Anthropic and OpenAI implementations. Add a new entry in `_DEFAULTS`: `'gemini': {'model': 'gemini-1.5-flash'}`. Add a `_call_gemini()` function that imports `google.generativeai`, configures it with the API key, creates a `GenerativeModel` instance, and calls `generate_content()`. Handle the message format conversion: extract system messages as a system_instruction parameter, convert remaining messages to Gemini's Content format. Support both 'gemini-1.5-flash' and 'gemini-1.5-pro' models. Add 'gemini' to the provider check in `chat_completion()`. Also add Gemini streaming support in the new `chat_completion_stream()` function using `generate_content(stream=True)`. Add `google-generativeai` to the pip install in the Dockerfile."
     },
     {
       "title": "LLM-powered seed text generation endpoint",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Add a POST endpoint `/api/scenario/generate-seed` in backend/demo_app.py that uses the configured LLM to generate creative seed text for simulation scenarios. Accept JSON body with fields: `topic` (string, required), `industry` (string, optional), `persona_types` (list of strings, optional), and `tone` (string, optional — 'professional', 'provocative', 'analytical'). Construct a system prompt that instructs the LLM to generate a 200-400 word seed document suitable for a GTM simulation, incorporating the specified industry context and persona perspectives. Call `chat_completion()` from llm_client.py. Return structured JSON: `{seed_text: string, metadata: {topic, industry, word_count, generated_at}}`. If no LLM is configured, return a pre-built seed text from the matching GTM scenario template in backend/gtm_scenarios/. Include input validation for required fields."
     },
     {
       "title": "Token usage tracking + /api/settings/llm-usage",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Add token usage tracking to backend/llm_client.py by modifying `_call_anthropic()` and `_call_openai()` to extract and record token counts from API responses. Anthropic responses have `response.usage.input_tokens` and `response.usage.output_tokens`; OpenAI has `response.usage.prompt_tokens` and `response.usage.completion_tokens`. Store cumulative usage in a module-level dictionary: `_usage = {'anthropic': {'input': 0, 'output': 0, 'requests': 0}, 'openai': {...}, 'gemini': {...}, 'by_endpoint': {}}`. Track per-endpoint usage by accepting an optional `endpoint` parameter in `chat_completion()`. Add cost estimation using approximate rates ($3/1M input, $15/1M output for Claude; $2.50/1M input, $10/1M output for GPT-4o; $0.075/1M for Gemini Flash). Add a GET endpoint `/api/settings/llm-usage` in demo_app.py that returns the accumulated stats with a `reset_at` timestamp. Add a POST `/api/settings/llm-usage/reset` endpoint."
     },
     {
       "title": "Request/response logging middleware",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Add Flask middleware in backend/demo_app.py that logs all API requests in structured JSON format. Use Flask's `@app.before_request` to record the start time, and `@app.after_request` to compute duration and log the entry. Each log entry should include: ISO 8601 timestamp, HTTP method, request path, query string, status code, response time in milliseconds, request content-length, response content-length, and client IP. Use Python's `logging` module with a custom JSON formatter. If the `LOG_FILE` environment variable is set, add a FileHandler that writes to that path in addition to stdout. Exclude /api/health from logging to avoid noise from health check polling. Add a request ID (UUID4) to each request and include it in the response headers as `X-Request-ID` for debugging."
     },
     {
       "title": "Simulation summary statistics endpoint",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Add a GET endpoint `/api/simulation/{sim_id}/summary` in backend/demo_app.py that computes and returns aggregate statistics for a simulation. Reuse the existing `_generate_agent_actions()` function to get all actions, then compute: total_posts (count CREATE_POST actions), unique_agents (distinct agent_name values), avg_engagement_score (derive from action density per agent), top_topics (extract from post content using keyword extraction — look for capitalized phrases and known topics from the knowledge graph), sentiment_distribution (simple positive/negative/neutral counts based on keyword matching against word lists), and activity_over_time (bucket actions by round_num into groups of 12 rounds each, returning counts per bucket). Return all stats in a single JSON response. Cache the result in `_simulations[sim_id]` to avoid recomputation on subsequent calls."
     },
     {
       "title": "Agent sentiment tracking data",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Add a GET endpoint `/api/simulation/{sim_id}/sentiment` in backend/demo_app.py that returns per-agent sentiment scores across simulation rounds. Define positive word lists (e.g., 'impressive', 'excellent', 'resolved', 'improved', 'saved') and negative word lists (e.g., 'frustrated', 'failed', 'struggled', 'concerned', 'risk') as module-level constants. For each agent in the simulation, iterate through their posts by round and compute a sentiment score (-1.0 to 1.0) based on the ratio of positive to negative keywords found in post content. Return a JSON structure: `{agents: [{agent_name, agent_id, sentiments: [{round, score}]}]}`. Use deterministic seeding (based on agent name hash + round) so the data is consistent across calls. Include an `overall_sentiment` field per agent averaging all their round scores."
     },
     {
       "title": "Competitive mention tracking endpoint",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Add a GET endpoint `/api/simulation/{sim_id}/competitive` in backend/demo_app.py. Define a competitors list: ['Zendesk', 'Freshdesk', 'HubSpot', 'Salesforce Service Cloud', 'Help Scout']. Scan all agent post content from `_generate_agent_actions()` for case-insensitive mentions of each competitor. Return: `mention_counts` (object mapping competitor name to total count), `mentions_over_time` (array of {round, competitor, count} for timeline visualization), `top_mentioners` (agents who mention competitors most, with counts), and `mention_sentiment` (for each competitor mention, classify surrounding context as positive/negative/neutral using the same keyword approach from the sentiment endpoint). The existing post content in `action_templates` already contains Zendesk and Freshdesk references, so this endpoint will return real data from the simulation."
     },

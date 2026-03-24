@@ -14,6 +14,7 @@ export const routes = [
     path: '/login',
     name: 'login',
     component: LoginView,
+    meta: { guest: true },
   },
   {
     path: '/scenarios/:id',
@@ -65,12 +66,16 @@ export function createAppRouter() {
   })
 
   router.beforeEach((to) => {
-    if (!to.meta.requiresAuth) return
     if (localStorage.getItem('auth_enabled') !== 'true') return
 
     const auth = useAuthStore()
-    if (!auth.isAuthenticated) {
+
+    if (to.meta.requiresAuth && !auth.isAuthenticated) {
       return { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    if (to.meta.guest && auth.isAuthenticated) {
+      return { name: 'landing' }
     }
   })
 

@@ -2,10 +2,12 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
+import { useSimulationStore } from '../../stores/simulation'
 
 const router = useRouter()
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
+const simulationStore = useSimulationStore()
 const mobileMenuOpen = ref(false)
 
 const authUser = computed(() => {
@@ -17,10 +19,16 @@ const authUser = computed(() => {
   }
 })
 
-const navLinks = [
-  { to: '/', label: 'Home', exact: true },
-  { to: '/settings', label: 'Settings', exact: false },
-]
+const navLinks = computed(() => {
+  const links = [
+    { to: '/', label: 'Home', exact: true },
+  ]
+  if (simulationStore.hasRuns) {
+    links.push({ to: '/dashboard', label: 'Simulations', exact: false })
+  }
+  links.push({ to: '/settings', label: 'Settings', exact: false })
+  return links
+})
 
 function logout() {
   localStorage.removeItem('auth_user')

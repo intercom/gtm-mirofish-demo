@@ -5,6 +5,7 @@ import * as d3 from 'd3'
 import { graphApi } from '../api/graph'
 import { API_BASE } from '../api/client'
 import { useToast } from '../composables/useToast'
+import { useSimulationStore } from '../stores/simulation'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 
 function isDarkMode() {
@@ -14,6 +15,7 @@ function isDarkMode() {
 const props = defineProps({ taskId: String })
 const route = useRoute()
 const toast = useToast()
+const simStore = useSimulationStore()
 const projectId = ref(route.query.projectId || '')
 const graphId = ref('')
 
@@ -60,13 +62,27 @@ async function pollSimulation() {
     simTotalRounds.value = d.total_rounds ?? 0
     simPercent.value = d.progress_percent ?? 0
 
+    // Sync to shared store
+    simStore.updateProgress({ progress_percent: d.progress_percent, current_round: d.current_round, total_rounds: d.total_rounds })
+    simStore.updateMetrics({ total_actions_count: d.total_actions_count, twitter_actions_count: d.twitter_actions_count, reddit_actions_count: d.reddit_actions_count })
+
     const rs = d.runner_status
     if (rs === 'completed' || rs === 'stopped') {
       simStatus.value = 'complete'
+      simStore.complete()
+      simStore.addSessionRun({
+        id: props.taskId,
+        scenarioName: 'GTM Simulation',
+        totalRounds: d.total_rounds ?? 0,
+        totalActions: d.total_actions_count ?? 0,
+        twitterActions: d.twitter_actions_count ?? 0,
+        redditActions: d.reddit_actions_count ?? 0,
+      })
       clearInterval(simPollTimer)
       simPollTimer = null
     } else if (rs === 'running' || rs === 'starting' || rs === 'paused') {
       simStatus.value = 'running'
+      if (simStore.status !== 'running') simStore.startRun(props.taskId)
     }
   } catch {
     // Non-critical — sim progress just won't show
@@ -253,12 +269,23 @@ function retryBuild() {
   pollTimer = setInterval(pollTask, 2000)
 }
 
+let demoBuildTimer = null
+
+const BUILD_MESSAGES = [
+  'Parsing seed document...',
+  'Extracting entities...',
+  'Building persona nodes...',
+  'Mapping topic clusters...',
+  'Computing relationships...',
+  'Finalizing graph...',
+]
+
 function loadDemoData() {
   clearInterval(pollTimer)
   pollTimer = null
-  status.value = 'complete'
+  if (demoBuildTimer) clearInterval(demoBuildTimer)
 
-  const demoNodes = [
+  const allNodes = [
     { uuid: '1', name: 'Enterprise Buyer', labels: ['Entity', 'Persona'], summary: 'Decision-maker at large organizations evaluating platform purchases.' },
     { uuid: '2', name: 'SMB Founder', labels: ['Entity', 'Persona'], summary: 'Small business owner seeking affordable customer support tools.' },
     { uuid: '3', name: 'Customer Support', labels: ['Entity', 'Topic'], summary: 'Core product area for ticket management and live chat.' },
@@ -272,7 +299,7 @@ function loadDemoData() {
     { uuid: '11', name: 'Churn Risk', labels: ['Entity', 'Event'], summary: 'Signals indicating potential customer attrition.' },
     { uuid: '12', name: 'Expansion Revenue', labels: ['Entity', 'Topic'], summary: 'Upsell and cross-sell motions within existing accounts.' },
   ]
-  const demoEdges = [
+  const allEdges = [
     { uuid: 'e1', source_node_uuid: '1', target_node_uuid: '3', name: 'evaluates', fact: 'Enterprise buyers evaluate customer support platforms.' },
     { uuid: 'e2', source_node_uuid: '1', target_node_uuid: '8', name: 'engages_via', fact: 'Enterprise buyers engage through sales-led motions.' },
     { uuid: 'e3', source_node_uuid: '2', target_node_uuid: '7', name: 'converts_through', fact: 'SMB founders convert through product-led growth.' },
@@ -290,12 +317,48 @@ function loadDemoData() {
     { uuid: 'e15', source_node_uuid: '11', target_node_uuid: '2', name: 'affects', fact: 'Churn risk is higher for SMB segment.' },
   ]
 
-  applyGraphData({
-    nodes: demoNodes,
-    edges: demoEdges,
-    node_count: demoNodes.length,
-    edge_count: demoEdges.length,
-  })
+  // Progressive build: add nodes in batches so the user watches the graph grow
+  status.value = 'building'
+  progress.value = 0
+  graphData.value = { nodes: [], edges: [] }
+  nodeCount.value = 0
+  edgeCount.value = 0
+
+  let idx = 0
+  const BATCH = 2
+  const INTERVAL = 350
+
+  demoBuildTimer = setInterval(() => {
+    if (idx >= allNodes.length) {
+      clearInterval(demoBuildTimer)
+      demoBuildTimer = null
+      status.value = 'complete'
+      progress.value = 100
+      toast.success('Knowledge graph built successfully')
+      return
+    }
+
+    const end = Math.min(idx + BATCH, allNodes.length)
+    const newNodes = allNodes.slice(idx, end)
+    graphData.value.nodes.push(...newNodes)
+
+    // Add edges where both endpoints now exist
+    const nodeIds = new Set(graphData.value.nodes.map(n => n.uuid))
+    graphData.value.edges = allEdges.filter(
+      e => nodeIds.has(e.source_node_uuid) && nodeIds.has(e.target_node_uuid),
+    )
+
+    idx = end
+    progress.value = Math.round((idx / allNodes.length) * 100)
+    nodeCount.value = graphData.value.nodes.length
+    edgeCount.value = graphData.value.edges.length
+
+    // Update build message
+    const msgIdx = Math.min(Math.floor((idx / allNodes.length) * BUILD_MESSAGES.length), BUILD_MESSAGES.length - 1)
+    task.value = { message: BUILD_MESSAGES[msgIdx] }
+
+    nextTick(() => renderGraph())
+  }, INTERVAL)
 }
 
 // --- D3 Rendering ---
@@ -539,6 +602,7 @@ onMounted(() => {
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
   if (simPollTimer) clearInterval(simPollTimer)
+  if (demoBuildTimer) clearInterval(demoBuildTimer)
   if (simulation) simulation.stop()
   if (resizeObserver) resizeObserver.disconnect()
   if (themeObserver) themeObserver.disconnect()
@@ -558,6 +622,7 @@ watch(() => props.taskId, () => {
   if (simulation) simulation.stop()
   if (pollTimer) clearInterval(pollTimer)
   if (simPollTimer) { clearInterval(simPollTimer); simPollTimer = null }
+  if (demoBuildTimer) { clearInterval(demoBuildTimer); demoBuildTimer = null }
   pollTask()
   pollTimer = setInterval(pollTask, 2000)
 })
@@ -586,25 +651,22 @@ watch(() => props.taskId, () => {
       </span>
     </div>
 
-    <!-- Build Progress Overlay -->
-    <div v-if="status === 'building'" class="absolute inset-0 flex items-center justify-center z-20">
-      <div class="text-center">
-        <div class="relative w-24 h-24 mx-auto mb-6">
-          <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
-            <circle cx="50" cy="50" r="42" fill="none" class="stroke-black/6 dark:stroke-white/6" stroke-width="4" />
-            <circle cx="50" cy="50" r="42" fill="none" stroke="#2068FF" stroke-width="4"
-              stroke-linecap="round"
-              :stroke-dasharray="264"
-              :stroke-dashoffset="264 - (264 * progress / 100)" />
-          </svg>
-          <span class="absolute inset-0 flex items-center justify-center text-[var(--color-text)] text-lg font-semibold">
-            {{ progress }}%
-          </span>
+    <!-- Compact Build Progress (non-blocking — graph renders behind it) -->
+    <Transition name="fade">
+      <div v-if="status === 'building'"
+        class="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/60 dark:bg-black/70 backdrop-blur-sm rounded-xl px-5 py-3 flex items-center gap-4">
+        <svg viewBox="0 0 36 36" class="w-9 h-9 -rotate-90 flex-shrink-0">
+          <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+          <circle cx="18" cy="18" r="14" fill="none" stroke="#2068FF" stroke-width="3"
+            stroke-linecap="round" :stroke-dasharray="88" :stroke-dashoffset="88 - (88 * progress / 100)"
+            class="transition-[stroke-dashoffset] duration-300" />
+        </svg>
+        <div>
+          <p class="text-white text-sm font-medium">Building Graph... {{ progress }}%</p>
+          <p class="text-white/50 text-xs">{{ task?.message || 'Initializing...' }}</p>
         </div>
-        <p class="text-[var(--color-text-secondary)] text-sm">{{ task?.message || 'Initializing...' }}</p>
-        <p class="text-[var(--color-text-muted)] text-xs mt-2">Task: {{ taskId }}</p>
       </div>
-    </div>
+    </Transition>
 
     <!-- Error State -->
     <div v-if="status === 'failed'" class="absolute inset-0 flex items-center justify-center z-20 bg-[var(--color-surface)]/80 backdrop-blur-sm">
@@ -631,8 +693,8 @@ watch(() => props.taskId, () => {
     <!-- D3 SVG Canvas -->
     <svg ref="svgRef" class="w-full h-full" />
 
-    <!-- Stats Panel (bottom-left) -->
-    <div v-if="status === 'complete' && entityTypeStats.length"
+    <!-- Stats Panel (bottom-left) — visible as soon as nodes appear -->
+    <div v-if="entityTypeStats.length && status !== 'failed'"
       class="absolute bottom-6 left-4 z-10 bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-black/10 dark:border-white/10 rounded-lg p-4 max-w-56">
       <h3 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Entity Types</h3>
       <div class="space-y-2">
@@ -755,5 +817,13 @@ watch(() => props.taskId, () => {
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(100%);
+}
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

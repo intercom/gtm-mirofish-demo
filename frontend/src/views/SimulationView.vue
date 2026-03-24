@@ -2,10 +2,12 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { API_BASE } from '../api/client'
+import { useSimulationStore } from '../stores/simulation'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 
 const props = defineProps({ taskId: String })
 const router = useRouter()
+const simStore = useSimulationStore()
 
 // --- State ---
 const runStatus = ref(null)
@@ -88,7 +90,19 @@ async function fetchRunStatus() {
     const res = await fetch(`${API_BASE}/simulation/${props.taskId}/run-status`)
     if (!res.ok) throw new Error(`Status ${res.status}`)
     const json = await res.json()
-    if (json.success) runStatus.value = json.data
+    if (json.success) {
+      runStatus.value = json.data
+      simStore.updateProgress({
+        progress_percent: json.data.progress_percent,
+        current_round: json.data.current_round,
+        total_rounds: json.data.total_rounds,
+      })
+      simStore.updateMetrics({
+        total_actions_count: json.data.total_actions_count,
+        twitter_actions_count: json.data.twitter_actions_count,
+        reddit_actions_count: json.data.reddit_actions_count,
+      })
+    }
   } catch (e) {
     error.value = e.message
   }
@@ -264,7 +278,10 @@ function stopPolling() {
   if (detailTimer.value) clearInterval(detailTimer.value)
 }
 
-onMounted(startPolling)
+onMounted(() => {
+  simStore.startRun(props.taskId)
+  startPolling()
+})
 onUnmounted(stopPolling)
 
 // Stop polling when simulation completes
@@ -274,6 +291,18 @@ watch(status, (val) => {
     fetchDetail()
     fetchTimeline()
     stopPolling()
+
+    if (val === 'completed') {
+      simStore.complete()
+      simStore.addSessionRun({
+        id: props.taskId,
+        scenarioName: 'GTM Simulation',
+        totalRounds: totalRounds.value,
+        totalActions: totalActions.value,
+        twitterActions: twitterActions.value,
+        redditActions: redditActions.value,
+      })
+    }
   }
 })
 

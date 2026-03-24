@@ -1,23 +1,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
 
-const router = useRouter()
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
 const mobileMenuOpen = ref(false)
-
-const authUser = computed(() => {
-  try {
-    const stored = localStorage.getItem('auth_user')
-    return stored ? JSON.parse(stored) : null
-  } catch {
-    return null
-  }
-})
 
 const navLinks = computed(() => {
   return [
@@ -26,11 +16,6 @@ const navLinks = computed(() => {
     { to: '/settings', label: 'Settings', exact: false },
   ]
 })
-
-function logout() {
-  localStorage.removeItem('auth_user')
-  router.push('/login')
-}
 
 watch(() => route.path, () => {
   mobileMenuOpen.value = false
@@ -79,22 +64,9 @@ watch(() => route.path, () => {
       </div>
 
       <div class="flex items-center gap-3">
-        <div v-if="authUser" class="hidden sm:flex items-center gap-2">
-          <span class="w-6 h-6 rounded-full bg-[var(--color-primary)] text-white text-xs flex items-center justify-center font-medium">
-            {{ authUser.email?.[0]?.toUpperCase() ?? '?' }}
-          </span>
-          <span class="text-xs text-white/60 max-w-[120px] truncate">{{ authUser.email }}</span>
-          <button
-            @click="logout"
-            class="text-xs text-white/40 hover:text-white transition-colors ml-1"
-          >
-            Sign out
-          </button>
-        </div>
-
-        <div v-else class="hidden sm:flex items-center gap-2 text-xs text-white/40">
+        <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          <span>Connected</span>
+          <span>Local</span>
         </div>
 
         <button

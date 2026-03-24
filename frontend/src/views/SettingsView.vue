@@ -25,7 +25,7 @@ const duration = ref(72)
 const platformMode = ref('parallel')
 const connectionStatus = ref({ llm: null, zep: null })
 const connectionError = ref({ llm: '', zep: '' })
-const authStatus = ref({ authEnabled: false, user: null, provider: null })
+
 const saved = ref(false)
 let savedTimer = null
 
@@ -114,21 +114,6 @@ async function testConnection(service) {
   }
 }
 
-async function fetchAuthStatus() {
-  try {
-    const res = await fetch(`${API_BASE}/settings/auth-status`)
-    if (res.ok) authStatus.value = await res.json()
-  } catch {
-    // Auth status is best-effort; silently ignore
-  }
-}
-
-function logout() {
-  localStorage.removeItem('auth_token')
-  localStorage.removeItem('auth_user')
-  toast.success('Logged out successfully')
-  window.location.href = `${API_BASE}/auth/logout`
-}
 
 function testButtonLabel(service) {
   const status = connectionStatus.value[service]
@@ -147,7 +132,6 @@ function testButtonClass(service) {
 
 onMounted(() => {
   load()
-  fetchAuthStatus()
 })
 </script>
 
@@ -331,48 +315,6 @@ onMounted(() => {
 
       <p class="text-xs text-[var(--color-text-muted)] mt-4">
         These defaults pre-fill the Scenario Builder. You can override them per-simulation.
-      </p>
-    </section>
-
-    <!-- Auth -->
-    <section v-if="authStatus.authEnabled" class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Authentication</h2>
-      <div class="border border-[var(--color-border)] rounded-lg p-4">
-        <div v-if="authStatus.user" class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <img
-              v-if="authStatus.user.picture"
-              :src="authStatus.user.picture"
-              :alt="authStatus.user.name"
-              class="w-8 h-8 rounded-full"
-            />
-            <div v-else class="w-8 h-8 rounded-full bg-[#2068FF] flex items-center justify-center text-white text-sm font-medium">
-              {{ (authStatus.user.name || authStatus.user.email || '?')[0].toUpperCase() }}
-            </div>
-            <div>
-              <div class="text-sm font-medium text-[var(--color-text)]">{{ authStatus.user.name || 'User' }}</div>
-              <div class="text-xs text-[var(--color-text-muted)]">{{ authStatus.user.email }}</div>
-            </div>
-          </div>
-          <button
-            @click="logout"
-            class="px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-300 dark:hover:border-red-500/30 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
-          >
-            Log Out
-          </button>
-        </div>
-        <div v-else class="flex items-center justify-between">
-          <span class="text-sm text-[var(--color-text-muted)]">Not signed in</span>
-          <router-link
-            to="/login"
-            class="px-4 py-2 text-sm bg-[var(--color-primary)] text-white rounded-lg hover:bg-[var(--color-primary-hover)] transition-colors"
-          >
-            Sign In
-          </router-link>
-        </div>
-      </div>
-      <p class="text-xs text-[var(--color-text-muted)] mt-2">
-        Auth provider: {{ authStatus.provider }} · Domain: @{{ authStatus.allowedDomain }}
       </p>
     </section>
 

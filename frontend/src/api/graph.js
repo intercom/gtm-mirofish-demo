@@ -14,7 +14,7 @@ export const graphApi = {
     }),
 
   // --- Graph building ---
-  build: (data) => client.post('/graph/build', data),
+  build: (data) => client.post('/gtm/simulate', data),
 
   // --- Tasks ---
   getTask: (taskId) => client.get(`/graph/task/${taskId}`),

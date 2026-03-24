@@ -82,319 +82,319 @@
     },
     {
       "title": "Agent influence network endpoint",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Add a GET endpoint `/api/simulation/{sim_id}/influence` in backend/demo_app.py that returns a directed graph of agent-to-agent influence. Build the influence model using three signals from the simulation data: 1) Reply patterns — if Agent A replies to Agent B's post, A is influenced by B (weight based on frequency). 2) Topic adoption — if Agent B starts posting about a topic that Agent A posted about first, infer influence (weight based on time gap). 3) Sentiment alignment — if Agent B's sentiment shifts toward Agent A's position over time, infer influence. Return a graph structure: `{nodes: [{id, name, influence_score, persona_type}], edges: [{source, target, weight, type}]}` where type is 'reply', 'topic_adoption', or 'sentiment_alignment'. Use the 15 agents defined in `_generate_agent_actions()`. Generate deterministic edges using a seeded random based on sim_id."
     },
     {
       "title": "Round-by-round heatmap data endpoint",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Add a GET endpoint `/api/simulation/{sim_id}/heatmap` in backend/demo_app.py that returns a matrix suitable for heatmap visualization. Rows represent the 15 agents (from `_generate_agent_actions()`), columns represent simulation rounds (bucketed into groups of 6 rounds for manageability — yielding ~24 columns for 144 rounds). Cell values represent engagement intensity: count of actions by that agent in that round bucket, normalized to 0.0-1.0 range. Return: `{rows: [agent_name, ...], columns: [round_label, ...], values: [[float, ...], ...], color_scale: {min: 0, max: 1, low_color: '#1e3a5f', high_color: '#ff5600'}}`. Use deterministic random seeding so the heatmap is consistent. Include overall row and column totals as `row_sums` and `col_sums` arrays."
     },
     {
       "title": "Pydantic-style request validation for POST endpoints",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Add request validation to all POST endpoints in backend/demo_app.py using marshmallow (install via pip). Define schema classes for each endpoint: `GraphBuildSchema` (seed_text: required string, min 10 chars), `SimulationCreateSchema` (graph_id: optional string), `SimulationPrepareSchema` (simulation_id: required string), `SimulationStartSchema` (simulation_id: required string), `ChatMessageSchema` (message: required string, max 2000 chars; simulation_id: optional string), `GenerateSeedSchema` (topic: required string; industry: optional string; persona_types: optional list of strings; tone: optional string with choices). Create a `validate_request` decorator that validates `request.get_json()` against the schema and returns 422 with field-level error details (`{errors: {field: [messages]}}`) on validation failure. Apply the decorator to all POST endpoints. Add marshmallow to the Dockerfile pip install."
     },
     {
       "title": "Streaming chat in ChatView.vue (EventSource/SSE)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Update frontend/src/views/ChatView.vue to support streaming responses from the new `/api/report/chat/stream` SSE endpoint. Replace the current axios POST call with a fetch()-based SSE reader (EventSource does not support POST bodies, so use fetch with ReadableStream). Parse incoming SSE events: on 'start' event, create a new assistant message bubble; on 'data' events containing tokens, append each token to the message content reactively; on 'done', finalize the message. Add a typing cursor animation (blinking `|` character) at the end of the message while streaming. Add a 'Stop generating' button (visible only during streaming) that calls `reader.cancel()` on the ReadableStream. Fall back to the existing non-streaming POST `/api/report/chat` endpoint if the stream connection fails. Update the API layer in frontend/src/api/chat.js to export both `sendMessage()` and `streamMessage()` functions."
     },
     {
       "title": "Streaming interview in AgentProfileView.vue",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Update the interview tab in frontend/src/views/AgentProfileView.vue to support SSE streaming for LLM-powered agent interview responses. The interview currently sends questions via POST to a chat-like endpoint. Add a streaming mode that uses the same fetch-based SSE approach as ChatView.vue: on submit, start a stream request with the agent's persona context in the system prompt, show a typing indicator (animated dots), and append tokens to the response bubble as they arrive. Add a 'Cancel' button visible during streaming. If the stream endpoint is unavailable or fails, fall back gracefully to the existing synchronous POST response. Share the SSE parsing logic with ChatView.vue by extracting it into a composable: `frontend/src/composables/useSSEStream.js`. The composable should export a `startStream(url, body, onToken, onDone, onError)` function."
     },
     {
       "title": "Generate Seed button in ScenarioBuilderView.vue",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Add an AI-powered seed text generation button to frontend/src/views/ScenarioBuilderView.vue next to the seed text textarea. The button should have a sparkle/wand icon (use an inline SVG or unicode character) and label 'Generate with AI'. On click, call the new `/api/scenario/generate-seed` POST endpoint with the currently selected scenario's topic, industry, and persona types from the form state. Show a loading spinner inside the button during the request. When the response arrives, animate the generated text appearing in the textarea character-by-character using a requestAnimationFrame loop (typing effect at ~30 chars/second). Add a 'Regenerate' affordance that clears and regenerates. If the API call fails (no LLM configured), show a toast notification explaining that an LLM API key is needed and fall back to the pre-filled template seed text. Disable the button while text is being animated."
     },
     {
       "title": "LLM temperature/model selection in SettingsView.vue",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Enhance the LLM configuration section in frontend/src/views/SettingsView.vue. Add: a provider dropdown with options for Anthropic, OpenAI, and Gemini (the new provider); a model selection dropdown that dynamically shows available models for the selected provider (Anthropic: claude-sonnet-4-20250514, claude-haiku-35; OpenAI: gpt-4o, gpt-4o-mini; Gemini: gemini-1.5-flash, gemini-1.5-pro); a temperature slider with range 0.0-1.0 in 0.1 increments showing the current value; and a system prompt customization textarea (default text: 'You are a GTM strategy analyst...'). Persist all settings to the Pinia settings store (frontend/src/stores/settings.js) which already saves to localStorage. Add a POST endpoint `/api/settings/llm` in demo_app.py that accepts and applies these settings server-side. Wire the 'Test Connection' button to use the selected provider/model combination."
     },
     {
       "title": "Token usage display in SettingsView.vue",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Add a 'Token Usage' dashboard card to frontend/src/views/SettingsView.vue below the LLM configuration section. Display: total tokens used (large number), breakdown by provider as a simple horizontal stacked bar chart (using inline SVG or a lightweight chart), estimated cost in USD, and a 'since' timestamp showing when tracking started. Poll the `/api/settings/llm-usage` GET endpoint every 30 seconds using a `setInterval` that starts on component mount and clears on unmount (use `onUnmounted` lifecycle hook). Add a 'Reset Usage' button that calls POST `/api/settings/llm-usage/reset` and refreshes the display. If the endpoint returns zero usage, show an empty state message: 'No LLM usage recorded yet. Start a chat or generate a report to see token usage.' Style the card consistently with existing settings sections using brand tokens."
     },
     {
       "title": "Engagement velocity metrics in SimulationPanel.vue",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Add a real-time engagement velocity indicator to the metrics section of frontend/src/components/simulation/SimulationPanel.vue. The component already displays total actions, replies, likes, and reposts. Add a new metric card showing: 'Engagement Velocity' as the label, posts-per-minute as the primary number (calculated from total_actions_count / elapsed simulated time), an up/down arrow icon indicating acceleration or deceleration compared to the previous measurement, and a tiny sparkline SVG (inline, ~100x30px) showing the rolling 5-round average of actions per round. Calculate velocity from the existing polling data available via the `useSimulationPolling` composable (which provides `current_round`, `total_actions_count`, and `simulated_hours`). Update the sparkline data on each poll interval. Use green for acceleration and red for deceleration with Intercom brand colors."
     },
     {
       "title": "More varied agent action content generation",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Enhance the `_generate_agent_actions()` function and `action_templates` in backend/demo_app.py to produce more diverse, realistic post content. Currently there are ~8 Twitter posts, ~3 Reddit posts, and ~5 reply templates. Expand each category to 20+ templates. Add: industry-specific terminology pools (healthcare agents should mention HIPAA, patient experience; fintech agents should mention SOC2, transaction volumes), varying post lengths (some short hot-takes of 1-2 sentences, some detailed analyses of 4-5 sentences), occasional questions ('Has anyone else tried Fin for technical support tickets? Curious about accuracy on complex issues.'), selective emoji usage for certain persona types (Support Managers use more emoji than CTOs), and @mention patterns between agents (e.g., 'Interesting point from @SarahChen about pilot results'). Map specific content pools to specific agent personas based on their role and company to make the simulation feel more authentic."
     },
     {
       "title": "Decision journey stage tracking in demo_app.py",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Add a decision journey tracking system to backend/demo_app.py that models each agent's progression through buyer stages: Awareness, Interest, Consideration, Intent, Evaluation, Decision. Create a `_compute_agent_journeys(sim_id)` function that takes the simulation state and derives each agent's current stage based on their activity signals: agents with only 'view' actions are in Awareness; agents who reply or engage are in Interest; agents discussing specific features or comparisons are in Consideration; agents expressing purchase intent keywords are in Intent; agents in active competitive evaluation are in Evaluation; agents who have posted positive decision signals are in Decision. Store as `{agent_name: {stage, entered_at_round, signals: [...]}}`. Add a GET endpoint `/api/simulation/{sim_id}/journeys` returning all agent journeys. Use deterministic progression based on agent index and round number so results are reproducible."
     },
     {
       "title": "Interactive data tables in ReportView.vue",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Add sortable, filterable data tables to the report sections in frontend/src/views/ReportView.vue. Create a new component `frontend/src/components/report/DataTable.vue` that accepts `columns` (array of {key, label, sortable, type}) and `rows` (array of objects) props. Implement: click-to-sort on column headers (ascending/descending/none cycle with arrow indicators), a text filter input above the table that searches across all string columns, and a 'Export CSV' button that generates and downloads a CSV file using Blob and URL.createObjectURL. Pre-populate the table with data matching the report's existing markdown tables: agent name, posts count, avg sentiment, engagement score, decision stage, top topics. Fetch the data from the `/api/simulation/{sim_id}/summary` and `/api/simulation/{sim_id}/journeys` endpoints. Style the table with alternating row colors, hover highlight, and brand-consistent borders."
     },
     {
       "title": "PDF export endpoint",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Add a GET endpoint `/api/report/{task_id}/export/pdf` in backend/demo_app.py that generates a branded PDF report. Install `weasyprint` via pip (or `reportlab` as fallback if weasyprint has system dependency issues). Construct an HTML template string that includes: a cover page with 'MiroFish GTM Analysis' title and Intercom blue (#2068FF) accent bar, an executive summary section pulling from REPORT_SECTIONS[0], data tables rendered as HTML tables with styled headers, and chart placeholders (since D3 charts are client-side, generate simple matplotlib bar charts for engagement by persona and sentiment distribution, encode as base64 PNG images embedded in the HTML). Apply Intercom brand colors throughout: blue headers, navy text, system-ui font family. Convert the HTML to PDF using weasyprint's `HTML(string=html).write_pdf()`. Return the PDF with `Content-Type: application/pdf` and `Content-Disposition: attachment; filename=report.pdf`."
     },
     {
       "title": "Report chart hover tooltips + click-to-drill",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Enhance all D3 chart components in frontend/src/components/report/ReportCharts.vue with interactive tooltips and drill-down capability. Create a shared tooltip div (positioned absolute, hidden by default) styled with dark background, white text, rounded corners, and a subtle shadow. On mouseover of any chart data element (bar, line point, pie slice), show the tooltip near the cursor with: the data label, exact value, and percentage of total. Use D3's `d3.pointer()` for positioning. On click of a data element, emit a 'drill' event with the data key — the parent ReportView.vue should handle this by scrolling to or opening a detail panel showing filtered data for that segment (e.g., clicking a persona bar shows that persona's activity feed). Add smooth fade-in/out transitions on the tooltip (150ms). Ensure tooltips stay within viewport bounds by checking position against window dimensions."
     },
     {
       "title": "Additional chart types (scatter, horizontal bar)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Create two new D3 visualization components in frontend/src/components/report/. First, `ScatterPlot.vue`: accepts `data` prop as array of {x, y, label, color, size}, renders an SVG scatter plot with axes, axis labels, and sized/colored circles. Plot engagement score (x-axis) vs sentiment (y-axis) with each agent as a dot, colored by persona type. Add zoom behavior with d3-zoom. Second, `HorizontalBarChart.vue`: accepts `data` prop as array of {label, value, color}, renders horizontal bars sorted by value descending — useful for ranked metrics like 'Top Agents by Engagement'. Include value labels at bar ends and subtle gridlines. Register both components in ReportCharts.vue alongside existing charts. Style with Intercom brand tokens: #2068FF for primary bars, #ff5600 for accent, #050505 for text, system-ui fonts."
     },
     {
       "title": "Agent sentiment timeline visualization",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Create `frontend/src/components/report/SentimentTimeline.vue` — a multi-line D3 chart showing per-agent sentiment scores over simulation rounds. Fetch data from `/api/simulation/{sim_id}/sentiment`. Render one line per agent, color-coded by persona type (VP Support = #2068FF blue, CX Director = #ff5600 orange, IT Leader = #A0F purple, Operations = #090 green, Finance = #FFB800 amber). Add: a legend showing agent names with color swatches (clickable to toggle line visibility), d3-zoom for horizontal zoom/pan to inspect specific round ranges, and a hover tooltip that snaps to the nearest data point showing agent name, round number, and exact sentiment score. Add a smoothing toggle that switches between raw values and a 5-round moving average. The chart should be responsive — recalculate dimensions on window resize using a ResizeObserver."
     },
     {
       "title": "Competitive mention tracking visualization",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Create `frontend/src/components/report/CompetitiveMentions.vue` that visualizes data from the `/api/simulation/{sim_id}/competitive` endpoint. Include three visualization sections: 1) A stacked bar chart showing competitor mentions over time (x-axis = round buckets, y-axis = mention count, stacked by competitor — each competitor gets a distinct color). 2) A donut/pie chart showing overall mention share per competitor with percentage labels. 3) A scrollable data table listing the top competitive quotes with columns: agent name, competitor mentioned, quote excerpt, sentiment badge (positive/negative/neutral). Use D3 for the charts. Add a filter dropdown to select a specific competitor or 'All'. Animate chart transitions when filter changes using D3's transition(). Style competitor colors distinctly: Zendesk=#03363D, Freshdesk=#2C9C6F, HubSpot=#FF7A59, Salesforce=#00A1E0, Help Scout=#1292EE."
     },
     {
       "title": "Agent avatar generation from persona",
-      "completed": false,
+      "completed": true,
       "parallel_group": 5,
       "description": "Create a deterministic SVG avatar generator for agents in `frontend/src/utils/avatarGenerator.js`. The function `generateAvatar(name, role, company)` should return an SVG string. Use a hash of the agent's full name as the seed for deterministic randomness. Support three avatar styles selected by hash modulo: 1) Geometric — colored polygon shapes (triangle, hexagon, circle) on a contrasting background. 2) Initials — two-letter initials on a gradient circle background, using colors derived from persona type (VP=blue gradient, Director=orange gradient, Manager=purple gradient, CTO=green gradient). 3) Abstract — layered semi-transparent circles in persona-themed colors. Each avatar should be unique but reproducible for the same agent name. Create a Vue component `frontend/src/components/common/AgentAvatar.vue` that wraps this utility with props for name, role, size (sm/md/lg mapping to 32/48/64px). Replace the current `initial` computed property usage in AgentProfileView.vue with this component."
     },
     {
       "title": "Suggested interview questions per persona",
-      "completed": false,
+      "completed": true,
       "parallel_group": 5,
       "description": "Add a 'Suggested Questions' collapsible panel to the interview tab in frontend/src/views/AgentProfileView.vue. Display 5 contextual interview questions based on the agent's persona attributes. Build a question template system in a new file `frontend/src/utils/interviewQuestions.js` that maps persona roles to relevant questions: VP of Support gets questions about team size, tool evaluation criteria, and budget cycles; CX Directors get questions about customer satisfaction metrics and AI adoption; IT Leaders get integration and security questions; Operations leads get efficiency and cost questions; Finance roles get ROI and procurement timeline questions. Additionally, if the agent has simulation activity data, generate 1-2 questions referencing their specific posts (e.g., 'You mentioned a 47% resolution rate in your Fin pilot — can you elaborate?'). Render as a vertical list of clickable question chips. On click, auto-fill the interview chat input with the selected question and optionally auto-submit."
     },
     {
       "title": "Batch interview mode (ask all agents)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 5,
       "description": "Add a 'Ask All Agents' button to the interview tab in frontend/src/views/AgentProfileView.vue (or create a dedicated batch interview modal). When clicked, show a text input for the question and a 'Send to All' button. On submit, send the question to the chat/interview endpoint once per agent in the simulation (use the 15 agents from the simulation data), passing each agent's persona context. Display responses in a responsive card grid layout (3 columns on desktop, 1 on mobile) — each card shows: the agent avatar (using the new AgentAvatar component), agent name and role, and their response text. Add a 'Sort by' dropdown: alphabetical, response length, sentiment (most positive first). Add a 'Summary' toggle at the top that uses the LLM to generate a one-paragraph synthesis of all responses. Include a loading state showing skeleton cards while responses stream in. Add the endpoint `/api/interview/batch` to demo_app.py that accepts a question and returns mock responses for all 15 agents."
     },
     {
       "title": "Agent comparison view (2-3 side by side)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 5,
       "description": "Create `frontend/src/views/AgentComparisonView.vue` (or a modal component accessible from the simulation workspace). Add a multi-select agent picker at the top allowing selection of 2-3 agents from the simulation. Once selected, render a side-by-side comparison layout with equal-width columns. For each agent column, show: avatar and name header, a metrics card (posts count, avg sentiment score, engagement score, decision stage from the journeys endpoint), a mini sentiment timeline sparkline, top 3 topics they engaged with, and 2-3 key quotes from their posts. At the bottom, add a 'Comparison Summary' section highlighting key differences: who is more engaged, whose sentiment is more positive, who is further along the decision journey. Add a route `/workspace/:taskId/compare` in the router and a 'Compare Agents' button in SimulationPanel.vue's agent list that opens this view with pre-selected agents."
     },
     {
       "title": "Interview chat export as markdown",
-      "completed": false,
+      "completed": true,
       "parallel_group": 5,
       "description": "Add an 'Export Chat' button (download icon) to the interview tab header in frontend/src/views/AgentProfileView.vue. When clicked, generate a markdown-formatted file containing the full interview conversation. Format: `# Interview with {Agent Name}\\n\\n**Role:** {role}\\n**Company:** {company}\\n**Date:** {ISO date}\\n\\n---\\n\\n` followed by each Q&A pair as `### Q: {question}\\n\\n> {agent response}\\n\\n`. Use the Blob API to create the file and trigger a download with filename `interview-{agent-name-slugified}-{date}.md`. Include a metadata section at the top with simulation ID, total questions asked, and interview duration. If no interview messages exist, disable the button and show a tooltip 'Start an interview first'. Also add a 'Copy to Clipboard' option that copies the same markdown to the clipboard with a toast confirmation."
     },
     {
       "title": "Animated engagement timeline replay",
-      "completed": false,
+      "completed": true,
       "parallel_group": 5,
       "description": "Create `frontend/src/components/simulation/TimelineReplay.vue` — a visual replay component that animates the simulation timeline. Add a scrubber/progress bar at the bottom showing round progression (0 to 144). As the scrubber advances, animate: agent dots appearing on a 2D canvas when they first post, lines connecting agents who reply to each other, pulse animations on agents when they take actions, and a running counter of total actions. Add playback controls: play/pause button, speed selector (1x, 2x, 5x, 10x), and a draggable scrubber for manual seeking. Use requestAnimationFrame for smooth animation. Highlight 'key moments' with callout badges: first competitive mention, highest engagement round, first Decision-stage agent. Fetch timeline data from `/api/simulation/{sim_id}/timeline` and action data from the detail endpoint. Add a 'Replay' button to SimulationPanel.vue that opens this component in a full-width overlay."
     },
     {
       "title": "Word cloud from agent posts",
-      "completed": false,
+      "completed": true,
       "parallel_group": 6,
       "description": "Create `frontend/src/components/report/WordCloud.vue` using the d3-cloud library (install via pnpm). Fetch all agent post content from `/api/simulation/{sim_id}/actions` endpoint. Extract individual words, filter out common stop words (the, is, a, an, and, or, but, in, on, at, to, for, of, with, etc.), and count frequencies. Size each word proportionally to its frequency using d3-cloud's `fontSize` scale. Color words by sentiment: analyze each word's context across posts — words appearing predominantly in positive contexts get green (#090), negative contexts get red (#dc2626), neutral gets gray (#6b7280). Add click interaction: clicking a word filters the parent view to show only posts containing that word (emit an event with the word). Add a 'Regenerate Layout' button since d3-cloud produces different layouts on each render. The component should accept `width` and `height` props with responsive defaults."
     },
     {
       "title": "Agent influence network force graph",
-      "completed": false,
+      "completed": true,
       "parallel_group": 6,
       "description": "Create `frontend/src/components/report/InfluenceGraph.vue` using D3's force-directed layout (d3-force). Fetch data from `/api/simulation/{sim_id}/influence`. Render an SVG with: nodes as circles sized by `influence_score` (range 20-60px radius), colored by persona type using the same color scheme as SentimentTimeline (VP=#2068FF, CX=#ff5600, IT=#A0F, Ops=#090, Finance=#FFB800). Edges are lines with arrowheads (using SVG marker-end) — thickness proportional to weight, styled with dashed lines for 'sentiment_alignment' type and solid for 'reply' and 'topic_adoption'. Add d3-force simulation with forceCenter, forceCollide, forceManyBody (repulsion), and forceLink. Make nodes draggable with d3-drag. Add zoom/pan with d3-zoom. On node hover, highlight that node's direct connections and dim all others. On node click, show a detail panel with the agent's name, influence score, and list of incoming/outgoing influence connections."
     },
     {
       "title": "Engagement heatmap visualization",
-      "completed": false,
+      "completed": true,
       "parallel_group": 6,
       "description": "Create `frontend/src/components/report/EngagementHeatmap.vue` using D3. Fetch data from `/api/simulation/{sim_id}/heatmap`. Render a grid where rows represent agents (y-axis) and columns represent round buckets (x-axis). Each cell is a colored rectangle using a sequential color scale: low engagement = cool blue (#1e3a5f), high engagement = warm orange (#ff5600), matching the `color_scale` metadata from the API. Add row labels (agent names, truncated to 15 chars) on the left and column labels (round ranges) on the bottom, rotated 45 degrees for readability. Add hover interaction: on cell hover, show a tooltip with agent name, round range, and exact engagement value. Add marginal summary bars: a bar chart above showing column totals (overall activity per round) and a bar chart on the right showing row totals (overall activity per agent). The component should handle responsive width by adjusting cell size."
     },
     {
       "title": "Decision journey funnel visualization",
-      "completed": false,
+      "completed": true,
       "parallel_group": 6,
       "description": "Create `frontend/src/components/report/DecisionFunnel.vue` showing aggregate agent progression through decision stages as a funnel chart. Fetch data from `/api/simulation/{sim_id}/journeys`. Count agents at each stage (Awareness, Interest, Consideration, Intent, Evaluation, Decision) and render as a vertical funnel: widest at top (Awareness), narrowing toward bottom (Decision). Each funnel segment is a trapezoid SVG path filled with a gradient from light to dark brand blue. Show: count and percentage labels inside each segment, drop-off rate between stages on the left side (e.g., '33% drop-off'), and average time-to-advance on the right side. Animate the funnel segments on initial render — start collapsed and expand to final widths over 800ms using D3 transitions. On segment click, show a list of agents currently at that stage. Add a 'Compare to Benchmark' toggle that overlays an industry-average funnel outline."
     },
     {
       "title": "Sparkline mini-charts in metric cards",
-      "completed": false,
+      "completed": true,
       "parallel_group": 6,
       "description": "Create a reusable `frontend/src/components/common/Sparkline.vue` component for embedding tiny trend charts in metric cards. Accept props: `data` (array of numbers), `width` (default 80), `height` (default 24), `color` (default '#2068FF'), `showDot` (boolean, shows dot on last point). Render using an inline SVG with a single `<polyline>` for the line and an optional `<circle>` for the last data point. Scale the data to fit the width/height using simple min/max normalization. Add subtle area fill below the line using a `<polygon>` with 10% opacity of the line color. Add this sparkline to existing metric cards in SimulationPanel.vue: the total actions card shows a sparkline of actions-per-round, the engagement velocity card shows the velocity trend. Also add sparklines to the report summary metrics in ReportView.vue. The component should be purely presentational with no data fetching — parent components pass pre-computed data arrays."
     },
     {
       "title": "Chart export buttons (PNG/SVG)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 6,
       "description": "Create a reusable `frontend/src/components/common/ChartExportButtons.vue` component that adds PNG and SVG export buttons to any chart container. Accept a `targetRef` prop (template ref pointing to the chart's SVG or container element). For SVG export: serialize the SVG DOM element using `new XMLSerializer().serializeToString()`, add xmlns attribute if missing, create a Blob with type 'image/svg+xml', and trigger download. For PNG export: create an off-screen canvas, draw the SVG onto it using an Image with a data URI (from the serialized SVG as a base64-encoded source), then use `canvas.toBlob()` to create the PNG download. Generate filenames with format `{chartType}-{timestamp}.{ext}`. Add this component to all D3 chart components: ReportCharts.vue, SentimentTimeline.vue, CompetitiveMentions.vue, InfluenceGraph.vue, EngagementHeatmap.vue, DecisionFunnel.vue, WordCloud.vue, ScatterPlot.vue, and HorizontalBarChart.vue. Position the buttons as a small icon group in the top-right corner of each chart."
     },
     {
       "title": "Ctrl+K command palette",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Create `frontend/src/components/ui/CommandPalette.vue` — a modal search overlay triggered by Ctrl+K (or Cmd+K on macOS). Register the keyboard shortcut in the App.vue root component using a global keydown listener that checks `(e.metaKey || e.ctrlKey) && e.key === 'k'`. The palette renders as a centered overlay with a search input at top and a filtered results list below. Define command items: page navigation (Home, Scenarios, Settings, Simulations), recent simulations (from simulation store), quick actions ('New Simulation', 'Export Report', 'Open Chat'), and settings shortcuts ('LLM Config', 'Theme Toggle'). Implement fuzzy search using simple substring matching on command titles. Support keyboard navigation: ArrowUp/ArrowDown to move selection highlight, Enter to execute selected command, Escape to close. Each command has an icon, title, subtitle, and action callback. Add a subtle backdrop blur effect. Close on outside click."
     },
     {
       "title": "Breadcrumb navigation",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Create `frontend/src/components/layout/BreadcrumbNav.vue` component that shows the navigation path on every page. Auto-generate breadcrumb items from the current Vue Router route: parse the matched route hierarchy to build segments. Map route names to readable labels: 'landing' -> 'Home', 'scenario-builder' -> 'Scenario Builder', 'workspace' -> 'Simulation Workspace', 'report' -> 'Report', 'chat' -> 'Chat', 'settings' -> 'Settings', 'agent-profile' -> 'Agent Profile'. Each segment (except the last) is a clickable router-link. Separate segments with a '/' or chevron icon. Style with: small text (text-sm), muted color for inactive segments (text-gray-400), bold for current page. Add the component to AppLayout.vue above the main content slot. On the landing page, don't show breadcrumbs (only one level). Include the simulation/scenario name in breadcrumbs when available from the Pinia store."
     },
     {
       "title": "Notification center",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Expand the existing toast system in frontend/src/composables/useToast.js and frontend/src/components/ui/ToastContainer.vue into a full notification center. Add a notification bell icon to AppNav.vue that shows an unread count badge. On click, open a dropdown/drawer showing recent notifications in a scrollable list. Each notification has: type (success/error/warning/info with colored left border), title, message, timestamp (relative — '2 min ago'), and dismiss button. Notifications are triggered for: simulation phase completions, report generation done, export completed, settings saved, API errors, and LLM provider connection status changes. Create a Pinia store `frontend/src/stores/notifications.js` to persist notifications (keep last 50). Toasts still appear as transient overlays, but they also get logged to the notification center for history. Add a 'Clear All' button and 'Mark All Read' button."
     },
     {
       "title": "Skeleton loading states",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Create skeleton loading components that match the layout of actual content. Build three components in frontend/src/components/ui/: `SkeletonCard.vue` (rounded rectangle with shimmer animation matching Card.vue dimensions — title bar, 2-3 text lines, optional footer), `SkeletonChart.vue` (rectangle with placeholder axis lines and random-height bar shapes, shimmer overlay), and `SkeletonTable.vue` (header row + N body rows of rectangular placeholders with alternating opacity). The shimmer animation should use CSS: a gradient (`linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)`) animated with `@keyframes` sliding left-to-right over 1.5s infinite. Apply these skeletons: ReportView.vue shows SkeletonChart while report generates, SimulationPanel.vue shows SkeletonCard for metric cards while first data loads, the landing page shows SkeletonCard for scenario cards while fetching, and data tables show SkeletonTable while loading. Replace existing loading spinners where skeleton screens provide better perceived performance."
     },
     {
       "title": "ARIA labels + keyboard accessibility",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Audit all interactive components in the frontend and add comprehensive ARIA attributes. In `frontend/src/components/common/`: add `role='button'` and `aria-label` to Button.vue, `role='dialog'` and `aria-modal='true'` to Modal.vue, `aria-live='polite'` to StatusIndicator.vue. In views: add `aria-label` to all icon-only buttons (close, export, settings gear), `aria-expanded` to collapsible sections, `aria-selected` to tab interfaces (ChatView tabs, AgentProfileView tabs, WorkspacePhaseNav). Add a 'Skip to main content' link as the first focusable element in AppLayout.vue that jumps to `#main-content`. Ensure all form inputs in SettingsView.vue and ScenarioBuilderView.vue have associated `<label>` elements or `aria-label`. Add `aria-live='assertive'` regions for toast notifications and `aria-live='polite'` for simulation status updates. Test tab order on every page to ensure logical flow."
     },
     {
       "title": "Focus management for modals",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Implement proper focus trapping for all modal/dialog components. Create a composable `frontend/src/composables/useFocusTrap.js` that: on activation, saves the previously focused element (`document.activeElement`), finds all focusable elements within the trap container (inputs, buttons, links, elements with tabindex), moves focus to the first focusable element, and adds a keydown listener that wraps Tab/Shift+Tab focus within the container boundaries. On deactivation, restore focus to the saved element. Apply this composable to: Modal.vue (frontend/src/components/common/Modal.vue), ConfirmDialog.vue (frontend/src/components/ui/ConfirmDialog.vue), the new CommandPalette.vue, and any future overlay components. Also handle the Escape key to close modals. Add `overflow: hidden` to document.body when a modal is open to prevent background scrolling. Ensure focus trap activates on `nextTick` after the modal's enter transition completes."
     },
     {
       "title": "High contrast mode",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Add a high contrast mode toggle to SettingsView.vue alongside the existing dark mode toggle. When activated, apply a 'high-contrast' class to the `<html>` element. Define CSS custom property overrides in `frontend/src/assets/brand-tokens.css` under `.high-contrast`: increase all text contrast ratios to meet WCAG AAA (7:1 minimum) — darken light text colors, lighten dark backgrounds; thicken all borders from 1px to 2px; add text-decoration underline to all `<a>` links; increase focus ring width from 2px to 4px with a high-contrast color (black on light, white on dark); make button borders always visible (not just on focus/hover). Persist the preference in localStorage via the Pinia settings store. Respect the `prefers-contrast: more` media query by auto-enabling on first visit for users with system high-contrast preferences. Ensure D3 chart colors are distinguishable — add pattern fills as alternative to color-only differentiation."
     },
     {
       "title": "Print-optimized report styles",
-      "completed": false,
+      "completed": true,
       "parallel_group": 7,
       "description": "Add `@media print` CSS rules specifically for frontend/src/views/ReportView.vue. Create a scoped style block or a dedicated `frontend/src/assets/print.css` imported in the report view. Print rules should: hide AppNav, AppFooter, sidebar navigation, all interactive controls (buttons, dropdowns, inputs), the chat widget, and any fixed/sticky elements. Ensure D3 charts render properly at print resolution by setting explicit width/height on SVG elements (remove responsive CSS that might collapse them). Add CSS `page-break-before: always` to each report section heading (h2). Add a print header with report title and generation date using `@page { @top-center { content: 'MiroFish GTM Report' } }`. Set `@page { size: A4; margin: 2cm; }`. Force all colors to print-friendly values — ensure dark backgrounds invert to white with dark text. Add a 'Print Report' button in the ReportView.vue toolbar that calls `window.print()`."
     },
     {
       "title": "Guided tour walkthrough",
-      "completed": false,
+      "completed": true,
       "parallel_group": 8,
       "description": "Create `frontend/src/components/demo/GuidedTour.vue` that implements a multi-step spotlight tour of the application. The tour highlights UI elements in sequence by: darkening the rest of the page with a semi-transparent overlay (rgba(0,0,0,0.7)), cutting out a spotlight rectangle around the target element using CSS clip-path or SVG mask, and showing an explanatory tooltip positioned near the highlighted element. Define tour steps as an array: 1) Landing page hero — 'Welcome to MiroFish', 2) Scenario cards — 'Choose a GTM scenario', 3) Scenario builder seed input — 'Customize your simulation', 4) Graph visualization — 'Explore the knowledge graph', 5) Simulation panel — 'Watch agents interact in real-time', 6) Report view — 'Read AI-generated insights', 7) Chat interface — 'Ask follow-up questions'. Each step has a target CSS selector, tooltip text, and position (top/bottom/left/right). Add Previous/Next/Skip buttons. Track completion in localStorage. Trigger on first visit to the landing page."
     },
     {
       "title": "Preset demo data with story arc",
-      "completed": false,
+      "completed": true,
       "parallel_group": 8,
       "description": "Create a complete preset simulation dataset in `backend/demo_data/preset_simulation.json` that tells a compelling, pre-scripted story. Design 15 agents across 3 persona clusters: 5 'Early Adopters' (positive sentiment, quick to Decision stage), 5 'Cautious Evaluators' (initially skeptical, gradually warming), and 5 'Competitive Defenders' (loyal to current vendor, resistant). Script 20 rounds with specific narrative beats: Rounds 1-5: Awareness phase, initial reactions. Rounds 6-10: Interest builds, first competitive comparisons. Round 12: Competitive disruption event — a simulated industry report drops favoring Intercom, triggering a wave of engagement. Rounds 13-17: Rapid progression through Consideration/Intent. Rounds 18-20: Resolution — Early Adopters reach Decision, Evaluators reach Intent, Defenders remain in Consideration. Add a 'Demo Mode' button to LandingView.vue that loads this dataset, bypassing the real simulation flow, and navigates directly to a pre-populated report."
     },
     {
       "title": "Replay mode (accelerated playback)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 8,
       "description": "Add replay functionality to completed simulations. When a simulation is complete (status = 'completed'), show a 'Replay' button in SimulationPanel.vue. On click, reset the displayed state to round 0 and replay the simulation at accelerated speed. Add speed controls: 1x (real-time replay of the accelerated simulation), 2x, 5x, 10x — each multiplier reduces the delay between displayed rounds. Use `setInterval` with configurable delay: base delay is 500ms per round at 1x, so 10x plays at 50ms per round. During replay, update all metric cards, the activity feed, and the timeline chart progressively as if the simulation were running live. Show a replay progress bar at the top of SimulationPanel.vue with the scrubber position. Add play/pause toggle and a 'Jump to End' button. Store the complete simulation data (all rounds) in memory during first playback so scrubbing backward is instant."
     },
     {
       "title": "Screenshot-ready view mode",
-      "completed": false,
+      "completed": true,
       "parallel_group": 8,
       "description": "Add a 'Presentation Mode' toggle accessible from the PresenterToolbar.vue component (frontend/src/components/demo/PresenterToolbar.vue) or via Ctrl+Shift+P keyboard shortcut. When activated: hide AppNav and AppFooter, hide all interactive controls (buttons, inputs, dropdowns) that aren't essential for viewing, maximize the content area to fill the viewport, increase base font size by 20% using a CSS class on `<html>`, add a subtle 'MiroFish by Intercom' watermark in the bottom-right corner (low opacity, non-intrusive), and disable hover tooltips (set a global `presentationMode` flag in Pinia that components check before showing tooltips). The mode should be optimized for screen sharing and screenshot capture. Add a floating 'Exit Presentation Mode' button in the bottom-right that appears on mouse movement and fades after 3 seconds of inactivity. Persist mode in sessionStorage (not localStorage — only for current session)."
     },
     {
       "title": "AI narration mode during simulation",
-      "completed": false,
+      "completed": true,
       "parallel_group": 8,
       "description": "Add an 'AI Narration' toggle to SimulationPanel.vue that, when enabled, shows a text overlay describing what is happening in the simulation in natural language. On each round update (from the polling data), generate a narration sentence. If LLM is configured, call a new endpoint `/api/simulation/{sim_id}/narrate` with the current round's actions and get an LLM-generated description (e.g., 'Round 12: Sarah Chen just shifted from Consideration to Intent after engaging with 3 positive Fin deployment posts. Meanwhile, Nathan Lee remains skeptical, posting about vendor lock-in concerns.'). If no LLM is available, use template-based narration: pick the most interesting action from the round (a Decision stage change > a competitive mention > a new post) and fill in a template. Display the narration in a semi-transparent overlay bar at the bottom of the simulation panel. Animate text entry with a typewriter effect. Keep a scrollable history of past narrations accessible via a 'History' toggle."
     },
     {
       "title": "One-click quick-start demo",
-      "completed": false,
+      "completed": true,
       "parallel_group": 8,
       "description": "Add a prominent 'Quick Demo' button to LandingView.vue, positioned above or alongside the scenario cards. Style it as a large, eye-catching CTA with the Intercom blue (#2068FF) background, white text, and a play icon. On click, the button should: 1) Show a brief loading state with 'Preparing demo...', 2) Call `/api/graph/build` with the outbound_campaign scenario's seed text, 3) Immediately navigate to the simulation workspace, 4) Auto-advance through phases: wait for graph build (the existing 6-second timer), then auto-trigger simulation start, 5) Play the simulation at 3x speed (using the DEMO_SPEED mechanism), 6) On completion, auto-navigate to the report view. The entire flow should require zero configuration — no scenario selection, no parameter tuning. Add a backend endpoint `/api/demo/quick-start` that orchestrates this by creating the graph task, simulation, and report in sequence, returning all task IDs. If an LLM key is configured, enable chat on the report; otherwise, use fallback mode."
     },
     {
       "title": "Settings validation with inline feedback",
-      "completed": false,
+      "completed": true,
       "parallel_group": 9,
       "description": "Add real-time validation to all settings inputs in frontend/src/views/SettingsView.vue. For each input field, add a validation function that runs on input/blur events: API key fields should match expected patterns (Anthropic keys start with 'sk-ant-', OpenAI with 'sk-', Gemini with 'AI'), URL fields should match a URL regex, numeric fields (temperature, agent count) should be within their defined ranges. Display validation state visually: valid inputs get a green checkmark icon (position: absolute, right side of input), invalid inputs get a red outline (border-red-500) and an error message below in small red text. Create a reusable `ValidatedInput.vue` wrapper component that accepts validation rules as props (array of {validator: Function, message: string}). The 'Save Settings' button should be disabled when any validation error exists. Show a summary count of errors above the save button if any exist."
     },
     {
       "title": "Import/export settings as JSON",
-      "completed": false,
+      "completed": true,
       "parallel_group": 9,
       "description": "Add 'Export Settings' and 'Import Settings' buttons to the bottom of frontend/src/views/SettingsView.vue. Export: read all current settings from the Pinia settings store, add a `version` field (1) and `exported_at` ISO timestamp, serialize to JSON with 2-space indentation, create a Blob, and trigger download as `mirofish-settings-{date}.json`. Import: open a file picker (accept .json only), read the file, parse JSON, validate the schema (check for required keys: version, at minimum), show a diff preview modal comparing current settings vs. imported settings (use a simple side-by-side layout highlighting changed values in yellow), and on 'Apply' confirmation, update the Pinia store. Handle version migration: if imported settings have version < current, transform the data structure (future-proofing). Show a toast notification on successful import/export. Handle errors gracefully: malformed JSON shows a clear error message, incompatible versions show a warning."
     },
     {
       "title": "Simulation presets (quick configs)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 9,
       "description": "Add simulation preset cards to frontend/src/views/ScenarioBuilderView.vue above the detailed configuration form. Define 4 presets as a constant array: 'Quick Demo' (5 agents, 10 rounds, ~30 seconds — 'Fast overview for stakeholder demos'), 'Full Simulation' (15 agents, 144 rounds, ~35 seconds — 'Complete simulation with all agent types'), 'Deep Analysis' (20 agents, 200 rounds, ~60 seconds — 'Extended simulation for detailed behavioral analysis'), and 'Custom' (user-defined values — 'Configure your own parameters'). Render as a row of 4 cards (2x2 on mobile), each with: preset name, agent/round counts, estimated duration, one-line description, and a 'Select' button. Selecting a preset auto-fills the form fields below (agent count, duration, platform mode). The 'Custom' card highlights the form for manual editing. Add a subtle check icon on the selected preset card. Store the selected preset in the form state so it can be referenced in the simulation metadata."
     },
     {
       "title": "Zep connection test with graph stats",
-      "completed": false,
+      "completed": true,
       "parallel_group": 9,
       "description": "Enhance the Zep settings section in frontend/src/views/SettingsView.vue. The existing 'Test Connection' button should call a new backend endpoint `/api/settings/zep/test` (add to demo_app.py). This endpoint should: check if ZEP_API_KEY is set, attempt to call the Zep Cloud API (GET request to the Zep API health endpoint or graph stats endpoint), and return connection status plus graph statistics if available: node count, edge count, and last_updated timestamp. In the frontend, show the test result in a status card below the API key input: green success card with 'Connected' badge and stats (node count, edge count, last sync time), or red error card with specific error message (invalid key, network error, timeout). Add a loading spinner on the button during the test. If Zep is not configured (no API key), show an info message: 'Zep Cloud provides persistent memory for agent conversations. Add your API key to enable.' with a link to zep.ai."
     },
     {
       "title": "Custom persona type creation",
-      "completed": false,
+      "completed": true,
       "parallel_group": 9,
       "description": "Add a 'Custom Personas' section to frontend/src/views/SettingsView.vue (or as a sub-section of the ScenarioBuilderView.vue). Include a 'Create Persona' button that opens a modal form with fields: name (text, e.g., 'Product Manager'), role description (textarea, e.g., 'Mid-level PM evaluating customer support tools for product-led growth'), typical behavior patterns (textarea, comma-separated — 'data-driven, asks for case studies, focuses on integration APIs'), engagement tendencies (dropdown: 'High Engagement', 'Moderate', 'Low/Observer'), and vocabulary style (dropdown: 'Technical', 'Business', 'Casual', 'Executive'). On save, POST to a new endpoint `/api/settings/personas` in demo_app.py that stores custom personas in memory (module-level dict). The saved personas appear in the ScenarioBuilderView persona type multiselect alongside the 4 defaults. Show saved custom personas as editable cards with Edit and Delete buttons. Persist to backend; on server restart, defaults restore."
     },
     {
       "title": "Executive summary one-pager generation",
-      "completed": false,
+      "completed": true,
       "parallel_group": 9,
       "description": "Add a GET endpoint `/api/report/{task_id}/executive-summary` in backend/demo_app.py that generates a concise executive summary. If LLM is configured, construct a prompt that includes the report's key metrics (from REPORT_SECTIONS), simulation summary stats, and top agent insights, then ask the LLM to produce a structured summary with: 'Key Finding' (one sentence), 'Top 3 Insights' (bullet points), 'Recommended Actions' (numbered list), and 'Risk Factors' (bullet points). If no LLM, return a pre-written template executive summary based on the outbound_campaign scenario data. In the frontend, add an 'Executive Summary' tab or button to ReportView.vue that fetches and displays this content in a single-page styled layout: white card with Intercom blue top border, large heading, structured sections with icons, and a 'Share' button. The one-pager should be suitable for screenshot-sharing with executives — no scrolling needed on a 1080p screen."
     },
     {
       "title": "Report comparison view (side by side)",
-      "completed": false,
+      "completed": true,
       "parallel_group": 9,
       "description": "Create `frontend/src/views/ReportComparisonView.vue` accessible via route `/reports/compare`. Add a 'Compare Reports' button to the SimulationsView.vue page that allows selecting two completed simulations. The comparison view renders two report summaries side by side in a split-column layout. Align matching sections (Executive Summary next to Executive Summary, Engagement next to Engagement). For each metric that appears in both reports, calculate and display the delta: absolute difference and percentage change. Color-code deltas: green (#090) for improvements (higher engagement, more agents reaching Decision stage), red (#dc2626) for declines. Show a summary comparison card at the top: 'Report A vs Report B — 3 metrics improved, 1 declined, 2 unchanged'. If only one simulation exists, show a message suggesting running another simulation first. Add the route to frontend/src/router/index.js and a navigation link in the breadcrumb."
     },
     {
       "title": "Confidence intervals on metrics",
-      "completed": false,
+      "completed": true,
       "parallel_group": 10,
       "description": "Add confidence interval calculation to key metrics in the report backend. Create a utility function `_bootstrap_ci(data, n_samples=1000, confidence=0.95)` in demo_app.py that computes confidence intervals using bootstrap resampling: repeatedly sample from the data with replacement, compute the statistic, then take the 2.5th and 97.5th percentiles for the 95% CI. Apply this to: engagement scores per persona type, sentiment averages, and conversion rates. Modify the `/api/simulation/{sim_id}/summary` response to include a `confidence_intervals` object alongside each metric, formatted as `{lower: float, upper: float, confidence: 0.95}`. In the frontend ReportView.vue, display confidence intervals as '±range' next to metric values (e.g., '34.7% ±2.3%'). On D3 charts, add shaded CI bands around data lines using SVG `<path>` elements with low-opacity fills. Since this is demo data with deterministic seeding, the CIs will be illustrative but structurally correct."
     },
     {
       "title": "Report annotations / notes",
-      "completed": false,
+      "completed": true,
       "parallel_group": 10,
       "description": "Add an annotation system to ReportView.vue that allows clicking any chart or metric to add a text note. Create an `AnnotationMarker.vue` component that renders as a numbered circle (1, 2, 3...) positioned at the click point. On click of any chart area or metric card, show a popover with a textarea for entering a note and 'Save'/'Cancel' buttons. Store annotations in a reactive array in the report view: `{id, target_type, target_id, position: {x, y}, text, created_at}`. Display saved annotations as numbered markers on the report — hover to show the note in a popover. Support edit (click marker to reopen editor) and delete (trash icon in popover). Add a 'Notes Panel' toggle in the report toolbar that shows all annotations in a sidebar list for easy navigation. Persist annotations to a new POST/GET endpoint `/api/report/{task_id}/annotations` in demo_app.py (stored in memory). Annotations survive page navigation but not server restart."
     },
     {
       "title": "Shareable report URL",
-      "completed": false,
+      "completed": true,
       "parallel_group": 10,
       "description": "Add shareable report URL generation to ReportView.vue. When a user clicks 'Share Report' (add this button to the report toolbar), generate a unique share token by calling a new POST endpoint `/api/report/{task_id}/share` in demo_app.py. The backend generates a UUID token, stores the mapping `{token: task_id}` in a module-level dict `_shared_reports`, and returns the full URL: `{base_url}/shared/{token}`. Add a route `/shared/:token` in the Vue router that renders a read-only version of ReportView.vue (hide edit controls, annotation creation, and chat button). The shared route fetches report data via a new GET endpoint `/api/report/shared/{token}` that looks up the task_id from the token. In the frontend, show a 'Copy Link' button that uses `navigator.clipboard.writeText()` with a toast confirmation 'Link copied!'. Shared reports expire after 24 hours (check timestamp on access). Show an 'Expired' page if the token is no longer valid."
     },

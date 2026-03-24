@@ -36,12 +36,21 @@ cd backend && uv sync && uv run python run.py
 cd frontend && npm install && npm run dev
 ```
 
+## Deployment
+
+- **Railway**: Both services deployed to Railway project `gtm-mirofish-demo`
+  - Backend: https://backend-production-e9d7.up.railway.app
+  - Frontend: https://frontend-production-86ea.up.railway.app
+- Each service has its own `Dockerfile` in its directory (`backend/Dockerfile`, `frontend/Dockerfile`)
+- `docker-compose.yml` at root for local development (builds from per-service Dockerfiles)
+
 ## Key Decisions
 
 - **Multi-LLM**: Set `LLM_PROVIDER=anthropic|openai|gemini` in .env — auto-configures base URL and model
 - **Auth**: Set `AUTH_ENABLED=true` for production — enforces @intercom.io email via Google/Okta OAuth
 - **Scenarios**: 4 pre-built GTM scenarios in `backend/gtm_scenarios/`
 - **Branding**: Intercom design tokens in `frontend/tailwind.config.js` and `frontend/src/assets/brand-tokens.css`
+- **Dockerfiles**: Per-service Dockerfiles in `backend/` and `frontend/` (used by both Railway and docker-compose)
 
 ## API Endpoints
 

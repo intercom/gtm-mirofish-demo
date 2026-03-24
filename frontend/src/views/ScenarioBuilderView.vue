@@ -89,7 +89,7 @@ async function runSimulation() {
       platform_mode: platformMode.value,
     })
     const taskId = data.task_id
-    simulationStore.startBuild(taskId)
+    simulationStore.startGraphBuild(taskId)
     toast.success('Building knowledge graph...')
     router.push(`/graph/${taskId}`)
   } catch (e) {

@@ -10,133 +10,133 @@
     },
     {
       "title": "Create Intercom brand design tokens CSS file at frontend/src/assets/brand-tokens.css with CSS custom properties for all brand colors, typography scale, spacing system, and component tokens (buttons, cards, inputs, badges).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Foundation layer. Define --color-primary (#2068FF), --color-navy (#050505), --color-fin-orange (#ff5600), --color-accent (#A0F), --color-success (#090), --color-bg-light (#f5f3ee). Typography: system-ui font stack, letter-spacing from -2.56px to -0.32px. Border radius: 0.5rem default."
     },
     {
       "title": "Build layout components: AppNav.vue (with Intercom logo SVG, navigation links, auth status indicator), AppFooter.vue (subtle footer with 'Powered by MiroFish' attribution), and AppLayout.vue (wrapper with nav + main content + footer).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "AppNav should include: Intercom logo (left), nav links (Home, Scenarios, Settings), simulation status indicator (when active), and user avatar/login button (right). Dark navy background (#050505) with white text. Source Intercom logo SVG from the website or create a clean text-based logo."
     },
     {
       "title": "Build common UI component library: Button.vue (primary/secondary/ghost variants with Intercom blue), Card.vue (white bg, subtle border, rounded-lg), Input.vue (styled text/select/textarea), Badge.vue (status badges), Modal.vue (dialog overlay), StatusIndicator.vue (running/complete/error dot).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "All components should use Intercom brand tokens. Button primary: bg-[#2068FF] hover:bg-[#1a5ae0]. Card: bg-white border border-black/10 rounded-lg. Input: border-gray-200 focus:ring-[#2068FF]. Badge variants: info (blue), success (green), warning (orange), error (red)."
     },
     {
       "title": "Set up Pinia state stores: simulation.js (simulation lifecycle state, current task IDs, progress), settings.js (LLM provider config, Zep API key, persisted to localStorage), auth.js (user info, login state, token), scenarios.js (GTM scenario templates cache).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Settings store should persist to localStorage so configuration survives page reloads. Simulation store tracks: graphTaskId, simulationTaskId, reportTaskId, currentPhase (idle/building_graph/simulating/generating_report/complete), progress percentage."
     },
     {
       "title": "Configure API client layer in frontend/src/api/: client.js (Axios instance with baseURL from VITE_API_URL, auth header injection, error interceptor), graph.js, simulation.js, report.js, scenarios.js, chat.js — each wrapping their respective backend endpoints.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "client.js should read VITE_API_URL env var for backend URL (defaults to http://localhost:5001). Add request interceptor for auth token from auth store. Add response interceptor for 401 → redirect to login. Each API module exports async functions matching backend endpoints."
     },
     {
       "title": "Set up Vue Router in frontend/src/router/index.js with routes: / (Landing), /scenarios/:id (Scenario Builder), /graph/:taskId (Knowledge Graph), /simulation/:taskId (Simulation Dashboard), /report/:taskId (Report Explorer), /chat/:taskId (Chat), /settings (Settings), /login (Login). Add auth guard middleware.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 1,
       "description": "Auth guard: if AUTH_ENABLED and no user in auth store, redirect to /login (except for /login route itself). Simulation flow routes should pass taskId params for tracking active simulation sessions."
     },
     {
       "title": "Build LandingView.vue — dark hero section with gradient background (navy to dark blue), Intercom GTM Systems branding, headline 'MiroFish Swarm Intelligence', subtitle explaining the tool, and 4 scenario cards in a 2x2 responsive grid. Outbound campaign card highlighted as hero with blue accent border.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Each scenario card shows: icon, name, description, and 'Launch Simulation' button. Cards link to /scenarios/:id. Hero card (outbound_campaign) has blue left border and 'Recommended' badge. Include animated subtle particle/dot background effect using CSS animations (not heavy JS). Bottom section: 'How It Works' 3-step flow diagram."
     },
     {
       "title": "Build ScenarioBuilderView.vue — form to configure simulation parameters. Pre-loads scenario template from API when navigating from landing. Includes: seed document textarea (editable, pre-filled), agent count slider (50-500), persona type multiselect, industry mix checkboxes, simulation duration selector, platform mode toggle (Twitter/Reddit/Both). 'Run Simulation' primary button.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "On mount, fetch scenario by route param ID from /api/gtm/scenarios/:id. Pre-fill all fields from template. Show seed data preview panel on right side. Validate: seed text required, at least 1 persona type, agent count >= 10. On submit: call /api/graph/build with seed_text, then navigate to GraphView with task ID."
     },
     {
       "title": "Build GraphView.vue — interactive D3.js force-directed knowledge graph visualization on dark canvas (#0a0a1a). Nodes colored by entity type (personas=orange #ff5600, topics=blue #2068FF, relationships=purple #A0F). Node size by centrality. Click node shows detail panel. Real-time build animation. Stats panel showing node/edge counts.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Use D3 force simulation with collision, charge, and link forces. Implement zoom/pan with d3-zoom. On mount, poll /api/graph/status until complete, then fetch full graph data. Animate nodes appearing one by one during build phase. Side panel on node click shows: entity name, type, relationships, and extracted facts. 'Continue to Simulation' button appears when graph is complete."
     },
     {
       "title": "Build SimulationView.vue — real-time simulation dashboard with metrics cards (total actions, replies, likes, reposts, current round), platform tabs (Twitter/Reddit/Both), live agent activity feed parsing JSONL, engagement timeline chart, progress bar, and status badge (Building/Running/Completed).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Poll /api/simulation/status every 3 seconds during active simulation. Metrics cards: large numbers with labels, colored by type. Activity feed: scrolling list of recent agent actions with agent name, action type, and content preview. Timeline chart: D3 line chart showing engagement per round. Platform tabs switch between Twitter-only, Reddit-only, and combined views. 'Generate Report' button appears when simulation completes."
     },
     {
       "title": "Build ReportView.vue — multi-chapter predictive report explorer with left sidebar chapter navigation (with completion indicators), main content area rendering markdown chapters, summary section with key findings highlighted in blue callout boxes, and export button (download as markdown).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "On mount, start report generation via /api/report/generate. Poll for chapter completion. Render each chapter progressively as it generates (streaming feel). Use 'marked' library for markdown rendering. Summary section extracts key statistics and findings. 'Ask Follow-Up' button navigates to ChatView. Export creates downloadable .md file."
     },
     {
       "title": "Build ChatView.vue — full-height chat interface for Q&A with the simulated world. User messages (blue bubble #2068FF bg), MiroFish responses (gray bubble). Auto-scrolling message list. Input with send button. Show tool calls inline (insight_forge, panorama_search, etc.) as collapsible sections. Context indicator showing active simulation.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Send messages via /api/chat endpoint. Parse response for tool_calls and display them as expandable cards between message text. Tool call cards show: tool name, query, and result summary. Auto-scroll to bottom on new messages. Input supports Enter to send, Shift+Enter for newline. Show typing indicator while waiting for response."
     },
     {
       "title": "Build SettingsView.vue — multi-section settings page: LLM Provider (radio buttons for Claude/OpenAI/Gemini with API key input and 'Test Connection' button), Zep Cloud (API key with test), Simulation Defaults (agent count, duration, platform), and Auth section (current user display, logout when auth enabled).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Settings persist to localStorage via Pinia settings store. Test Connection buttons hit a lightweight validation endpoint. LLM provider selection auto-updates the displayed model name. Show green checkmark when connection test passes. Auth section only visible when AUTH_ENABLED. Include theme toggle (light/dark mode) using Tailwind dark mode class strategy."
     },
     {
       "title": "Build LoginView.vue — centered card on dark navy background with Intercom logo, 'Sign in to MiroFish Demo' heading, Google OAuth button (styled), Okta SSO button (styled), and 'Restricted to @intercom.io accounts' notice. Handles OAuth callback and stores user in auth store.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 2,
       "description": "Only rendered when AUTH_ENABLED is true (check via /api/auth/config endpoint or VITE_AUTH_ENABLED env var). OAuth flow: click button → redirect to provider → callback → validate @intercom.io domain → store user in session + auth store → redirect to landing. Show error message if email domain doesn't match."
     },
     {
       "title": "Wire all frontend views to backend API endpoints end-to-end. Verify the complete simulation flow: Landing → select scenario → Scenario Builder → configure → Graph builds → Simulation runs → Report generates → Chat works. Fix any API contract mismatches.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Integration testing phase. Walk through the entire flow manually. Check: scenario list loads on landing, scenario detail loads in builder, graph build triggers correctly, simulation starts after graph, report generates after simulation, chat sends and receives. Fix any 404s, CORS issues, or data format mismatches."
     },
     {
       "title": "Add loading states, error handling, and empty states across all views. Loading: skeleton screens or spinner. Error: retry button with error message. Empty: illustrated placeholder with call-to-action. Add toast notifications for success/error events.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Every async operation needs: loading state (shown while fetching), error state (shown on failure with retry), empty state (shown when no data). Add a toast notification system (Vue composable) for: simulation started, report complete, connection test result, auth success/failure."
     },
     {
       "title": "Add animated transitions between views using Vue transition components. Page transitions: fade + slight slide. Component transitions: staggered enter for card grids. Graph nodes: animate-in on data load. Simulation metrics: count-up animation.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Use Vue's <Transition> and <TransitionGroup>. Route transitions: 300ms fade with 20px translateY. Card grids: staggered enter with 50ms delay per item. Metrics numbers: requestAnimationFrame count-up from 0. Keep animations performant — use transform and opacity only."
     },
     {
       "title": "Add responsive design for tablet and mobile viewports. Test at 768px and 375px widths. Landing cards stack to single column on mobile. Sidebar layouts collapse to tabs. Nav becomes hamburger menu on mobile.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Use Tailwind responsive prefixes (sm:, md:, lg:). Landing grid: 2x2 → 1 column on mobile. Report sidebar: collapsible on mobile. Graph view: full-width with controls overlay. Settings: single column on mobile. Chat: full-height with bottom-pinned input."
     },
     {
       "title": "Implement dark mode support using Tailwind's class strategy. Toggle in Settings view. Persist preference to localStorage. Default to dark for landing, light for app views (or follow system preference).",
-      "completed": false,
+      "completed": true,
       "parallel_group": 3,
       "description": "Add 'dark' class to html element based on preference. All component colors should have dark: variants. Dark mode palette: bg-gray-900, text-white, card bg-gray-800, border-white/10. Landing is always dark. Other views follow preference."
     },
     {
       "title": "Write comprehensive README.md with: project overview, screenshots placeholder section, features list, quick start (Docker and manual), configuration guide (all env vars), architecture diagram (ASCII), GTM scenarios documentation, development guide, deployment to Railway instructions, API reference, contributing guidelines, and license.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "README should be impressive and thorough — this is an internal demo for management. Include badges (license, Docker, Node, Python). Architecture section should have ASCII diagram showing frontend → backend → Zep/LLM/OASIS. Deployment section should cover Railway step-by-step."
     },
     {
       "title": "Write GTM scenario documentation in docs/scenarios/ — one markdown file per scenario explaining: business context, what the simulation tests, expected insights, and how to interpret results.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Create docs/scenarios/outbound-campaign.md, signal-validation.md, pricing-simulation.md, personalization.md. Each should explain the business problem it addresses with references to actual Intercom GTM data (anonymized)."
     },
     {
       "title": "Final polish pass: verify Intercom branding consistency across all views, check all animations are smooth, verify error states are helpful, ensure settings persist correctly, test Docker build end-to-end.",
-      "completed": false,
+      "completed": true,
       "parallel_group": 4,
       "description": "Visual QA checklist: logo renders in nav, brand blue (#2068FF) used consistently for primary actions, navy (#050505) for dark sections, system fonts throughout, tight letter-spacing on headings, rounded-lg on all cards, subtle borders (black/10). Test Docker: docker compose build && docker compose up -d → both services healthy."
     }

@@ -77,7 +77,9 @@ export function createAppRouter() {
   })
 
   router.beforeEach((to) => {
-    if (localStorage.getItem('auth_enabled') !== 'true') return
+    // Auth is enforced if EITHER the build-time env var OR localStorage flag is set
+    const authRequired = import.meta.env.VITE_AUTH_ENABLED === 'true' || localStorage.getItem('auth_enabled') === 'true'
+    if (!authRequired) return
 
     const auth = useAuthStore()
 

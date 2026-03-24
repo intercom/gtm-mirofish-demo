@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+export const API_BASE = import.meta.env.VITE_API_URL || 'https://backend-production-e9d7.up.railway.app/api'
+
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 })
 

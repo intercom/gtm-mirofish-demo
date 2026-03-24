@@ -3,6 +3,8 @@
  * Centralizes all backend communication with consistent error handling.
  */
 
+import { API_BASE } from '../api/client'
+
 async function request(url, options = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -40,25 +42,25 @@ export async function pollTask(pollFn, { interval = 2000, timeout = 600000, onPr
 // ── GTM Scenarios ──
 
 export async function listScenarios() {
-  return request('/api/gtm/scenarios')
+  return request(`${API_BASE}/gtm/scenarios`)
 }
 
 export async function getScenario(id) {
-  return request(`/api/gtm/scenarios/${id}`)
+  return request(`${API_BASE}/gtm/scenarios/${id}`)
 }
 
 // ── Graph Building ──
 
 export async function generateOntology(formData) {
   // multipart/form-data — don't set Content-Type, let browser set boundary
-  const res = await fetch('/api/graph/ontology/generate', { method: 'POST', body: formData })
+  const res = await fetch(`${API_BASE}/graph/ontology/generate`, { method: 'POST', body: formData })
   const data = await res.json()
   if (!res.ok || data.success === false) throw new Error(data.error || 'Ontology generation failed')
   return data
 }
 
 export async function buildGraph({ projectId, graphName, chunkSize, chunkOverlap }) {
-  return request('/api/graph/build', {
+  return request(`${API_BASE}/graph/build`, {
     method: 'POST',
     body: JSON.stringify({
       project_id: projectId,
@@ -70,21 +72,21 @@ export async function buildGraph({ projectId, graphName, chunkSize, chunkOverlap
 }
 
 export async function getGraphTask(taskId) {
-  return request(`/api/graph/task/${taskId}`)
+  return request(`${API_BASE}/graph/task/${taskId}`)
 }
 
 export async function getGraphData(graphId) {
-  return request(`/api/graph/data/${graphId}`)
+  return request(`${API_BASE}/graph/data/${graphId}`)
 }
 
 export async function getProject(projectId) {
-  return request(`/api/graph/project/${projectId}`)
+  return request(`${API_BASE}/graph/project/${projectId}`)
 }
 
 // ── Simulation ──
 
 export async function createSimulation({ projectId, graphId, enableTwitter = true, enableReddit = true }) {
-  return request('/api/simulation/create', {
+  return request(`${API_BASE}/simulation/create`, {
     method: 'POST',
     body: JSON.stringify({
       project_id: projectId,
@@ -96,7 +98,7 @@ export async function createSimulation({ projectId, graphId, enableTwitter = tru
 }
 
 export async function prepareSimulation({ simulationId, entityTypes, forceRegenerate = false }) {
-  return request('/api/simulation/prepare', {
+  return request(`${API_BASE}/simulation/prepare`, {
     method: 'POST',
     body: JSON.stringify({
       simulation_id: simulationId,
@@ -107,63 +109,63 @@ export async function prepareSimulation({ simulationId, entityTypes, forceRegene
 }
 
 export async function getPrepareStatus({ taskId, simulationId }) {
-  return request('/api/simulation/prepare/status', {
+  return request(`${API_BASE}/simulation/prepare/status`, {
     method: 'POST',
     body: JSON.stringify({ task_id: taskId, simulation_id: simulationId }),
   })
 }
 
 export async function startSimulation({ simulationId, platform = 'parallel' }) {
-  return request('/api/simulation/start', {
+  return request(`${API_BASE}/simulation/start`, {
     method: 'POST',
     body: JSON.stringify({ simulation_id: simulationId, platform }),
   })
 }
 
 export async function getRunStatus(simulationId) {
-  return request(`/api/simulation/${simulationId}/run-status`)
+  return request(`${API_BASE}/simulation/${simulationId}/run-status`)
 }
 
 export async function getSimulation(simulationId) {
-  return request(`/api/simulation/${simulationId}`)
+  return request(`${API_BASE}/simulation/${simulationId}`)
 }
 
 export async function getSimulationActions(simulationId, { limit = 50, offset = 0 } = {}) {
-  return request(`/api/simulation/${simulationId}/actions?limit=${limit}&offset=${offset}`)
+  return request(`${API_BASE}/simulation/${simulationId}/actions?limit=${limit}&offset=${offset}`)
 }
 
 // ── Report ──
 
 export async function generateReport({ simulationId }) {
-  return request('/api/report/generate', {
+  return request(`${API_BASE}/report/generate`, {
     method: 'POST',
     body: JSON.stringify({ simulation_id: simulationId }),
   })
 }
 
 export async function getReportGenerateStatus({ taskId, simulationId }) {
-  return request('/api/report/generate/status', {
+  return request(`${API_BASE}/report/generate/status`, {
     method: 'POST',
     body: JSON.stringify({ task_id: taskId, simulation_id: simulationId }),
   })
 }
 
 export async function getReport(reportId) {
-  return request(`/api/report/${reportId}`)
+  return request(`${API_BASE}/report/${reportId}`)
 }
 
 export async function getReportSections(reportId) {
-  return request(`/api/report/${reportId}/sections`)
+  return request(`${API_BASE}/report/${reportId}/sections`)
 }
 
 export async function checkReportStatus(simulationId) {
-  return request(`/api/report/check/${simulationId}`)
+  return request(`${API_BASE}/report/check/${simulationId}`)
 }
 
 // ── Chat ──
 
 export async function chatWithReport({ simulationId, message, chatHistory = [] }) {
-  return request('/api/report/chat', {
+  return request(`${API_BASE}/report/chat`, {
     method: 'POST',
     body: JSON.stringify({
       simulation_id: simulationId,

@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listScenarios } from '../api.js'
 import { useDemoMode } from '../composables/useDemoMode'
+import { API_BASE } from '../api/client'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -72,7 +73,7 @@ async function loadScenarios() {
   loading.value = true
   error.value = null
   try {
-    const res = await fetch('/api/gtm/scenarios')
+    const res = await fetch(`${API_BASE}/gtm/scenarios`)
     if (!res.ok) throw new Error(`Failed to load scenarios (${res.status})`)
     const json = await res.json()
     const list = json.scenarios || json

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
+import { API_BASE } from '../api/client'
 
 const props = defineProps({ taskId: String })
 
@@ -54,7 +55,7 @@ const fullMarkdown = computed(() =>
 
 async function checkAndLoad() {
   try {
-    const res = await fetch(`/api/report/check/${props.taskId}`)
+    const res = await fetch(`${API_BASE}/report/check/${props.taskId}`)
     if (!res.ok) {
       await startGeneration()
       return
@@ -79,7 +80,7 @@ async function checkAndLoad() {
 
 async function startGeneration() {
   try {
-    const res = await fetch('/api/report/generate', {
+    const res = await fetch(`${API_BASE}/report/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ simulation_id: props.taskId }),
@@ -105,7 +106,7 @@ async function startGeneration() {
 async function loadSections() {
   if (!reportId.value) return
   try {
-    const res = await fetch(`/api/report/${reportId.value}/sections`)
+    const res = await fetch(`${API_BASE}/report/${reportId.value}/sections`)
     if (!res.ok) return
     const json = await res.json()
     if (json.success) {
@@ -120,7 +121,7 @@ async function loadSections() {
 async function pollProgress() {
   if (!reportId.value) return
   try {
-    const res = await fetch(`/api/report/${reportId.value}/progress`)
+    const res = await fetch(`${API_BASE}/report/${reportId.value}/progress`)
     if (res.ok) {
       const json = await res.json()
       if (json.success) {
@@ -153,7 +154,7 @@ function stopPolling() {
 
 function exportMarkdown() {
   if (reportId.value) {
-    window.open(`/api/report/${reportId.value}/download`, '_blank')
+    window.open(`${API_BASE}/report/${reportId.value}/download`, '_blank')
   }
 }
 

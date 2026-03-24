@@ -3,6 +3,8 @@
  * All backend responses use the envelope: { success: bool, data: {...}, error?: string }
  */
 
+import { API_BASE } from './api/client'
+
 async function request(url, options = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json', ...options.headers },
@@ -18,28 +20,28 @@ async function request(url, options = {}) {
 // ── GTM Scenarios ──
 
 export function listScenarios() {
-  return fetch('/api/gtm/scenarios').then(r => r.json())
+  return fetch(`${API_BASE}/gtm/scenarios`).then(r => r.json())
 }
 
 export function getScenario(id) {
-  return fetch(`/api/gtm/scenarios/${id}`).then(r => r.json())
+  return fetch(`${API_BASE}/gtm/scenarios/${id}`).then(r => r.json())
 }
 
 // ── Graph ──
 
 export function buildGraph(projectId, opts = {}) {
-  return request('/api/graph/build', {
+  return request(`${API_BASE}/graph/build`, {
     method: 'POST',
     body: JSON.stringify({ project_id: projectId, ...opts }),
   })
 }
 
 export function getTask(taskId) {
-  return request(`/api/graph/task/${taskId}`)
+  return request(`${API_BASE}/graph/task/${taskId}`)
 }
 
 export function generateOntology(formData) {
-  return fetch('/api/graph/ontology/generate', {
+  return fetch(`${API_BASE}/graph/ontology/generate`, {
     method: 'POST',
     body: formData,
   }).then(r => r.json())
@@ -48,14 +50,14 @@ export function generateOntology(formData) {
 // ── Simulation ──
 
 export function createSimulation(projectId, graphId, opts = {}) {
-  return request('/api/simulation/create', {
+  return request(`${API_BASE}/simulation/create`, {
     method: 'POST',
     body: JSON.stringify({ project_id: projectId, graph_id: graphId, ...opts }),
   })
 }
 
 export function prepareSimulation(simulationId, opts = {}) {
-  return request('/api/simulation/prepare', {
+  return request(`${API_BASE}/simulation/prepare`, {
     method: 'POST',
     body: JSON.stringify({ simulation_id: simulationId, ...opts }),
   })
@@ -65,59 +67,59 @@ export function getPrepareStatus(taskId, simulationId) {
   const body = {}
   if (taskId) body.task_id = taskId
   if (simulationId) body.simulation_id = simulationId
-  return request('/api/simulation/prepare/status', {
+  return request(`${API_BASE}/simulation/prepare/status`, {
     method: 'POST',
     body: JSON.stringify(body),
   })
 }
 
 export function startSimulation(simulationId, platform = 'parallel') {
-  return request('/api/simulation/start', {
+  return request(`${API_BASE}/simulation/start`, {
     method: 'POST',
     body: JSON.stringify({ simulation_id: simulationId, platform }),
   })
 }
 
 export function getRunStatus(simulationId) {
-  return request(`/api/simulation/${simulationId}/run-status`)
+  return request(`${API_BASE}/simulation/${simulationId}/run-status`)
 }
 
 export function getSimulationActions(simulationId, limit = 20) {
-  return request(`/api/simulation/${simulationId}/actions?limit=${limit}`)
+  return request(`${API_BASE}/simulation/${simulationId}/actions?limit=${limit}`)
 }
 
 // ── Report ──
 
 export function generateReport(simulationId) {
-  return request('/api/report/generate', {
+  return request(`${API_BASE}/report/generate`, {
     method: 'POST',
     body: JSON.stringify({ simulation_id: simulationId }),
   })
 }
 
 export function getReportGenerateStatus(taskId, simulationId) {
-  return request('/api/report/generate/status', {
+  return request(`${API_BASE}/report/generate/status`, {
     method: 'POST',
     body: JSON.stringify({ task_id: taskId, simulation_id: simulationId }),
   })
 }
 
 export function getReport(reportId) {
-  return request(`/api/report/${reportId}`)
+  return request(`${API_BASE}/report/${reportId}`)
 }
 
 export function getReportBySimulation(simulationId) {
-  return request(`/api/report/by-simulation/${simulationId}`)
+  return request(`${API_BASE}/report/by-simulation/${simulationId}`)
 }
 
 export function getReportSections(reportId) {
-  return request(`/api/report/${reportId}/sections`)
+  return request(`${API_BASE}/report/${reportId}/sections`)
 }
 
 // ── Chat ──
 
 export function chatWithReport(simulationId, message, chatHistory = []) {
-  return request('/api/report/chat', {
+  return request(`${API_BASE}/report/chat`, {
     method: 'POST',
     body: JSON.stringify({
       simulation_id: simulationId,

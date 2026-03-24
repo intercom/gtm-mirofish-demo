@@ -1,9 +1,9 @@
 FROM node:20-slim AS build
 
-ARG VITE_API_URL
+ARG VITE_API_URL=https://backend-production-e9d7.up.railway.app/api
 ENV VITE_API_URL=$VITE_API_URL
 
-ARG VITE_DEMO_MODE=false
+ARG VITE_DEMO_MODE=true
 ENV VITE_DEMO_MODE=$VITE_DEMO_MODE
 
 WORKDIR /app

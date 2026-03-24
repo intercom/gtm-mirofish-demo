@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "./assets/brand-tokens.css";
 
+@custom-variant dark (&:where(.dark *));
+
 body {
   margin: 0;
   font-family: var(--font-family);

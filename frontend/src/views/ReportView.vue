@@ -162,11 +162,11 @@ onUnmounted(stopPolling)
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto px-6 py-8">
+  <div class="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
       <div>
-        <h1 class="text-2xl font-semibold text-[#050505]" style="letter-spacing: -0.64px">
+        <h1 class="text-xl md:text-2xl font-semibold text-[#050505]" style="letter-spacing: -0.64px">
           Predictive Report
         </h1>
         <p v-if="generating" class="text-sm text-[#888] mt-1">
@@ -262,9 +262,9 @@ onUnmounted(stopPolling)
       <!-- Main Content Area -->
       <div class="md:col-span-3 space-y-6">
         <!-- Chapter Content -->
-        <div class="bg-white border border-black/10 rounded-lg p-8">
+        <div class="bg-white border border-black/10 rounded-lg p-4 md:p-8">
           <!-- Loading state -->
-          <div v-if="generating && !activeContent" class="text-center py-16">
+          <div v-if="generating && !activeContent" class="text-center py-12 md:py-16">
             <svg class="w-10 h-10 mx-auto mb-4 animate-spin text-[#2068FF]" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />

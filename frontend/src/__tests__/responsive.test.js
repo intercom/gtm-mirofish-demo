@@ -244,7 +244,7 @@ describe('SimulationView — mobile layout', () => {
     const wrapper = await mountWithRouter(SimulationView, {
       props: { taskId: 'test-123' },
     })
-    const metricCard = wrapper.find('.bg-white.border.border-black\\/10.rounded-lg.p-3')
+    const metricCard = wrapper.find('.bg-\\[var\\(--color-surface\\)\\].border.border-\\[var\\(--color-border\\)\\].rounded-lg.p-3')
     expect(metricCard.exists()).toBe(true)
     expect(metricCard.classes()).toContain('md:p-4')
   })

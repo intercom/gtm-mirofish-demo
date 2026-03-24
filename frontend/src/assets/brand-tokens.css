@@ -43,6 +43,7 @@
   --color-text-on-dark-muted: rgba(255, 255, 255, 0.4);
   --color-text-on-dark-subtle: rgba(255, 255, 255, 0.5);
   --color-text-on-dark-secondary: rgba(255, 255, 255, 0.6);
+  --color-tint: rgba(0, 0, 0, 0.05);
   --color-overlay-light: rgba(255, 255, 255, 0.05);
   --color-overlay-light-hover: rgba(255, 255, 255, 0.1);
 
@@ -240,6 +241,8 @@
   /* Component: Inputs */
   --input-bg: var(--color-surface);
   --input-disabled-bg: #12122a;
+
+  --color-tint: rgba(255, 255, 255, 0.05);
 
   /* Component: Badges — soft variants */
   --badge-secondary-bg: rgba(32, 104, 255, 0.15);

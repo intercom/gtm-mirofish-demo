@@ -284,8 +284,8 @@ watch(activePlatform, () => drawChart())
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
       <div>
-        <h1 class="text-2xl font-semibold text-[#050505]">Live Simulation</h1>
-        <p class="text-sm text-[#888] mt-1">Task: {{ taskId }}</p>
+        <h1 class="text-xl md:text-2xl font-semibold text-[#050505]">Live Simulation</h1>
+        <p class="text-xs md:text-sm text-[#888] mt-1">Task: {{ taskId }}</p>
       </div>
       <span class="px-4 py-1.5 rounded-full text-xs font-semibold" :class="statusStyle">
         {{ statusIcon }} {{ statusLabel }}
@@ -293,7 +293,7 @@ watch(activePlatform, () => drawChart())
     </div>
 
     <!-- Progress Bar -->
-    <div class="mb-8">
+    <div class="mb-6 md:mb-8">
       <div class="flex items-center justify-between text-xs text-[#888] mb-1.5">
         <span>Round {{ currentRound }} / {{ totalRounds }}</span>
         <span>{{ progressPercent }}%</span>
@@ -308,25 +308,25 @@ watch(activePlatform, () => drawChart())
     </div>
 
     <!-- Metrics Cards -->
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#2068FF]">{{ totalActions }}</div>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#2068FF]">{{ totalActions }}</div>
         <div class="text-xs text-[#888] mt-1">Total Actions</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#ff5600]">{{ metrics.replies }}</div>
         <div class="text-xs text-[#888] mt-1">Replies</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#A0F]">{{ metrics.likes }}</div>
         <div class="text-xs text-[#888] mt-1">Likes</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#050505]">{{ metrics.reposts }}</div>
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#050505]">{{ metrics.reposts }}</div>
         <div class="text-xs text-[#888] mt-1">Reposts</div>
       </div>
-      <div class="bg-white border border-black/10 rounded-lg p-4 text-center">
-        <div class="text-3xl font-semibold text-[#090]">{{ currentRound }}</div>
+      <div class="bg-white border border-black/10 rounded-lg p-3 md:p-4 text-center">
+        <div class="text-2xl md:text-3xl font-semibold text-[#090]">{{ currentRound }}</div>
         <div class="text-xs text-[#888] mt-1">Current Round</div>
       </div>
     </div>

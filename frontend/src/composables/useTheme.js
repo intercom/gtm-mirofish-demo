@@ -5,6 +5,8 @@ const VALID_THEMES = ['system', 'light', 'dark']
 
 const preference = ref('system')
 const systemIsDark = ref(false)
+const hasExplicitPreference = ref(false)
+const routeDefault = ref(null)
 
 let mediaQuery = null
 let initialized = false
@@ -24,6 +26,7 @@ export function useTheme() {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored && VALID_THEMES.includes(stored)) {
       preference.value = stored
+      hasExplicitPreference.value = true
     }
 
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
@@ -34,6 +37,10 @@ export function useTheme() {
   const isDark = computed(() => {
     if (preference.value === 'dark') return true
     if (preference.value === 'light') return false
+    // 'system' preference: use route default for first-time visitors
+    if (!hasExplicitPreference.value && routeDefault.value) {
+      return routeDefault.value === 'dark'
+    }
     return systemIsDark.value
   })
 
@@ -42,8 +49,13 @@ export function useTheme() {
   function setTheme(value) {
     if (!VALID_THEMES.includes(value)) return
     preference.value = value
+    hasExplicitPreference.value = true
     localStorage.setItem(STORAGE_KEY, value)
   }
 
-  return { preference, isDark, setTheme }
+  function setRouteDefault(value) {
+    routeDefault.value = value
+  }
+
+  return { preference, isDark, setTheme, setRouteDefault }
 }

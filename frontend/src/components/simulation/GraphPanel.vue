@@ -1,0 +1,734 @@
+<script setup>
+import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import * as d3 from 'd3'
+
+const props = defineProps({
+  taskId: { type: String, required: true },
+  demoMode: { type: Boolean, default: false },
+})
+
+function isDarkMode() {
+  return document.documentElement.classList.contains('dark')
+}
+
+// Injected polling data
+const polling = inject('polling')
+const { graphStatus, graphProgress, graphData, graphId, graphTask, isDemoFallback } = polling
+
+// D3 refs
+const svgRef = ref(null)
+const containerRef = ref(null)
+let simulation = null
+let skeletonSim = null
+let svg = null
+let zoomGroup = null
+let resizeObserver = null
+let resizeTimer = null
+let themeObserver = null
+let demoBuildTimer = null
+
+// Local state
+const selectedNode = ref(null)
+const nodeCount = ref(0)
+const edgeCount = ref(0)
+const errorMsg = ref('')
+
+// Entity type color mapping
+const TYPE_COLORS = {
+  persona: '#ff5600', person: '#ff5600', agent: '#ff5600', user: '#ff5600',
+  customer: '#ff5600', stakeholder: '#ff5600', role: '#ff5600',
+  topic: '#2068FF', theme: '#2068FF', subject: '#2068FF', concept: '#2068FF',
+  category: '#2068FF', product: '#2068FF', feature: '#2068FF', technology: '#2068FF',
+  relationship: '#AA00FF', interaction: '#AA00FF', connection: '#AA00FF',
+  event: '#AA00FF', action: '#AA00FF', process: '#AA00FF',
+}
+const DEFAULT_COLOR = '#667'
+const GENERIC_LABELS = new Set(['Entity', 'Node'])
+
+const BUILD_MESSAGES = [
+  'Parsing seed document...',
+  'Extracting entities...',
+  'Building persona nodes...',
+  'Mapping topic clusters...',
+  'Computing relationships...',
+  'Finalizing graph...',
+]
+
+function getNodeColor(labels) {
+  const meaningful = (labels || []).filter(l => !GENERIC_LABELS.has(l))
+  if (!meaningful.length) return DEFAULT_COLOR
+  const label = meaningful[0].toLowerCase()
+  for (const [key, color] of Object.entries(TYPE_COLORS)) {
+    if (label.includes(key)) return color
+  }
+  const palette = ['#ff5600', '#2068FF', '#AA00FF']
+  let hash = 0
+  for (const ch of label) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0
+  return palette[Math.abs(hash) % palette.length]
+}
+
+function getEntityType(labels) {
+  const meaningful = (labels || []).filter(l => !GENERIC_LABELS.has(l))
+  return meaningful[0] || 'Entity'
+}
+
+function computeCentrality(nodes, edges) {
+  const degree = {}
+  for (const n of nodes) degree[n.uuid] = 0
+  for (const e of edges) {
+    if (degree[e.source_node_uuid] !== undefined) degree[e.source_node_uuid]++
+    if (degree[e.target_node_uuid] !== undefined) degree[e.target_node_uuid]++
+  }
+  const max = Math.max(1, ...Object.values(degree))
+  const result = {}
+  for (const [id, d] of Object.entries(degree)) result[id] = d / max
+  return result
+}
+
+const entityTypeStats = computed(() => {
+  const counts = {}
+  for (const n of graphData.value.nodes) {
+    const type = getEntityType(n.labels)
+    counts[type] = (counts[type] || 0) + 1
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => ({
+      type,
+      count,
+      color: getNodeColor([type]),
+    }))
+})
+
+const buildMessage = computed(() => {
+  const p = graphProgress.value
+  const msgIdx = Math.min(
+    Math.floor((p / 100) * BUILD_MESSAGES.length),
+    BUILD_MESSAGES.length - 1,
+  )
+  return graphTask.value?.message || BUILD_MESSAGES[msgIdx] || 'Initializing...'
+})
+
+// --- Skeleton Graph (Phase 4A) ---
+
+function renderSkeletonGraph() {
+  const container = containerRef.value
+  if (!container) return
+  const width = container.clientWidth
+  const height = container.clientHeight
+  if (!width || !height) return
+
+  d3.select(svgRef.value).selectAll('*').remove()
+
+  svg = d3.select(svgRef.value).attr('width', width).attr('height', height)
+  zoomGroup = svg.append('g')
+
+  const baseCount = 4
+  const progressBonus = Math.floor((graphProgress.value / 100) * 8)
+  const count = Math.min(baseCount + progressBonus, 12)
+
+  const skeletonNodes = Array.from({ length: count }, (_, i) => ({
+    id: `sk-${i}`,
+    x: width / 2 + (Math.random() - 0.5) * width * 0.6,
+    y: height / 2 + (Math.random() - 0.5) * height * 0.6,
+    radius: 8 + Math.random() * 12,
+  }))
+
+  const skeletonEdges = []
+  for (let i = 1; i < count; i++) {
+    const source = Math.floor(Math.random() * i)
+    skeletonEdges.push({ source: skeletonNodes[source], target: skeletonNodes[i] })
+  }
+
+  zoomGroup.selectAll('line').data(skeletonEdges).join('line')
+    .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+    .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
+    .attr('stroke', 'rgba(32,104,255,0.1)').attr('stroke-width', 1)
+
+  const nodeG = zoomGroup.selectAll('circle').data(skeletonNodes).join('circle')
+    .attr('cx', d => d.x).attr('cy', d => d.y)
+    .attr('r', d => d.radius)
+    .attr('fill', 'rgba(32,104,255,0.15)')
+    .attr('class', 'skeleton-pulse')
+
+  skeletonSim = d3.forceSimulation(skeletonNodes)
+    .force('center', d3.forceCenter(width / 2, height / 2).strength(0.02))
+    .force('charge', d3.forceManyBody().strength(-30))
+    .force('collision', d3.forceCollide(20))
+    .alphaTarget(0.3)
+    .on('tick', () => {
+      nodeG.attr('cx', d => d.x).attr('cy', d => d.y)
+      zoomGroup.selectAll('line')
+        .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y)
+    })
+}
+
+// --- Real Graph Rendering ---
+
+function renderGraph() {
+  if (!svgRef.value || !graphData.value.nodes.length) return
+
+  // Stop skeleton simulation before drawing real graph
+  if (skeletonSim) {
+    skeletonSim.stop()
+    skeletonSim = null
+  }
+
+  const dark = isDarkMode()
+  const container = containerRef.value
+  const width = container.clientWidth
+  const height = container.clientHeight
+
+  if (!width || !height) return
+
+  const centrality = computeCentrality(graphData.value.nodes, graphData.value.edges)
+
+  const nodeMap = new Map()
+  const nodes = graphData.value.nodes.map(n => {
+    const obj = {
+      id: n.uuid,
+      name: n.name,
+      labels: n.labels,
+      summary: n.summary || '',
+      attributes: n.attributes || {},
+      centrality: centrality[n.uuid] || 0,
+      color: getNodeColor(n.labels),
+      radius: 6 + (centrality[n.uuid] || 0) * 18,
+    }
+    nodeMap.set(n.uuid, obj)
+    return obj
+  })
+
+  const links = graphData.value.edges
+    .filter(e => nodeMap.has(e.source_node_uuid) && nodeMap.has(e.target_node_uuid))
+    .map(e => ({
+      source: e.source_node_uuid,
+      target: e.target_node_uuid,
+      name: e.name || '',
+      fact: e.fact || '',
+    }))
+
+  nodeCount.value = nodes.length
+  edgeCount.value = links.length
+
+  d3.select(svgRef.value).selectAll('*').remove()
+
+  svg = d3.select(svgRef.value)
+    .attr('width', width)
+    .attr('height', height)
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 5])
+    .on('zoom', (event) => {
+      zoomGroup.attr('transform', event.transform)
+    })
+  svg.call(zoom)
+
+  zoomGroup = svg.append('g')
+
+  svg.append('defs').append('marker')
+    .attr('id', 'arrow')
+    .attr('viewBox', '0 -4 8 8')
+    .attr('refX', 20)
+    .attr('refY', 0)
+    .attr('markerWidth', 6)
+    .attr('markerHeight', 6)
+    .attr('orient', 'auto')
+    .append('path')
+    .attr('d', 'M0,-4L8,0L0,4')
+    .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
+
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
+    .force('charge', d3.forceManyBody().strength(-300))
+    .force('center', d3.forceCenter(width / 2, height / 2))
+    .force('collision', d3.forceCollide().radius(d => d.radius + 4))
+
+  const link = zoomGroup.append('g')
+    .selectAll('line')
+    .data(links)
+    .join('line')
+    .attr('stroke', dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
+    .attr('stroke-width', 1)
+    .attr('marker-end', 'url(#arrow)')
+    .style('opacity', 0)
+
+  const edgeLabel = zoomGroup.append('g')
+    .selectAll('text')
+    .data(links)
+    .join('text')
+    .text(d => d.name)
+    .attr('fill', dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')
+    .attr('font-size', '8px')
+    .attr('text-anchor', 'middle')
+    .style('pointer-events', 'none')
+    .style('opacity', 0)
+
+  const node = zoomGroup.append('g')
+    .selectAll('g')
+    .data(nodes)
+    .join('g')
+    .style('cursor', 'pointer')
+    .style('opacity', 0)
+    .call(d3.drag()
+      .on('start', dragstarted)
+      .on('drag', dragged)
+      .on('end', dragended)
+    )
+    .on('click', (event, d) => {
+      event.stopPropagation()
+      selectNode(d)
+    })
+
+  node.append('circle')
+    .attr('r', d => d.radius + 4)
+    .attr('fill', d => d.color)
+    .attr('opacity', 0.2)
+
+  node.append('circle')
+    .attr('r', d => d.radius)
+    .attr('fill', d => d.color)
+    .attr('stroke', d => d.color)
+    .attr('stroke-width', 1.5)
+    .attr('stroke-opacity', 0.4)
+    .attr('fill-opacity', 0.85)
+
+  node.append('text')
+    .text(d => d.name)
+    .attr('dy', d => d.radius + 14)
+    .attr('text-anchor', 'middle')
+    .attr('fill', dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)')
+    .attr('font-size', '10px')
+    .style('pointer-events', 'none')
+
+  node.transition()
+    .delay((d, i) => i * 60)
+    .duration(400)
+    .style('opacity', 1)
+
+  link.transition()
+    .delay((d, i) => nodes.length * 60 + i * 30)
+    .duration(300)
+    .style('opacity', 1)
+
+  edgeLabel.transition()
+    .delay((d, i) => nodes.length * 60 + i * 30)
+    .duration(300)
+    .style('opacity', 1)
+
+  simulation.on('tick', () => {
+    link
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y)
+
+    edgeLabel
+      .attr('x', d => (d.source.x + d.target.x) / 2)
+      .attr('y', d => (d.source.y + d.target.y) / 2)
+
+    node.attr('transform', d => `translate(${d.x},${d.y})`)
+  })
+
+  svg.on('click', () => { selectedNode.value = null })
+}
+
+function dragstarted(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart()
+  d.fx = d.x
+  d.fy = d.y
+}
+
+function dragged(event, d) {
+  d.fx = event.x
+  d.fy = event.y
+}
+
+function dragended(event, d) {
+  if (!event.active) simulation.alphaTarget(0)
+  d.fx = null
+  d.fy = null
+}
+
+// --- Node Selection ---
+
+function selectNode(d) {
+  const raw = graphData.value.nodes.find(n => n.uuid === d.id)
+  const connections = graphData.value.edges.filter(
+    e => e.source_node_uuid === d.id || e.target_node_uuid === d.id,
+  )
+  selectedNode.value = {
+    ...d,
+    summary: raw?.summary || d.summary,
+    attributes: raw?.attributes || {},
+    entityType: getEntityType(d.labels),
+    connections: connections.map(e => ({
+      name: e.name || e.fact_type || '',
+      fact: e.fact || '',
+      direction: e.source_node_uuid === d.id ? 'outgoing' : 'incoming',
+      target: e.source_node_uuid === d.id
+        ? graphData.value.nodes.find(n => n.uuid === e.target_node_uuid)?.name || ''
+        : graphData.value.nodes.find(n => n.uuid === e.source_node_uuid)?.name || '',
+    })),
+  }
+}
+
+// --- Demo Data ---
+
+function loadDemoData() {
+  if (demoBuildTimer) clearInterval(demoBuildTimer)
+
+  const allNodes = [
+    { uuid: '1', name: 'Enterprise Buyer', labels: ['Entity', 'Persona'], summary: 'Decision-maker at large organizations evaluating platform purchases.' },
+    { uuid: '2', name: 'SMB Founder', labels: ['Entity', 'Persona'], summary: 'Small business owner seeking affordable customer support tools.' },
+    { uuid: '3', name: 'Customer Support', labels: ['Entity', 'Topic'], summary: 'Core product area for ticket management and live chat.' },
+    { uuid: '4', name: 'AI Automation', labels: ['Entity', 'Topic'], summary: 'Machine learning-powered features like Fin AI agent.' },
+    { uuid: '5', name: 'Pricing Strategy', labels: ['Entity', 'Topic'], summary: 'Seat-based vs usage-based pricing models.' },
+    { uuid: '6', name: 'Competitor Analysis', labels: ['Entity', 'Topic'], summary: 'Comparative positioning against Zendesk, Freshdesk, HubSpot.' },
+    { uuid: '7', name: 'Product-Led Growth', labels: ['Entity', 'Process'], summary: 'GTM motion focusing on self-serve onboarding and expansion.' },
+    { uuid: '8', name: 'Sales-Led Motion', labels: ['Entity', 'Process'], summary: 'Enterprise sales cycle with demos, pilots, and procurement.' },
+    { uuid: '9', name: 'Developer Advocate', labels: ['Entity', 'Persona'], summary: 'Technical influencer evaluating APIs and integrations.' },
+    { uuid: '10', name: 'Onboarding Flow', labels: ['Entity', 'Feature'], summary: 'First-run experience guiding users through product setup.' },
+    { uuid: '11', name: 'Churn Risk', labels: ['Entity', 'Event'], summary: 'Signals indicating potential customer attrition.' },
+    { uuid: '12', name: 'Expansion Revenue', labels: ['Entity', 'Topic'], summary: 'Upsell and cross-sell motions within existing accounts.' },
+  ]
+  const allEdges = [
+    { uuid: 'e1', source_node_uuid: '1', target_node_uuid: '3', name: 'evaluates', fact: 'Enterprise buyers evaluate customer support platforms.' },
+    { uuid: 'e2', source_node_uuid: '1', target_node_uuid: '8', name: 'engages_via', fact: 'Enterprise buyers engage through sales-led motions.' },
+    { uuid: 'e3', source_node_uuid: '2', target_node_uuid: '7', name: 'converts_through', fact: 'SMB founders convert through product-led growth.' },
+    { uuid: 'e4', source_node_uuid: '2', target_node_uuid: '5', name: 'influenced_by', fact: 'SMB founders are price-sensitive.' },
+    { uuid: 'e5', source_node_uuid: '3', target_node_uuid: '4', name: 'enhanced_by', fact: 'Support is enhanced by AI automation.' },
+    { uuid: 'e6', source_node_uuid: '4', target_node_uuid: '6', name: 'differentiates_in', fact: 'AI capabilities are a competitive differentiator.' },
+    { uuid: 'e7', source_node_uuid: '9', target_node_uuid: '10', name: 'tests', fact: 'Developer advocates evaluate the onboarding flow.' },
+    { uuid: 'e8', source_node_uuid: '9', target_node_uuid: '4', name: 'integrates', fact: 'Developers integrate AI features via APIs.' },
+    { uuid: 'e9', source_node_uuid: '7', target_node_uuid: '10', name: 'depends_on', fact: 'PLG relies on smooth onboarding.' },
+    { uuid: 'e10', source_node_uuid: '11', target_node_uuid: '3', name: 'triggered_by', fact: 'Churn risk signals relate to support quality.' },
+    { uuid: 'e11', source_node_uuid: '12', target_node_uuid: '1', name: 'targets', fact: 'Expansion revenue targets enterprise accounts.' },
+    { uuid: 'e12', source_node_uuid: '5', target_node_uuid: '12', name: 'enables', fact: 'Pricing strategy enables expansion revenue.' },
+    { uuid: 'e13', source_node_uuid: '8', target_node_uuid: '1', name: 'serves', fact: 'Sales-led motion serves enterprise buyers.' },
+    { uuid: 'e14', source_node_uuid: '6', target_node_uuid: '5', name: 'informs', fact: 'Competitor analysis informs pricing strategy.' },
+    { uuid: 'e15', source_node_uuid: '11', target_node_uuid: '2', name: 'affects', fact: 'Churn risk is higher for SMB segment.' },
+  ]
+
+  graphStatus.value = 'building'
+  graphProgress.value = 0
+  graphData.value = { nodes: [], edges: [] }
+  nodeCount.value = 0
+  edgeCount.value = 0
+
+  let idx = 0
+  const BATCH = 2
+  const INTERVAL = 350
+
+  demoBuildTimer = setInterval(() => {
+    if (idx >= allNodes.length) {
+      clearInterval(demoBuildTimer)
+      demoBuildTimer = null
+      graphStatus.value = 'complete'
+      graphProgress.value = 100
+      return
+    }
+
+    const end = Math.min(idx + BATCH, allNodes.length)
+    const newNodes = allNodes.slice(idx, end)
+    graphData.value.nodes.push(...newNodes)
+
+    const nodeIds = new Set(graphData.value.nodes.map(n => n.uuid))
+    graphData.value.edges = allEdges.filter(
+      e => nodeIds.has(e.source_node_uuid) && nodeIds.has(e.target_node_uuid),
+    )
+
+    idx = end
+    graphProgress.value = Math.round((idx / allNodes.length) * 100)
+    nodeCount.value = graphData.value.nodes.length
+    edgeCount.value = graphData.value.edges.length
+
+    const msgIdx = Math.min(
+      Math.floor((idx / allNodes.length) * BUILD_MESSAGES.length),
+      BUILD_MESSAGES.length - 1,
+    )
+    graphTask.value = { message: BUILD_MESSAGES[msgIdx] }
+
+    nextTick(() => renderGraph())
+  }, INTERVAL)
+}
+
+// --- Watchers ---
+
+// When graphData changes and status is complete, render the real graph
+watch(graphData, () => {
+  if (graphStatus.value === 'complete' && graphData.value.nodes.length) {
+    nextTick(() => renderGraph())
+  }
+}, { deep: true })
+
+// When status transitions to complete, ensure graph is rendered
+watch(graphStatus, (val) => {
+  if (val === 'complete' && graphData.value.nodes.length) {
+    nextTick(() => renderGraph())
+  }
+  if (val === 'failed') {
+    errorMsg.value = graphTask.value?.message || 'Build failed'
+  }
+})
+
+// When building, update skeleton at progress milestones
+watch(graphProgress, (val) => {
+  if (graphStatus.value === 'building' && !graphData.value.nodes.length) {
+    if (val % 25 === 0 || val === 0) {
+      renderSkeletonGraph()
+    }
+  }
+})
+
+// Demo mode triggers
+watch(() => props.demoMode, (val) => {
+  if (val) loadDemoData()
+})
+
+watch(isDemoFallback, (val) => {
+  if (val) loadDemoData()
+})
+
+// --- Lifecycle ---
+
+onMounted(() => {
+  resizeObserver = new ResizeObserver(() => {
+    clearTimeout(resizeTimer)
+    resizeTimer = setTimeout(() => {
+      if (graphData.value.nodes.length && graphStatus.value === 'complete') {
+        renderGraph()
+      } else if (graphStatus.value === 'building' && !graphData.value.nodes.length) {
+        renderSkeletonGraph()
+      }
+    }, 200)
+  })
+  if (containerRef.value) resizeObserver.observe(containerRef.value)
+
+  themeObserver = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.attributeName === 'class' && graphData.value.nodes.length) {
+        renderGraph()
+        break
+      }
+    }
+  })
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+
+  if (graphStatus.value === 'building') {
+    renderSkeletonGraph()
+  }
+
+  if (props.demoMode || isDemoFallback.value) {
+    loadDemoData()
+  }
+})
+
+onUnmounted(() => {
+  if (demoBuildTimer) clearInterval(demoBuildTimer)
+  if (simulation) simulation.stop()
+  if (skeletonSim) skeletonSim.stop()
+  if (resizeObserver) resizeObserver.disconnect()
+  if (themeObserver) themeObserver.disconnect()
+  clearTimeout(resizeTimer)
+})
+</script>
+
+<template>
+  <div ref="containerRef" class="w-full h-full relative overflow-hidden bg-[#f8f9fa] dark:bg-[#0a0a1a]">
+    <!-- Status badge top-left -->
+    <div class="absolute top-4 left-4 z-10 flex items-center gap-3">
+      <span
+        class="px-3 py-1 rounded-full text-xs font-medium"
+        :class="{
+          'bg-yellow-500/20 text-yellow-400': graphStatus === 'building',
+          'bg-green-500/20 text-green-400': graphStatus === 'complete',
+          'bg-red-500/20 text-red-400': graphStatus === 'failed',
+        }"
+      >
+        <template v-if="graphStatus === 'building'">Building Graph... {{ graphProgress }}%</template>
+        <template v-else-if="graphStatus === 'complete'">Complete</template>
+        <template v-else>Failed</template>
+      </span>
+    </div>
+
+    <!-- Build progress overlay center -->
+    <Transition name="fade">
+      <div
+        v-if="graphStatus === 'building'"
+        class="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/60 dark:bg-black/70 backdrop-blur-sm rounded-xl px-5 py-3 flex items-center gap-4"
+      >
+        <svg viewBox="0 0 36 36" class="w-9 h-9 -rotate-90 flex-shrink-0">
+          <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
+          <circle
+            cx="18" cy="18" r="14" fill="none" stroke="#2068FF" stroke-width="3"
+            stroke-linecap="round" :stroke-dasharray="88" :stroke-dashoffset="88 - (88 * graphProgress / 100)"
+            class="transition-[stroke-dashoffset] duration-300"
+          />
+        </svg>
+        <div>
+          <p class="text-white text-sm font-medium">Building Graph... {{ graphProgress }}%</p>
+          <p class="text-white/50 text-xs">{{ buildMessage }}</p>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Error state -->
+    <div
+      v-if="graphStatus === 'failed'"
+      class="absolute inset-0 flex items-center justify-center z-20 bg-[var(--color-surface)]/80 backdrop-blur-sm"
+    >
+      <div class="flex flex-col items-center text-center max-w-md">
+        <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+          <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+        </div>
+        <p class="text-[var(--color-text)] text-sm font-medium mb-2">Graph build failed</p>
+        <p class="text-[var(--color-text-muted)] text-xs mb-6">{{ errorMsg }}</p>
+      </div>
+    </div>
+
+    <!-- SVG canvas -->
+    <svg ref="svgRef" class="w-full h-full graph-canvas" />
+
+    <!-- Entity type stats panel bottom-left -->
+    <div
+      v-if="entityTypeStats.length && graphStatus !== 'failed'"
+      class="absolute bottom-6 left-4 z-10 bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-black/10 dark:border-white/10 rounded-lg p-4 max-w-56"
+    >
+      <h3 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Entity Types</h3>
+      <div class="space-y-2">
+        <div v-for="stat in entityTypeStats" :key="stat.type" class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: stat.color }" />
+          <span class="text-xs text-[var(--color-text-secondary)] flex-1 truncate">{{ stat.type }}</span>
+          <span class="text-xs text-[var(--color-text-muted)] tabular-nums">{{ stat.count }}</span>
+        </div>
+      </div>
+      <div class="mt-3 pt-3 border-t border-black/10 dark:border-white/10 flex justify-between text-xs text-[var(--color-text-muted)]">
+        <span data-testid="node-count">{{ nodeCount }} nodes</span>
+        <span data-testid="edge-count">{{ edgeCount }} edges</span>
+      </div>
+    </div>
+
+    <!-- Node detail panel right side -->
+    <Transition name="slide">
+      <div
+        v-if="selectedNode"
+        class="absolute top-0 right-0 z-20 h-full w-80 bg-white/95 dark:bg-[#0f0f24]/95 backdrop-blur-md border-l border-black/10 dark:border-white/10 overflow-y-auto"
+        data-testid="detail-panel"
+      >
+        <div class="p-5">
+          <!-- Header -->
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-2.5">
+              <span class="w-3.5 h-3.5 rounded-full" :style="{ backgroundColor: selectedNode.color }" />
+              <h3 class="text-[var(--color-text)] font-semibold text-sm">{{ selectedNode.name }}</h3>
+            </div>
+            <button
+              @click="selectedNode = null"
+              class="text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 text-lg leading-none transition-colors"
+            >&times;</button>
+          </div>
+
+          <!-- Type badge -->
+          <span
+            class="inline-block px-2 py-0.5 rounded text-[10px] uppercase tracking-wider mb-4"
+            :style="{ backgroundColor: selectedNode.color + '22', color: selectedNode.color }"
+          >
+            {{ selectedNode.entityType }}
+          </span>
+
+          <!-- Summary -->
+          <div v-if="selectedNode.summary" class="mb-5">
+            <h4 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-1.5">Summary</h4>
+            <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ selectedNode.summary }}</p>
+          </div>
+
+          <!-- Centrality -->
+          <div class="mb-5">
+            <h4 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-1.5">Centrality</h4>
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-1.5 rounded-full bg-black/10 dark:bg-white/10">
+                <div
+                  class="h-full rounded-full transition-all duration-300"
+                  :style="{ width: (selectedNode.centrality * 100) + '%', backgroundColor: selectedNode.color }"
+                />
+              </div>
+              <span class="text-xs text-[var(--color-text-muted)] tabular-nums">{{ Math.round(selectedNode.centrality * 100) }}%</span>
+            </div>
+          </div>
+
+          <!-- Connections -->
+          <div v-if="selectedNode.connections.length">
+            <h4 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-2">
+              Connections ({{ selectedNode.connections.length }})
+            </h4>
+            <div class="space-y-2">
+              <div
+                v-for="(conn, i) in selectedNode.connections"
+                :key="i"
+                class="bg-black/5 dark:bg-white/5 rounded-lg p-3"
+              >
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="text-[10px]" :class="conn.direction === 'outgoing' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
+                    {{ conn.direction === 'outgoing' ? '\u2192' : '\u2190' }}
+                  </span>
+                  <span class="text-xs text-[var(--color-text-muted)]">{{ conn.name }}</span>
+                  <span class="text-xs text-[var(--color-text)] font-medium">{{ conn.target }}</span>
+                </div>
+                <p v-if="conn.fact" class="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{{ conn.fact }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Action buttons bottom-right (when graph complete) -->
+    <Transition name="fade">
+      <div
+        v-if="graphStatus === 'complete'"
+        class="absolute bottom-6 right-6 z-10 flex items-center gap-3"
+      >
+        <span class="text-xs text-[var(--color-text-muted)]">{{ nodeCount }} nodes, {{ edgeCount }} edges</span>
+      </div>
+    </Transition>
+  </div>
+</template>
+
+<style scoped>
+.skeleton-pulse {
+  animation: skeleton-pulse 2s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.35; }
+}
+
+.graph-canvas {
+  transition: opacity 0.4s ease;
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: transform 0.25s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  transform: translateX(100%);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { useToast } from '../composables/useToast'
@@ -10,9 +10,12 @@ import { graphApi } from '../api/graph'
 
 const props = defineProps({ id: String })
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const scenariosStore = useScenariosStore()
 const simulationStore = useSimulationStore()
+
+const isRerun = computed(() => route.query.rerun === 'true')
 
 const scenario = ref(null)
 const loading = ref(true)
@@ -53,7 +56,21 @@ async function loadScenario() {
   }
 }
 
-onMounted(loadScenario)
+onMounted(async () => {
+  await loadScenario()
+  if (route.query.rerun === 'true') {
+    if (route.query.seedText) seedText.value = route.query.seedText
+    if (route.query.agentCount) agentCount.value = Number(route.query.agentCount)
+    if (route.query.duration) duration.value = Number(route.query.duration)
+    if (route.query.platformMode) platformMode.value = route.query.platformMode
+    if (route.query.personas) {
+      try { selectedPersonas.value = JSON.parse(route.query.personas) } catch {}
+    }
+    if (route.query.industries) {
+      try { selectedIndustries.value = JSON.parse(route.query.industries) } catch {}
+    }
+  }
+})
 
 
 function togglePersona(persona) {
@@ -89,9 +106,19 @@ async function runSimulation() {
       platform_mode: platformMode.value,
     })
     const taskId = data.task_id
+    simulationStore.setScenarioConfig({
+      scenarioId: props.id,
+      scenarioName: scenario.value?.name || 'Untitled Scenario',
+      seedText: seedText.value,
+      agentCount: agentCount.value,
+      personas: selectedPersonas.value,
+      industries: selectedIndustries.value,
+      duration: duration.value,
+      platformMode: platformMode.value,
+    })
     simulationStore.startGraphBuild(taskId)
     toast.success('Building knowledge graph...')
-    router.push(`/graph/${taskId}`)
+    router.push(`/workspace/${taskId}`)
   } catch (e) {
     error.value = e.message
     toast.error(`Failed to start simulation: ${e.message}`)
@@ -116,6 +143,18 @@ async function runSimulation() {
     <div v-else-if="scenario">
       <!-- Header -->
       <router-link to="/" class="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-4 inline-block">&larr; Back to scenarios</router-link>
+
+      <div
+        v-if="isRerun"
+        class="flex items-center gap-2 mb-4 px-4 py-2.5 rounded-lg border border-[#2068FF]/20 bg-[rgba(32,104,255,0.05)] text-sm text-[#2068FF]"
+      >
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+        </svg>
+        <span>Re-running from previous simulation.</span>
+        <router-link to="/simulations" class="font-medium hover:underline no-underline text-[#2068FF]">Back to Simulations</router-link>
+      </div>
+
       <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)] mb-2">{{ scenario.name }}</h1>
       <p class="text-sm text-[var(--color-text-secondary)] mb-6 md:mb-8">{{ scenario.description }}</p>
 

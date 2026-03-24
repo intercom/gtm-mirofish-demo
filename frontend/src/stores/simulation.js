@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 
 /**
@@ -7,6 +7,20 @@ import { defineStore } from 'pinia'
  *   Any phase can transition to 'error'.
  */
 const VALID_STATUSES = ['idle', 'building_graph', 'preparing', 'running', 'complete', 'error']
+
+const STORAGE_KEY = 'mirofish_simulation_runs'
+const MAX_STORED_RUNS = 50
+
+function loadStoredRuns() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
 
 export const useSimulationStore = defineStore('simulation', () => {
   const status = ref('idle')
@@ -33,8 +47,20 @@ export const useSimulationStore = defineStore('simulation', () => {
     totalSimulationHours: 0,
   })
 
-  // Session-level history of completed simulation runs
-  const sessionRuns = ref([])
+  // Current scenario config (set before navigating to workspace)
+  const scenarioConfig = ref(null)
+
+  // Session-level history of completed simulation runs — hydrated from localStorage
+  const sessionRuns = ref(loadStoredRuns())
+
+  // Persist sessionRuns to localStorage on every mutation
+  watch(sessionRuns, (runs) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(runs))
+    } catch {
+      // Storage full or unavailable — silently ignore
+    }
+  }, { deep: true })
 
   const isActive = computed(() =>
     ['building_graph', 'preparing', 'running'].includes(status.value),
@@ -101,17 +127,49 @@ export const useSimulationStore = defineStore('simulation', () => {
     progress.value.percent = 100
   }
 
+  function setScenarioConfig(config) {
+    scenarioConfig.value = config
+  }
+
   function addSessionRun(run) {
     if (sessionRuns.value.some(r => r.id === run.id)) return
-    sessionRuns.value.push({
+    const entry = {
       id: run.id,
-      scenarioName: run.scenarioName || 'Untitled Scenario',
+      scenarioId: run.scenarioId || null,
+      scenarioName: run.scenarioName || scenarioConfig.value?.scenarioName || 'Untitled Scenario',
+      seedText: run.seedText || scenarioConfig.value?.seedText || '',
+      agentCount: run.agentCount || scenarioConfig.value?.agentCount || 0,
+      personas: run.personas || scenarioConfig.value?.personas || [],
+      industries: run.industries || scenarioConfig.value?.industries || [],
+      duration: run.duration || scenarioConfig.value?.duration || 0,
+      platformMode: run.platformMode || scenarioConfig.value?.platformMode || 'parallel',
       totalRounds: run.totalRounds || 0,
       totalActions: run.totalActions || 0,
       twitterActions: run.twitterActions || 0,
       redditActions: run.redditActions || 0,
+      status: run.status || 'completed',
       timestamp: Date.now(),
-    })
+    }
+    sessionRuns.value.push(entry)
+
+    // Cap at MAX_STORED_RUNS — drop oldest
+    while (sessionRuns.value.length > MAX_STORED_RUNS) {
+      sessionRuns.value.shift()
+    }
+  }
+
+  function updateSessionRunStatus(id, newStatus) {
+    const run = sessionRuns.value.find(r => r.id === id)
+    if (run) run.status = newStatus
+  }
+
+  function removeSessionRun(id) {
+    const idx = sessionRuns.value.findIndex(r => r.id === id)
+    if (idx !== -1) sessionRuns.value.splice(idx, 1)
+  }
+
+  function clearAllRuns() {
+    sessionRuns.value = []
   }
 
   function reset() {
@@ -121,6 +179,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     prepareTaskId.value = null
     projectId.value = null
     error.value = null
+    scenarioConfig.value = null
     progress.value = { percent: 0, message: '', currentRound: 0, totalRounds: 0 }
     metrics.value = { totalActions: 0, twitterActions: 0, redditActions: 0, simulatedHours: 0, totalSimulationHours: 0 }
   }
@@ -134,6 +193,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     error,
     progress,
     metrics,
+    scenarioConfig,
     sessionRuns,
     isActive,
     hasRuns,
@@ -145,7 +205,11 @@ export const useSimulationStore = defineStore('simulation', () => {
     updateMetrics,
     setError,
     complete,
+    setScenarioConfig,
     addSessionRun,
+    updateSessionRunStatus,
+    removeSessionRun,
+    clearAllRuns,
     reset,
   }
 })

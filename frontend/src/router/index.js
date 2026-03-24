@@ -24,18 +24,19 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/graph/:taskId',
-    name: 'graph',
-    component: () => import('../views/GraphView.vue'),
+    path: '/workspace/:taskId',
+    name: 'workspace',
+    component: () => import('../views/SimulationWorkspaceView.vue'),
     props: true,
     meta: { requiresAuth: true },
   },
   {
+    path: '/graph/:taskId',
+    redirect: (to) => `/workspace/${to.params.taskId}?tab=graph`,
+  },
+  {
     path: '/simulation/:taskId',
-    name: 'simulation',
-    component: () => import('../views/SimulationView.vue'),
-    props: true,
-    meta: { requiresAuth: true },
+    redirect: (to) => `/workspace/${to.params.taskId}?tab=simulation`,
   },
   {
     path: '/report/:taskId',
@@ -58,10 +59,14 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: '/dashboard',
-    name: 'dashboard',
-    component: () => import('../views/DashboardView.vue'),
+    path: '/simulations',
+    name: 'simulations',
+    component: () => import('../views/SimulationsView.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/dashboard',
+    redirect: '/simulations',
   },
 ]
 

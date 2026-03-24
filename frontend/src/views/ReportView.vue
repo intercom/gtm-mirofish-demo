@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { API_BASE } from '../api/client'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
+import ShimmerCard from '../components/ui/ShimmerCard.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -282,14 +283,15 @@ onUnmounted(stopPolling)
       <div class="md:col-span-3 space-y-6">
         <!-- Chapter Content -->
         <div class="bg-white border border-black/10 rounded-lg p-4 md:p-8">
-          <!-- Loading state -->
-          <div v-if="generating && !activeContent" class="text-center py-12 md:py-16">
-            <svg class="w-10 h-10 mx-auto mb-4 animate-spin text-[#2068FF]" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            <p class="text-[#888]">Generating predictive report...</p>
-            <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
+          <!-- Loading state with shimmer -->
+          <div v-if="generating && !activeContent" class="space-y-6 py-4">
+            <ShimmerCard :lines="2" height="48px" />
+            <ShimmerCard :lines="5" height="180px" />
+            <ShimmerCard :lines="4" height="140px" />
+            <ShimmerCard :lines="3" height="100px" />
+            <p class="text-center text-xs text-[#aaa] mt-4">
+              Generating predictive report &mdash; multi-chapter analysis with evidence from simulation
+            </p>
           </div>
 
           <!-- Rendered markdown chapter -->

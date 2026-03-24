@@ -5,8 +5,8 @@ defineProps({
 })
 
 const phases = [
-  { key: 'graph', label: 'Graph', route: (id) => `/graph/${id}` },
-  { key: 'simulation', label: 'Simulation', route: (id) => `/simulation/${id}` },
+  { key: 'graph', label: 'Graph', route: (id) => `/workspace/${id}?tab=graph` },
+  { key: 'simulation', label: 'Simulation', route: (id) => `/workspace/${id}?tab=simulation` },
   { key: 'report', label: 'Report', route: (id) => `/report/${id}` },
 ]
 </script>

@@ -20,14 +20,11 @@ const authUser = computed(() => {
 })
 
 const navLinks = computed(() => {
-  const links = [
+  return [
     { to: '/', label: 'Home', exact: true },
+    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
+    { to: '/settings', label: 'Settings', exact: false },
   ]
-  if (simulationStore.hasRuns) {
-    links.push({ to: '/dashboard', label: 'Simulations', exact: false })
-  }
-  links.push({ to: '/settings', label: 'Settings', exact: false })
-  return links
 })
 
 function logout() {
@@ -70,7 +67,13 @@ watch(() => route.path, () => {
             class="nav-link"
             :class="{ 'nav-link--exact': link.exact }"
           >
-            {{ link.label }}
+            <span class="flex items-center gap-1.5">
+              {{ link.label }}
+              <span
+                v-if="link.showActiveDot && simulationStore.isActive"
+                class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+              ></span>
+            </span>
           </router-link>
         </div>
       </div>
@@ -125,9 +128,13 @@ watch(() => route.path, () => {
             v-for="link in navLinks"
             :key="link.to"
             :to="link.to"
-            class="block px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
+            class="flex items-center gap-1.5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
           >
             {{ link.label }}
+            <span
+              v-if="link.showActiveDot && simulationStore.isActive"
+              class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+            ></span>
           </router-link>
         </div>
         <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">

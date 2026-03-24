@@ -319,7 +319,7 @@ onUnmounted(stopPolling)
               <span class="shrink-0 w-5 h-5 rounded-full bg-[#2068FF] text-white flex items-center justify-center text-xs font-semibold mt-0.5">
                 {{ i + 1 }}
               </span>
-              <span>{{ finding }}</span>
+              <span class="finding-text" v-html="marked.parseInline(finding)"></span>
             </div>
           </div>
         </div>
@@ -390,4 +390,5 @@ onUnmounted(stopPolling)
 }
 .report-content :deep(td) { padding: 0.5rem; border-bottom: 1px solid rgba(0, 0, 0, 0.05); color: #333; }
 .report-content :deep(hr) { border: none; border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1.5rem 0; }
+.finding-text :deep(strong) { font-weight: 700; color: #050505; }
 </style>

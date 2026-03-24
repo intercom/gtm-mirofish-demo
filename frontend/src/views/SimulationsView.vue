@@ -312,7 +312,7 @@ function exportRun(run) {
       <div
         v-for="run in filteredRuns"
         :key="run.id"
-        class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)]"
+        class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)] cursor-pointer"
       >
         <!-- Card header -->
         <div class="flex items-start justify-between mb-3">

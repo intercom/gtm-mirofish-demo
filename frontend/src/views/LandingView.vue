@@ -257,5 +257,99 @@ function launchScenario(id) {
         </div>
       </div>
     </section>
+
+    <!-- Capabilities -->
+    <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
+      <div class="max-w-5xl mx-auto">
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10 md:mb-14">What You Can Simulate</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          <div class="flex gap-4">
+            <div class="shrink-0 w-10 h-10 rounded-lg bg-[rgba(32,104,255,0.1)] flex items-center justify-center">
+              <svg class="w-5 h-5 text-[#2068FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Outbound Email Testing</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Test subject lines, messaging angles, and cadence sequences against hundreds of AI personas before sending a single real email.</p>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="shrink-0 w-10 h-10 rounded-lg bg-[rgba(255,86,0,0.1)] flex items-center justify-center">
+              <svg class="w-5 h-5 text-[#ff5600]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Signal Validation</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Test whether your sales signals actually predict buying behavior. Identify false positives before routing them to reps.</p>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="shrink-0 w-10 h-10 rounded-lg bg-[rgba(170,0,255,0.1)] flex items-center justify-center">
+              <svg class="w-5 h-5 text-[#A0F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Pricing Impact</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Predict churn risk, competitive switching, and sentiment before rolling out pricing changes to real customers.</p>
+            </div>
+          </div>
+          <div class="flex gap-4">
+            <div class="shrink-0 w-10 h-10 rounded-lg bg-[rgba(0,153,0,0.1)] flex items-center justify-center">
+              <svg class="w-5 h-5 text-[#090]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>
+            </div>
+            <div>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Personalization Ranking</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Rank message variants by simulated engagement, not LLM self-assessment. Find the best tone, length, and CTA for each segment.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Technology Stack -->
+    <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[#f0f2f5]">
+      <div class="max-w-4xl mx-auto text-center">
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Powered by Open-Source Intelligence</h2>
+        <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto mb-10">
+          Built on battle-tested open-source foundations with enterprise-grade AI orchestration.
+        </p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+            <div class="text-2xl mb-2">🐟</div>
+            <div class="text-sm font-semibold text-[var(--color-text)]">MiroFish</div>
+            <div class="text-[10px] text-[var(--color-text-muted)] mt-1">Swarm Intelligence</div>
+          </div>
+          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+            <div class="text-2xl mb-2">🌐</div>
+            <div class="text-sm font-semibold text-[var(--color-text)]">OASIS</div>
+            <div class="text-[10px] text-[var(--color-text-muted)] mt-1">1M Agent Simulation</div>
+          </div>
+          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+            <div class="text-2xl mb-2">🧠</div>
+            <div class="text-sm font-semibold text-[var(--color-text)]">Zep GraphRAG</div>
+            <div class="text-[10px] text-[var(--color-text-muted)] mt-1">Knowledge Graphs</div>
+          </div>
+          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+            <div class="text-2xl mb-2">🤖</div>
+            <div class="text-sm font-semibold text-[var(--color-text)]">Multi-LLM</div>
+            <div class="text-[10px] text-[var(--color-text-muted)] mt-1">Claude / GPT / Gemini</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-16 md:py-24">
+      <div class="max-w-2xl mx-auto text-center">
+        <h2 class="text-2xl md:text-3xl font-semibold mb-4">Stop guessing. Start simulating.</h2>
+        <p class="text-sm md:text-base text-white/50 mb-8 max-w-lg mx-auto">
+          Every campaign is a production deployment today. MiroFish gives you a staging environment for your GTM strategy.
+        </p>
+        <button
+          @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
+          class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-semibold px-8 py-3.5 rounded-lg transition-colors"
+        >
+          Try a Scenario
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
+        </button>
+      </div>
+    </section>
   </div>
 </template>

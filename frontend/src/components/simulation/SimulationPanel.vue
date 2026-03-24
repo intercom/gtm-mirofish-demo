@@ -80,6 +80,8 @@ const platformTabs = [
 ]
 
 // --- Chart Drawing ---
+let chartRetryTimer = null
+
 function drawChart() {
   const canvas = chartCanvas.value
   if (!canvas || !polling.timeline.value.length) return
@@ -87,6 +89,14 @@ function drawChart() {
   const ctx = canvas.getContext('2d')
   const dpr = window.devicePixelRatio || 1
   const rect = canvas.getBoundingClientRect()
+
+  // Canvas may have zero dimensions when tab is hidden (v-show) — retry
+  if (rect.width === 0 || rect.height === 0) {
+    if (chartRetryTimer) clearTimeout(chartRetryTimer)
+    chartRetryTimer = setTimeout(drawChart, 300)
+    return
+  }
+
   canvas.width = rect.width * dpr
   canvas.height = rect.height * dpr
   ctx.scale(dpr, dpr)
@@ -238,6 +248,7 @@ onUnmounted(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
+  if (chartRetryTimer) clearTimeout(chartRetryTimer)
 })
 </script>
 
@@ -410,7 +421,9 @@ onUnmounted(() => {
         <!-- Platform breakdown -->
         <div v-if="polling.runStatus.value" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center gap-4">
-            <div class="w-10 h-10 rounded-lg bg-[rgba(32,104,255,0.1)] flex items-center justify-center text-lg">\uD835\uDD4F</div>
+            <div class="w-10 h-10 rounded-lg bg-[rgba(32,104,255,0.1)] flex items-center justify-center">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="var(--color-primary)"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            </div>
             <div class="flex-1">
               <div class="text-sm font-medium text-[var(--color-text)]">Twitter</div>
               <div class="text-xs text-[var(--color-text-muted)]">

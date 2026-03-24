@@ -1,7 +1,7 @@
 <script setup>
 defineProps({
   icon: { type: String, default: '📭' },
-  title: { type: String, required: true },
+  title: { type: String, default: 'Nothing here yet' },
   description: { type: String, default: '' },
   actionLabel: { type: String, default: '' },
   actionTo: { type: String, default: '' },

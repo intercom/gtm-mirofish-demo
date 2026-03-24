@@ -31,6 +31,7 @@ const canRun = computed(() =>
   seedText.value.trim().length > 0 && selectedPersonas.value.length > 0 && !running.value,
 )
 
+
 async function loadScenario() {
   loading.value = true
   error.value = null
@@ -53,6 +54,7 @@ async function loadScenario() {
 }
 
 onMounted(loadScenario)
+
 
 function togglePersona(persona) {
   const idx = selectedPersonas.value.indexOf(persona)

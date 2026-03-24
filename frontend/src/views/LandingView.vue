@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listScenarios } from '../api.js'
 
@@ -64,6 +64,7 @@ function resolveIcon(icon) {
 const scenarios = ref([])
 const loading = ref(true)
 const error = ref(null)
+
 
 async function loadScenarios() {
   loading.value = true

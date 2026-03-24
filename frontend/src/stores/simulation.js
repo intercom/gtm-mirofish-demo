@@ -33,9 +33,14 @@ export const useSimulationStore = defineStore('simulation', () => {
     totalSimulationHours: 0,
   })
 
+  // Session-level history of completed simulation runs
+  const sessionRuns = ref([])
+
   const isActive = computed(() =>
     ['building_graph', 'preparing', 'running'].includes(status.value),
   )
+
+  const hasRuns = computed(() => sessionRuns.value.length > 0)
 
   function setStatus(newStatus) {
     if (!VALID_STATUSES.includes(newStatus)) return
@@ -96,6 +101,19 @@ export const useSimulationStore = defineStore('simulation', () => {
     progress.value.percent = 100
   }
 
+  function addSessionRun(run) {
+    if (sessionRuns.value.some(r => r.id === run.id)) return
+    sessionRuns.value.push({
+      id: run.id,
+      scenarioName: run.scenarioName || 'Untitled Scenario',
+      totalRounds: run.totalRounds || 0,
+      totalActions: run.totalActions || 0,
+      twitterActions: run.twitterActions || 0,
+      redditActions: run.redditActions || 0,
+      timestamp: Date.now(),
+    })
+  }
+
   function reset() {
     status.value = 'idle'
     simulationId.value = null
@@ -116,7 +134,9 @@ export const useSimulationStore = defineStore('simulation', () => {
     error,
     progress,
     metrics,
+    sessionRuns,
     isActive,
+    hasRuns,
     setStatus,
     startGraphBuild,
     startPrepare,
@@ -125,6 +145,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     updateMetrics,
     setError,
     complete,
+    addSessionRun,
     reset,
   }
 })

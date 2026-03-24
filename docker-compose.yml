@@ -1,8 +1,7 @@
 services:
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ./backend
     container_name: gtm-mirofish-backend
     env_file:
       - .env
@@ -10,24 +9,19 @@ services:
       - "${BACKEND_PORT:-5001}:5001"
     restart: unless-stopped
     volumes:
-      - sim_data:/app/backend/uploads
-      - ./backend:/app/backend
+      - sim_data:/app/uploads
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      args:
+        VITE_API_URL: http://backend:5001
     container_name: gtm-mirofish-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
-    environment:
-      - VITE_API_URL=http://backend:5001
     depends_on:
       - backend
     restart: unless-stopped
-    volumes:
-      - ./frontend:/app/frontend
-      - /app/frontend/node_modules
 
 volumes:
   sim_data:

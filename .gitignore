@@ -26,6 +26,10 @@ sim_data/
 
 # Ralphy
 .ralphy/progress.txt
+.ralphy-worktrees/
+
+# Railway
+.railway/
 
 # Superpowers
 .superpowers/

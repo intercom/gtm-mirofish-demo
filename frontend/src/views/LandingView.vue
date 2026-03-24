@@ -2,8 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listScenarios } from '../api.js'
+import { useDemoMode } from '../composables/useDemoMode'
 
 const router = useRouter()
+const { isDemoMode } = useDemoMode()
 const showCards = ref(false)
 const showSteps = ref(false)
 
@@ -130,9 +132,12 @@ function launchScenario(id) {
         <h1 class="text-3xl md:text-6xl font-semibold mb-3 md:mb-4">
           MiroFish Swarm Intelligence
         </h1>
-        <p class="text-base md:text-lg text-white/60 max-w-2xl mx-auto mb-8 md:mb-12">
+        <p class="text-base md:text-lg text-white/60 max-w-2xl mx-auto" :class="isDemoMode ? 'mb-3' : 'mb-8 md:mb-12'">
           Predict campaign outcomes before they happen. Simulate how prospects react
           to your outbound, signals, and pricing changes.
+        </p>
+        <p v-if="isDemoMode" class="text-sm text-white/35 mb-8 md:mb-12">
+          Interactive demo with simulated swarm intelligence data
         </p>
 
         <!-- Loading State -->

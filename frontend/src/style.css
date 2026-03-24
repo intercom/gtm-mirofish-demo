@@ -1,11 +1,14 @@
 @import "tailwindcss";
 @import "./assets/brand-tokens.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 body {
   margin: 0;
   font-family: var(--font-family);
   color: var(--color-text);
   background: var(--color-bg);
+  transition: color var(--transition-base), background var(--transition-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -40,4 +43,120 @@ h1 {
 
 .dark ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
+}
+
+/* Vue transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity var(--transition-base);
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-up-enter-active {
+  transition: all var(--transition-base);
+}
+
+.slide-up-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* Page transitions: fade + slight slide */
+.page-enter-active,
+.page-leave-active {
+  transition: opacity var(--transition-base), transform var(--transition-base);
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+/* Staggered card grid transitions */
+.card-list-enter-active {
+  transition: opacity var(--transition-base), transform var(--transition-base);
+}
+
+.card-list-enter-from {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+/* Staggered card entrance (keyframe-based) */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-stagger {
+  opacity: 0;
+  animation: card-enter 400ms ease forwards;
+}
+
+/* Graph node animate-in */
+.graph-node-enter-active {
+  transition: opacity var(--transition-slow), transform var(--transition-slow);
+}
+
+.graph-node-enter-from {
+  opacity: 0;
+  transform: scale(0.6);
+}
+
+@keyframes graph-node-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.graph-enter {
+  opacity: 0;
+  animation: graph-node-enter 500ms ease forwards;
+}
+
+/* Fade-in utility */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 400ms ease forwards;
+}
+
+/* Spinner animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Pulse animation for loading states */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
 }

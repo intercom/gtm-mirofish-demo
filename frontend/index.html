@@ -4,7 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>MiroFish GTM Demo — Intercom</title>
+    <script>
+      // Prevent flash of wrong theme before Vue mounts
+      ;(function () {
+        var pref = localStorage.getItem('mirofish-theme')
+        var dark = false
+        if (pref === 'dark') dark = true
+        else if (pref === 'light') dark = false
+        else if (pref === 'system') dark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        else dark = location.pathname === '/' || location.pathname === '/login'
+        if (dark) document.documentElement.classList.add('dark')
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>

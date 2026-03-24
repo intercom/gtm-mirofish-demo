@@ -35,7 +35,7 @@ watch(() => route.path, () => {
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-6">
         <router-link to="/" class="flex items-center gap-2 text-white no-underline">
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-label="Intercom logo">
             <rect width="28" height="28" rx="6" fill="var(--color-primary)"/>
             <path d="M7 10.5C7 10.2239 7.22386 10 7.5 10H8.5C8.77614 10 9 10.2239 9 10.5V17.5C9 17.7761 8.77614 18 8.5 18H7.5C7.22386 18 7 17.7761 7 17.5V10.5Z" fill="white"/>
             <path d="M10.5 8.5C10.5 8.22386 10.7239 8 11 8H12C12.2761 8 12.5 8.22386 12.5 8.5V19.5C12.5 19.7761 12.2761 20 12 20H11C10.7239 20 10.5 19.7761 10.5 19.5V8.5Z" fill="white"/>

@@ -195,23 +195,18 @@ function launchScenario(id) {
             :key="scenario.id"
             :data-index="i"
             @click="launchScenario(scenario.id)"
-            class="text-left rounded-lg p-5 transition-all duration-300 cursor-pointer border"
+            class="text-left rounded-lg transition-all duration-300 cursor-pointer border"
             :class="[
               scenario.hero
-                ? 'bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
-                : 'bg-white/5 border-white/10 hover:bg-white/10',
+                ? 'md:col-span-2 p-6 bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
+                : 'p-5 bg-white/5 border-white/10 hover:bg-white/10',
             ]"
           >
             <div class="flex items-start gap-3">
-              <span class="text-2xl">{{ resolveIcon(scenario.icon) }}</span>
+              <span :class="scenario.hero ? 'text-3xl' : 'text-2xl'">{{ resolveIcon(scenario.icon) }}</span>
               <div>
-                <div class="flex items-center gap-2">
-                  <h3 class="text-sm font-semibold text-white">{{ scenario.name }}</h3>
-                  <span v-if="scenario.hero" class="text-[10px] bg-[#2068FF] text-white px-2 py-0.5 rounded-full">
-                    Hero
-                  </span>
-                </div>
-                <p class="text-xs text-white/50 mt-1">{{ scenario.description }}</p>
+                <h3 :class="scenario.hero ? 'text-base font-semibold text-white' : 'text-sm font-semibold text-white'">{{ scenario.name }}</h3>
+                <p :class="scenario.hero ? 'text-sm text-white/50 mt-1.5' : 'text-xs text-white/50 mt-1'">{{ scenario.description }}</p>
               </div>
             </div>
           </button>

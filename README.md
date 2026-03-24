@@ -2,10 +2,13 @@
 
 > Predict campaign outcomes before they happen. Simulate how prospects react to your outbound, signals, and pricing changes.
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Railway-blueviolet.svg)](https://frontend-production-86ea.up.railway.app)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![Node 18+](https://img.shields.io/badge/Node-18+-green.svg)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](docker-compose.yml)
+
+**[Try the live demo →](https://frontend-production-86ea.up.railway.app)**
 
 An Intercom-branded fork of [MiroFish](https://github.com/666ghj/MiroFish) — an open-source swarm intelligence engine (40K+ GitHub stars) — customized for Intercom's GTM Systems team. Pre-test automated outbound campaigns, validate sales signals, simulate pricing changes, and optimize personalization before they hit real prospects.
 
@@ -59,28 +62,15 @@ Your Scenario (email copy, signals, pricing)
 
 ## Screenshots
 
-> Screenshots will be added after the first full simulation run.
+### Landing Page
+Scenario cards with "How It Works" section and key stats.
 
-| View | Description |
-|------|-------------|
-| **Landing** | Dark hero with scenario cards and "How It Works" section |
-| **Scenario Builder** | Select pre-built GTM scenarios or upload custom seed text |
-| **Knowledge Graph** | D3.js force-directed graph with zoom/pan and entity details |
-| **Simulation** | Real-time dashboard with metrics, activity feed, timeline chart |
-| **Report** | Predictive analysis with key findings, charts, and recommendations |
-| **Chat** | Interactive Q&A with the simulated world using Report Agent |
-| **Settings** | LLM provider selection, API key management, theme toggle |
+![Landing Page](docs/screenshots/landing.png)
 
-<!--
-To add screenshots, place images in a docs/screenshots/ directory and update paths:
-![Landing View](docs/screenshots/landing.png)
-![Scenario Builder](docs/screenshots/scenario-builder.png)
-![Knowledge Graph](docs/screenshots/knowledge-graph.png)
-![Simulation](docs/screenshots/simulation.png)
-![Report](docs/screenshots/report.png)
-![Chat](docs/screenshots/chat.png)
-![Settings](docs/screenshots/settings.png)
--->
+### Knowledge Graph
+D3.js force-directed graph with entity type coloring (Topics, Personas, Relationships, Companies), zoom/pan, and click-to-inspect node details. Built from scenario seed text via Zep GraphRAG.
+
+![Knowledge Graph](docs/screenshots/graph.png)
 
 ---
 
@@ -413,8 +403,8 @@ The Vite dev server proxies all `/api` requests to `http://localhost:5001` (conf
 |-------|------|---------|
 | `/` | LandingView | Scenario cards, "How It Works" section |
 | `/scenarios/:id` | ScenarioBuilderView | Configure and launch a simulation |
-| `/graph/:taskId` | GraphView | D3.js knowledge graph visualization |
-| `/simulation/:taskId` | SimulationView | Real-time simulation dashboard |
+| `/workspace/:taskId` | SimulationWorkspaceView | Unified tabbed workspace (Graph + Simulation) |
+| `/simulations` | SimulationsView | Persistent simulation history with search/filter |
 | `/report/:taskId` | ReportView | Multi-chapter report explorer |
 | `/chat/:taskId` | ChatView | Q&A with simulated world |
 | `/settings` | SettingsView | LLM provider, API keys, theme |

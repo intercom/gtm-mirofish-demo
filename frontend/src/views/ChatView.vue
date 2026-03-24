@@ -1,5 +1,5 @@
 <script setup>
-import { ref, nextTick, computed } from 'vue'
+import { ref, nextTick, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -7,11 +7,24 @@ import StatusIndicator from '../components/common/StatusIndicator.vue'
 import { chatApi } from '../api/chat'
 import { useSimulationStore } from '../stores/simulation'
 import { useToast } from '../composables/useToast'
+import { useIntercom } from '../composables/useIntercom'
 
 const props = defineProps({ taskId: String })
 const route = useRoute()
 const simulation = useSimulationStore()
 const toast = useToast()
+const { isIntercomEnabled, show, showNewMessage } = useIntercom()
+
+const finPrompts = [
+  { text: 'Summarize simulation findings', icon: '📊' },
+  { text: 'Which messaging resonated most?', icon: '💬' },
+  { text: 'What should we do next?', icon: '🎯' },
+  { text: 'Compare persona engagement', icon: '👥' },
+]
+
+onMounted(() => {
+  if (isIntercomEnabled.value) show()
+})
 
 const messages = ref([])
 const input = ref('')
@@ -95,7 +108,44 @@ function formatToolName(name) {
 </script>
 
 <template>
-  <div class="flex flex-col h-[calc(100vh-120px)]">
+  <!-- Fin.ai Landing (when Intercom is configured) -->
+  <div v-if="isIntercomEnabled" class="flex flex-col h-[calc(100vh-120px)] items-center justify-center px-4">
+    <div class="max-w-lg w-full text-center">
+      <div class="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#2068FF] to-[#1a5ae0] flex items-center justify-center shadow-lg">
+        <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12c0 1.74.46 3.37 1.26 4.78L2 22l5.22-1.26C8.63 21.54 10.26 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm2.07-7.75-.9.92C11.45 10.9 11 11.5 11 13h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H6c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+        </svg>
+      </div>
+
+      <h1 class="text-2xl font-bold text-[var(--color-text)] mb-2">Ask Fin about your simulation</h1>
+      <p class="text-sm text-[var(--color-text-secondary)] mb-8">
+        Fin has access to your simulation context. Choose a prompt below or open the Messenger to ask anything.
+      </p>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+        <button
+          v-for="prompt in finPrompts"
+          :key="prompt.text"
+          @click="showNewMessage(prompt.text)"
+          class="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[#2068FF] hover:bg-[#2068FF]/5 text-left text-sm text-[var(--color-text)] transition-colors"
+        >
+          <span class="text-lg flex-shrink-0">{{ prompt.icon }}</span>
+          <span>{{ prompt.text }}</span>
+        </button>
+      </div>
+
+      <button
+        @click="show()"
+        class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors"
+      >
+        Open Fin Messenger
+        <span class="text-white/60">&rarr;</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mock Chat Fallback (no Intercom App ID) -->
+  <div v-else class="flex flex-col h-[calc(100vh-120px)]">
     <!-- Context Bar -->
     <div
       class="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]"

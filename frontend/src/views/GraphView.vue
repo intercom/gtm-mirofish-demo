@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import * as d3 from 'd3'
 import { graphApi } from '../api/graph'
+import { API_BASE } from '../api/client'
 import { useToast } from '../composables/useToast'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 
@@ -39,6 +40,38 @@ let pollTimer = null
 let resizeObserver = null
 let resizeTimer = null
 let themeObserver = null
+let simPollTimer = null
+
+// Simulation progress (polled after graph completes)
+const simStatus = ref('idle') // idle | running | complete
+const simCurrentRound = ref(0)
+const simTotalRounds = ref(0)
+const simPercent = ref(0)
+
+async function pollSimulation() {
+  if (!props.taskId) return
+  try {
+    const res = await fetch(`${API_BASE}/simulation/${props.taskId}/run-status`)
+    if (!res.ok) return
+    const json = await res.json()
+    if (!json.success) return
+    const d = json.data
+    simCurrentRound.value = d.current_round ?? 0
+    simTotalRounds.value = d.total_rounds ?? 0
+    simPercent.value = d.progress_percent ?? 0
+
+    const rs = d.runner_status
+    if (rs === 'completed' || rs === 'stopped') {
+      simStatus.value = 'complete'
+      clearInterval(simPollTimer)
+      simPollTimer = null
+    } else if (rs === 'running' || rs === 'starting' || rs === 'paused') {
+      simStatus.value = 'running'
+    }
+  } catch {
+    // Non-critical — sim progress just won't show
+  }
+}
 
 // Entity type color mapping
 const TYPE_COLORS = {
@@ -142,6 +175,11 @@ async function pollTask() {
         await loadGraphData(gid)
       }
       toast.success('Knowledge graph built successfully')
+      // Start polling simulation progress
+      if (!simPollTimer) {
+        pollSimulation()
+        simPollTimer = setInterval(pollSimulation, 3000)
+      }
     } else if (json.data.status === 'failed') {
       status.value = 'failed'
       errorMsg.value = json.data.message || 'Build failed'
@@ -162,6 +200,14 @@ async function pollTask() {
   }
 }
 
+// Start sim polling whenever graph status transitions to complete
+watch(status, (val) => {
+  if (val === 'complete' && !simPollTimer) {
+    pollSimulation()
+    simPollTimer = setInterval(pollSimulation, 3000)
+  }
+})
+
 async function loadGraphDirect(gid) {
   clearInterval(pollTimer)
   pollTimer = null
@@ -171,6 +217,10 @@ async function loadGraphDirect(gid) {
     applyGraphData(res.data.data)
     status.value = 'complete'
     toast.success('Knowledge graph loaded')
+    if (!simPollTimer) {
+      pollSimulation()
+      simPollTimer = setInterval(pollSimulation, 3000)
+    }
   } else {
     loadDemoData()
   }
@@ -488,6 +538,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (simPollTimer) clearInterval(simPollTimer)
   if (simulation) simulation.stop()
   if (resizeObserver) resizeObserver.disconnect()
   if (themeObserver) themeObserver.disconnect()
@@ -500,8 +551,13 @@ watch(() => props.taskId, () => {
   errorMsg.value = ''
   selectedNode.value = null
   graphData.value = { nodes: [], edges: [] }
+  simStatus.value = 'idle'
+  simCurrentRound.value = 0
+  simTotalRounds.value = 0
+  simPercent.value = 0
   if (simulation) simulation.stop()
   if (pollTimer) clearInterval(pollTimer)
+  if (simPollTimer) { clearInterval(simPollTimer); simPollTimer = null }
   pollTask()
   pollTimer = setInterval(pollTask, 2000)
 })
@@ -655,16 +711,36 @@ watch(() => props.taskId, () => {
       </div>
     </transition>
 
-    <!-- Continue to Simulation -->
+    <!-- Simulation Progress + Actions -->
     <Transition name="page">
-      <div v-if="status === 'complete'" class="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 z-10 text-center md:text-right">
-        <router-link
-          :to="{ path: `/simulation/${taskId}`, query: { projectId, graphId } }"
-          class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline inline-flex items-center gap-2"
+      <div v-if="status === 'complete'" class="absolute bottom-6 left-4 right-4 md:left-auto md:right-6 z-10 flex flex-col items-end gap-3">
+        <!-- Sim progress badge -->
+        <div
+          v-if="simStatus === 'running'"
+          class="bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-black/10 dark:border-white/10 rounded-lg px-4 py-2 text-xs text-[var(--color-text-secondary)] flex items-center gap-2"
         >
-          Continue to Simulation
-          <span class="text-white/60">&rarr;</span>
-        </router-link>
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          Simulation: Round {{ simCurrentRound }}/{{ simTotalRounds }} &mdash; {{ simPercent }}%
+        </div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center gap-3">
+          <router-link
+            :to="{ path: `/simulation/${taskId}`, query: { projectId, graphId } }"
+            class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline inline-flex items-center gap-2"
+          >
+            Continue to Simulation
+            <span class="text-white/60">&rarr;</span>
+          </router-link>
+          <router-link
+            v-if="simStatus === 'complete'"
+            :to="`/report/${taskId}`"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-lg font-semibold text-sm transition-colors no-underline inline-flex items-center gap-2"
+          >
+            Generate Report
+            <span class="text-white/60">&rarr;</span>
+          </router-link>
+        </div>
       </div>
     </Transition>
     </div>

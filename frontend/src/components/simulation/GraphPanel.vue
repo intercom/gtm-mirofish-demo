@@ -418,8 +418,8 @@ function loadDemoData() {
   edgeCount.value = 0
 
   let idx = 0
-  const BATCH = 2
-  const INTERVAL = 350
+  const BATCH = 3
+  const INTERVAL = 200
 
   demoBuildTimer = setInterval(() => {
     if (idx >= allNodes.length) {
@@ -556,7 +556,7 @@ onUnmounted(() => {
     <!-- Build progress overlay center -->
     <Transition name="fade">
       <div
-        v-if="graphStatus === 'building'"
+        v-if="graphStatus === 'building' && !demoMode && !isDemoFallback"
         class="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/60 dark:bg-black/70 backdrop-blur-sm rounded-xl px-5 py-3 flex items-center gap-4"
       >
         <svg viewBox="0 0 36 36" class="w-9 h-9 -rotate-90 flex-shrink-0">

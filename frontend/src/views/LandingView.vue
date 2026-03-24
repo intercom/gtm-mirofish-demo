@@ -138,7 +138,7 @@ function launchScenario(id) {
           to your outbound, signals, and pricing changes.
         </p>
         <p v-if="isDemoMode" class="text-sm text-white/35 mb-8 md:mb-12">
-          Interactive demo with simulated swarm intelligence data
+          Interactive demo with simulated swarm intelligence
         </p>
 
         <!-- Loading State -->

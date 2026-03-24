@@ -36,7 +36,7 @@ async function loadScenario() {
   loading.value = true
   error.value = null
   try {
-    const data = await scenariosStore.fetchOne(props.id)
+    const data = await scenariosStore.fetchScenarioById(props.id)
     if (!data) throw new Error('Scenario not found')
     scenario.value = data
 

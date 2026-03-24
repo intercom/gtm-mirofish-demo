@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { API_BASE } from '../api/client'
+import PhaseNav from '../components/simulation/PhaseNav.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -164,6 +165,8 @@ onUnmounted(stopPolling)
 
 <template>
   <div class="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
+    <PhaseNav :taskId="taskId" activePhase="report" />
+
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
       <div>

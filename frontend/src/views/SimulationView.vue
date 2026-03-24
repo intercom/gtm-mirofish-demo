@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { API_BASE } from '../api/client'
+import PhaseNav from '../components/simulation/PhaseNav.vue'
 
 const props = defineProps({ taskId: String })
 const router = useRouter()
@@ -282,6 +283,8 @@ watch(activePlatform, () => drawChart())
 
 <template>
   <div class="max-w-6xl mx-auto px-4 md:px-6 py-8">
+    <PhaseNav :taskId="taskId" activePhase="simulation" />
+
     <!-- Header -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8">
       <div>

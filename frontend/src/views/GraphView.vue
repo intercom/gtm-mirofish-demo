@@ -4,6 +4,11 @@ import { useRoute } from 'vue-router'
 import * as d3 from 'd3'
 import { graphApi } from '../api/graph'
 import { useToast } from '../composables/useToast'
+import PhaseNav from '../components/simulation/PhaseNav.vue'
+
+function isDarkMode() {
+  return document.documentElement.classList.contains('dark')
+}
 
 const props = defineProps({ taskId: String })
 const route = useRoute()
@@ -33,6 +38,7 @@ let zoomGroup = null
 let pollTimer = null
 let resizeObserver = null
 let resizeTimer = null
+let themeObserver = null
 
 // Entity type color mapping
 const TYPE_COLORS = {
@@ -247,6 +253,7 @@ function loadDemoData() {
 function renderGraph() {
   if (!svgRef.value || !graphData.value.nodes.length) return
 
+  const dark = isDarkMode()
   const container = containerRef.value
   const width = container.clientWidth
   const height = container.clientHeight
@@ -308,7 +315,7 @@ function renderGraph() {
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-4L8,0L0,4')
-    .attr('fill', 'rgba(255,255,255,0.15)')
+    .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
 
   // Force simulation
   simulation = d3.forceSimulation(nodes)
@@ -322,7 +329,7 @@ function renderGraph() {
     .selectAll('line')
     .data(links)
     .join('line')
-    .attr('stroke', 'rgba(255,255,255,0.08)')
+    .attr('stroke', dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
     .attr('stroke-width', 1)
     .attr('marker-end', 'url(#arrow)')
     .style('opacity', 0)
@@ -333,7 +340,7 @@ function renderGraph() {
     .data(links)
     .join('text')
     .text(d => d.name)
-    .attr('fill', 'rgba(255,255,255,0.2)')
+    .attr('fill', dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')
     .attr('font-size', '8px')
     .attr('text-anchor', 'middle')
     .style('pointer-events', 'none')
@@ -360,7 +367,7 @@ function renderGraph() {
   node.append('circle')
     .attr('r', d => d.radius + 4)
     .attr('fill', d => d.color)
-    .attr('opacity', 0.12)
+    .attr('opacity', 0.2)
 
   // Node circle
   node.append('circle')
@@ -376,7 +383,7 @@ function renderGraph() {
     .text(d => d.name)
     .attr('dy', d => d.radius + 14)
     .attr('text-anchor', 'middle')
-    .attr('fill', 'rgba(255,255,255,0.7)')
+    .attr('fill', dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)')
     .attr('font-size', '10px')
     .style('pointer-events', 'none')
 
@@ -467,12 +474,23 @@ onMounted(() => {
     }, 200)
   })
   if (containerRef.value) resizeObserver.observe(containerRef.value)
+
+  themeObserver = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.attributeName === 'class' && graphData.value.nodes.length) {
+        renderGraph()
+        break
+      }
+    }
+  })
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
 })
 
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
   if (simulation) simulation.stop()
   if (resizeObserver) resizeObserver.disconnect()
+  if (themeObserver) themeObserver.disconnect()
   clearTimeout(resizeTimer)
 })
 
@@ -490,7 +508,11 @@ watch(() => props.taskId, () => {
 </script>
 
 <template>
-  <div ref="containerRef" class="h-[calc(100vh-120px)] bg-[#0a0a1a] relative overflow-hidden">
+  <div class="flex flex-col h-[calc(100vh-120px)] bg-[#f8f9fa] dark:bg-[#0a0a1a]">
+    <div class="px-4 md:px-6 pt-4 dark">
+      <PhaseNav :taskId="taskId" activePhase="graph" />
+    </div>
+    <div ref="containerRef" class="flex-1 relative overflow-hidden">
     <!-- Status Bar -->
     <div
       class="absolute top-4 left-4 z-10 flex items-center gap-3"
@@ -513,31 +535,31 @@ watch(() => props.taskId, () => {
       <div class="text-center">
         <div class="relative w-24 h-24 mx-auto mb-6">
           <svg viewBox="0 0 100 100" class="w-full h-full -rotate-90">
-            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="4" />
+            <circle cx="50" cy="50" r="42" fill="none" class="stroke-black/6 dark:stroke-white/6" stroke-width="4" />
             <circle cx="50" cy="50" r="42" fill="none" stroke="#2068FF" stroke-width="4"
               stroke-linecap="round"
               :stroke-dasharray="264"
               :stroke-dashoffset="264 - (264 * progress / 100)" />
           </svg>
-          <span class="absolute inset-0 flex items-center justify-center text-white text-lg font-semibold">
+          <span class="absolute inset-0 flex items-center justify-center text-[var(--color-text)] text-lg font-semibold">
             {{ progress }}%
           </span>
         </div>
-        <p class="text-white/60 text-sm">{{ task?.message || 'Initializing...' }}</p>
-        <p class="text-white/30 text-xs mt-2">Task: {{ taskId }}</p>
+        <p class="text-[var(--color-text-secondary)] text-sm">{{ task?.message || 'Initializing...' }}</p>
+        <p class="text-[var(--color-text-muted)] text-xs mt-2">Task: {{ taskId }}</p>
       </div>
     </div>
 
     <!-- Error State -->
-    <div v-if="status === 'failed'" class="absolute inset-0 flex items-center justify-center z-20 bg-[#0a0a1a]/80 backdrop-blur-sm">
+    <div v-if="status === 'failed'" class="absolute inset-0 flex items-center justify-center z-20 bg-[var(--color-surface)]/80 backdrop-blur-sm">
       <div class="flex flex-col items-center text-center max-w-md">
         <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
           <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
           </svg>
         </div>
-        <p class="text-white/80 text-sm font-medium mb-2">Graph build failed</p>
-        <p class="text-white/40 text-xs mb-6">{{ errorMsg }}</p>
+        <p class="text-[var(--color-text)] text-sm font-medium mb-2">Graph build failed</p>
+        <p class="text-[var(--color-text-muted)] text-xs mb-6">{{ errorMsg }}</p>
         <button
           @click="retryBuild"
           class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
@@ -555,16 +577,16 @@ watch(() => props.taskId, () => {
 
     <!-- Stats Panel (bottom-left) -->
     <div v-if="status === 'complete' && entityTypeStats.length"
-      class="absolute bottom-6 left-4 z-10 bg-white/5 backdrop-blur-sm border border-white/10 rounded-lg p-4 max-w-56">
-      <h3 class="text-[10px] uppercase tracking-widest text-white/40 mb-3">Entity Types</h3>
+      class="absolute bottom-6 left-4 z-10 bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-black/10 dark:border-white/10 rounded-lg p-4 max-w-56">
+      <h3 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Entity Types</h3>
       <div class="space-y-2">
         <div v-for="stat in entityTypeStats" :key="stat.type" class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: stat.color }" />
-          <span class="text-xs text-white/60 flex-1 truncate">{{ stat.type }}</span>
-          <span class="text-xs text-white/30 tabular-nums">{{ stat.count }}</span>
+          <span class="text-xs text-[var(--color-text-secondary)] flex-1 truncate">{{ stat.type }}</span>
+          <span class="text-xs text-[var(--color-text-muted)] tabular-nums">{{ stat.count }}</span>
         </div>
       </div>
-      <div class="mt-3 pt-3 border-t border-white/10 flex justify-between text-xs text-white/30">
+      <div class="mt-3 pt-3 border-t border-black/10 dark:border-white/10 flex justify-between text-xs text-[var(--color-text-muted)]">
         <span data-testid="node-count">{{ nodeCount }} nodes</span>
         <span data-testid="edge-count">{{ edgeCount }} edges</span>
       </div>
@@ -573,17 +595,17 @@ watch(() => props.taskId, () => {
     <!-- Node Detail Panel (right side) -->
     <transition name="slide">
       <div v-if="selectedNode"
-        class="absolute top-0 right-0 z-20 h-full w-80 bg-[#0f0f24]/95 backdrop-blur-md border-l border-white/10 overflow-y-auto"
+        class="absolute top-0 right-0 z-20 h-full w-80 bg-white/95 dark:bg-[#0f0f24]/95 backdrop-blur-md border-l border-black/10 dark:border-white/10 overflow-y-auto"
         data-testid="detail-panel">
         <div class="p-5">
           <!-- Header -->
           <div class="flex items-start justify-between mb-4">
             <div class="flex items-center gap-2.5">
               <span class="w-3.5 h-3.5 rounded-full" :style="{ backgroundColor: selectedNode.color }" />
-              <h3 class="text-white font-semibold text-sm">{{ selectedNode.name }}</h3>
+              <h3 class="text-[var(--color-text)] font-semibold text-sm">{{ selectedNode.name }}</h3>
             </div>
             <button @click="selectedNode = null"
-              class="text-white/30 hover:text-white/60 text-lg leading-none transition-colors">&times;</button>
+              class="text-black/30 dark:text-white/30 hover:text-black/60 dark:hover:text-white/60 text-lg leading-none transition-colors">&times;</button>
           </div>
 
           <!-- Type badge -->
@@ -594,38 +616,38 @@ watch(() => props.taskId, () => {
 
           <!-- Summary -->
           <div v-if="selectedNode.summary" class="mb-5">
-            <h4 class="text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Summary</h4>
-            <p class="text-xs text-white/60 leading-relaxed">{{ selectedNode.summary }}</p>
+            <h4 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-1.5">Summary</h4>
+            <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ selectedNode.summary }}</p>
           </div>
 
           <!-- Centrality -->
           <div class="mb-5">
-            <h4 class="text-[10px] uppercase tracking-widest text-white/40 mb-1.5">Centrality</h4>
+            <h4 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-1.5">Centrality</h4>
             <div class="flex items-center gap-2">
-              <div class="flex-1 h-1.5 rounded-full bg-white/10">
+              <div class="flex-1 h-1.5 rounded-full bg-black/10 dark:bg-white/10">
                 <div class="h-full rounded-full transition-all duration-300"
                   :style="{ width: (selectedNode.centrality * 100) + '%', backgroundColor: selectedNode.color }" />
               </div>
-              <span class="text-xs text-white/40 tabular-nums">{{ Math.round(selectedNode.centrality * 100) }}%</span>
+              <span class="text-xs text-[var(--color-text-muted)] tabular-nums">{{ Math.round(selectedNode.centrality * 100) }}%</span>
             </div>
           </div>
 
           <!-- Connections -->
           <div v-if="selectedNode.connections.length">
-            <h4 class="text-[10px] uppercase tracking-widest text-white/40 mb-2">
+            <h4 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-2">
               Connections ({{ selectedNode.connections.length }})
             </h4>
             <div class="space-y-2">
               <div v-for="(conn, i) in selectedNode.connections" :key="i"
-                class="bg-white/5 rounded-lg p-3">
+                class="bg-black/5 dark:bg-white/5 rounded-lg p-3">
                 <div class="flex items-center gap-1.5 mb-1">
                   <span class="text-[10px]" :class="conn.direction === 'outgoing' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
                     {{ conn.direction === 'outgoing' ? '→' : '←' }}
                   </span>
-                  <span class="text-xs text-white/50">{{ conn.name }}</span>
-                  <span class="text-xs text-white/70 font-medium">{{ conn.target }}</span>
+                  <span class="text-xs text-[var(--color-text-muted)]">{{ conn.name }}</span>
+                  <span class="text-xs text-[var(--color-text)] font-medium">{{ conn.target }}</span>
                 </div>
-                <p v-if="conn.fact" class="text-[11px] text-white/35 leading-relaxed">{{ conn.fact }}</p>
+                <p v-if="conn.fact" class="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{{ conn.fact }}</p>
               </div>
             </div>
           </div>
@@ -645,6 +667,7 @@ watch(() => props.taskId, () => {
         </router-link>
       </div>
     </Transition>
+    </div>
   </div>
 </template>
 

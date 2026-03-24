@@ -1,6 +1,7 @@
 <script setup>
 import { ref, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { marked } from 'marked'
 import EmptyState from '../components/ui/EmptyState.vue'
 import StatusIndicator from '../components/common/StatusIndicator.vue'
 import { chatApi } from '../api/chat'
@@ -139,7 +140,7 @@ function formatToolName(name) {
                   class="bg-[var(--color-bg-alt)] text-[var(--color-text)] rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed"
                 >
                   <div class="text-xs font-medium text-[var(--color-fin-orange)] mb-1">MiroFish</div>
-                  <div class="whitespace-pre-wrap">{{ msg.content }}</div>
+                  <div class="prose prose-sm max-w-none dark:prose-invert" v-html="marked.parse(msg.content || '')" />
                 </div>
 
                 <!-- Tool Calls -->

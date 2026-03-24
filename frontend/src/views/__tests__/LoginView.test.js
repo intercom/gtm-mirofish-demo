@@ -1,135 +1,121 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { nextTick } from 'vue'
-import { setActivePinia, createPinia } from 'pinia'
+import { mount, flushPromises } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import LoginView from '../LoginView.vue'
-import { useAuthStore } from '../../stores/auth'
 
-const mockPush = vi.fn()
-const mockReplace = vi.fn()
-let mockQuery = {}
+function createTestRouter(initialRoute = '/login') {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/login', name: 'login', component: LoginView },
+      { path: '/', name: 'landing', component: { template: '<div>Home</div>' } },
+    ],
+  })
+  router.push(initialRoute)
+  return router
+}
 
-vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mockPush, replace: mockReplace }),
-  useRoute: () => ({ query: mockQuery }),
-}))
-
-function mountLogin(query = {}) {
-  mockQuery = query
-  return mount(LoginView)
+function mountLoginView(router, pinia) {
+  return mount(LoginView, {
+    global: {
+      plugins: [pinia, router],
+    },
+  })
 }
 
 describe('LoginView', () => {
+  let pinia
+
   beforeEach(() => {
-    localStorage.clear()
-    setActivePinia(createPinia())
-    mockPush.mockClear()
-    mockReplace.mockClear()
-    mockQuery = {}
-    delete window.location
-    window.location = { href: '' }
+    pinia = createPinia()
+    setActivePinia(pinia)
+    vi.restoreAllMocks()
   })
 
-  it('renders the sign-in heading', () => {
-    const wrapper = mountLogin()
+  it('renders the sign-in heading', async () => {
+    const router = createTestRouter()
+    await router.isReady()
+    const wrapper = mountLoginView(router, pinia)
+
     expect(wrapper.find('h2').text()).toBe('Sign in to MiroFish Demo')
   })
 
-  it('renders the domain restriction notice', () => {
-    const wrapper = mountLogin()
+  it('renders the domain restriction notice', async () => {
+    const router = createTestRouter()
+    await router.isReady()
+    const wrapper = mountLoginView(router, pinia)
+
     expect(wrapper.text()).toContain('Restricted to @intercom.io accounts')
   })
 
-  it('renders the Intercom logo SVG', () => {
-    const wrapper = mountLogin()
-    const svg = wrapper.find('svg')
-    expect(svg.exists()).toBe(true)
-    expect(svg.find('rect[fill="#2068FF"]').exists()).toBe(true)
+  it('renders Google and Okta buttons by default', async () => {
+    const router = createTestRouter()
+    await router.isReady()
+    const wrapper = mountLoginView(router, pinia)
+
+    const buttons = wrapper.findAll('button')
+    expect(buttons).toHaveLength(2)
+    expect(buttons[0].text()).toContain('Continue with Google')
+    expect(buttons[1].text()).toContain('Continue with Okta SSO')
   })
 
-  it('renders Google OAuth button', () => {
-    const wrapper = mountLogin()
-    const btn = wrapper.find('[data-testid="google-btn"]')
-    expect(btn.exists()).toBe(true)
-    expect(btn.text()).toContain('Continue with Google')
+  it('calls loginWithGoogle when Google button is clicked', async () => {
+    delete window.location
+    window.location = { href: '' }
+
+    const router = createTestRouter()
+    await router.isReady()
+    const wrapper = mountLoginView(router, pinia)
+
+    await wrapper.findAll('button')[0].trigger('click')
+    expect(window.location.href).toBe('/api/auth/google')
   })
 
-  it('renders Okta SSO button', () => {
-    const wrapper = mountLogin()
-    const btn = wrapper.find('[data-testid="okta-btn"]')
-    expect(btn.exists()).toBe(true)
-    expect(btn.text()).toContain('Continue with Okta SSO')
+  it('calls loginWithOkta when Okta button is clicked', async () => {
+    delete window.location
+    window.location = { href: '' }
+
+    const router = createTestRouter()
+    await router.isReady()
+    const wrapper = mountLoginView(router, pinia)
+
+    await wrapper.findAll('button')[1].trigger('click')
+    expect(window.location.href).toBe('/api/auth/okta')
   })
 
-  it('has dark navy background', () => {
-    const wrapper = mountLogin()
-    const outer = wrapper.find('div')
-    expect(outer.classes()).toContain('bg-[var(--color-navy)]')
+  it('fetches user on callback and redirects to home on success', async () => {
+    const mockUser = { email: 'test@intercom.io', name: 'Test' }
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(mockUser),
+    })
+
+    const router = createTestRouter('/login?callback=true')
+    await router.isReady()
+    mountLoginView(router, pinia)
+
+    await flushPromises()
+    expect(router.currentRoute.value.path).toBe('/')
   })
 
-  it('centers the card vertically and horizontally', () => {
-    const wrapper = mountLogin()
-    const outer = wrapper.find('div')
-    expect(outer.classes()).toContain('flex')
-    expect(outer.classes()).toContain('items-center')
-    expect(outer.classes()).toContain('justify-center')
+  it('shows error when callback auth fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false })
+
+    const router = createTestRouter('/login?callback=true')
+    await router.isReady()
+    const wrapper = mountLoginView(router, pinia)
+
+    await flushPromises()
+    expect(wrapper.text()).toContain('Sign-in failed')
   })
 
-  it('redirects to /api/auth/google when Google button is clicked', async () => {
-    const wrapper = mountLogin()
-    await wrapper.find('[data-testid="google-btn"]').trigger('click')
-    expect(window.location.href).toBe('/api/auth/google?redirect=%2F')
-  })
+  it('uses dark navy background', async () => {
+    const router = createTestRouter()
+    await router.isReady()
+    const wrapper = mountLoginView(router, pinia)
 
-  it('redirects to /api/auth/okta when Okta button is clicked', async () => {
-    const wrapper = mountLogin()
-    await wrapper.find('[data-testid="okta-btn"]').trigger('click')
-    expect(window.location.href).toBe('/api/auth/okta?redirect=%2F')
-  })
-
-  it('passes through redirect query param to OAuth URL', async () => {
-    const wrapper = mountLogin({ redirect: '/scenarios/test' })
-    await wrapper.find('[data-testid="google-btn"]').trigger('click')
-    expect(window.location.href).toBe('/api/auth/google?redirect=%2Fscenarios%2Ftest')
-  })
-
-  it('handles OAuth callback by storing token and user, then redirecting', () => {
-    mountLogin({ token: 'abc-123', email: 'user@intercom.io', name: 'User' })
-    const store = useAuthStore()
-    expect(store.isAuthenticated).toBe(true)
-    expect(store.token).toBe('abc-123')
-    expect(store.user).toEqual({ email: 'user@intercom.io', name: 'User' })
-    expect(mockReplace).toHaveBeenCalledWith('/')
-  })
-
-  it('redirects to original path after OAuth callback', () => {
-    mountLogin({ token: 'abc-123', email: 'u@intercom.io', redirect: '/settings' })
-    expect(mockReplace).toHaveBeenCalledWith('/settings')
-  })
-
-  it('displays error from OAuth callback', async () => {
-    const wrapper = mountLogin({ error: 'Domain not allowed' })
-    await nextTick()
-    expect(wrapper.find('[role="alert"]').text()).toBe('Domain not allowed')
-  })
-
-  it('does not store token when error is present', () => {
-    mountLogin({ error: 'Domain not allowed' })
-    const store = useAuthStore()
-    expect(store.isAuthenticated).toBe(false)
-  })
-
-  it('redirects away if already authenticated', () => {
-    localStorage.setItem('auth_token', 'existing-token')
-    setActivePinia(createPinia())
-    mountLogin()
-    expect(mockReplace).toHaveBeenCalledWith('/')
-  })
-
-  it('disables buttons while loading', async () => {
-    const wrapper = mountLogin()
-    await wrapper.find('[data-testid="google-btn"]').trigger('click')
-    expect(wrapper.find('[data-testid="google-btn"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('[data-testid="okta-btn"]').attributes('disabled')).toBeDefined()
+    const outerDiv = wrapper.find('div')
+    expect(outerDiv.classes()).toContain('bg-[var(--color-navy)]')
   })
 })

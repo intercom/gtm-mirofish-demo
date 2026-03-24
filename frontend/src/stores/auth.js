@@ -1,46 +1,45 @@
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-
-const TOKEN_KEY = 'auth_token'
-const USER_KEY = 'mirofish-user'
 
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref(localStorage.getItem(TOKEN_KEY) || '')
-  const user = ref(JSON.parse(localStorage.getItem(USER_KEY) || 'null'))
+  const user = ref(null)
+  const loading = ref(false)
+  const error = ref(null)
 
-  const isAuthenticated = computed(() => !!token.value)
-
-  function login(authToken, userInfo) {
-    token.value = authToken
-    user.value = userInfo
-    localStorage.setItem(TOKEN_KEY, authToken)
-    if (userInfo) {
-      localStorage.setItem(USER_KEY, JSON.stringify(userInfo))
+  async function fetchUser() {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await fetch('/api/auth/me')
+      if (res.ok) {
+        user.value = await res.json()
+      } else {
+        user.value = null
+      }
+    } catch {
+      user.value = null
+    } finally {
+      loading.value = false
     }
   }
 
-  function logout() {
-    token.value = ''
-    user.value = null
-    localStorage.removeItem(TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
+  function loginWithGoogle() {
+    window.location.href = '/api/auth/google'
   }
 
-  function setUser(userInfo) {
-    user.value = userInfo
-    if (userInfo) {
-      localStorage.setItem(USER_KEY, JSON.stringify(userInfo))
-    } else {
-      localStorage.removeItem(USER_KEY)
+  function loginWithOkta() {
+    window.location.href = '/api/auth/okta'
+  }
+
+  async function logout() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch {
+      // Ignore network errors — we clear the local state regardless
+    } finally {
+      user.value = null
     }
   }
 
-  return {
-    token,
-    user,
-    isAuthenticated,
-    login,
-    logout,
-    setUser,
-  }
+  return { user, loading, error, fetchUser, loginWithGoogle, loginWithOkta, logout }
 })

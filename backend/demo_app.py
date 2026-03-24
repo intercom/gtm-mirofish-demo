@@ -7,14 +7,24 @@ image size drops from ~5.8 GB to ~150 MB.
 """
 
 import json
+import logging
 import math
 import os
 import random
 import time
 from pathlib import Path
 
+from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
+
+# Load .env from project root (one level up from backend/)
+load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
+load_dotenv(override=True)
+
+from llm_client import chat_completion  # noqa: E402
+
+log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -1095,14 +1105,63 @@ DEFAULT_CHAT = {
 }
 
 
+_REPORT_CHAT_SYSTEM = """You are MiroFish, an AI research analyst for Intercom's GTM team.
+
+You have access to results from a completed swarm intelligence simulation:
+- 200 AI agents representing buyer personas across SaaS, Healthcare, Fintech, and E-commerce
+- 72-hour simulation, 144 rounds, running on Twitter and Reddit platforms
+- Outbound campaign targeting mid-market companies currently using Zendesk
+
+Key findings you should reference:
+- VP of Support personas showed 3.2x higher engagement with ROI-driven messaging vs speed-to-value messaging
+- "Your Zendesk bill is 3x what it should be" achieved 34.7% open rate but 8.2% spam flag rate in Healthcare
+- Healthcare and Fintech require compliance-first messaging (12% engagement without vs 31% with)
+- Optimal email cadence is Day 1-3-8-15 (not Day 1-2-4)
+- Fin AI agent 50% resolution rate was the single most persuasive data point (referenced in 67% of positive signals)
+- Multi-threading (3+ personas at same company) increases meeting booking 4.7x
+- 12,384 total interactions, 847 unique threads, 94.2% statistical confidence
+- Subject line "How [Company] cut support costs 40% with AI" is the safest universal option (31.2% open, 2.1% spam)
+- "Replace Zendesk in 30 days" had 24.3% open rate but 11.7% spam flag — worst performer
+- Data-driven tone outperformed casual tone by 18% among VP/Director personas
+- Medium emails (100-200 words) optimal length; short emails have lowest meeting conversion
+- Skeptical Evaluators (19% of agents) have the HIGHEST eventual meeting rate (34%) when objections are addressed
+- Top objection: "We just renewed our Zendesk contract" (34% of negative responses)
+- 8 "influencer" agents (4% of population) generated 34% of positive sentiment cascades
+
+Respond with data-backed insights. Use markdown formatting.
+Reference specific metrics and percentages from the simulation data.
+Keep responses focused and actionable. If asked about something not in the simulation data, say so honestly."""
+
+
 @app.route("/api/report/chat", methods=["POST"])
 def report_chat():
     body = request.get_json(silent=True) or {}
-    question = (body.get("message") or body.get("question") or "").lower()
+    question = (body.get("message") or body.get("question") or "")
+    chat_history = body.get("chat_history") or []
 
+    # Try LLM first
+    llm_messages = [{"role": "system", "content": _REPORT_CHAT_SYSTEM}]
+    for msg in chat_history:
+        if msg.get("role") in ("user", "assistant"):
+            llm_messages.append({"role": msg["role"], "content": msg["content"]})
+    llm_messages.append({"role": "user", "content": question})
+
+    llm_response = chat_completion(llm_messages, max_tokens=2048)
+
+    if llm_response:
+        return _ok({
+            "response": llm_response,
+            "tool_calls": [
+                {"name": "insight_forge", "arguments": {"query": question[:100]}, "result": "Analyzed simulation data with LLM."},
+            ],
+            "sources": ["Simulation Report", "Agent Engagement Data", "LLM Analysis"],
+        })
+
+    # Fallback: keyword matching
+    q_lower = question.lower()
     matched = None
     for keyword, response_data in CHAT_RESPONSES.items():
-        if keyword in question:
+        if keyword in q_lower:
             matched = response_data
             break
 
@@ -1236,9 +1295,129 @@ def sim_generate_profiles():
     return _ok({"profiles": []})
 
 
+_INTERVIEW_RESPONSES = {
+    "messaging": "The subject line 'Your Zendesk bill is 3x what it should be' caught my attention immediately — it called out a real pain point. However, the 'Replace Zendesk in 30 days' variant felt too aggressive. I'd respond better to messaging that positions Intercom as a complement or upgrade rather than a rip-and-replace.",
+    "pricing": "Cost is a real factor for our team. We're spending $12K/month on Zendesk and the 40% savings claim is compelling. But I need to see a detailed TCO comparison that includes migration costs, training time, and the first 6 months of potential productivity loss.",
+    "competition": "We evaluated Freshdesk last quarter and it didn't meet our needs on the AI front. Intercom's Fin agent is genuinely differentiated — the intent understanding is impressive. My concern is whether it handles our edge cases as well as the demo suggests.",
+    "objection": "My biggest concern is migration risk. We have 3 years of customer data, 200+ macros, and custom integrations built on Zendesk's API. I need a clear migration playbook with timelines before I can advocate for a switch internally.",
+    "engagement": "I engaged mostly on Twitter because that's where I follow industry conversations. I shared the ROI-focused content with my team because those numbers were specific enough to be credible. The generic 'AI is the future' posts didn't resonate — I need concrete evidence.",
+    "recommendation": "If I were advising Intercom's GTM team: lead with the cost angle for execs like me, but make sure the technical documentation is solid for our IT team. We won't make a decision without IT sign-off, and they'll dig deep into the API docs.",
+}
+
+_INTERVIEW_KEYWORD_MAP = {
+    "messaging": ["messag", "subject", "copy", "email", "content", "campaign"],
+    "pricing": ["pric", "cost", "budget", "spend", "tco", "roi", "money", "savings"],
+    "competition": ["compet", "zendesk", "freshdesk", "rival", "alternative", "versus", "vs"],
+    "objection": ["objection", "concern", "risk", "worry", "block", "hesitat", "migrat"],
+    "engagement": ["engage", "interact", "action", "click", "share", "platform", "twitter", "reddit"],
+    "recommendation": ["recommend", "advice", "suggest", "improv", "next step", "gtm"],
+}
+
+
+def _interview_keyword_fallback(question, agent_role):
+    q = question.lower()
+    for key, keywords in _INTERVIEW_KEYWORD_MAP.items():
+        if any(kw in q for kw in keywords):
+            return _INTERVIEW_RESPONSES[key]
+    return (
+        f"That's a great question. From my perspective as {agent_role or 'a stakeholder'}, "
+        "the key factor in any vendor decision is whether the solution genuinely solves a "
+        "pain point we have today. I saw some compelling data in the simulation, particularly "
+        "around cost efficiency and AI-first resolution. I'd want to see a pilot program "
+        "before committing to anything."
+    )
+
+
+def _build_persona_traits(role):
+    role_lower = (role or "").lower()
+    if "vp" in role_lower or "director" in role_lower:
+        return {
+            "seniority": "Executive",
+            "priorities": "ROI and cost efficiency, team productivity, vendor consolidation",
+            "communication_style": "Executive — concise, data-driven, focused on business outcomes",
+            "objections": "Migration risk and downtime, contract lock-in concerns, integration complexity",
+            "decision_factors": "TCO comparison, peer references, pilot program availability",
+        }
+    if "it" in role_lower or "engineer" in role_lower or "cto" in role_lower:
+        return {
+            "seniority": "Technical Leader",
+            "priorities": "Security and compliance, API quality and documentation, integration ecosystem",
+            "communication_style": "Technical — detail-oriented, skeptical of marketing claims",
+            "objections": "Data migration complexity, SSO/SAML requirements, scalability concerns",
+            "decision_factors": "Technical documentation, API capabilities, security certifications",
+        }
+    if "ops" in role_lower or "operations" in role_lower:
+        return {
+            "seniority": "Operations Leader",
+            "priorities": "Process efficiency, cross-team alignment, reporting and analytics",
+            "communication_style": "Process-oriented — systematic, focused on workflows and metrics",
+            "objections": "Change management overhead, training requirements, workflow disruption",
+            "decision_factors": "Implementation timeline, training resources, workflow customization",
+        }
+    if "cfo" in role_lower or "finance" in role_lower:
+        return {
+            "seniority": "Finance Executive",
+            "priorities": "Cost reduction, headcount efficiency, ROI with clear timeframes",
+            "communication_style": "Numbers-focused — needs quantified business case and payback period",
+            "objections": "Total cost of ownership uncertainty, hidden fees, switching costs",
+            "decision_factors": "ROI calculations, payback period, board-presentable business case",
+        }
+    return {
+        "seniority": "Senior Stakeholder",
+        "priorities": "Customer satisfaction, team enablement, platform reliability",
+        "communication_style": "Balanced — open to evaluation, values peer recommendations",
+        "objections": "Learning curve, feature parity, support responsiveness",
+        "decision_factors": "Product demos, case studies, free trial experience",
+    }
+
+
 @app.route("/api/simulation/interview", methods=["POST"])
 def sim_interview():
-    return _ok({"response": "Demo mode — interview not available"})
+    body = request.get_json(silent=True) or {}
+    agent_name = body.get("agent_name", "Agent")
+    agent_role = body.get("agent_role", "")
+    agent_company = body.get("agent_company", "")
+    prompt = body.get("prompt", "")
+    chat_history = body.get("chat_history") or []
+
+    traits = _build_persona_traits(agent_role)
+
+    system_prompt = f"""You are {agent_name}, {agent_role}{(' at ' + agent_company) if agent_company else ''}.
+
+Your persona:
+- Seniority: {traits['seniority']}
+- Priorities: {traits['priorities']}
+- Communication style: {traits['communication_style']}
+- Likely objections: {traits['objections']}
+- Decision factors: {traits['decision_factors']}
+
+You participated in a simulated outbound campaign evaluation where Intercom targeted mid-market companies currently using Zendesk. The simulation ran 200 AI agents for 72 hours across Twitter and Reddit.
+
+Key simulation findings you experienced:
+- ROI-driven messaging (40% cost savings) was compelling but you need proof
+- Fin AI agent's 50% resolution rate claim was the most persuasive data point
+- Subject line "Your Zendesk bill is 3x what it should be" got your attention but felt aggressive
+- You engaged on Twitter/Reddit sharing industry perspectives with peers
+- Multi-threading (multiple people at your company being contacted) influenced your evaluation
+
+Stay in character. Answer from your professional perspective.
+Reference specific data points when relevant.
+Be opinionated — you have real preferences and concerns.
+Keep responses conversational, 2-4 paragraphs."""
+
+    llm_messages = [{"role": "system", "content": system_prompt}]
+    for msg in chat_history:
+        if msg.get("role") in ("user", "assistant"):
+            llm_messages.append({"role": msg["role"], "content": msg["content"]})
+    llm_messages.append({"role": "user", "content": prompt})
+
+    llm_response = chat_completion(llm_messages, max_tokens=1024)
+
+    if llm_response:
+        return _ok({"response": llm_response})
+
+    # Fallback: keyword matching
+    return _ok({"response": _interview_keyword_fallback(prompt, agent_role)})
 
 
 @app.route("/api/simulation/interview/batch", methods=["POST"])

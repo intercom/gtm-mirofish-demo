@@ -30,25 +30,75 @@ const platformMode = ref('parallel')
 const running = ref(false)
 const activeTab = ref('seed')
 
+const selectedCompanySizes = ref([])
+const selectedRegions = ref([])
+const minutesPerRound = ref(30)
+const showAdvanced = ref(false)
+
 const canRun = computed(() =>
   seedText.value.trim().length > 0 && selectedPersonas.value.length > 0 && !running.value,
 )
+
+function toggleCompanySize(size) {
+  const idx = selectedCompanySizes.value.indexOf(size)
+  if (idx === -1) selectedCompanySizes.value.push(size)
+  else selectedCompanySizes.value.splice(idx, 1)
+}
+
+function toggleRegion(region) {
+  const idx = selectedRegions.value.indexOf(region)
+  if (idx === -1) selectedRegions.value.push(region)
+  else selectedRegions.value.splice(idx, 1)
+}
 
 
 async function loadScenario() {
   loading.value = true
   error.value = null
   try {
-    const data = await scenariosStore.fetchScenarioById(props.id)
-    if (!data) throw new Error('Scenario not found')
-    scenario.value = data
+    if (props.id === 'custom') {
+      scenario.value = {
+        id: 'custom',
+        name: 'Custom Simulation',
+        description: 'Configure your own simulation from scratch — paste any seed document and select your parameters.',
+        icon: '+',
+        agent_config: {
+          count: 200,
+          persona_types: [
+            'VP of Support', 'CX Director', 'IT Leader', 'Head of Operations',
+            'CFO', 'VP Operations', 'CX Leader', 'Product Manager', 'Support Manager',
+            'Decision Maker', 'Champion', 'Technical Evaluator', 'Blocker', 'End User',
+          ],
+          firmographic_mix: {
+            industries: ['SaaS', 'Healthcare', 'Fintech', 'E-commerce', 'Manufacturing'],
+            company_sizes: ['50-200', '200-500', '500-1000', '1000-2000', '1000-5000'],
+            regions: ['North America', 'EMEA', 'APAC', 'LATAM'],
+          },
+        },
+        simulation_config: {
+          total_hours: 72,
+          minutes_per_round: 30,
+          platform_mode: 'parallel',
+        },
+      }
+      seedText.value = ''
+      agentCount.value = 200
+      duration.value = 72
+      platformMode.value = 'parallel'
+      selectedPersonas.value = []
+      selectedIndustries.value = []
+    } else {
+      const data = await scenariosStore.fetchScenarioById(props.id)
+      if (!data) throw new Error('Scenario not found')
+      scenario.value = data
 
-    seedText.value = data.seed_text || ''
-    agentCount.value = data.agent_config?.count || 200
-    duration.value = data.simulation_config?.total_hours || 72
-    platformMode.value = data.simulation_config?.platform_mode || 'parallel'
-    selectedPersonas.value = [...(data.agent_config?.persona_types || [])]
-    selectedIndustries.value = [...(data.agent_config?.firmographic_mix?.industries || [])]
+      seedText.value = data.seed_text || ''
+      agentCount.value = data.agent_config?.count || 200
+      duration.value = data.simulation_config?.total_hours || 72
+      platformMode.value = data.simulation_config?.platform_mode || 'parallel'
+      selectedPersonas.value = [...(data.agent_config?.persona_types || [])]
+      selectedIndustries.value = [...(data.agent_config?.firmographic_mix?.industries || [])]
+    }
   } catch (e) {
     error.value = e.message
   } finally {
@@ -102,18 +152,24 @@ async function runSimulation() {
       agent_count: agentCount.value,
       persona_types: selectedPersonas.value,
       industries: selectedIndustries.value,
+      company_sizes: selectedCompanySizes.value,
+      regions: selectedRegions.value,
       duration_hours: duration.value,
+      minutes_per_round: minutesPerRound.value,
       platform_mode: platformMode.value,
     })
     const taskId = data.task_id
     simulationStore.setScenarioConfig({
       scenarioId: props.id,
-      scenarioName: scenario.value?.name || 'Untitled Scenario',
+      scenarioName: scenario.value?.name || (props.id === 'custom' ? 'Custom Simulation' : 'Untitled Scenario'),
       seedText: seedText.value,
       agentCount: agentCount.value,
       personas: selectedPersonas.value,
       industries: selectedIndustries.value,
+      companySizes: selectedCompanySizes.value,
+      regions: selectedRegions.value,
       duration: duration.value,
+      minutesPerRound: minutesPerRound.value,
       platformMode: platformMode.value,
     })
     simulationStore.startGraphBuild(taskId)
@@ -231,6 +287,82 @@ async function runSimulation() {
                 />
                 <span :class="selectedIndustries.includes(industry) ? 'text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)]'">{{ industry }}</span>
               </label>
+            </div>
+          </div>
+
+          <!-- Advanced Options (collapsible) -->
+          <div class="mt-6">
+            <button
+              @click="showAdvanced = !showAdvanced"
+              class="flex items-center gap-2 text-xs uppercase tracking-wider text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+            >
+              <svg
+                class="w-3.5 h-3.5 transition-transform"
+                :class="{ 'rotate-90': showAdvanced }"
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+              Advanced Options
+            </button>
+
+            <div v-show="showAdvanced" class="mt-4 space-y-5">
+              <!-- Company Sizes -->
+              <div v-if="scenario.agent_config?.firmographic_mix?.company_sizes?.length">
+                <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Company Size</label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="size in scenario.agent_config.firmographic_mix.company_sizes"
+                    :key="size"
+                    @click="toggleCompanySize(size)"
+                    class="px-3 py-1.5 text-xs rounded-full border transition-colors"
+                    :class="selectedCompanySizes.includes(size)
+                      ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                      : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
+                  >
+                    {{ size }} employees
+                  </button>
+                </div>
+              </div>
+
+              <!-- Regions -->
+              <div v-if="scenario.agent_config?.firmographic_mix?.regions?.length">
+                <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Regions</label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="region in scenario.agent_config.firmographic_mix.regions"
+                    :key="region"
+                    @click="toggleRegion(region)"
+                    class="px-3 py-1.5 text-xs rounded-full border transition-colors"
+                    :class="selectedRegions.includes(region)
+                      ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                      : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
+                  >
+                    {{ region }}
+                  </button>
+                </div>
+              </div>
+
+              <!-- Minutes per Round -->
+              <div>
+                <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Minutes per Round</label>
+                <div class="flex gap-2">
+                  <button
+                    v-for="mins in [15, 30, 60]"
+                    :key="mins"
+                    @click="minutesPerRound = mins"
+                    class="flex-1 px-3 py-2 text-xs rounded-lg border transition-colors"
+                    :class="minutesPerRound === mins
+                      ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                      : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
+                  >
+                    {{ mins }}m
+                  </button>
+                </div>
+                <p class="text-[10px] text-[var(--color-text-muted)] mt-1.5">
+                  {{ duration }}h at {{ minutesPerRound }}m/round = {{ Math.ceil(duration * 60 / minutesPerRound) }} rounds
+                </p>
+              </div>
             </div>
           </div>
         </div>

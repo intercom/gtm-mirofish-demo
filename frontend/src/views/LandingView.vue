@@ -256,6 +256,27 @@ onUnmounted(() => {
               </div>
             </div>
           </button>
+
+          <!-- Custom simulation card — always last slot -->
+          <button
+            v-if="showCards && scenarios.length"
+            key="custom"
+            :data-index="scenarios.length"
+            @click="launchScenario('custom')"
+            class="text-left rounded-lg transition-all duration-300 cursor-pointer border p-5 border-dashed border-white/20 hover:bg-white/10 hover:border-white/30 group"
+          >
+            <div class="flex items-start gap-3">
+              <span class="text-2xl opacity-60 group-hover:opacity-100 transition-opacity">
+                <svg class="w-6 h-6 text-white/50 group-hover:text-[#2068FF] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+              </span>
+              <div>
+                <h3 class="text-sm font-semibold text-white/80 group-hover:text-white transition-colors">Custom Simulation</h3>
+                <p class="text-xs text-white/40 mt-1">Bring your own seed document and configure a simulation from scratch.</p>
+              </div>
+            </div>
+          </button>
         </TransitionGroup>
       </div>
     </section>

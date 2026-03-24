@@ -117,8 +117,15 @@ async function loadScenarios() {
 
 onMounted(loadScenarios)
 
+const scenarioSection = ref(null)
+
 function launchScenario(id) {
   router.push(`/scenarios/${id}`)
+}
+
+function scrollToScenarios() {
+  const el = scenarioSection.value?.$el || scenarioSection.value
+  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 </script>
 
@@ -184,6 +191,7 @@ function launchScenario(id) {
         <!-- Scenario Cards -->
         <TransitionGroup
           v-else
+          ref="scenarioSection"
           tag="div"
           class="grid grid-cols-1 gap-3 md:gap-4 max-w-2xl mx-auto md:grid-cols-2"
           :css="false"
@@ -343,8 +351,8 @@ function launchScenario(id) {
           Every campaign is a production deployment today. MiroFish gives you a staging environment for your GTM strategy.
         </p>
         <button
-          @click="window.scrollTo({ top: 0, behavior: 'smooth' })"
-          class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-semibold px-8 py-3.5 rounded-lg transition-colors"
+          @click="scrollToScenarios"
+          class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-semibold px-8 py-3.5 rounded-lg transition-colors cursor-pointer"
         >
           Try a Scenario
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>

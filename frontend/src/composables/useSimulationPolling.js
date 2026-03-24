@@ -237,6 +237,37 @@ export function useSimulationPolling(taskIdSource) {
     graphTimer = clearTimer(graphTimer)
   }
 
+  function completeDemoRun() {
+    const taskId = resolveTaskId()
+    const demoActions = Math.floor(Math.random() * 300) + 150
+    const demoRounds = Math.floor(Math.random() * 8) + 5
+    const twitterShare = Math.floor(demoActions * 0.55)
+    const redditShare = demoActions - twitterShare
+
+    runStatus.value = {
+      runner_status: 'completed',
+      progress_percent: 100,
+      current_round: demoRounds,
+      total_rounds: demoRounds,
+      total_actions_count: demoActions,
+      twitter_actions_count: twitterShare,
+      reddit_actions_count: redditShare,
+    }
+    simStatus.value = 'completed'
+    stopSimTimers()
+
+    simStore.updateProgress({ progress_percent: 100, current_round: demoRounds, total_rounds: demoRounds })
+    simStore.updateMetrics({ total_actions_count: demoActions, twitter_actions_count: twitterShare, reddit_actions_count: redditShare })
+    simStore.complete()
+    simStore.addSessionRun({
+      id: taskId,
+      totalRounds: demoRounds,
+      totalActions: demoActions,
+      twitterActions: twitterShare,
+      redditActions: redditShare,
+    })
+  }
+
   async function forceRefresh() {
     const promises = [fetchGraphTask(), fetchRunStatus(), fetchDetail(), fetchTimeline()]
     await Promise.allSettled(promises)
@@ -276,6 +307,7 @@ export function useSimulationPolling(taskIdSource) {
     start,
     stop,
     setGraphData,
+    completeDemoRun,
     forceRefresh,
   }
 }

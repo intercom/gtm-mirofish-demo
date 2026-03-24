@@ -70,6 +70,13 @@ watch(() => polling.isDemoFallback.value, (fallback) => {
   }
 })
 
+// When graph demo completes, auto-complete the simulation run so it appears in history
+watch(() => polling.graphStatus.value, (status) => {
+  if (status === 'complete' && demoMode.value && polling.simStatus.value !== 'completed') {
+    setTimeout(() => polling.completeDemoRun(), 1500)
+  }
+})
+
 onMounted(() => {
   polling.start()
   window.addEventListener('keydown', handleKeydown)

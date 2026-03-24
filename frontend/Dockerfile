@@ -1,6 +1,6 @@
 FROM node:20-slim AS build
 
-ARG VITE_API_URL=https://backend-production-e9d7.up.railway.app/api
+ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
 ARG VITE_DEMO_MODE=true
@@ -17,11 +17,11 @@ ENV VITE_AUTH_ALLOWED_DOMAIN=$VITE_AUTH_ALLOWED_DOMAIN
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm install --frozen-lockfile
 
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 FROM node:20-slim
 

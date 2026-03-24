@@ -8,6 +8,12 @@ services:
     ports:
       - "${BACKEND_PORT:-5001}:5001"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     volumes:
       - sim_data:/app/uploads
 
@@ -15,12 +21,13 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: http://backend:5001
+        VITE_API_URL: http://backend:5001/api
     container_name: gtm-mirofish-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

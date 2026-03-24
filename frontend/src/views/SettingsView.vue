@@ -356,7 +356,7 @@ onMounted(() => {
           </div>
           <button
             @click="logout"
-            class="px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg hover:bg-red-50 hover:border-red-300 hover:text-red-600 transition-colors cursor-pointer"
+            class="px-4 py-2 text-sm border border-[var(--color-border)] rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 hover:border-red-300 dark:hover:border-red-500/30 hover:text-red-600 dark:hover:text-red-400 transition-colors cursor-pointer"
           >
             Log Out
           </button>

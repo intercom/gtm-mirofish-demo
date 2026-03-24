@@ -10,11 +10,13 @@ const polling = inject('polling')
 
 const activePlatform = ref('all')
 const chartCanvas = ref(null)
+const heartbeatCanvas = ref(null)
 const feedContainer = ref(null)
 const autoScroll = ref(true)
 const selectedAgent = ref(null)
 
 let resizeObserver = null
+let heartbeatAnimId = null
 
 const status = computed(() => {
   const rs = polling.runStatus.value?.runner_status
@@ -79,6 +81,79 @@ const platformTabs = [
   { key: 'twitter', label: 'Twitter' },
   { key: 'reddit', label: 'Reddit' },
 ]
+
+// --- Heartbeat sparkline during build phase ---
+function startHeartbeat() {
+  const canvas = heartbeatCanvas.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+  const dpr = window.devicePixelRatio || 1
+  const rect = canvas.getBoundingClientRect()
+  if (!rect.width || !rect.height) return
+
+  canvas.width = rect.width * dpr
+  canvas.height = rect.height * dpr
+  ctx.scale(dpr, dpr)
+
+  const w = rect.width
+  const h = rect.height
+  let offset = 0
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h)
+    ctx.beginPath()
+
+    const midY = h / 2
+    const amp = h * 0.3
+    const freq = 0.02
+    const speed = 1.5
+
+    for (let x = 0; x < w; x++) {
+      const t = (x + offset) * freq
+      const y = midY + Math.sin(t) * amp * (0.6 + 0.4 * Math.sin(t * 0.3))
+      if (x === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+
+    ctx.strokeStyle = 'rgba(32, 104, 255, 0.35)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    // Glow effect
+    ctx.beginPath()
+    for (let x = 0; x < w; x++) {
+      const t = (x + offset) * freq
+      const y = midY + Math.sin(t) * amp * (0.6 + 0.4 * Math.sin(t * 0.3))
+      if (x === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.strokeStyle = 'rgba(32, 104, 255, 0.1)'
+    ctx.lineWidth = 6
+    ctx.stroke()
+
+    offset += speed
+    heartbeatAnimId = requestAnimationFrame(draw)
+  }
+
+  heartbeatAnimId = requestAnimationFrame(draw)
+}
+
+function stopHeartbeat() {
+  if (heartbeatAnimId) {
+    cancelAnimationFrame(heartbeatAnimId)
+    heartbeatAnimId = null
+  }
+}
+
+// Start/stop heartbeat based on build status
+watch(() => polling.graphStatus.value, (val) => {
+  if (val === 'building') {
+    nextTick(() => startHeartbeat())
+  } else {
+    stopHeartbeat()
+  }
+})
 
 // --- Chart Drawing ---
 let chartRetryTimer = null
@@ -269,6 +344,9 @@ onMounted(() => {
     })
     resizeObserver.observe(canvasContainer)
   }
+  if (polling.graphStatus.value === 'building') {
+    nextTick(() => startHeartbeat())
+  }
 })
 
 onUnmounted(() => {
@@ -277,6 +355,7 @@ onUnmounted(() => {
     resizeObserver = null
   }
   if (chartRetryTimer) clearTimeout(chartRetryTimer)
+  stopHeartbeat()
 })
 </script>
 
@@ -306,6 +385,11 @@ onUnmounted(() => {
         <p class="text-sm text-[var(--color-text-secondary)] text-center max-w-sm">
           Simulation will begin once the knowledge graph is ready. Switch to the Graph tab to watch the build progress.
         </p>
+
+        <!-- Heartbeat sparkline during build -->
+        <div class="mt-8 w-full max-w-md">
+          <canvas ref="heartbeatCanvas" class="w-full" style="height: 60px" />
+        </div>
       </div>
 
       <!-- Main content -->

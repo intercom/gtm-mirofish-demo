@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { listScenarios } from '../api.js'
 import { useDemoMode } from '../composables/useDemoMode'
+import { useCountUp } from '../composables/useCountUp'
 import { API_BASE } from '../api/client'
+import HeroSwarm from '../components/landing/HeroSwarm.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -127,13 +129,49 @@ function scrollToScenarios() {
   const el = scenarioSection.value?.$el || scenarioSection.value
   el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
+
+const statsBanner = ref(null)
+const agentTarget = ref(0)
+const actionTarget = ref(0)
+const toolTarget = ref(0)
+const platformTarget = ref(0)
+
+const agentDisplay = useCountUp(agentTarget, { duration: 1200 })
+const actionDisplay = useCountUp(actionTarget, { duration: 1200 })
+const toolDisplay = useCountUp(toolTarget, { duration: 1200 })
+const platformDisplay = useCountUp(platformTarget, { duration: 1200 })
+
+let statsObserver = null
+
+onMounted(() => {
+  if (statsBanner.value) {
+    statsObserver = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          agentTarget.value = 1000000
+          actionTarget.value = 23
+          toolTarget.value = 4
+          platformTarget.value = 2
+          statsObserver.disconnect()
+        }
+      },
+      { threshold: 0.3 },
+    )
+    statsObserver.observe(statsBanner.value)
+  }
+})
+
+onUnmounted(() => {
+  statsObserver?.disconnect()
+})
 </script>
 
 <template>
   <div>
     <!-- Hero Section -->
-    <section class="bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-12 md:py-32">
-      <div class="max-w-4xl mx-auto text-center">
+    <section class="relative overflow-hidden bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-12 md:py-32">
+      <HeroSwarm />
+      <div class="relative max-w-4xl mx-auto text-center">
         <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
           Intercom GTM Systems
         </p>
@@ -245,22 +283,22 @@ function scrollToScenarios() {
     </section>
 
     <!-- Stats Banner -->
-    <section class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
+    <section ref="statsBanner" class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
       <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-center">
         <div>
-          <div class="text-2xl font-semibold text-[#2068FF]">1M+</div>
+          <div class="text-2xl font-semibold text-[#2068FF]">{{ agentDisplay >= 1000000 ? `${Math.floor(agentDisplay / 1000000)}M+` : agentDisplay.toLocaleString() }}</div>
           <div class="text-xs text-white/40 mt-1">Max Agents</div>
         </div>
         <div>
-          <div class="text-2xl font-semibold text-[#ff5600]">23</div>
+          <div class="text-2xl font-semibold text-[#ff5600]">{{ actionDisplay > 0 ? `${actionDisplay}` : '0' }}</div>
           <div class="text-xs text-white/40 mt-1">Action Types</div>
         </div>
         <div>
-          <div class="text-2xl font-semibold text-[#A0F]">4</div>
+          <div class="text-2xl font-semibold text-[#A0F]">{{ toolDisplay > 0 ? `${toolDisplay}` : '0' }}</div>
           <div class="text-xs text-white/40 mt-1">Analysis Tools</div>
         </div>
         <div>
-          <div class="text-2xl font-semibold text-[#090]">2</div>
+          <div class="text-2xl font-semibold text-[#090]">{{ platformDisplay > 0 ? `${platformDisplay}` : '0' }}</div>
           <div class="text-xs text-white/40 mt-1">Platforms</div>
         </div>
       </div>
@@ -312,29 +350,29 @@ function scrollToScenarios() {
     </section>
 
     <!-- Technology Stack -->
-    <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[#f0f2f5]">
+    <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
       <div class="max-w-4xl mx-auto text-center">
         <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Powered by Open-Source Intelligence</h2>
         <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto mb-10">
           Built on battle-tested open-source foundations with enterprise-grade AI orchestration.
         </p>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+          <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 text-center">
             <div class="text-2xl mb-2">🐟</div>
             <div class="text-sm font-semibold text-[var(--color-text)]">MiroFish</div>
             <div class="text-[10px] text-[var(--color-text-muted)] mt-1">Swarm Intelligence</div>
           </div>
-          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+          <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 text-center">
             <div class="text-2xl mb-2">🌐</div>
             <div class="text-sm font-semibold text-[var(--color-text)]">OASIS</div>
             <div class="text-[10px] text-[var(--color-text-muted)] mt-1">1M Agent Simulation</div>
           </div>
-          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+          <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 text-center">
             <div class="text-2xl mb-2">🧠</div>
             <div class="text-sm font-semibold text-[var(--color-text)]">Zep GraphRAG</div>
             <div class="text-[10px] text-[var(--color-text-muted)] mt-1">Knowledge Graphs</div>
           </div>
-          <div class="bg-white border border-black/5 rounded-xl p-5 text-center">
+          <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 text-center">
             <div class="text-2xl mb-2">🤖</div>
             <div class="text-sm font-semibold text-[var(--color-text)]">Multi-LLM</div>
             <div class="text-[10px] text-[var(--color-text-muted)] mt-1">Claude / GPT / Gemini</div>

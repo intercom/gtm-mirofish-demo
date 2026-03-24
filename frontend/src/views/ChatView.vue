@@ -24,48 +24,6 @@ const finPrompts = [
   { text: 'Compare persona engagement', icon: '👥' },
 ]
 
-const DEMO_RESPONSES = [
-  {
-    keywords: ['summar', 'finding', 'result', 'overview'],
-    response: `## Simulation Summary\n\nThe outbound campaign simulation ran **10 rounds** with **200 AI agents** across Twitter and Reddit.\n\n### Key Findings\n- **Enterprise Buyer** personas showed highest engagement (34% interaction rate)\n- Subject line "Your Zendesk bill is 3x what it should be" generated 2.4x more clicks than alternatives\n- **Healthcare** vertical showed strongest response to ROI messaging\n- Reddit threads generated 3x more detailed discussions than Twitter\n\n### Recommendation\nPrioritize the competitive displacement angle for enterprise accounts, and lead with ROI metrics for mid-market.`,
-    tools: [{ name: 'panorama_search', input: { query: 'simulation summary metrics' }, result: 'Found 847 actions across 10 rounds' }],
-  },
-  {
-    keywords: ['messag', 'resonat', 'copy', 'subject', 'email'],
-    response: `## Messaging Analysis\n\n### Top Performing Subject Lines\n1. **"Your Zendesk bill is 3x what it should be"** — 67% open rate, strongest with VP of Support\n2. **"How [Company] cut support costs 40% with AI"** — 54% open rate, best for case-study oriented personas\n3. **"The AI agent your support team actually wants"** — 48% open rate, resonated with technical buyers\n4. **"Replace Zendesk in 30 days"** — 41% open rate, perceived as aggressive by some segments\n\n### Messaging Themes\n- **Cost reduction** messaging outperformed feature-focused messaging 2:1\n- Personas responded negatively to "replace" language but positively to "upgrade" framing\n- Including specific metrics (40%, 30 days) increased credibility scores`,
-    tools: [{ name: 'insight_forge', input: { analysis_type: 'messaging_effectiveness' }, result: 'Analyzed 423 message interactions across 4 variants' }],
-  },
-  {
-    keywords: ['persona', 'segment', 'audience', 'who', 'compar'],
-    response: `## Persona Engagement Breakdown\n\n| Persona | Engagement Rate | Top Action | Sentiment |\n|---------|----------------|------------|----------|\n| VP of Support | 34% | Shared content | Positive |\n| CX Director | 28% | Asked questions | Neutral-Positive |\n| IT Leader | 22% | Evaluated claims | Skeptical |\n| Head of Ops | 19% | Compared alternatives | Cautious |\n\n### Insights\n- **VP of Support** personas were most receptive — they feel the pain of Zendesk costs daily\n- **IT Leaders** raised security and integration concerns in 67% of interactions\n- **CX Directors** focused on customer experience impact rather than cost savings\n- Cross-functional buying committees (2+ personas) showed 40% higher conversion likelihood`,
-    tools: [{ name: 'interview_agents', input: { question: 'persona engagement comparison' }, result: 'Interviewed 4 persona cohorts, 200 agents total' }],
-  },
-  {
-    keywords: ['next', 'recommend', 'action', 'should', 'do'],
-    response: `## Recommended Next Steps\n\n### Immediate Actions\n1. **Lead with cost messaging** — "Your Zendesk bill is 3x what it should be" as primary subject line\n2. **Segment by persona** — VP of Support gets direct outreach, IT Leaders get technical whitepaper\n3. **Avoid "replace" language** — Reframe as "upgrade" or "complement" for less aggressive tone\n\n### Campaign Optimization\n- **Sequence cadence:** 3-touch over 10 days (not 5 days — agents flagged daily emails as spam-like)\n- **Platform strategy:** Use LinkedIn for enterprise, Twitter for mid-market amplification\n- **Follow-up trigger:** Agents who engaged with cost metrics should get ROI calculator as next touch\n\n### Risk Mitigation\n- 23% of agents expressed **competitive loyalty** to Zendesk — prepare objection handling for "switching costs"\n- Healthcare segment needs **compliance messaging** added to email body`,
-    tools: [
-      { name: 'insight_forge', input: { analysis_type: 'recommendation_engine' }, result: 'Generated 8 actionable recommendations from simulation data' },
-      { name: 'panorama_search', input: { query: 'risk factors and objections' }, result: 'Found 34 objection patterns across persona types' },
-    ],
-  },
-  {
-    keywords: ['industry', 'vertical', 'saas', 'health', 'fintech'],
-    response: `## Industry Vertical Analysis\n\n### Response by Industry\n- **SaaS companies** (45% of agents): Fastest to engage, most familiar with Intercom brand. 38% conversion likelihood.\n- **Healthcare** (25%): Highest response to ROI messaging, but raised compliance concerns. 29% conversion likelihood.\n- **Fintech** (20%): Strong interest in AI capabilities, but security-first evaluation. 24% conversion likelihood.\n- **E-commerce** (10%): Most price-sensitive, compared multiple alternatives. 18% conversion likelihood.\n\n### Key Insight\nSaaS companies convert fastest because they already understand the product category. Healthcare has the highest untapped potential if compliance messaging is addressed upfront.`,
-    tools: [{ name: 'panorama_search', input: { query: 'industry vertical engagement' }, result: 'Analyzed engagement across 4 industry segments' }],
-  },
-]
-
-const FALLBACK_RESPONSE = {
-  response: `That's a great question! Based on the simulation data, here are some relevant observations:\n\n- The simulation processed **200 agent interactions** across multiple rounds\n- Engagement patterns varied significantly by persona type and industry\n- The strongest signals came from **cost-focused messaging** and **competitive positioning**\n\nWould you like me to dive deeper into any specific aspect? Try asking about:\n- Messaging effectiveness\n- Persona engagement breakdown\n- Industry vertical analysis\n- Recommended next steps`,
-  tools: [{ name: 'quick_search', input: { query: 'general simulation insights' }, result: 'Retrieved simulation context' }],
-}
-
-function generateDemoResponse(question) {
-  const q = question.toLowerCase()
-  const match = DEMO_RESPONSES.find((entry) => entry.keywords.some((kw) => q.includes(kw)))
-  return match || FALLBACK_RESPONSE
-}
-
 onMounted(() => {
   if (isIntercomEnabled.value) show()
   if (isDemoMode) {
@@ -81,6 +39,8 @@ onMounted(() => {
 const messages = ref([])
 const input = ref('')
 const sending = ref(false)
+const thinking = ref(false)
+const thinkingTools = ref([])
 const messagesEnd = ref(null)
 
 const simulationId = computed(() => simulation.simulationTaskId || props.taskId)
@@ -103,6 +63,27 @@ const TOOL_LABELS = {
   interview_agents: 'Interview Agents',
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function revealToolCalls(toolCalls) {
+  if (!toolCalls?.length) return
+  thinking.value = true
+  thinkingTools.value = []
+  scrollToBottom()
+
+  for (const tool of toolCalls) {
+    await delay(800)
+    thinkingTools.value.push(tool)
+    scrollToBottom()
+  }
+
+  await delay(500)
+  thinking.value = false
+  thinkingTools.value = []
+}
+
 async function send() {
   const text = input.value.trim()
   if (!text || sending.value) return
@@ -121,32 +102,26 @@ async function send() {
     })
 
     if (res.success) {
+      const toolCalls = res.data.tool_calls || []
+      const sources = res.data.sources || []
+
+      await revealToolCalls(toolCalls)
+
       messages.value.push({
         role: 'assistant',
         content: res.data.response,
-        toolCalls: res.data.tool_calls || [],
-        sources: res.data.sources || [],
+        toolCalls,
+        sources,
       })
     } else {
       throw new Error(res.error || 'Unknown error')
     }
   } catch (e) {
-    if (isDemoMode) {
-      await new Promise((r) => setTimeout(r, 1500))
-      const demo = generateDemoResponse(text)
-      messages.value.push({
-        role: 'assistant',
-        content: demo.response,
-        toolCalls: demo.tools || [],
-        sources: [],
-      })
-    } else {
-      messages.value.push({
-        role: 'error',
-        content: `Something went wrong — ${e.message}`,
-      })
-      toast.error(`Chat error: ${e.message}`)
-    }
+    messages.value.push({
+      role: 'error',
+      content: `Something went wrong — ${e.message}`,
+    })
+    toast.error(`Chat error: ${e.message}`)
   } finally {
     sending.value = false
     scrollToBottom()
@@ -312,15 +287,32 @@ function formatToolName(name) {
           </div>
         </TransitionGroup>
 
-        <!-- Typing indicator -->
+        <!-- Thinking / Tool Reveal -->
         <div v-if="sending" class="flex justify-start mb-4">
-          <div class="bg-[var(--color-bg-alt)] rounded-2xl rounded-bl-md px-4 py-3">
-            <div class="text-xs font-medium text-[var(--color-fin-orange)] mb-1">MiroFish</div>
-            <div class="flex items-center gap-1">
-              <span class="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-bounce [animation-delay:0ms]" />
-              <span class="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-bounce [animation-delay:150ms]" />
-              <span class="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-bounce [animation-delay:300ms]" />
+          <div class="max-w-[80%]">
+            <div class="bg-[var(--color-bg-alt)] rounded-2xl rounded-bl-md px-4 py-3">
+              <div class="text-xs font-medium text-[var(--color-fin-orange)] mb-1">MiroFish</div>
+              <div v-if="!thinking" class="flex items-center gap-1">
+                <span class="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-bounce [animation-delay:0ms]" />
+                <span class="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-bounce [animation-delay:150ms]" />
+                <span class="w-2 h-2 rounded-full bg-[var(--color-text-muted)] animate-bounce [animation-delay:300ms]" />
+              </div>
+              <div v-else class="text-xs text-[var(--color-text-secondary)]">Reasoning...</div>
             </div>
+
+            <TransitionGroup name="tool-reveal" tag="div" class="mt-2 space-y-1">
+              <div
+                v-for="(tool, ti) in thinkingTools"
+                :key="ti"
+                class="thinking-card flex items-center gap-2 px-3 py-2 text-xs font-medium text-[var(--color-text-secondary)] border border-[var(--color-border)] rounded-lg"
+              >
+                <span>{{ toolIcon(tool.name || tool.tool) }}</span>
+                <span>{{ formatToolName(tool.name || tool.tool || 'Tool Call') }}</span>
+                <span class="ml-auto">
+                  <span class="thinking-spinner inline-block w-3 h-3 border-2 border-[var(--color-text-muted)] border-t-transparent rounded-full" />
+                </span>
+              </div>
+            </TransitionGroup>
           </div>
         </div>
 
@@ -349,3 +341,34 @@ function formatToolName(name) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.tool-reveal-enter-active {
+  transition: all 0.35s ease-out;
+}
+.tool-reveal-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.tool-reveal-enter-to {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.thinking-card {
+  animation: thinking-pulse 2s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.thinking-spinner {
+  animation: spin 0.8s linear infinite;
+}
+</style>

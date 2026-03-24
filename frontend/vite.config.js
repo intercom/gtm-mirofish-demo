@@ -10,7 +10,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:5001',
+        target: process.env.BACKEND_URL || 'http://localhost:5001',
         changeOrigin: true,
       },
     },

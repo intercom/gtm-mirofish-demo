@@ -4,6 +4,7 @@ import { marked } from 'marked'
 import { API_BASE } from '../api/client'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
+import ReportCharts from '../components/report/ReportCharts.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -171,10 +172,10 @@ onUnmounted(stopPolling)
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
       <div>
-        <h1 class="text-xl md:text-2xl font-semibold text-[#050505]" style="letter-spacing: -0.64px">
+        <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]" style="letter-spacing: -0.64px">
           Predictive Report
         </h1>
-        <p v-if="generating" class="text-sm text-[#888] mt-1">
+        <p v-if="generating" class="text-sm text-[var(--color-text-muted)] mt-1">
           {{ progressMessage || 'Generating multi-chapter analysis...' }}
         </p>
       </div>
@@ -182,7 +183,7 @@ onUnmounted(stopPolling)
         <button
           v-if="!generating && sections.length > 0"
           @click="exportMarkdown"
-          class="border border-black/10 hover:bg-black/5 text-[#050505] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -199,19 +200,19 @@ onUnmounted(stopPolling)
     </div>
 
     <!-- Error State -->
-    <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-sm text-red-700">
+    <div v-if="error" class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-4 mb-6 text-sm text-red-700 dark:text-red-400">
       {{ error }}
     </div>
 
     <!-- Progress Bar (during generation) -->
     <div v-if="generating && progress > 0" class="mb-6">
-      <div class="h-1.5 bg-black/5 rounded-full overflow-hidden">
+      <div class="h-1.5 bg-[var(--color-tint)] rounded-full overflow-hidden">
         <div
           class="h-full bg-[#2068FF] rounded-full transition-all duration-500"
           :style="{ width: `${progress}%` }"
         />
       </div>
-      <p class="text-xs text-[#888] mt-1 text-right">{{ progress }}%</p>
+      <p class="text-xs text-[var(--color-text-muted)] mt-1 text-right">{{ progress }}%</p>
     </div>
 
     <!-- Mobile: horizontal tab bar -->
@@ -222,7 +223,7 @@ onUnmounted(stopPolling)
           :key="'tab-' + i"
           @click="activeChapter = i"
           class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors"
-          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'bg-black/5 text-[#555] hover:bg-black/10'"
+          :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'bg-[var(--color-tint)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]'"
         >
           {{ chapter.title }}
         </button>
@@ -232,10 +233,10 @@ onUnmounted(stopPolling)
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Chapter Nav Sidebar -->
       <nav class="hidden md:block space-y-1">
-        <h3 class="text-xs font-semibold text-[#888] uppercase tracking-wider mb-3 px-3">Chapters</h3>
+        <h3 class="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 px-3">Chapters</h3>
 
         <div v-if="chapters.length === 0 && generating" class="px-3">
-          <div class="flex items-center gap-2 text-sm text-[#888]">
+          <div class="flex items-center gap-2 text-sm text-[var(--color-text-muted)]">
             <svg class="w-4 h-4 animate-spin text-[#2068FF]" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -251,7 +252,7 @@ onUnmounted(stopPolling)
           class="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2"
           :class="activeChapter === i
             ? 'bg-[#2068FF] text-white'
-            : 'text-[#555] hover:bg-black/5'"
+            : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-tint)]'"
         >
           <!-- Completion indicator -->
           <span class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs"
@@ -268,8 +269,8 @@ onUnmounted(stopPolling)
         </button>
 
         <!-- Pending indicator during generation -->
-        <div v-if="generating && chapters.length > 0" class="flex items-center gap-2 px-3 py-2.5 text-sm text-[#888]">
-          <span class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-black/5">
+        <div v-if="generating && chapters.length > 0" class="flex items-center gap-2 px-3 py-2.5 text-sm text-[var(--color-text-muted)]">
+          <span class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-[var(--color-tint)]">
             <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -282,14 +283,14 @@ onUnmounted(stopPolling)
       <!-- Main Content Area -->
       <div class="md:col-span-3 space-y-6">
         <!-- Chapter Content -->
-        <div class="bg-white border border-black/10 rounded-lg p-4 md:p-8">
+        <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-8">
           <!-- Loading state with shimmer -->
           <div v-if="generating && !activeContent" class="space-y-6 py-4">
             <ShimmerCard :lines="2" height="48px" />
             <ShimmerCard :lines="5" height="180px" />
             <ShimmerCard :lines="4" height="140px" />
             <ShimmerCard :lines="3" height="100px" />
-            <p class="text-center text-xs text-[#aaa] mt-4">
+            <p class="text-center text-xs text-[var(--color-text-secondary)] mt-4">
               Generating predictive report &mdash; multi-chapter analysis with evidence from simulation
             </p>
           </div>
@@ -302,18 +303,24 @@ onUnmounted(stopPolling)
           />
 
           <!-- Empty state -->
-          <div v-else class="text-center py-16 text-[#888]">
+          <div v-else class="text-center py-16 text-[var(--color-text-muted)]">
             <p>No report content available.</p>
           </div>
         </div>
 
+        <!-- Inline chart for the active chapter -->
+        <ReportCharts
+          v-if="activeContent && !generating"
+          :chapterIndex="activeChapter"
+        />
+
         <!-- Key Findings Summary -->
         <div v-if="keyFindings.length > 0" class="space-y-3">
-          <h3 class="text-sm font-semibold text-[#050505]">Key Findings</h3>
+          <h3 class="text-sm font-semibold text-[var(--color-text)]">Key Findings</h3>
           <div
             v-for="(finding, i) in keyFindings"
             :key="i"
-            class="bg-[rgba(32,104,255,0.08)] border border-[rgba(32,104,255,0.3)] rounded-lg p-4 text-sm text-[#050505]"
+            class="bg-[var(--color-primary-light)] border border-[var(--color-primary-border)] rounded-lg p-4 text-sm text-[var(--color-text)]"
           >
             <div class="flex gap-3">
               <span class="shrink-0 w-5 h-5 rounded-full bg-[#2068FF] text-white flex items-center justify-center text-xs font-semibold mt-0.5">
@@ -329,15 +336,15 @@ onUnmounted(stopPolling)
           <button
             :disabled="activeChapter === 0"
             @click="activeChapter--"
-            class="text-sm text-[#2068FF] hover:underline disabled:text-[#ccc] disabled:no-underline transition-colors"
+            class="text-sm text-[var(--color-primary)] hover:underline disabled:text-[var(--color-text-muted)] disabled:no-underline transition-colors"
           >
             ← Previous Chapter
           </button>
-          <span class="text-xs text-[#888]">{{ activeChapter + 1 }} of {{ chapters.length }}</span>
+          <span class="text-xs text-[var(--color-text-muted)]">{{ activeChapter + 1 }} of {{ chapters.length }}</span>
           <button
             :disabled="activeChapter === chapters.length - 1"
             @click="activeChapter++"
-            class="text-sm text-[#2068FF] hover:underline disabled:text-[#ccc] disabled:no-underline transition-colors"
+            class="text-sm text-[var(--color-primary)] hover:underline disabled:text-[var(--color-text-muted)] disabled:no-underline transition-colors"
           >
             Next Chapter →
           </button>
@@ -348,25 +355,25 @@ onUnmounted(stopPolling)
 </template>
 
 <style scoped>
-.report-content :deep(h1) { font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: #050505; }
-.report-content :deep(h2) { font-size: 1.25rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; color: #050505; }
-.report-content :deep(h3) { font-size: 1.125rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: #050505; }
-.report-content :deep(p) { margin-bottom: 0.75rem; line-height: 1.625; color: #333; font-size: 0.875rem; }
+.report-content :deep(h1) { font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--color-text); }
+.report-content :deep(h2) { font-size: 1.25rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--color-text); }
+.report-content :deep(h3) { font-size: 1.125rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--color-text); }
+.report-content :deep(p) { margin-bottom: 0.75rem; line-height: 1.625; color: var(--color-text-secondary); font-size: 0.875rem; }
 .report-content :deep(ul),
 .report-content :deep(ol) { margin-bottom: 0.75rem; padding-left: 1.5rem; }
-.report-content :deep(li) { margin-bottom: 0.25rem; line-height: 1.625; color: #333; font-size: 0.875rem; }
+.report-content :deep(li) { margin-bottom: 0.25rem; line-height: 1.625; color: var(--color-text-secondary); font-size: 0.875rem; }
 .report-content :deep(ul) { list-style-type: disc; }
 .report-content :deep(ol) { list-style-type: decimal; }
-.report-content :deep(strong) { font-weight: 600; color: #050505; }
+.report-content :deep(strong) { font-weight: 600; color: var(--color-text); }
 .report-content :deep(blockquote) {
-  border-left: 3px solid #2068FF;
+  border-left: 3px solid var(--color-primary);
   padding-left: 1rem;
   margin: 1rem 0;
-  color: #555;
+  color: var(--color-text-secondary);
   font-style: italic;
 }
 .report-content :deep(code) {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--color-tint);
   padding: 0.125rem 0.375rem;
   border-radius: 0.25rem;
   font-size: 0.8125rem;
@@ -384,11 +391,11 @@ onUnmounted(stopPolling)
 .report-content :deep(th) {
   text-align: left;
   padding: 0.5rem;
-  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 2px solid var(--color-border-strong);
   font-weight: 600;
-  color: #050505;
+  color: var(--color-text);
 }
-.report-content :deep(td) { padding: 0.5rem; border-bottom: 1px solid rgba(0, 0, 0, 0.05); color: #333; }
-.report-content :deep(hr) { border: none; border-top: 1px solid rgba(0, 0, 0, 0.1); margin: 1.5rem 0; }
-.finding-text :deep(strong) { font-weight: 700; color: #050505; }
+.report-content :deep(td) { padding: 0.5rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); }
+.report-content :deep(hr) { border: none; border-top: 1px solid var(--color-border); margin: 1.5rem 0; }
+.finding-text :deep(strong) { font-weight: 700; color: var(--color-text); }
 </style>

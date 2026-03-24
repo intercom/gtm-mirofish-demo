@@ -28,10 +28,28 @@ _graph_tasks: dict = {}     # task_id -> {"start": float}
 _simulations: dict = {}     # sim_id  -> {"start": float}
 _reports: dict = {}         # report_id -> {"start": float, "sim_id": str}
 
-GRAPH_BUILD_SECONDS = 6
-SIMULATION_RUN_SECONDS = 35
-REPORT_GEN_SECONDS = 18
+_BASE_GRAPH_BUILD_SECONDS = 6
+_BASE_SIMULATION_RUN_SECONDS = 35
+_BASE_REPORT_GEN_SECONDS = 18
 TOTAL_ROUNDS = 144
+
+_demo_speed = float(os.environ.get("DEMO_SPEED", "1.0"))
+
+
+def _speed():
+    return max(0.1, _demo_speed)
+
+
+def GRAPH_BUILD_SECONDS():
+    return _BASE_GRAPH_BUILD_SECONDS / _speed()
+
+
+def SIMULATION_RUN_SECONDS():
+    return _BASE_SIMULATION_RUN_SECONDS / _speed()
+
+
+def REPORT_GEN_SECONDS():
+    return _BASE_REPORT_GEN_SECONDS / _speed()
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -132,7 +150,7 @@ def graph_task(task_id):
         _graph_tasks[task_id] = {"start": time.time()}
 
     elapsed = _elapsed(_graph_tasks, task_id)
-    pct = min(100, int(elapsed / GRAPH_BUILD_SECONDS * 100))
+    pct = min(100, int(elapsed / GRAPH_BUILD_SECONDS() * 100))
 
     if pct >= 100:
         return _ok({
@@ -416,7 +434,7 @@ def sim_run_status(sim_id):
         _simulations[sim_id] = {"start": time.time()}
 
     elapsed = _elapsed(_simulations, sim_id)
-    pct = min(100, elapsed / SIMULATION_RUN_SECONDS * 100)
+    pct = min(100, elapsed / SIMULATION_RUN_SECONDS() * 100)
     current_round = min(TOTAL_ROUNDS, int(pct / 100 * TOTAL_ROUNDS))
     completed = pct >= 100
 
@@ -449,7 +467,7 @@ def sim_run_status_detail(sim_id):
         _simulations[sim_id] = {"start": time.time()}
 
     elapsed = _elapsed(_simulations, sim_id)
-    pct = min(100, elapsed / SIMULATION_RUN_SECONDS * 100)
+    pct = min(100, elapsed / SIMULATION_RUN_SECONDS() * 100)
     current_round = max(1, min(TOTAL_ROUNDS, int(pct / 100 * TOTAL_ROUNDS)))
 
     actions = _generate_agent_actions(current_round)
@@ -545,7 +563,7 @@ def sim_timeline(sim_id):
         _simulations[sim_id] = {"start": time.time()}
 
     elapsed = _elapsed(_simulations, sim_id)
-    pct = min(100, elapsed / SIMULATION_RUN_SECONDS * 100)
+    pct = min(100, elapsed / SIMULATION_RUN_SECONDS() * 100)
     current_round = max(1, min(TOTAL_ROUNDS, int(pct / 100 * TOTAL_ROUNDS)))
 
     timeline = []
@@ -568,7 +586,7 @@ def sim_timeline(sim_id):
 def sim_get(sim_id):
     return _ok({
         "simulation_id": sim_id,
-        "status": "completed" if sim_id in _simulations and _elapsed(_simulations, sim_id) > SIMULATION_RUN_SECONDS else "running",
+        "status": "completed" if sim_id in _simulations and _elapsed(_simulations, sim_id) > SIMULATION_RUN_SECONDS() else "running",
         "config": {"total_hours": 72, "minutes_per_round": 30, "platform_mode": "parallel"},
     })
 
@@ -859,7 +877,7 @@ def report_generate():
     sim_id = body.get("simulation_id", "demo-sim-00001")
     report_id = f"demo-report-{sim_id.split('-')[-1]}"
 
-    if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS:
+    if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS():
         return _ok({
             "report_id": report_id,
             "status": "completed",
@@ -881,7 +899,7 @@ def report_generate_status():
     if report_id not in _reports:
         return _err("Report not found", 404)
     elapsed = _elapsed(_reports, report_id)
-    pct = min(100, int(elapsed / REPORT_GEN_SECONDS * 100))
+    pct = min(100, int(elapsed / REPORT_GEN_SECONDS() * 100))
     return _ok({"progress": pct, "status": "completed" if pct >= 100 else "generating"})
 
 
@@ -891,7 +909,7 @@ def report_progress(report_id):
         _reports[report_id] = {"start": time.time(), "sim_id": "unknown"}
 
     elapsed = _elapsed(_reports, report_id)
-    pct = min(100, int(elapsed / REPORT_GEN_SECONDS * 100))
+    pct = min(100, int(elapsed / REPORT_GEN_SECONDS() * 100))
     total_sections = len(REPORT_SECTIONS)
     completed = min(total_sections, int(pct / 100 * total_sections))
 
@@ -922,7 +940,7 @@ def report_sections(report_id):
         _reports[report_id] = {"start": time.time(), "sim_id": "unknown"}
 
     elapsed = _elapsed(_reports, report_id)
-    pct = min(100, elapsed / REPORT_GEN_SECONDS * 100)
+    pct = min(100, elapsed / REPORT_GEN_SECONDS() * 100)
     total = len(REPORT_SECTIONS)
     visible = min(total, int(pct / 100 * total) + (1 if pct > 5 else 0))
 
@@ -975,7 +993,7 @@ def report_download(report_id):
 @app.route("/api/report/check/<sim_id>")
 def report_check(sim_id):
     report_id = f"demo-report-{sim_id.split('-')[-1]}"
-    if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS:
+    if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS():
         return _ok({
             "has_report": True,
             "report_id": report_id,
@@ -1255,6 +1273,49 @@ def sim_close_env():
 @app.route("/api/auth/logout")
 def auth_logout():
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Demo Speed Control
+# ---------------------------------------------------------------------------
+
+@app.route("/api/demo/speed", methods=["GET", "POST"])
+def demo_speed():
+    global _demo_speed
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        _demo_speed = max(0.1, float(body.get("speed", 1.0)))
+        return _ok({"speed": _demo_speed})
+    return _ok({"speed": _demo_speed})
+
+
+@app.route("/api/demo/skip/<phase>", methods=["POST"])
+def demo_skip(phase):
+    """Instantly complete a phase by backdating its start time."""
+    if phase == "graph":
+        for task_id in _graph_tasks:
+            _graph_tasks[task_id]["start"] = 0
+        return _ok({"skipped": "graph"})
+    elif phase == "simulation":
+        for sim_id in _simulations:
+            _simulations[sim_id]["start"] = 0
+        return _ok({"skipped": "simulation"})
+    elif phase == "report":
+        for report_id in _reports:
+            _reports[report_id]["start"] = 0
+        return _ok({"skipped": "report"})
+    return _err(f"Unknown phase: {phase}")
+
+
+@app.route("/api/demo/reset", methods=["POST"])
+def demo_reset():
+    """Clear all in-memory state for a fresh demo."""
+    global _demo_speed
+    _graph_tasks.clear()
+    _simulations.clear()
+    _reports.clear()
+    _demo_speed = 1.0
+    return _ok({"reset": True})
 
 
 # ---------------------------------------------------------------------------

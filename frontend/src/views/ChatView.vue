@@ -30,10 +30,17 @@ async function scrollToBottom() {
   messagesEnd.value?.scrollIntoView({ behavior: 'smooth' })
 }
 
-async function send() {
-  if (!input.value.trim() || sending.value) return
+const TOOL_LABELS = {
+  insight_forge: 'Insight Forge',
+  panorama_search: 'Panorama Search',
+  quick_search: 'Quick Search',
+  interview_agents: 'Interview Agents',
+}
 
+async function send() {
   const text = input.value.trim()
+  if (!text || sending.value) return
+
   input.value = ''
   messages.value.push({ role: 'user', content: text })
   scrollToBottom()

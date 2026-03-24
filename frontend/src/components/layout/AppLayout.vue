@@ -1,6 +1,11 @@
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AppNav from './AppNav.vue'
 import AppFooter from './AppFooter.vue'
+
+const route = useRoute()
+const showFooter = computed(() => route.name !== 'landing')
 </script>
 
 <template>
@@ -9,6 +14,6 @@ import AppFooter from './AppFooter.vue'
     <main class="flex-1">
       <slot />
     </main>
-    <AppFooter />
+    <AppFooter v-if="showFooter" />
   </div>
 </template>

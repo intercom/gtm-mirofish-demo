@@ -2,9 +2,11 @@
 import { ref, watch, onMounted } from 'vue'
 import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
+import { useDemoMode } from '../composables/useDemoMode'
 
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
+const { isDemoMode } = useDemoMode()
 
 const themeOptions = [
   { id: 'system', label: 'System', icon: '💻' },
@@ -159,6 +161,16 @@ onMounted(() => {
       </transition>
     </div>
 
+    <!-- Demo Mode Banner -->
+    <section v-if="isDemoMode" class="mb-8 md:mb-10 bg-[rgba(32,104,255,0.06)] border border-[#2068FF]/20 rounded-lg p-3 md:p-4 flex items-start gap-3">
+      <svg class="w-5 h-5 text-[#2068FF] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p class="text-sm text-[var(--color-text-secondary)]">
+        <span class="font-semibold text-[var(--color-text)]">Demo Mode</span> — Using simulated data. API keys are not required.
+      </p>
+    </section>
+
     <!-- Theme -->
     <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Theme</h2>
@@ -204,10 +216,17 @@ onMounted(() => {
           <input
             type="password"
             v-model="apiKey"
-            placeholder="Enter your API key"
+            :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter your API key'"
+            :disabled="isDemoMode"
             class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
+            :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
           />
+          <span
+            v-if="isDemoMode"
+            class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
+          >Simulated</span>
           <button
+            v-else
             @click="testConnection('llm')"
             :disabled="!apiKey || connectionStatus.llm === 'testing'"
             class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
@@ -227,10 +246,17 @@ onMounted(() => {
         <input
           type="password"
           v-model="zepKey"
-          placeholder="Enter Zep API key"
+          :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter Zep API key'"
+          :disabled="isDemoMode"
           class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
+          :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
         />
+        <span
+          v-if="isDemoMode"
+          class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
+        >Simulated</span>
         <button
+          v-else
           @click="testConnection('zep')"
           :disabled="!zepKey || connectionStatus.zep === 'testing'"
           class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
@@ -240,7 +266,7 @@ onMounted(() => {
         </button>
       </div>
       <p v-if="connectionError.zep" class="text-xs text-red-500 mt-1">{{ connectionError.zep }}</p>
-      <p v-else class="text-xs text-[var(--color-text-muted)] mt-2">
+      <p v-else-if="!isDemoMode" class="text-xs text-[var(--color-text-muted)] mt-2">
         Sign up at
         <a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[#2068FF] hover:underline">app.getzep.com</a>
         — free tier is sufficient for PoC.
@@ -351,7 +377,11 @@ onMounted(() => {
 
     <!-- Info -->
     <section class="bg-[var(--color-primary-light)] border border-[#2068FF]/20 rounded-lg p-3 md:p-4">
-      <p class="text-xs text-[var(--color-text-secondary)]">
+      <p v-if="isDemoMode" class="text-xs text-[var(--color-text-secondary)]">
+        Running in demo mode with pre-generated simulation data. Switch to production mode by setting
+        <code class="bg-[var(--color-border)] px-1 rounded">DEMO_MODE=false</code> and configuring API keys.
+      </p>
+      <p v-else class="text-xs text-[var(--color-text-secondary)]">
         Settings are stored locally in your browser. For Docker deployments, configure via
         <code class="bg-[var(--color-border)] px-1 rounded">.env</code> file instead.
       </p>

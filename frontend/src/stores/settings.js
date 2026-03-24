@@ -1,5 +1,5 @@
+import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
 
 const STORAGE_KEY = 'mirofish-settings'
 
@@ -9,69 +9,58 @@ const PROVIDERS = [
   { id: 'gemini', name: 'Google Gemini', model: 'gemini-2.5-flash' },
 ]
 
-function loadFromStorage() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : {}
-  } catch {
-    return {}
-  }
-}
-
 export const useSettingsStore = defineStore('settings', () => {
-  const saved = loadFromStorage()
-
-  const provider = ref(saved.provider || 'anthropic')
-  const apiKey = ref(saved.apiKey || '')
-  const zepKey = ref(saved.zepKey || '')
+  const provider = ref('anthropic')
+  const apiKey = ref('')
+  const zepKey = ref('')
   const connectionStatus = ref({ llm: null, zep: null })
 
-  const providers = PROVIDERS
-
-  const currentProvider = computed(() =>
-    PROVIDERS.find((p) => p.id === provider.value),
-  )
-
-  function persist() {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        provider: provider.value,
-        apiKey: apiKey.value,
-        zepKey: zepKey.value,
-      }),
-    )
+  function load() {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const s = JSON.parse(saved)
+        provider.value = s.provider || 'anthropic'
+        apiKey.value = s.apiKey || ''
+        zepKey.value = s.zepKey || ''
+      }
+    } catch {
+      // Corrupted data — reset to defaults
+    }
   }
 
-  function setProvider(id) {
-    provider.value = id
-    persist()
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      provider: provider.value,
+      apiKey: apiKey.value,
+      zepKey: zepKey.value,
+    }))
   }
 
-  function setApiKey(key) {
-    apiKey.value = key
-    persist()
+  // Auto-persist on changes
+  watch([provider, apiKey, zepKey], save, { flush: 'post' })
+
+  async function testConnection(service) {
+    connectionStatus.value[service] = 'testing'
+    try {
+      const res = await fetch('/api/health')
+      connectionStatus.value[service] = res.ok ? 'success' : 'error'
+    } catch {
+      connectionStatus.value[service] = 'error'
+    }
   }
 
-  function setZepKey(key) {
-    zepKey.value = key
-    persist()
-  }
-
-  function setConnectionStatus(service, status) {
-    connectionStatus.value[service] = status
-  }
+  // Load on creation
+  load()
 
   return {
     provider,
     apiKey,
     zepKey,
     connectionStatus,
-    providers,
-    currentProvider,
-    setProvider,
-    setApiKey,
-    setZepKey,
-    setConnectionStatus,
+    providers: PROVIDERS,
+    load,
+    save,
+    testConnection,
   }
 })

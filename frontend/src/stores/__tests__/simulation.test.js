@@ -2,111 +2,126 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useSimulationStore } from '../simulation'
 
-describe('simulation store', () => {
+describe('useSimulationStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
 
-  it('initializes as idle', () => {
+  it('initialises in idle state', () => {
     const store = useSimulationStore()
     expect(store.status).toBe('idle')
-    expect(store.graphTaskId).toBeNull()
-    expect(store.simulationTaskId).toBeNull()
-    expect(store.reportTaskId).toBeNull()
-    expect(store.progress).toBe(0)
+    expect(store.simulationId).toBeNull()
     expect(store.isActive).toBe(false)
   })
 
-  it('transitions to building state', () => {
+  it('startGraphBuild sets state correctly', () => {
     const store = useSimulationStore()
-    store.startBuild('graph-123')
-    expect(store.status).toBe('building')
-    expect(store.graphTaskId).toBe('graph-123')
+    store.startGraphBuild('task-1', 'proj-1')
+    expect(store.status).toBe('building_graph')
+    expect(store.graphTaskId).toBe('task-1')
+    expect(store.projectId).toBe('proj-1')
     expect(store.isActive).toBe(true)
+    expect(store.error).toBeNull()
   })
 
-  it('transitions to graphReady', () => {
+  it('startPrepare transitions to preparing', () => {
     const store = useSimulationStore()
-    store.startBuild('graph-123')
-    store.graphReady()
-    expect(store.status).toBe('graphReady')
-    expect(store.isActive).toBe(false)
+    store.startPrepare('sim-1', 'task-2')
+    expect(store.status).toBe('preparing')
+    expect(store.simulationId).toBe('sim-1')
+    expect(store.prepareTaskId).toBe('task-2')
   })
 
-  it('starts simulation', () => {
+  it('startRun transitions to running', () => {
     const store = useSimulationStore()
-    store.startSimulation('sim-456')
+    store.startRun('sim-1')
     expect(store.status).toBe('running')
-    expect(store.simulationTaskId).toBe('sim-456')
+    expect(store.simulationId).toBe('sim-1')
     expect(store.isActive).toBe(true)
-    expect(store.metrics).toEqual({ actions: 0, replies: 0, likes: 0 })
   })
 
-  it('updates progress incrementally', () => {
+  it('updateProgress merges new data', () => {
     const store = useSimulationStore()
-    store.startSimulation('sim-456')
-    store.updateProgress({ round: 5, totalRounds: 24, progress: 20 })
-    expect(store.currentRound).toBe(5)
-    expect(store.totalRounds).toBe(24)
-    expect(store.progress).toBe(20)
-    expect(store.roundLabel).toBe('5/24')
+    store.updateProgress({ percent: 50, message: 'Building...' })
+    expect(store.progress.percent).toBe(50)
+    expect(store.progress.message).toBe('Building...')
+    expect(store.progress.currentRound).toBe(0)
+
+    // Partial update preserves existing values
+    store.updateProgress({ currentRound: 5, totalRounds: 24 })
+    expect(store.progress.percent).toBe(50)
+    expect(store.progress.currentRound).toBe(5)
   })
 
-  it('updates metrics and activities', () => {
+  it('updateProgress accepts snake_case backend keys', () => {
     const store = useSimulationStore()
-    store.startSimulation('sim-456')
-    store.updateProgress({ metrics: { actions: 10, replies: 3 } })
-    expect(store.metrics.actions).toBe(10)
-    expect(store.metrics.replies).toBe(3)
-    expect(store.metrics.likes).toBe(0)
-
-    store.updateProgress({ activities: [{ id: 1, text: 'post' }] })
-    expect(store.activities).toHaveLength(1)
-    store.updateProgress({ activities: [{ id: 2, text: 'reply' }] })
-    expect(store.activities).toHaveLength(2)
+    store.updateProgress({
+      progress_percent: 75,
+      current_round: 10,
+      total_rounds: 24,
+    })
+    expect(store.progress.percent).toBe(75)
+    expect(store.progress.currentRound).toBe(10)
+    expect(store.progress.totalRounds).toBe(24)
   })
 
-  it('completes simulation', () => {
+  it('updateMetrics populates run-time metrics', () => {
     const store = useSimulationStore()
-    store.startSimulation('sim-456')
-    store.complete('report-789')
-    expect(store.status).toBe('complete')
-    expect(store.reportTaskId).toBe('report-789')
-    expect(store.progress).toBe(100)
-    expect(store.isActive).toBe(false)
+    store.updateMetrics({
+      total_actions_count: 350,
+      twitter_actions_count: 150,
+      reddit_actions_count: 200,
+      simulated_hours: 12,
+      total_simulation_hours: 72,
+    })
+    expect(store.metrics.totalActions).toBe(350)
+    expect(store.metrics.twitterActions).toBe(150)
+    expect(store.metrics.redditActions).toBe(200)
+    expect(store.metrics.simulatedHours).toBe(12)
   })
 
-  it('handles failure', () => {
+  it('setError transitions to error state', () => {
     const store = useSimulationStore()
-    store.startSimulation('sim-456')
-    store.fail('LLM rate limit exceeded')
+    store.startRun('sim-1')
+    store.setError('Connection lost')
     expect(store.status).toBe('error')
-    expect(store.error).toBe('LLM rate limit exceeded')
+    expect(store.error).toBe('Connection lost')
+  })
+
+  it('complete sets status and progress to 100%', () => {
+    const store = useSimulationStore()
+    store.startRun('sim-1')
+    store.updateProgress({ percent: 95 })
+    store.complete()
+    expect(store.status).toBe('complete')
+    expect(store.progress.percent).toBe(100)
     expect(store.isActive).toBe(false)
   })
 
-  it('resets all state', () => {
+  it('reset clears all state', () => {
     const store = useSimulationStore()
-    store.startSimulation('sim-456')
-    store.updateProgress({ round: 10, totalRounds: 24, progress: 40 })
+    store.startRun('sim-1')
+    store.updateProgress({ percent: 50 })
+    store.updateMetrics({ total_actions_count: 100 })
     store.reset()
     expect(store.status).toBe('idle')
-    expect(store.simulationTaskId).toBeNull()
-    expect(store.progress).toBe(0)
-    expect(store.currentRound).toBe(0)
-    expect(store.activities).toEqual([])
+    expect(store.simulationId).toBeNull()
+    expect(store.progress.percent).toBe(0)
+    expect(store.metrics.totalActions).toBe(0)
   })
 
-  it('clears error on new build', () => {
+  it('setStatus rejects invalid statuses', () => {
     const store = useSimulationStore()
-    store.fail('some error')
-    store.startBuild('graph-new')
-    expect(store.error).toBeNull()
-    expect(store.status).toBe('building')
+    store.setStatus('invalid')
+    expect(store.status).toBe('idle')
   })
 
-  it('returns correct roundLabel with no rounds', () => {
+  it('setStatus to idle resets progress and metrics', () => {
     const store = useSimulationStore()
-    expect(store.roundLabel).toBe('0/0')
+    store.updateProgress({ percent: 50 })
+    store.updateMetrics({ total_actions_count: 100 })
+    store.setStatus('idle')
+    expect(store.progress.percent).toBe(0)
+    expect(store.metrics.totalActions).toBe(0)
   })
 })

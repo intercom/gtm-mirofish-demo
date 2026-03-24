@@ -1,120 +1,91 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '../auth'
 
 describe('useAuthStore', () => {
-  let store
-
   beforeEach(() => {
+    localStorage.clear()
     setActivePinia(createPinia())
-    store = useAuthStore()
-    vi.restoreAllMocks()
   })
 
-  it('initializes with null user and no loading/error', () => {
+  it('initialises as unauthenticated', () => {
+    const store = useAuthStore()
     expect(store.user).toBeNull()
-    expect(store.loading).toBe(false)
-    expect(store.error).toBeNull()
+    expect(store.token).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
   })
 
-  describe('fetchUser', () => {
-    it('sets user on successful response', async () => {
-      const mockUser = { email: 'test@intercom.io', name: 'Test User' }
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockUser),
-      })
-
-      await store.fetchUser()
-
-      expect(store.user).toEqual(mockUser)
-      expect(store.loading).toBe(false)
-      expect(fetch).toHaveBeenCalledWith('/api/auth/me')
-    })
-
-    it('sets user to null on non-ok response', async () => {
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: false })
-
-      await store.fetchUser()
-
-      expect(store.user).toBeNull()
-      expect(store.loading).toBe(false)
-    })
-
-    it('sets user to null on network error', async () => {
-      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
-
-      await store.fetchUser()
-
-      expect(store.user).toBeNull()
-      expect(store.loading).toBe(false)
-    })
-
-    it('sets loading to true while fetching', async () => {
-      let resolveFetch
-      vi.spyOn(globalThis, 'fetch').mockImplementation(
-        () => new Promise((resolve) => { resolveFetch = resolve })
-      )
-
-      const promise = store.fetchUser()
-      expect(store.loading).toBe(true)
-
-      resolveFetch({ ok: false })
-      await promise
-      expect(store.loading).toBe(false)
-    })
+  it('setAuth stores user and token', () => {
+    const store = useAuthStore()
+    store.setAuth({ name: 'Alice', email: 'alice@intercom.io' }, 'tok-123')
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.user.name).toBe('Alice')
+    expect(store.token).toBe('tok-123')
   })
 
-  describe('loginWithGoogle', () => {
-    it('redirects to /api/auth/google', () => {
-      const locationSpy = vi.spyOn(window, 'location', 'get').mockReturnValue({
-        ...window.location,
-        href: '',
-        set href(val) { this._href = val },
-        get _href() { return '' },
-      })
-
-      // We need to test the assignment, so mock differently
-      delete window.location
-      window.location = { href: '' }
-
-      store.loginWithGoogle()
-      expect(window.location.href).toBe('/api/auth/google')
-
-      // Restore
-      window.location = locationSpy.getMockImplementation()?.() || { href: '' }
-      locationSpy.mockRestore()
-    })
+  it('persists auth to localStorage', () => {
+    const store = useAuthStore()
+    store.setAuth({ name: 'Bob' }, 'tok-456')
+    const saved = JSON.parse(localStorage.getItem('mirofish-auth'))
+    expect(saved.user.name).toBe('Bob')
+    expect(saved.token).toBe('tok-456')
   })
 
-  describe('loginWithOkta', () => {
-    it('redirects to /api/auth/okta', () => {
-      delete window.location
-      window.location = { href: '' }
-
-      store.loginWithOkta()
-      expect(window.location.href).toBe('/api/auth/okta')
-    })
+  it('loads auth from localStorage on init', () => {
+    localStorage.setItem('mirofish-auth', JSON.stringify({
+      user: { name: 'Carol' },
+      token: 'tok-789',
+    }))
+    setActivePinia(createPinia())
+    const store = useAuthStore()
+    expect(store.user.name).toBe('Carol')
+    expect(store.isAuthenticated).toBe(true)
   })
 
-  describe('logout', () => {
-    it('calls logout endpoint and clears user', async () => {
-      store.user = { email: 'test@intercom.io' }
-      vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true })
+  it('logout clears state and localStorage', () => {
+    const store = useAuthStore()
+    store.setAuth({ name: 'Dave' }, 'tok-abc')
+    store.logout()
+    expect(store.user).toBeNull()
+    expect(store.token).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
+    expect(localStorage.getItem('mirofish-auth')).toBeNull()
+  })
 
-      await store.logout()
+  it('checkAuth returns false when no token', async () => {
+    const store = useAuthStore()
+    const result = await store.checkAuth()
+    expect(result).toBe(false)
+  })
 
-      expect(store.user).toBeNull()
-      expect(fetch).toHaveBeenCalledWith('/api/auth/logout', { method: 'POST' })
-    })
+  it('checkAuth validates token against API', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ user: { name: 'Eve', email: 'eve@intercom.io' } }),
+    }))
+    const store = useAuthStore()
+    store.setAuth({ name: 'temp' }, 'tok-valid')
+    const result = await store.checkAuth()
+    expect(result).toBe(true)
+    expect(store.user.name).toBe('Eve')
+    vi.unstubAllGlobals()
+  })
 
-    it('clears user even if logout request fails', async () => {
-      store.user = { email: 'test@intercom.io' }
-      vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network error'))
+  it('checkAuth logs out on 401', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
+    const store = useAuthStore()
+    store.setAuth({ name: 'temp' }, 'tok-expired')
+    const result = await store.checkAuth()
+    expect(result).toBe(false)
+    expect(store.isAuthenticated).toBe(false)
+    vi.unstubAllGlobals()
+  })
 
-      await store.logout()
-
-      expect(store.user).toBeNull()
-    })
+  it('handles corrupted localStorage gracefully', () => {
+    localStorage.setItem('mirofish-auth', '{bad-json')
+    setActivePinia(createPinia())
+    const store = useAuthStore()
+    expect(store.user).toBeNull()
+    expect(store.isAuthenticated).toBe(false)
   })
 })

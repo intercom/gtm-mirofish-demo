@@ -1,45 +1,70 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+
+const STORAGE_KEY = 'mirofish-auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
-  const loading = ref(false)
-  const error = ref(null)
+  const token = ref(null)
 
-  async function fetchUser() {
-    loading.value = true
-    error.value = null
+  const isAuthenticated = computed(() => !!token.value && !!user.value)
+
+  function load() {
     try {
-      const res = await fetch('/api/auth/me')
-      if (res.ok) {
-        user.value = await res.json()
-      } else {
-        user.value = null
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        const s = JSON.parse(saved)
+        user.value = s.user || null
+        token.value = s.token || null
       }
     } catch {
-      user.value = null
-    } finally {
-      loading.value = false
+      // Corrupted data — reset
     }
   }
 
-  function loginWithGoogle() {
-    window.location.href = '/api/auth/google'
+  function setAuth(userData, authToken) {
+    user.value = userData
+    token.value = authToken
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      user: userData,
+      token: authToken,
+    }))
   }
 
-  function loginWithOkta() {
-    window.location.href = '/api/auth/okta'
+  function logout() {
+    user.value = null
+    token.value = null
+    localStorage.removeItem(STORAGE_KEY)
   }
 
-  async function logout() {
+  async function checkAuth() {
+    if (!token.value) return false
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token.value}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        user.value = data.user
+        return true
+      }
+      logout()
+      return false
     } catch {
-      // Ignore network errors — we clear the local state regardless
-    } finally {
-      user.value = null
+      return false
     }
   }
 
-  return { user, loading, error, fetchUser, loginWithGoogle, loginWithOkta, logout }
+  // Load on creation
+  load()
+
+  return {
+    user,
+    token,
+    isAuthenticated,
+    load,
+    setAuth,
+    logout,
+    checkAuth,
+  }
 })

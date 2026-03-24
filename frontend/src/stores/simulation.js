@@ -1,96 +1,130 @@
-import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { defineStore } from 'pinia'
+
+/**
+ * Simulation lifecycle phases (mirrors backend SimulationStatus / RunnerStatus):
+ *   idle → building_graph → preparing → running → complete
+ *   Any phase can transition to 'error'.
+ */
+const VALID_STATUSES = ['idle', 'building_graph', 'preparing', 'running', 'complete', 'error']
 
 export const useSimulationStore = defineStore('simulation', () => {
-  const status = ref('idle') // idle | building | graphReady | running | complete | error
+  const status = ref('idle')
+  const simulationId = ref(null)
   const graphTaskId = ref(null)
-  const simulationTaskId = ref(null)
-  const reportTaskId = ref(null)
-  const progress = ref(0) // 0–100
-  const currentRound = ref(0)
-  const totalRounds = ref(0)
+  const prepareTaskId = ref(null)
+  const projectId = ref(null)
   const error = ref(null)
-  const metrics = ref({ actions: 0, replies: 0, likes: 0 })
-  const activities = ref([])
+
+  // Progress tracking for the active phase
+  const progress = ref({
+    percent: 0,
+    message: '',
+    currentRound: 0,
+    totalRounds: 0,
+  })
+
+  // Run-status metrics (populated during 'running' phase via polling)
+  const metrics = ref({
+    totalActions: 0,
+    twitterActions: 0,
+    redditActions: 0,
+    simulatedHours: 0,
+    totalSimulationHours: 0,
+  })
 
   const isActive = computed(() =>
-    ['building', 'running'].includes(status.value),
+    ['building_graph', 'preparing', 'running'].includes(status.value),
   )
 
-  const roundLabel = computed(() =>
-    totalRounds.value ? `${currentRound.value}/${totalRounds.value}` : '0/0',
-  )
+  function setStatus(newStatus) {
+    if (!VALID_STATUSES.includes(newStatus)) return
+    status.value = newStatus
+    if (newStatus === 'error') return
+    if (newStatus === 'idle') {
+      progress.value = { percent: 0, message: '', currentRound: 0, totalRounds: 0 }
+      metrics.value = { totalActions: 0, twitterActions: 0, redditActions: 0, simulatedHours: 0, totalSimulationHours: 0 }
+    }
+  }
 
-  function startBuild(taskId) {
-    status.value = 'building'
+  function startGraphBuild(taskId, projId) {
     graphTaskId.value = taskId
+    projectId.value = projId
     error.value = null
-    progress.value = 0
+    setStatus('building_graph')
   }
 
-  function graphReady() {
-    status.value = 'graphReady'
+  function startPrepare(simId, taskId) {
+    simulationId.value = simId
+    prepareTaskId.value = taskId
+    error.value = null
+    setStatus('preparing')
   }
 
-  function startSimulation(taskId) {
-    status.value = 'running'
-    simulationTaskId.value = taskId
-    progress.value = 0
-    metrics.value = { actions: 0, replies: 0, likes: 0 }
-    activities.value = []
+  function startRun(simId) {
+    simulationId.value = simId
+    error.value = null
+    setStatus('running')
   }
 
-  function updateProgress({ round, totalRounds: total, progress: pct, metrics: m, activities: acts }) {
-    if (round !== undefined) currentRound.value = round
-    if (total !== undefined) totalRounds.value = total
-    if (pct !== undefined) progress.value = pct
-    if (m) metrics.value = { ...metrics.value, ...m }
-    if (acts) activities.value = [...activities.value, ...acts]
+  function updateProgress(data) {
+    progress.value = {
+      percent: data.percent ?? data.progress_percent ?? progress.value.percent,
+      message: data.message ?? progress.value.message,
+      currentRound: data.currentRound ?? data.current_round ?? progress.value.currentRound,
+      totalRounds: data.totalRounds ?? data.total_rounds ?? progress.value.totalRounds,
+    }
   }
 
-  function complete(taskId) {
-    status.value = 'complete'
-    if (taskId) reportTaskId.value = taskId
-    progress.value = 100
+  function updateMetrics(data) {
+    metrics.value = {
+      totalActions: data.total_actions_count ?? metrics.value.totalActions,
+      twitterActions: data.twitter_actions_count ?? metrics.value.twitterActions,
+      redditActions: data.reddit_actions_count ?? metrics.value.redditActions,
+      simulatedHours: data.simulated_hours ?? metrics.value.simulatedHours,
+      totalSimulationHours: data.total_simulation_hours ?? metrics.value.totalSimulationHours,
+    }
   }
 
-  function fail(message) {
-    status.value = 'error'
-    error.value = message
+  function setError(msg) {
+    error.value = msg
+    setStatus('error')
+  }
+
+  function complete() {
+    setStatus('complete')
+    progress.value.percent = 100
   }
 
   function reset() {
     status.value = 'idle'
+    simulationId.value = null
     graphTaskId.value = null
-    simulationTaskId.value = null
-    reportTaskId.value = null
-    progress.value = 0
-    currentRound.value = 0
-    totalRounds.value = 0
+    prepareTaskId.value = null
+    projectId.value = null
     error.value = null
-    metrics.value = { actions: 0, replies: 0, likes: 0 }
-    activities.value = []
+    progress.value = { percent: 0, message: '', currentRound: 0, totalRounds: 0 }
+    metrics.value = { totalActions: 0, twitterActions: 0, redditActions: 0, simulatedHours: 0, totalSimulationHours: 0 }
   }
 
   return {
     status,
+    simulationId,
     graphTaskId,
-    simulationTaskId,
-    reportTaskId,
-    progress,
-    currentRound,
-    totalRounds,
+    prepareTaskId,
+    projectId,
     error,
+    progress,
     metrics,
-    activities,
     isActive,
-    roundLabel,
-    startBuild,
-    graphReady,
-    startSimulation,
+    setStatus,
+    startGraphBuild,
+    startPrepare,
+    startRun,
     updateProgress,
+    updateMetrics,
+    setError,
     complete,
-    fail,
     reset,
   }
 })

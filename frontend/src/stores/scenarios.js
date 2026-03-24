@@ -1,28 +1,27 @@
-import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import client from '../api/client'
+import { defineStore } from 'pinia'
 
 export const useScenariosStore = defineStore('scenarios', () => {
   const scenarios = ref([])
-  const scenarioDetails = ref({})
   const loading = ref(false)
   const error = ref(null)
 
-  const scenarioCount = computed(() => scenarios.value.length)
+  // Cache for individual scenario details (keyed by id)
+  const detailCache = ref({})
 
-  function getById(id) {
-    return scenarioDetails.value[id] || scenarios.value.find((s) => s.id === id) || null
-  }
+  const hasScenarios = computed(() => scenarios.value.length > 0)
 
-  async function fetchAll() {
-    if (scenarios.value.length) return scenarios.value
+  async function fetchScenarios(force = false) {
+    if (scenarios.value.length > 0 && !force) return scenarios.value
+
     loading.value = true
     error.value = null
     try {
-      const { data } = await client.get('/gtm/scenarios')
-      const list = data.scenarios || data
-      scenarios.value = list
-      return list
+      const res = await fetch('/api/gtm/scenarios')
+      if (!res.ok) throw new Error(`Failed to fetch scenarios: ${res.status}`)
+      const data = await res.json()
+      scenarios.value = data.scenarios || []
+      return scenarios.value
     } catch (e) {
       error.value = e.message
       return []
@@ -31,13 +30,16 @@ export const useScenariosStore = defineStore('scenarios', () => {
     }
   }
 
-  async function fetchOne(id) {
-    if (scenarioDetails.value[id]) return scenarioDetails.value[id]
+  async function fetchScenarioById(id, force = false) {
+    if (detailCache.value[id] && !force) return detailCache.value[id]
+
     loading.value = true
     error.value = null
     try {
-      const { data } = await client.get(`/gtm/scenarios/${id}`)
-      scenarioDetails.value[id] = data
+      const res = await fetch(`/api/gtm/scenarios/${id}`)
+      if (!res.ok) throw new Error(`Scenario not found: ${id}`)
+      const data = await res.json()
+      detailCache.value[id] = data
       return data
     } catch (e) {
       error.value = e.message
@@ -49,18 +51,18 @@ export const useScenariosStore = defineStore('scenarios', () => {
 
   function clearCache() {
     scenarios.value = []
-    scenarioDetails.value = {}
+    detailCache.value = {}
+    error.value = null
   }
 
   return {
     scenarios,
-    scenarioDetails,
     loading,
     error,
-    scenarioCount,
-    getById,
-    fetchAll,
-    fetchOne,
+    detailCache,
+    hasScenarios,
+    fetchScenarios,
+    fetchScenarioById,
     clearCache,
   }
 })

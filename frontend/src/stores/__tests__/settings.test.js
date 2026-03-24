@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useSettingsStore } from '../settings'
 
-describe('settings store', () => {
+describe('useSettingsStore', () => {
   beforeEach(() => {
     localStorage.clear()
     setActivePinia(createPinia())
   })
 
-  it('initializes with defaults when localStorage is empty', () => {
+  it('initialises with default values', () => {
     const store = useSettingsStore()
     expect(store.provider).toBe('anthropic')
     expect(store.apiKey).toBe('')
@@ -16,7 +16,7 @@ describe('settings store', () => {
     expect(store.connectionStatus).toEqual({ llm: null, zep: null })
   })
 
-  it('hydrates from localStorage on creation', () => {
+  it('loads settings from localStorage', () => {
     localStorage.setItem('mirofish-settings', JSON.stringify({
       provider: 'openai',
       apiKey: 'sk-test',
@@ -29,46 +29,21 @@ describe('settings store', () => {
     expect(store.zepKey).toBe('zep-test')
   })
 
-  it('persists provider to localStorage', () => {
+  it('persists to localStorage on save()', () => {
     const store = useSettingsStore()
-    store.setProvider('gemini')
+    store.provider = 'gemini'
+    store.apiKey = 'key-123'
+    store.save()
+
     const saved = JSON.parse(localStorage.getItem('mirofish-settings'))
     expect(saved.provider).toBe('gemini')
-  })
-
-  it('persists apiKey to localStorage', () => {
-    const store = useSettingsStore()
-    store.setApiKey('sk-new')
-    const saved = JSON.parse(localStorage.getItem('mirofish-settings'))
-    expect(saved.apiKey).toBe('sk-new')
-  })
-
-  it('persists zepKey to localStorage', () => {
-    const store = useSettingsStore()
-    store.setZepKey('zep-new')
-    const saved = JSON.parse(localStorage.getItem('mirofish-settings'))
-    expect(saved.zepKey).toBe('zep-new')
-  })
-
-  it('provides currentProvider computed', () => {
-    const store = useSettingsStore()
-    expect(store.currentProvider.id).toBe('anthropic')
-    store.setProvider('openai')
-    expect(store.currentProvider.id).toBe('openai')
-  })
-
-  it('sets connection status', () => {
-    const store = useSettingsStore()
-    store.setConnectionStatus('llm', 'testing')
-    expect(store.connectionStatus.llm).toBe('testing')
-    store.setConnectionStatus('zep', 'success')
-    expect(store.connectionStatus.zep).toBe('success')
+    expect(saved.apiKey).toBe('key-123')
   })
 
   it('exposes providers list', () => {
     const store = useSettingsStore()
     expect(store.providers).toHaveLength(3)
-    expect(store.providers.map((p) => p.id)).toEqual(['anthropic', 'openai', 'gemini'])
+    expect(store.providers.map(p => p.id)).toEqual(['anthropic', 'openai', 'gemini'])
   })
 
   it('handles corrupted localStorage gracefully', () => {
@@ -76,5 +51,21 @@ describe('settings store', () => {
     setActivePinia(createPinia())
     const store = useSettingsStore()
     expect(store.provider).toBe('anthropic')
+  })
+
+  it('testConnection sets status to error on network failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network')))
+    const store = useSettingsStore()
+    await store.testConnection('llm')
+    expect(store.connectionStatus.llm).toBe('error')
+    vi.unstubAllGlobals()
+  })
+
+  it('testConnection sets status to success on 200', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+    const store = useSettingsStore()
+    await store.testConnection('zep')
+    expect(store.connectionStatus.zep).toBe('success')
+    vi.unstubAllGlobals()
   })
 })

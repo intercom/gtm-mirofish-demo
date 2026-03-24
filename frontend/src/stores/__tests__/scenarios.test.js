@@ -2,125 +2,120 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useScenariosStore } from '../scenarios'
 
-const mockClient = vi.hoisted(() => ({
-  get: vi.fn(),
-  post: vi.fn(),
-  delete: vi.fn(),
-}))
-vi.mock('../../api/client', () => ({ default: mockClient }))
-
-const MOCK_SCENARIOS = [
-  { id: 'outbound_campaign', name: 'Outbound Campaign Pre-Testing' },
-  { id: 'signal_validation', name: 'Sales Signal Validation' },
-]
-
-const MOCK_DETAIL = {
-  id: 'outbound_campaign',
-  name: 'Outbound Campaign Pre-Testing',
-  seed_text: 'Test seed text',
-}
-
-describe('scenarios store', () => {
+describe('useScenariosStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
+    vi.unstubAllGlobals()
   })
 
-  it('initializes with empty state', () => {
+  it('initialises empty', () => {
     const store = useScenariosStore()
     expect(store.scenarios).toEqual([])
-    expect(store.scenarioDetails).toEqual({})
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
-    expect(store.scenarioCount).toBe(0)
+    expect(store.hasScenarios).toBe(false)
   })
 
-  it('fetches all scenarios and unwraps {scenarios:[...]} response', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: { scenarios: MOCK_SCENARIOS } })
+  it('fetchScenarios populates the list', async () => {
+    const mockScenarios = [
+      { id: 'outbound_campaign', name: 'Outbound Campaign', description: 'Test', category: 'gtm' },
+    ]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ scenarios: mockScenarios }),
+    }))
+
     const store = useScenariosStore()
-    const result = await store.fetchAll()
-    expect(mockClient.get).toHaveBeenCalledWith('/gtm/scenarios')
-    expect(result).toEqual(MOCK_SCENARIOS)
-    expect(store.scenarios).toEqual(MOCK_SCENARIOS)
-    expect(store.scenarioCount).toBe(2)
+    const result = await store.fetchScenarios()
+    expect(result).toHaveLength(1)
+    expect(store.scenarios[0].id).toBe('outbound_campaign')
+    expect(store.hasScenarios).toBe(true)
     expect(store.loading).toBe(false)
   })
 
-  it('handles flat array response for backwards compatibility', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: MOCK_SCENARIOS })
+  it('fetchScenarios returns cached data without re-fetching', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ scenarios: [{ id: 'test' }] }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
     const store = useScenariosStore()
-    const result = await store.fetchAll()
-    expect(result).toEqual(MOCK_SCENARIOS)
-    expect(store.scenarios).toEqual(MOCK_SCENARIOS)
+    await store.fetchScenarios()
+    await store.fetchScenarios()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('returns cached scenarios on subsequent fetchAll', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: { scenarios: MOCK_SCENARIOS } })
+  it('fetchScenarios with force bypasses cache', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ scenarios: [{ id: 'test' }] }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
     const store = useScenariosStore()
-    await store.fetchAll()
-    await store.fetchAll()
-    expect(mockClient.get).toHaveBeenCalledTimes(1)
+    await store.fetchScenarios()
+    await store.fetchScenarios(true)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
-  it('fetches single scenario detail', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: MOCK_DETAIL })
-    const store = useScenariosStore()
-    const result = await store.fetchOne('outbound_campaign')
-    expect(mockClient.get).toHaveBeenCalledWith('/gtm/scenarios/outbound_campaign')
-    expect(result).toEqual(MOCK_DETAIL)
-    expect(store.scenarioDetails.outbound_campaign).toEqual(MOCK_DETAIL)
-  })
+  it('fetchScenarios handles errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
 
-  it('returns cached detail on subsequent fetchOne', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: MOCK_DETAIL })
     const store = useScenariosStore()
-    await store.fetchOne('outbound_campaign')
-    await store.fetchOne('outbound_campaign')
-    expect(mockClient.get).toHaveBeenCalledTimes(1)
-  })
-
-  it('getById returns detail if cached', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: MOCK_DETAIL })
-    const store = useScenariosStore()
-    await store.fetchOne('outbound_campaign')
-    expect(store.getById('outbound_campaign')).toEqual(MOCK_DETAIL)
-  })
-
-  it('getById falls back to list entry', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: { scenarios: MOCK_SCENARIOS } })
-    const store = useScenariosStore()
-    await store.fetchAll()
-    expect(store.getById('signal_validation')).toEqual(MOCK_SCENARIOS[1])
-  })
-
-  it('getById returns null for unknown id', () => {
-    const store = useScenariosStore()
-    expect(store.getById('nonexistent')).toBeNull()
-  })
-
-  it('handles fetchAll errors', async () => {
-    mockClient.get.mockRejectedValueOnce(new Error('Network error'))
-    const store = useScenariosStore()
-    const result = await store.fetchAll()
+    const result = await store.fetchScenarios()
     expect(result).toEqual([])
-    expect(store.error).toBe('Network error')
+    expect(store.error).toContain('500')
     expect(store.loading).toBe(false)
   })
 
-  it('handles fetchOne errors', async () => {
-    mockClient.get.mockRejectedValueOnce(new Error('Not found'))
+  it('fetchScenarioById returns and caches a scenario', async () => {
+    const detail = { id: 'pricing_simulation', name: 'Pricing', seed_text: 'Test pricing' }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(detail),
+    }))
+
     const store = useScenariosStore()
-    const result = await store.fetchOne('bad-id')
-    expect(result).toBeNull()
-    expect(store.error).toBe('Not found')
+    const result = await store.fetchScenarioById('pricing_simulation')
+    expect(result.name).toBe('Pricing')
+    expect(store.detailCache['pricing_simulation']).toBeDefined()
   })
 
-  it('clears cache', async () => {
-    mockClient.get.mockResolvedValueOnce({ data: { scenarios: MOCK_SCENARIOS } })
+  it('fetchScenarioById returns cached data on second call', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: 'test', name: 'Test' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
     const store = useScenariosStore()
-    await store.fetchAll()
+    await store.fetchScenarioById('test')
+    const cached = await store.fetchScenarioById('test')
+    expect(cached.name).toBe('Test')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetchScenarioById handles 404', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404 }))
+
+    const store = useScenariosStore()
+    const result = await store.fetchScenarioById('nonexistent')
+    expect(result).toBeNull()
+    expect(store.error).toContain('nonexistent')
+  })
+
+  it('clearCache resets all state', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ scenarios: [{ id: 'x' }] }),
+    }))
+
+    const store = useScenariosStore()
+    await store.fetchScenarios()
     store.clearCache()
     expect(store.scenarios).toEqual([])
-    expect(store.scenarioDetails).toEqual({})
+    expect(store.detailCache).toEqual({})
+    expect(store.error).toBeNull()
   })
 })

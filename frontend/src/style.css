@@ -90,6 +90,23 @@ h1 {
   transform: translateY(12px);
 }
 
+/* Staggered card entrance (keyframe-based) */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-stagger {
+  opacity: 0;
+  animation: card-enter 400ms ease forwards;
+}
+
 /* Graph node animate-in */
 .graph-node-enter-active {
   transition: opacity var(--transition-slow), transform var(--transition-slow);
@@ -98,6 +115,32 @@ h1 {
 .graph-node-enter-from {
   opacity: 0;
   transform: scale(0.6);
+}
+
+@keyframes graph-node-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.graph-enter {
+  opacity: 0;
+  animation: graph-node-enter 500ms ease forwards;
+}
+
+/* Fade-in utility */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 400ms ease forwards;
 }
 
 /* Spinner animation */

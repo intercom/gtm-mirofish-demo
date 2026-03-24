@@ -188,9 +188,11 @@ function launchScenario(id) {
             :data-index="i"
             @click="launchScenario(scenario.id)"
             class="text-left rounded-lg p-5 transition-all duration-300 cursor-pointer border"
-            :class="scenario.hero
-              ? 'bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
-              : 'bg-white/5 border-white/10 hover:bg-white/10'"
+            :class="[
+              scenario.hero
+                ? 'bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
+                : 'bg-white/5 border-white/10 hover:bg-white/10',
+            ]"
           >
             <div class="flex items-start gap-3">
               <span class="text-2xl">{{ resolveIcon(scenario.icon) }}</span>

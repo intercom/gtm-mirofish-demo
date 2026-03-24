@@ -441,13 +441,15 @@ watch(activePlatform, () => drawChart())
     </div>
 
     <!-- Generate Report Button -->
-    <div v-if="status === 'completed'" class="text-center mt-8">
-      <router-link
-        :to="`/report/${taskId}`"
-        class="inline-block bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-8 py-3 rounded-lg font-semibold transition-colors no-underline"
-      >
-        Generate Report →
-      </router-link>
-    </div>
+    <Transition name="page">
+      <div v-if="status === 'completed'" class="text-center mt-8">
+        <router-link
+          :to="`/report/${taskId}`"
+          class="inline-block bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-8 py-3 rounded-lg font-semibold transition-colors no-underline"
+        >
+          Generate Report →
+        </router-link>
+      </div>
+    </Transition>
   </div>
 </template>

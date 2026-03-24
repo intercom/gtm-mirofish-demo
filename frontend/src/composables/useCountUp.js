@@ -1,30 +1,45 @@
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, toValue, onUnmounted } from 'vue'
 
-export function useCountUp(target, { duration = 800 } = {}) {
+export function useCountUp(source, options = {}) {
+  const { duration = 800 } = options
   const display = ref(0)
-  let rafId = null
+  let frameId = null
 
-  function animate(from, to) {
-    const start = performance.now()
-    cancelAnimationFrame(rafId)
-
-    function tick(now) {
-      const t = Math.min((now - start) / duration, 1)
-      const eased = 1 - Math.pow(1 - t, 3) // ease-out cubic
-      display.value = Math.round(from + (to - from) * eased)
-      if (t < 1) {
-        rafId = requestAnimationFrame(tick)
-      }
+  function cancel() {
+    if (frameId) {
+      cancelAnimationFrame(frameId)
+      frameId = null
     }
-
-    rafId = requestAnimationFrame(tick)
   }
 
-  watch(target, (newVal, oldVal) => {
-    animate(oldVal ?? 0, newVal)
-  }, { immediate: true })
+  watch(
+    () => toValue(source),
+    (newVal) => {
+      cancel()
+      const target = typeof newVal === 'number' ? newVal : parseInt(newVal, 10)
+      if (isNaN(target)) return
 
-  onUnmounted(() => cancelAnimationFrame(rafId))
+      const from = display.value
+      const startTime = performance.now()
+
+      function step(now) {
+        const elapsed = now - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        display.value = Math.round(from + (target - from) * eased)
+        if (progress < 1) {
+          frameId = requestAnimationFrame(step)
+        } else {
+          frameId = null
+        }
+      }
+
+      frameId = requestAnimationFrame(step)
+    },
+    { immediate: true },
+  )
+
+  onUnmounted(cancel)
 
   return display
 }

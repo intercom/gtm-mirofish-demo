@@ -22,6 +22,7 @@ const graphData = ref({ nodes: [], edges: [] })
 const nodeCount = ref(0)
 const edgeCount = ref(0)
 const selectedNode = ref(null)
+const loaded = ref(false)
 
 // D3 visualization
 const svgRef = ref(null)
@@ -455,6 +456,7 @@ function selectNode(d) {
 // Lifecycle
 
 onMounted(() => {
+  loaded.value = true
   pollTask()
   pollTimer = setInterval(pollTask, 2000)
 
@@ -490,7 +492,10 @@ watch(() => props.taskId, () => {
 <template>
   <div ref="containerRef" class="h-[calc(100vh-120px)] bg-[#0a0a1a] relative overflow-hidden">
     <!-- Status Bar -->
-    <div class="absolute top-4 left-4 z-10 flex items-center gap-3">
+    <div
+      class="absolute top-4 left-4 z-10 flex items-center gap-3"
+      :class="loaded ? 'animate-fade-in' : 'opacity-0'"
+    >
       <span class="px-3 py-1 rounded-full text-xs font-medium"
         :class="{
           'bg-yellow-500/20 text-yellow-400': status === 'building',

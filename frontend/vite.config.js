@@ -5,9 +5,6 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
-  test: {
-    environment: 'happy-dom',
-  },
   server: {
     port: 3000,
     host: '0.0.0.0',

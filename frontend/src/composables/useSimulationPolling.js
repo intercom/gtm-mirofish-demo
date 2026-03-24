@@ -139,18 +139,20 @@ export function useSimulationPolling(taskIdSource) {
         simStore.complete()
         simStore.addSessionRun({
           id: taskId,
-          scenarioName: 'GTM Simulation',
           totalRounds: json.data.total_rounds ?? 0,
           totalActions: json.data.total_actions_count ?? 0,
           twitterActions: json.data.twitter_actions_count ?? 0,
           redditActions: json.data.reddit_actions_count ?? 0,
+          status: 'completed',
         })
       } else if (rs === 'failed') {
         simStatus.value = 'failed'
         errorMsg.value = json.data.error || 'Simulation failed'
         stopSimTimers()
+        simStore.addSessionRun({ id: taskId, status: 'failed' })
       } else if (rs === 'running' || rs === 'starting' || rs === 'paused') {
         simStatus.value = 'running'
+        simStore.addSessionRun({ id: taskId, status: 'running' })
         ensureDetailPolling()
       } else if (rs === 'idle') {
         simStatus.value = 'building'

@@ -132,10 +132,18 @@ export const useSimulationStore = defineStore('simulation', () => {
   }
 
   function addSessionRun(run) {
-    if (sessionRuns.value.some(r => r.id === run.id)) return
+    const existing = sessionRuns.value.find(r => r.id === run.id)
+    if (existing) {
+      if (run.totalRounds) existing.totalRounds = run.totalRounds
+      if (run.totalActions) existing.totalActions = run.totalActions
+      if (run.twitterActions) existing.twitterActions = run.twitterActions
+      if (run.redditActions) existing.redditActions = run.redditActions
+      if (run.status) existing.status = run.status
+      return
+    }
     const entry = {
       id: run.id,
-      scenarioId: run.scenarioId || null,
+      scenarioId: run.scenarioId || scenarioConfig.value?.scenarioId || null,
       scenarioName: run.scenarioName || scenarioConfig.value?.scenarioName || 'Untitled Scenario',
       seedText: run.seedText || scenarioConfig.value?.seedText || '',
       agentCount: run.agentCount || scenarioConfig.value?.agentCount || 0,

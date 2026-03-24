@@ -117,6 +117,12 @@ async function runSimulation() {
       platformMode: platformMode.value,
     })
     simulationStore.startGraphBuild(taskId)
+    simulationStore.addSessionRun({
+      id: taskId,
+      scenarioId: props.id,
+      scenarioName: scenario.value?.name || 'Untitled Scenario',
+      status: 'building_graph',
+    })
     toast.success('Building knowledge graph...')
     router.push(`/workspace/${taskId}`)
   } catch (e) {

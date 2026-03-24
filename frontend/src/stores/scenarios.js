@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { API_BASE } from '../api/client'
 
 export const useScenariosStore = defineStore('scenarios', () => {
   const scenarios = ref([])
@@ -17,7 +18,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
     loading.value = true
     error.value = null
     try {
-      const res = await fetch('/api/gtm/scenarios')
+      const res = await fetch(`${API_BASE}/gtm/scenarios`)
       if (!res.ok) throw new Error(`Failed to fetch scenarios: ${res.status}`)
       const data = await res.json()
       scenarios.value = data.scenarios || []
@@ -36,7 +37,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
     loading.value = true
     error.value = null
     try {
-      const res = await fetch(`/api/gtm/scenarios/${id}`)
+      const res = await fetch(`${API_BASE}/gtm/scenarios/${id}`)
       if (!res.ok) throw new Error(`Scenario not found: ${id}`)
       const data = await res.json()
       detailCache.value[id] = data

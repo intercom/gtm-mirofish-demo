@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { API_BASE } from '../api/client'
 
 const STORAGE_KEY = 'mirofish-auth'
 
@@ -40,7 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function checkAuth() {
     if (!token.value) return false
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch(`${API_BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${token.value}` },
       })
       if (res.ok) {

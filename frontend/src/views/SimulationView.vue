@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { API_BASE } from '../api/client'
 
 const props = defineProps({ taskId: String })
 const router = useRouter()
@@ -83,7 +84,7 @@ const platformTabs = [
 // --- API Helpers ---
 async function fetchRunStatus() {
   try {
-    const res = await fetch(`/api/simulation/${props.taskId}/run-status`)
+    const res = await fetch(`${API_BASE}/simulation/${props.taskId}/run-status`)
     if (!res.ok) throw new Error(`Status ${res.status}`)
     const json = await res.json()
     if (json.success) runStatus.value = json.data
@@ -94,7 +95,7 @@ async function fetchRunStatus() {
 
 async function fetchDetail() {
   try {
-    const res = await fetch(`/api/simulation/${props.taskId}/run-status/detail`)
+    const res = await fetch(`${API_BASE}/simulation/${props.taskId}/run-status/detail`)
     if (!res.ok) throw new Error(`Status ${res.status}`)
     const json = await res.json()
     if (json.success) {
@@ -107,7 +108,7 @@ async function fetchDetail() {
 
 async function fetchTimeline() {
   try {
-    const res = await fetch(`/api/simulation/${props.taskId}/timeline`)
+    const res = await fetch(`${API_BASE}/simulation/${props.taskId}/timeline`)
     if (!res.ok) return
     const json = await res.json()
     if (json.success) {

@@ -3,6 +3,7 @@ import { ref, watch, onMounted } from 'vue'
 import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
+import { API_BASE } from '../api/client'
 
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
@@ -86,7 +87,7 @@ async function testConnection(service) {
   connectionStatus.value[service] = 'testing'
   connectionError.value[service] = ''
 
-  const endpoint = service === 'llm' ? '/api/settings/test-llm' : '/api/settings/test-zep'
+  const endpoint = service === 'llm' ? `${API_BASE}/settings/test-llm` : `${API_BASE}/settings/test-zep`
   const body = service === 'llm'
     ? { provider: provider.value, apiKey: apiKey.value }
     : { apiKey: zepKey.value }
@@ -115,7 +116,7 @@ async function testConnection(service) {
 
 async function fetchAuthStatus() {
   try {
-    const res = await fetch('/api/settings/auth-status')
+    const res = await fetch(`${API_BASE}/settings/auth-status`)
     if (res.ok) authStatus.value = await res.json()
   } catch {
     // Auth status is best-effort; silently ignore
@@ -126,7 +127,7 @@ function logout() {
   localStorage.removeItem('auth_token')
   localStorage.removeItem('auth_user')
   toast.success('Logged out successfully')
-  window.location.href = '/api/auth/logout'
+  window.location.href = `${API_BASE}/auth/logout`
 }
 
 function testButtonLabel(service) {

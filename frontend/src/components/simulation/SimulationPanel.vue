@@ -12,6 +12,7 @@ const activePlatform = ref('all')
 const chartCanvas = ref(null)
 const feedContainer = ref(null)
 const autoScroll = ref(true)
+const selectedAgent = ref(null)
 
 let resizeObserver = null
 
@@ -210,6 +211,33 @@ function truncate(str, len = 120) {
   return str.slice(0, len) + '\u2026'
 }
 
+function selectAgent(action) {
+  const agentActions = polling.recentActions.value.filter(
+    a => a.agent_name === action.agent_name
+  )
+  const twitterCount = agentActions.filter(a => a.platform === 'twitter').length
+  const redditCount = agentActions.filter(a => a.platform === 'reddit').length
+
+  const parts = action.agent_name?.split(', ') || []
+  const name = parts[0] || action.agent_name || `Agent #${action.agent_id}`
+  const roleParts = (parts[1] || '').split(' @ ')
+  const role = roleParts[0] || ''
+  const company = roleParts[1] || ''
+
+  selectedAgent.value = {
+    id: action.agent_id,
+    name,
+    fullName: action.agent_name,
+    role,
+    company,
+    totalActions: agentActions.length,
+    twitterActions: twitterCount,
+    redditActions: redditCount,
+    actions: agentActions.slice(0, 20),
+    sentiment: twitterCount + redditCount > 5 ? 'Engaged' : 'Moderate',
+  }
+}
+
 // --- Auto-scroll for activity feed ---
 function onFeedScroll() {
   const el = feedContainer.value
@@ -395,7 +423,9 @@ onUnmounted(() => {
                 <span class="text-base mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
                 <div class="min-w-0 flex-1">
                   <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-sm font-medium text-[var(--color-text)]">{{ action.agent_name || `Agent #${action.agent_id}` }}</span>
+                    <button class="text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] hover:underline transition-colors text-left" @click.stop="selectAgent(action)">
+                      {{ action.agent_name || `Agent #${action.agent_id}` }}
+                    </button>
                     <span class="text-xs px-1.5 py-0.5 rounded-full" :class="platformBadge(action.platform).class">
                       {{ platformBadge(action.platform).label }}
                     </span>
@@ -468,5 +498,114 @@ onUnmounted(() => {
 
       </template>
     </div>
+
+    <!-- Overlay when agent panel is open -->
+    <Transition name="fade">
+      <div
+        v-if="selectedAgent"
+        class="fixed inset-0 z-40 bg-black/20"
+        @click="selectedAgent = null"
+      />
+    </Transition>
+
+    <!-- Agent Detail Panel -->
+    <Transition name="slide-right">
+      <div
+        v-if="selectedAgent"
+        class="fixed top-0 right-0 z-50 h-full w-96 max-w-[90vw] bg-[var(--color-surface)] border-l border-[var(--color-border)] shadow-xl overflow-y-auto"
+      >
+        <div class="p-5">
+          <!-- Header -->
+          <div class="flex items-start justify-between mb-5">
+            <div>
+              <h3 class="text-base font-semibold text-[var(--color-text)]">{{ selectedAgent.name }}</h3>
+              <p v-if="selectedAgent.role" class="text-xs text-[var(--color-text-muted)] mt-0.5">
+                {{ selectedAgent.role }}
+                <span v-if="selectedAgent.company"> @ {{ selectedAgent.company }}</span>
+              </p>
+            </div>
+            <button @click="selectedAgent = null" class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] text-lg leading-none">&times;</button>
+          </div>
+
+          <!-- Stats -->
+          <div class="grid grid-cols-3 gap-3 mb-5">
+            <div class="bg-[var(--color-tint)] rounded-lg p-3 text-center">
+              <div class="text-lg font-semibold text-[var(--color-text)]">{{ selectedAgent.totalActions }}</div>
+              <div class="text-[10px] text-[var(--color-text-muted)]">Actions</div>
+            </div>
+            <div class="bg-[rgba(32,104,255,0.06)] rounded-lg p-3 text-center">
+              <div class="text-lg font-semibold text-[var(--color-primary)]">{{ selectedAgent.twitterActions }}</div>
+              <div class="text-[10px] text-[var(--color-primary)]">Twitter</div>
+            </div>
+            <div class="bg-[rgba(255,86,0,0.06)] rounded-lg p-3 text-center">
+              <div class="text-lg font-semibold text-[#ff5600]">{{ selectedAgent.redditActions }}</div>
+              <div class="text-[10px] text-[#ff5600]">Reddit</div>
+            </div>
+          </div>
+
+          <!-- Engagement badge -->
+          <div class="mb-5">
+            <span class="text-xs font-medium px-2.5 py-1 rounded-full"
+              :class="selectedAgent.sentiment === 'Engaged'
+                ? 'bg-emerald-500/10 text-emerald-600'
+                : 'bg-yellow-500/10 text-yellow-600'"
+            >{{ selectedAgent.sentiment }}</span>
+          </div>
+
+          <!-- Action history -->
+          <div>
+            <h4 class="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Recent Activity</h4>
+            <div class="space-y-2">
+              <div
+                v-for="(action, idx) in selectedAgent.actions"
+                :key="idx"
+                class="flex items-start gap-2 py-2 border-b border-[var(--color-border)] last:border-0"
+              >
+                <span class="text-sm mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs px-1.5 py-0.5 rounded-full" :class="platformBadge(action.platform).class">
+                      {{ platformBadge(action.platform).label }}
+                    </span>
+                    <span class="text-[10px] text-[var(--color-text-muted)]">R{{ action.round_num }}</span>
+                  </div>
+                  <p class="text-xs text-[var(--color-text-secondary)] mt-1">
+                    {{ actionLabel(action.action_type) }}
+                    <span v-if="action.action_args?.content" class="text-[var(--color-text-muted)]">
+                      &mdash; {{ truncate(action.action_args.content, 100) }}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- View Full Profile link -->
+          <div class="mt-6 pt-4 border-t border-[var(--color-border)]">
+            <router-link
+              :to="`/workspace/${taskId}/agent/${selectedAgent.id}?name=${encodeURIComponent(selectedAgent.fullName)}`"
+              class="flex items-center justify-center gap-2 w-full bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white text-sm font-medium py-2.5 rounded-lg transition-colors no-underline"
+            >
+              View Full Profile &rarr;
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
+
+<style scoped>
+.slide-right-enter-active, .slide-right-leave-active {
+  transition: transform 0.25s ease;
+}
+.slide-right-enter-from, .slide-right-leave-to {
+  transform: translateX(100%);
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>

@@ -266,6 +266,72 @@ export function useSimulationPolling(taskIdSource) {
       twitterActions: twitterShare,
       redditActions: redditShare,
     })
+
+    // Generate demo activity data
+    const agentNames = [
+      'Sarah Chen, VP Support @ Acme SaaS',
+      'James Wright, CX Director @ Retail Plus',
+      'Robert Williams, IT Director @ EduSpark',
+      'Michael Chang, Head of Ops @ FinEdge',
+      'Anika Sharma, Head of Support Engineering @ DevStack',
+      'Sofia Martinez, Support Manager @ QuickShip',
+      'Rachel Torres, VP Support @ CloudOps Inc',
+      'David Park, CX Lead @ HealthFirst',
+      'Emily Watson, IT Manager @ DataPulse',
+      'Carlos Rivera, Director of Operations @ NovaPay',
+    ]
+    const actionTypes = [
+      'CREATE_POST', 'REPLY', 'LIKE', 'REPOST', 'COMMENT',
+      'UPVOTE', 'SHARE', 'CREATE_THREAD',
+    ]
+    const platforms = ['twitter', 'reddit']
+    const sampleContent = [
+      'The ROI claims are compelling but I need to see case studies from our vertical before recommending to the board.',
+      'Has anyone actually migrated from Zendesk to Intercom? What was the timeline like?',
+      'AI-first resolution sounds great in theory. Concerned about edge cases our team handles daily.',
+      'Just saw the Fin AI demo — the intent understanding is genuinely impressive.',
+      '40% cost reduction is bold. We spend $15K/mo on Zendesk, so that would be significant.',
+      'Our IT team would need 3 months minimum for any migration. The "30 days" claim feels aggressive.',
+      'Shared this with our CX team. The personalization capabilities are worth evaluating.',
+      'Interesting that they position against Zendesk directly. Shows confidence in the product.',
+      'We tested Freshdesk last quarter. If Intercom can beat that experience, I am interested.',
+      'The compliance angle is missing from their messaging. Critical for our healthcare clients.',
+      'Liked this thread — good comparison of support platforms for mid-market.',
+      'Our support costs went up 60% last year. Open to alternatives that can scale better.',
+      'The AI agent concept is the future. Question is whether Fin is production-ready today.',
+      'Reposting — our ops team should see the pricing comparison data.',
+      'Support automation has been on our roadmap for Q3. This timeline could work.',
+    ]
+
+    const demoActionsList = []
+    for (let round = 1; round <= demoRounds; round++) {
+      const actionsInRound = Math.floor(Math.random() * 8) + 3
+      for (let j = 0; j < actionsInRound; j++) {
+        demoActionsList.push({
+          agent_id: Math.floor(Math.random() * agentNames.length),
+          agent_name: agentNames[Math.floor(Math.random() * agentNames.length)],
+          action_type: actionTypes[Math.floor(Math.random() * actionTypes.length)],
+          platform: platforms[Math.floor(Math.random() * platforms.length)],
+          round_num: round,
+          action_args: {
+            content: sampleContent[Math.floor(Math.random() * sampleContent.length)],
+          },
+        })
+      }
+    }
+    recentActions.value = demoActionsList
+
+    // Generate demo timeline
+    const demoTimeline = []
+    for (let round = 1; round <= demoRounds; round++) {
+      const roundActions = demoActionsList.filter(a => a.round_num === round)
+      demoTimeline.push({
+        round_num: round,
+        twitter_actions: roundActions.filter(a => a.platform === 'twitter').length,
+        reddit_actions: roundActions.filter(a => a.platform === 'reddit').length,
+      })
+    }
+    timeline.value = demoTimeline
   }
 
   async function forceRefresh() {

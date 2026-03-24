@@ -24,6 +24,13 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/workspace/:taskId/agent/:agentId',
+    name: 'agent-profile',
+    component: () => import('../views/AgentProfileView.vue'),
+    props: true,
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/workspace/:taskId',
     name: 'workspace',
     component: () => import('../views/SimulationWorkspaceView.vue'),

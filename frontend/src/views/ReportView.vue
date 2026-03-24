@@ -1,224 +1,163 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
-import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
-import ErrorState from '../components/ui/ErrorState.vue'
-import EmptyState from '../components/ui/EmptyState.vue'
-import { useToast } from '../composables/useToast'
 
 const props = defineProps({ taskId: String })
-const toast = useToast()
 
 const reportId = ref(null)
 const sections = ref([])
-const activeChapter = ref('summary')
-const loading = ref(true)
-const generating = ref(false)
-const error = ref(null)
+const activeChapter = ref(0)
+const generating = ref(true)
 const progress = ref(0)
 const progressMessage = ref('')
-const completedSectionTitles = ref([])
-const currentSectionTitle = ref('')
+const error = ref(null)
 const isComplete = ref(false)
-const fullMarkdown = ref('')
 
 let pollTimer = null
 
-// --- Computed ---
-
-const chapters = computed(() => {
-  if (sections.value.length > 0) {
-    return sections.value.map((s, i) => {
-      const match = s.content.match(/^#+\s+(.+)/m)
-      return {
-        title: match ? match[1].trim() : `Section ${s.section_index || i + 1}`,
-        content: s.content,
-        html: marked.parse(s.content),
-      }
-    })
-  }
-  if (fullMarkdown.value) {
-    return fullMarkdown.value
-      .split(/(?=^## )/m)
-      .filter(s => s.trim())
-      .map((part, i) => {
-        const match = part.match(/^#+\s+(.+)/m)
-        return {
-          title: match ? match[1].trim() : `Section ${i + 1}`,
-          content: part,
-          html: marked.parse(part),
-        }
-      })
-  }
-  return []
-})
-
-const chapterStatus = computed(() =>
-  chapters.value.map(ch => {
-    if (isComplete.value) return 'completed'
-    if (completedSectionTitles.value.includes(ch.title)) return 'completed'
-    if (currentSectionTitle.value === ch.title) return 'generating'
-    return 'completed'
+const chapters = computed(() =>
+  sections.value.map((s) => {
+    const titleMatch = s.content.match(/^##\s+(.+)/m)
+    return {
+      title: titleMatch ? titleMatch[1] : `Section ${s.section_index}`,
+      html: marked.parse(s.content),
+      markdown: s.content,
+      index: s.section_index,
+    }
   })
 )
 
+const activeContent = computed(() => chapters.value[activeChapter.value] || null)
+
 const keyFindings = computed(() => {
   const findings = []
-  const content = sections.value.length > 0
-    ? sections.value.map(s => s.content).join('\n')
-    : fullMarkdown.value
-  if (!content) return findings
-
-  const lines = content.split('\n')
-  let inFindings = false
-  for (const line of lines) {
-    if (/^#+.*(?:key\s*finding|key\s*insight|key\s*takeaway|highlight)/i.test(line)) {
-      inFindings = true
-      continue
-    }
-    if (inFindings && /^##/.test(line)) inFindings = false
-    if (inFindings && /^[-*]\s+/.test(line)) {
-      findings.push(line.replace(/^[-*]\s+/, '').replace(/\*\*/g, '').trim())
+  for (const ch of chapters.value) {
+    const lines = ch.markdown.split('\n')
+    let inFindings = false
+    for (const line of lines) {
+      if (/^###?\s.*(key finding|recommendation|insight|takeaway)/i.test(line)) {
+        inFindings = true
+        continue
+      }
+      if (inFindings && /^###?\s/.test(line)) break
+      if (inFindings && line.startsWith('- ')) {
+        findings.push(line.slice(2).trim())
+      }
     }
   }
-
-  for (const m of content.matchAll(/\*\*(?:Key Finding)[:\s]*\*\*\s*(.+)/gi)) {
-    findings.push(m[1].trim())
-  }
-
-  if (findings.length === 0) {
-    const bullets = content.match(/^[-*]\s+.+/gm)
-    if (bullets) {
-      bullets.slice(0, 5).forEach(b =>
-        findings.push(b.replace(/^[-*]\s+/, '').replace(/\*\*/g, '').trim())
-      )
-    }
-  }
-
-  return [...new Set(findings)].slice(0, 8)
+  return findings
 })
 
-const activeContent = computed(() => {
-  if (activeChapter.value === 'summary') return null
-  return chapters.value[activeChapter.value] || null
-})
+const fullMarkdown = computed(() =>
+  sections.value.map((s) => s.content).join('\n\n---\n\n')
+)
 
-// --- API ---
+async function checkAndLoad() {
+  try {
+    const res = await fetch(`/api/report/check/${props.taskId}`)
+    if (!res.ok) {
+      await startGeneration()
+      return
+    }
+    const json = await res.json()
+    if (json.success && json.data.has_report) {
+      reportId.value = json.data.report_id
+      if (json.data.report_status === 'completed') {
+        await loadSections()
+        generating.value = false
+        isComplete.value = true
+      } else {
+        startPolling()
+      }
+    } else {
+      await startGeneration()
+    }
+  } catch (e) {
+    error.value = 'Failed to check report status'
+  }
+}
 
-async function initReport() {
-  loading.value = true
-  error.value = null
+async function startGeneration() {
   try {
     const res = await fetch('/api/report/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ simulation_id: props.taskId }),
     })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const json = await res.json()
-    if (!json.success) throw new Error(json.error || 'Report generation failed')
-
-    reportId.value = json.data.report_id
-
-    if (json.data.already_generated || json.data.status === 'completed') {
-      await fetchReport()
+    if (json.success) {
+      reportId.value = json.data.report_id
+      if (json.data.already_generated) {
+        await loadSections()
+        generating.value = false
+        isComplete.value = true
+      } else {
+        startPolling()
+      }
     } else {
-      generating.value = true
-      loading.value = false
-      startPolling()
+      error.value = json.error || 'Failed to start report generation'
     }
   } catch (e) {
-    generating.value = false
-    error.value = e.message
-    loading.value = false
+    error.value = 'Failed to start report generation'
   }
 }
 
-async function fetchReport() {
-  try {
-    const res = await fetch(`/api/report/${reportId.value}`)
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const json = await res.json()
-    if (!json.success) throw new Error(json.error)
-
-    fullMarkdown.value = json.data.markdown_content || ''
-    isComplete.value = true
-    generating.value = false
-    await fetchSections()
-  } catch (e) {
-    error.value = e.message
-    toast.error('Failed to fetch report')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function fetchSections() {
+async function loadSections() {
   if (!reportId.value) return
   try {
     const res = await fetch(`/api/report/${reportId.value}/sections`)
     if (!res.ok) return
     const json = await res.json()
     if (json.success) {
-      sections.value = json.data.sections || []
-      if (json.data.is_complete) {
-        isComplete.value = true
-        generating.value = false
-        stopPolling()
-      }
+      sections.value = json.data.sections
+      isComplete.value = json.data.is_complete
     }
-  } catch { /* non-critical */ }
+  } catch {
+    // Silently retry on next poll
+  }
 }
 
-async function fetchProgress() {
+async function pollProgress() {
   if (!reportId.value) return
   try {
     const res = await fetch(`/api/report/${reportId.value}/progress`)
-    if (!res.ok) return
-    const json = await res.json()
-    if (json.success) {
-      progress.value = json.data.progress || 0
-      progressMessage.value = json.data.message || ''
-      completedSectionTitles.value = json.data.completed_sections || []
-      currentSectionTitle.value = json.data.current_section || ''
-      if (json.data.status === 'completed') await fetchReport()
+    if (res.ok) {
+      const json = await res.json()
+      if (json.success) {
+        progress.value = json.data.progress || 0
+        progressMessage.value = json.data.message || ''
+      }
     }
-  } catch { /* non-critical */ }
+  } catch {
+    // Continue polling
+  }
+  await loadSections()
+  if (isComplete.value) {
+    generating.value = false
+    stopPolling()
+  }
 }
 
 function startPolling() {
-  fetchSections()
-  fetchProgress()
-  pollTimer = setInterval(() => {
-    if (isComplete.value) return stopPolling()
-    fetchSections()
-    fetchProgress()
-  }, 3000)
+  generating.value = true
+  pollTimer = setInterval(pollProgress, 3000)
+  pollProgress()
 }
 
 function stopPolling() {
-  clearInterval(pollTimer)
-  pollTimer = null
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
 }
 
 function exportMarkdown() {
-  let content = fullMarkdown.value
-  if (!content && sections.value.length > 0) {
-    content = sections.value.map(s => s.content).join('\n\n---\n\n')
+  if (reportId.value) {
+    window.open(`/api/report/${reportId.value}/download`, '_blank')
   }
-  if (!content) return toast.error('No content to export')
-
-  const blob = new Blob([content], { type: 'text/markdown' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `report-${props.taskId}.md`
-  a.click()
-  URL.revokeObjectURL(url)
-  toast.success('Report exported')
 }
 
-onMounted(initReport)
+onMounted(checkAndLoad)
 onUnmounted(stopPolling)
 </script>
 
@@ -228,20 +167,22 @@ onUnmounted(stopPolling)
     <div class="flex items-center justify-between mb-8">
       <div>
         <h1 class="text-2xl font-semibold text-[#050505]" style="letter-spacing: -0.64px">
-          Simulation Report
+          Predictive Report
         </h1>
-        <p class="text-sm text-[#888] mt-0.5">Task: {{ taskId }}</p>
+        <p v-if="generating" class="text-sm text-[#888] mt-1">
+          {{ progressMessage || 'Generating multi-chapter analysis...' }}
+        </p>
       </div>
       <div class="flex gap-2">
         <button
-          v-if="chapters.length > 0"
+          v-if="!generating && sections.length > 0"
           @click="exportMarkdown"
-          class="flex items-center gap-2 bg-white border border-black/10 text-[#050505] px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#fafafa] transition-colors"
+          class="border border-black/10 hover:bg-black/5 text-[#050505] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
         >
-          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Export .md
+          Export Markdown
         </button>
         <router-link
           :to="`/chat/${taskId}`"
@@ -252,167 +193,134 @@ onUnmounted(stopPolling)
       </div>
     </div>
 
-    <!-- Loading -->
-    <LoadingSpinner v-if="loading" label="Loading report..." />
-
-    <!-- Error -->
-    <ErrorState
-      v-else-if="error"
-      title="Report generation failed"
-      :message="error"
-      @retry="initReport"
-    />
-
-    <!-- Empty State -->
-    <EmptyState
-      v-else-if="!generating && chapters.length === 0"
-      icon="📊"
-      title="No report data yet"
-      description="Run a simulation first to generate a predictive report with multi-chapter analysis."
-      action-label="Go to Scenarios"
-      action-to="/"
-    />
-
-    <!-- Generating (no sections yet) -->
-    <div v-else-if="generating && chapters.length === 0" class="max-w-md mx-auto text-center py-16">
-      <LoadingSpinner :label="progressMessage || 'Analyzing simulation data...'" />
-      <div class="mt-6">
-        <div class="w-full h-2 bg-black/5 rounded-full overflow-hidden">
-          <div
-            class="h-full rounded-full transition-all duration-500 bg-[#2068FF]"
-            :style="{ width: `${progress}%` }"
-          />
-        </div>
-        <p class="text-xs text-[#888] mt-2">{{ Math.round(progress) }}% complete</p>
-      </div>
+    <!-- Error State -->
+    <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-sm text-red-700">
+      {{ error }}
     </div>
 
-    <!-- Report Content -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-4 gap-6">
-      <!-- Sidebar: Chapter Navigation -->
+    <!-- Progress Bar (during generation) -->
+    <div v-if="generating && progress > 0" class="mb-6">
+      <div class="h-1.5 bg-black/5 rounded-full overflow-hidden">
+        <div
+          class="h-full bg-[#2068FF] rounded-full transition-all duration-500"
+          :style="{ width: `${progress}%` }"
+        />
+      </div>
+      <p class="text-xs text-[#888] mt-1 text-right">{{ progress }}%</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <!-- Chapter Nav Sidebar -->
       <nav class="space-y-1">
-        <!-- Summary -->
-        <button
-          @click="activeChapter = 'summary'"
-          class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2.5"
-          :class="activeChapter === 'summary'
-            ? 'bg-[#2068FF] text-white'
-            : 'text-[#555] hover:bg-[rgba(32,104,255,0.06)]'"
-        >
-          <span
-            class="w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-xs"
-            :class="activeChapter === 'summary' ? 'bg-white/20 text-white' : 'bg-[rgba(32,104,255,0.08)] text-[#2068FF]'"
-          >★</span>
-          Summary
-        </button>
+        <h3 class="text-xs font-semibold text-[#888] uppercase tracking-wider mb-3 px-3">Chapters</h3>
 
-        <div class="h-px bg-black/10 my-2" />
+        <div v-if="chapters.length === 0 && generating" class="px-3">
+          <div class="flex items-center gap-2 text-sm text-[#888]">
+            <svg class="w-4 h-4 animate-spin text-[#2068FF]" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Generating chapters...
+          </div>
+        </div>
 
-        <!-- Chapter Items -->
-        <TransitionGroup tag="div" name="card-list" class="space-y-1">
         <button
           v-for="(chapter, i) in chapters"
           :key="'ch-' + i"
           @click="activeChapter = i"
-          class="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2.5"
+          class="w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2"
           :class="activeChapter === i
-            ? 'bg-[#2068FF] text-white font-medium'
-            : 'text-[#555] hover:bg-[rgba(32,104,255,0.06)]'"
+            ? 'bg-[#2068FF] text-white'
+            : 'text-[#555] hover:bg-black/5'"
         >
           <!-- Completion indicator -->
-          <span
-            class="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-            :class="activeChapter === i ? 'bg-white/20' : {
-              'bg-[rgba(0,153,0,0.1)]': chapterStatus[i] === 'completed',
-              'bg-[rgba(32,104,255,0.1)]': chapterStatus[i] === 'generating',
-              'bg-black/5': chapterStatus[i] === 'pending',
-            }"
+          <span class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs"
+            :class="activeChapter === i
+              ? 'bg-white/20 text-white'
+              : 'bg-[rgba(32,104,255,0.08)] text-[#2068FF]'"
           >
-            <svg
-              v-if="chapterStatus[i] === 'completed'"
-              class="w-3 h-3"
-              :class="activeChapter === i ? 'text-white' : 'text-[#009900]'"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            <svg v-if="isComplete" class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
             </svg>
-            <span
-              v-else-if="chapterStatus[i] === 'generating'"
-              class="w-2 h-2 rounded-full animate-pulse"
-              :class="activeChapter === i ? 'bg-white' : 'bg-[#2068FF]'"
-            />
-            <span
-              v-else
-              class="w-2 h-2 rounded-full"
-              :class="activeChapter === i ? 'bg-white/40' : 'bg-black/20'"
-            />
+            <span v-else>{{ i + 1 }}</span>
           </span>
           <span class="truncate">{{ chapter.title }}</span>
         </button>
-        </TransitionGroup>
 
-        <!-- Progress during generation -->
-        <div v-if="generating" class="mt-4 px-3">
-          <div class="w-full h-1.5 bg-black/5 rounded-full overflow-hidden">
-            <div
-              class="h-full rounded-full transition-all duration-500 bg-[#2068FF]"
-              :style="{ width: `${progress}%` }"
-            />
-          </div>
-          <p class="text-xs text-[#888] mt-1">{{ Math.round(progress) }}% complete</p>
+        <!-- Pending indicator during generation -->
+        <div v-if="generating && chapters.length > 0" class="flex items-center gap-2 px-3 py-2.5 text-sm text-[#888]">
+          <span class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center bg-black/5">
+            <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </span>
+          <span class="italic">Generating next...</span>
         </div>
       </nav>
 
       <!-- Main Content Area -->
-      <div class="md:col-span-3">
-        <!-- Summary View -->
-        <div v-if="activeChapter === 'summary'" class="bg-white border border-black/10 rounded-lg p-8">
-          <h2 class="text-lg font-semibold text-[#050505] mb-6">Key Findings</h2>
-
-          <div v-if="keyFindings.length > 0" class="space-y-3">
-            <div
-              v-for="(finding, i) in keyFindings"
-              :key="i"
-              class="flex gap-3 p-4 rounded-lg bg-[rgba(32,104,255,0.06)] border-l-4 border-[#2068FF]"
-            >
-              <span class="shrink-0 w-6 h-6 rounded-full bg-[#2068FF] text-white flex items-center justify-center text-xs font-semibold">
-                {{ i + 1 }}
-              </span>
-              <p class="text-sm text-[#050505] leading-relaxed">{{ finding }}</p>
-            </div>
+      <div class="md:col-span-3 space-y-6">
+        <!-- Chapter Content -->
+        <div class="bg-white border border-black/10 rounded-lg p-8">
+          <!-- Loading state -->
+          <div v-if="generating && !activeContent" class="text-center py-16">
+            <svg class="w-10 h-10 mx-auto mb-4 animate-spin text-[#2068FF]" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            <p class="text-[#888]">Generating predictive report...</p>
+            <p class="text-xs text-[#aaa] mt-2">Multi-chapter analysis with evidence from simulation</p>
           </div>
 
-          <p v-else class="text-sm text-[#888] text-center py-8">
-            {{ generating ? 'Key findings will appear as chapters are generated...' : 'No key findings identified in this report.' }}
-          </p>
+          <!-- Rendered markdown chapter -->
+          <div
+            v-else-if="activeContent"
+            class="report-content"
+            v-html="activeContent.html"
+          />
 
-          <!-- Report stats -->
-          <div v-if="chapters.length > 0" class="mt-8 pt-6 border-t border-black/10 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div class="text-2xl font-semibold text-[#2068FF]">{{ chapters.length }}</div>
-              <div class="text-xs text-[#888] mt-0.5">Chapters</div>
-            </div>
-            <div>
-              <div class="text-2xl font-semibold text-[#2068FF]">{{ keyFindings.length }}</div>
-              <div class="text-xs text-[#888] mt-0.5">Key Findings</div>
-            </div>
-            <div>
-              <div class="text-2xl font-semibold text-[#2068FF]">
-                {{ isComplete ? '✓' : `${Math.round(progress)}%` }}
-              </div>
-              <div class="text-xs text-[#888] mt-0.5">
-                {{ isComplete ? 'Complete' : 'Progress' }}
-              </div>
+          <!-- Empty state -->
+          <div v-else class="text-center py-16 text-[#888]">
+            <p>No report content available.</p>
+          </div>
+        </div>
+
+        <!-- Key Findings Summary -->
+        <div v-if="keyFindings.length > 0" class="space-y-3">
+          <h3 class="text-sm font-semibold text-[#050505]">Key Findings</h3>
+          <div
+            v-for="(finding, i) in keyFindings"
+            :key="i"
+            class="bg-[rgba(32,104,255,0.08)] border border-[rgba(32,104,255,0.3)] rounded-lg p-4 text-sm text-[#050505]"
+          >
+            <div class="flex gap-3">
+              <span class="shrink-0 w-5 h-5 rounded-full bg-[#2068FF] text-white flex items-center justify-center text-xs font-semibold mt-0.5">
+                {{ i + 1 }}
+              </span>
+              <span>{{ finding }}</span>
             </div>
           </div>
         </div>
 
-        <!-- Chapter Content -->
-        <Transition v-else name="fade" mode="out-in">
-          <div v-if="activeContent" :key="activeChapter" class="bg-white border border-black/10 rounded-lg p-8">
-            <div class="report-content" v-html="activeContent.html" />
-          </div>
-        </Transition>
+        <!-- Chapter navigation footer -->
+        <div v-if="chapters.length > 1 && !generating" class="flex items-center justify-between pt-2">
+          <button
+            :disabled="activeChapter === 0"
+            @click="activeChapter--"
+            class="text-sm text-[#2068FF] hover:underline disabled:text-[#ccc] disabled:no-underline transition-colors"
+          >
+            ← Previous Chapter
+          </button>
+          <span class="text-xs text-[#888]">{{ activeChapter + 1 }} of {{ chapters.length }}</span>
+          <button
+            :disabled="activeChapter === chapters.length - 1"
+            @click="activeChapter++"
+            class="text-sm text-[#2068FF] hover:underline disabled:text-[#ccc] disabled:no-underline transition-colors"
+          >
+            Next Chapter →
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -1,195 +1,249 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { createRouter, createMemoryHistory } from 'vue-router'
 import ReportView from '../ReportView.vue'
 
-vi.mock('../../services/api.js', () => ({
-  generateReport: vi.fn(),
-  getReportGenerateStatus: vi.fn(),
-  getReportSections: vi.fn(),
-  pollTask: vi.fn(),
-}))
-
-import {
-  generateReport,
-  getReportSections,
-  pollTask,
-} from '../../services/api.js'
-
-function createTestRouter(simulationId = 'sim-123') {
-  return createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      {
-        path: '/report/:taskId',
-        name: 'report',
-        component: ReportView,
-        props: true,
-      },
-      {
-        path: '/chat/:taskId',
-        name: 'chat',
-        component: { template: '<div />' },
-      },
-      {
-        path: '/simulation/:taskId',
-        name: 'simulation',
-        component: { template: '<div />' },
-      },
-    ],
-  })
+const mockRouterLink = {
+  template: '<a :href="to"><slot /></a>',
+  props: ['to'],
 }
 
-function mountReport(taskId = 'task-abc') {
-  const router = createTestRouter()
-  router.push({ path: `/report/${taskId}`, query: { simulationId: 'sim-123' } })
+function mockFetch(responses) {
+  const calls = []
+  let callIndex = 0
+  const fn = vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    const handler = responses[callIndex++]
+    if (!handler) return { ok: false, json: async () => ({}) }
+    return handler(url, opts)
+  })
+  fn.calls = calls
+  return fn
+}
+
+function okJson(data) {
+  return () => ({ ok: true, json: async () => data })
+}
+
+function notFound() {
+  return () => ({ ok: false, status: 404, json: async () => ({ success: false }) })
+}
+
+const completedCheckResponse = okJson({
+  success: true,
+  data: {
+    simulation_id: 'sim_123',
+    has_report: true,
+    report_status: 'completed',
+    report_id: 'report_abc',
+    interview_unlocked: true,
+  },
+})
+
+const sectionsResponse = okJson({
+  success: true,
+  data: {
+    report_id: 'report_abc',
+    sections: [
+      {
+        filename: 'section_01.md',
+        section_index: 1,
+        content: '## Executive Summary\n\nThis report analyzes the GTM simulation results.',
+      },
+      {
+        filename: 'section_02.md',
+        section_index: 2,
+        content:
+          '## Key Findings\n\n### Key Findings\n\n- Revenue grew 25% quarter-over-quarter\n- Enterprise segment outperformed SMB by 3x\n- Churn reduced to 4.2% from 6.1%',
+      },
+      {
+        filename: 'section_03.md',
+        section_index: 3,
+        content: '## Recommendations\n\nFocus on enterprise expansion.',
+      },
+    ],
+    total_sections: 3,
+    is_complete: true,
+  },
+})
+
+function mountReport(fetchImpl) {
+  global.fetch = fetchImpl
   return mount(ReportView, {
-    props: { taskId },
-    global: { plugins: [router] },
+    props: { taskId: 'sim_123' },
+    global: {
+      stubs: { 'router-link': mockRouterLink },
+    },
   })
 }
 
 describe('ReportView', () => {
+  let originalFetch
+
   beforeEach(() => {
-    vi.clearAllMocks()
+    originalFetch = global.fetch
+    vi.useFakeTimers()
   })
 
   afterEach(() => {
-    vi.restoreAllMocks()
+    global.fetch = originalFetch
+    vi.useRealTimers()
   })
 
-  it('shows loading spinner while generating', async () => {
-    generateReport.mockReturnValue(new Promise(() => {})) // never resolves
-    const wrapper = mountReport()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Generating predictive report')
+  it('renders loading state initially', () => {
+    const fetchFn = mockFetch([
+      // check endpoint hangs
+      () => new Promise(() => {}),
+    ])
+    const wrapper = mountReport(fetchFn)
+    expect(wrapper.text()).toContain('Generating')
   })
 
-  it('shows progress bar during generation', async () => {
-    generateReport.mockReturnValue(new Promise(() => {}))
-    const wrapper = mountReport()
+  it('loads completed report and renders chapters in sidebar', async () => {
+    const fetchFn = mockFetch([completedCheckResponse, sectionsResponse])
+    const wrapper = mountReport(fetchFn)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Starting report generation')
+    const buttons = wrapper.findAll('nav button')
+    expect(buttons.length).toBe(3)
+    expect(buttons[0].text()).toContain('Executive Summary')
+    expect(buttons[1].text()).toContain('Key Findings')
+    expect(buttons[2].text()).toContain('Recommendations')
   })
 
-  it('renders report chapters after successful generation', async () => {
-    generateReport.mockResolvedValue({
-      data: { report_id: 'rpt-1', task_id: 't-1', already_generated: true },
-    })
-    getReportSections.mockResolvedValue({
-      data: {
-        sections: [
-          { content: '# Executive Summary\nThis is the summary.' },
-          { content: '# Key Findings\nThese are the findings.' },
-        ],
-      },
-    })
-
-    const wrapper = mountReport()
+  it('renders markdown content for active chapter', async () => {
+    const fetchFn = mockFetch([completedCheckResponse, sectionsResponse])
+    const wrapper = mountReport(fetchFn)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Executive Summary')
+    const content = wrapper.find('.report-content')
+    expect(content.exists()).toBe(true)
+    expect(content.html()).toContain('analyzes the GTM simulation')
+  })
+
+  it('switches chapters when sidebar button is clicked', async () => {
+    const fetchFn = mockFetch([completedCheckResponse, sectionsResponse])
+    const wrapper = mountReport(fetchFn)
+    await flushPromises()
+
+    const buttons = wrapper.findAll('nav button')
+    await buttons[2].trigger('click')
+
+    const content = wrapper.find('.report-content')
+    expect(content.html()).toContain('enterprise expansion')
+  })
+
+  it('extracts key findings into blue callout boxes', async () => {
+    const fetchFn = mockFetch([completedCheckResponse, sectionsResponse])
+    const wrapper = mountReport(fetchFn)
+    await flushPromises()
+
     expect(wrapper.text()).toContain('Key Findings')
-    expect(wrapper.text()).toContain('This is the summary.')
+    expect(wrapper.text()).toContain('Revenue grew 25%')
+    expect(wrapper.text()).toContain('Enterprise segment outperformed')
+    expect(wrapper.text()).toContain('Churn reduced to 4.2%')
+
+    // Verify callout containers exist (numbered badges with findings)
+    const calloutHtml = wrapper.html()
+    expect(calloutHtml).toContain('rgba(32,104,255')
+    expect(calloutHtml).toContain('Revenue grew 25%')
   })
 
-  it('shows ErrorState with retry on failure', async () => {
-    generateReport.mockRejectedValue(new Error('API timeout'))
-    const wrapper = mountReport()
+  it('shows export button when report is loaded', async () => {
+    const fetchFn = mockFetch([completedCheckResponse, sectionsResponse])
+    const wrapper = mountReport(fetchFn)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Report generation failed')
-    expect(wrapper.text()).toContain('API timeout')
-    expect(wrapper.find('button').text()).toContain('Try Again')
+    const exportBtn = wrapper.find('button')
+    expect(exportBtn.text()).toContain('Export Markdown')
   })
 
-  it('retries generation when retry button is clicked', async () => {
-    generateReport.mockRejectedValueOnce(new Error('Server error'))
-    const wrapper = mountReport()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Report generation failed')
-
-    // Now make it succeed on retry
-    generateReport.mockResolvedValueOnce({
-      data: { report_id: 'rpt-2', task_id: 't-2', already_generated: true },
-    })
-    getReportSections.mockResolvedValue({
-      data: { sections: [{ content: '# Results\nGood results.' }] },
-    })
-
-    await wrapper.find('button').trigger('click')
-    await flushPromises()
-
-    expect(generateReport).toHaveBeenCalledTimes(2)
-    expect(wrapper.text()).toContain('Results')
-  })
-
-  it('shows EmptyState when report has no sections', async () => {
-    generateReport.mockResolvedValue({
-      data: { report_id: 'rpt-3', task_id: 't-3', already_generated: true },
-    })
-    getReportSections.mockResolvedValue({
-      data: { sections: [] },
-    })
-
-    const wrapper = mountReport()
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('No report sections')
-    expect(wrapper.text()).toContain('Back to Simulation')
-  })
-
-  it('shows Ask Follow-Up link after successful generation', async () => {
-    generateReport.mockResolvedValue({
-      data: { report_id: 'rpt-4', task_id: 't-4', already_generated: true },
-    })
-    getReportSections.mockResolvedValue({
-      data: { sections: [{ content: '# Summary\nDone.' }] },
-    })
-
-    const wrapper = mountReport()
-    await flushPromises()
-
-    const link = wrapper.find('a[href*="chat"]')
-    expect(link.exists()).toBe(true)
-    expect(link.text()).toContain('Ask Follow-Up')
-  })
-
-  it('hides Ask Follow-Up link when in error state', async () => {
-    generateReport.mockRejectedValue(new Error('Failed'))
-    const wrapper = mountReport()
-    await flushPromises()
-
-    const link = wrapper.find('a[href*="chat"]')
-    expect(link.exists()).toBe(false)
-  })
-
-  it('allows switching between chapters', async () => {
-    generateReport.mockResolvedValue({
-      data: { report_id: 'rpt-5', task_id: 't-5', already_generated: true },
-    })
-    getReportSections.mockResolvedValue({
+  it('triggers report generation when no report exists', async () => {
+    const generateResponse = okJson({
+      success: true,
       data: {
-        sections: [
-          { content: '# Chapter One\nFirst chapter content.' },
-          { content: '# Chapter Two\nSecond chapter content.' },
-        ],
+        simulation_id: 'sim_123',
+        report_id: 'report_new',
+        task_id: 'task_1',
+        status: 'generating',
+        already_generated: false,
       },
     })
 
-    const wrapper = mountReport()
+    const progressResponse = okJson({
+      success: true,
+      data: { progress: 30, message: 'Generating section 1...' },
+    })
+
+    const incompleteSections = okJson({
+      success: true,
+      data: {
+        report_id: 'report_new',
+        sections: [
+          {
+            filename: 'section_01.md',
+            section_index: 1,
+            content: '## Overview\n\nFirst section content.',
+          },
+        ],
+        total_sections: 1,
+        is_complete: false,
+      },
+    })
+
+    const fetchFn = mockFetch([
+      notFound(),
+      generateResponse,
+      progressResponse,
+      incompleteSections,
+    ])
+
+    const wrapper = mountReport(fetchFn)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('First chapter content')
+    // Poll fires immediately after startPolling
+    await flushPromises()
 
-    // Click second chapter
-    const buttons = wrapper.findAll('button')
-    const chapterTwoBtn = buttons.find((b) => b.text().includes('Chapter Two'))
-    await chapterTwoBtn.trigger('click')
+    // Should show the first section in sidebar
+    const buttons = wrapper.findAll('nav button')
+    expect(buttons.length).toBe(1)
+    expect(buttons[0].text()).toContain('Overview')
 
-    expect(wrapper.text()).toContain('Second chapter content')
+    // Should still show generating indicator
+    expect(wrapper.text()).toContain('Generating next...')
+  })
+
+  it('shows previous/next chapter navigation when report is complete', async () => {
+    const fetchFn = mockFetch([completedCheckResponse, sectionsResponse])
+    const wrapper = mountReport(fetchFn)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Previous Chapter')
+    expect(wrapper.text()).toContain('Next Chapter')
+    expect(wrapper.text()).toContain('1 of 3')
+  })
+
+  it('calls download endpoint when export is clicked', async () => {
+    const fetchFn = mockFetch([completedCheckResponse, sectionsResponse])
+    const wrapper = mountReport(fetchFn)
+    await flushPromises()
+
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => {})
+    const exportBtn = wrapper.findAll('button').find((b) => b.text().includes('Export'))
+    await exportBtn.trigger('click')
+
+    expect(openSpy).toHaveBeenCalledWith('/api/report/report_abc/download', '_blank')
+    openSpy.mockRestore()
+  })
+
+  it('shows error state when check fails', async () => {
+    const fetchFn = mockFetch([
+      () => {
+        throw new Error('Network error')
+      },
+    ])
+    const wrapper = mountReport(fetchFn)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Failed to check report status')
   })
 })

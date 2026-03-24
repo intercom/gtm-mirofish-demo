@@ -2,13 +2,10 @@
 
 > Predict campaign outcomes before they happen. Simulate how prospects react to your outbound, signals, and pricing changes.
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Railway-blueviolet.svg)](https://frontend-production-86ea.up.railway.app)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![Node 18+](https://img.shields.io/badge/Node-18+-green.svg)](https://nodejs.org)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](docker-compose.yml)
-
-**[Try the live demo →](https://frontend-production-86ea.up.railway.app)**
 
 An Intercom-branded fork of [MiroFish](https://github.com/666ghj/MiroFish) — an open-source swarm intelligence engine (40K+ GitHub stars) — customized for Intercom's GTM Systems team. Pre-test automated outbound campaigns, validate sales signals, simulate pricing changes, and optimize personalization before they hit real prospects.
 
@@ -25,7 +22,7 @@ An Intercom-branded fork of [MiroFish](https://github.com/666ghj/MiroFish) — a
 - [Architecture](#architecture)
 - [GTM Scenarios](#gtm-scenarios)
 - [Development Guide](#development-guide)
-- [Deployment to Railway](#deployment-to-railway)
+- [Deployment](#deployment)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
 - [License](#license)
@@ -86,7 +83,7 @@ D3.js force-directed graph with entity type coloring (Topics, Personas, Relation
 - **Report Agent** — AI-powered report generation with section-by-section streaming and tool-call logging
 - **Agent Interviews** — Chat with individual simulated agents or batch-interview entire populations
 - **Optional Auth** — Google OAuth / Okta SSO with @intercom.io email enforcement (toggle via `.env`)
-- **Docker Deployment** — Single `docker compose up` for Railway or local development
+- **Docker Deployment** — Single `docker compose up` for local development
 
 ---
 
@@ -282,7 +279,7 @@ Client                         Server
 | Validation | Pydantic 2.0+ |
 | Auth | Google OAuth / Okta SSO (optional) |
 | Package Mgmt | uv (Python), pnpm (Node) |
-| Deploy | Docker Compose + Railway |
+| Deploy | Docker Compose |
 
 ---
 
@@ -469,57 +466,9 @@ pnpm test          # If test runner is configured
 
 ---
 
-## Deployment to Railway
+## Deployment
 
-[Railway](https://railway.app) supports multi-service Docker Compose deployments.
-
-### Step 1: Install Railway CLI
-
-```bash
-pnpm add -g @railway/cli
-```
-
-### Step 2: Login and Initialize
-
-```bash
-railway login
-railway init
-```
-
-### Step 3: Set Environment Variables
-
-```bash
-# Required
-railway variables set LLM_PROVIDER=anthropic
-railway variables set LLM_API_KEY=your-anthropic-key
-railway variables set ZEP_API_KEY=your-zep-key
-
-# Production auth (recommended)
-railway variables set AUTH_ENABLED=true
-railway variables set AUTH_PROVIDER=google
-railway variables set GOOGLE_CLIENT_ID=your-client-id
-railway variables set GOOGLE_CLIENT_SECRET=your-client-secret
-railway variables set SECRET_KEY=$(openssl rand -hex 32)
-
-# Server
-railway variables set FLASK_DEBUG=false
-```
-
-### Step 4: Deploy
-
-```bash
-railway up
-```
-
-Railway will detect the `docker-compose.yml` and deploy both services. The frontend service depends on the backend and will start after it's healthy.
-
-### Post-Deployment Checklist
-
-- [ ] Verify `/health` endpoint returns `{"status":"ok"}`
-- [ ] Confirm `AUTH_ENABLED=true` is set for production
-- [ ] Set a strong `SECRET_KEY` (not the default)
-- [ ] Test OAuth flow with an @intercom.io email
-- [ ] Verify GTM scenarios load: `GET /api/gtm/scenarios`
+This project is designed to run locally or in any Docker-compatible environment. See [Quick Start](#quick-start) for setup instructions.
 
 ---
 

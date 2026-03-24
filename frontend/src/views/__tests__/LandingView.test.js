@@ -63,6 +63,7 @@ describe('LandingView', () => {
     const wrapper = await mountLanding()
     const heroBadge = wrapper.findAll('span').find(s => s.text() === 'Hero')
     expect(heroBadge).toBeTruthy()
+    expect(heroBadge.classes()).toContain('bg-[#2068FF]')
   })
 
   it('does not show Hero badge on non-hero cards', async () => {
@@ -72,6 +73,14 @@ describe('LandingView', () => {
     for (const btn of nonHeroButtons) {
       expect(btn.text()).not.toContain('Hero')
     }
+  })
+
+  it('non-hero cards use default subtle styling', async () => {
+    const wrapper = await mountLanding()
+    const buttons = wrapper.findAll('button')
+    const nonHeroCard = buttons.find((b) => b.text().includes('Sales Signal'))
+    expect(nonHeroCard.classes()).toContain('bg-white/5')
+    expect(nonHeroCard.classes()).toContain('border-white/10')
   })
 
   it('uses a 2-column grid for cards on md+ screens', async () => {

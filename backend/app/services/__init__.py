@@ -50,6 +50,11 @@ from .oasis_environment import (
     EnvironmentType,
     EnvironmentStatus,
 )
+from .memory_consolidation import (
+    MemoryConsolidator,
+    Memory,
+    MemoryType,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -95,5 +100,8 @@ __all__ = [
     'EnvironmentState',
     'EnvironmentType',
     'EnvironmentStatus',
+    'MemoryConsolidator',
+    'Memory',
+    'MemoryType',
 ]
 

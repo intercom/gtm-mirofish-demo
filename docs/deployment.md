@@ -178,14 +178,14 @@ The project is deployed to Railway as two separate services in the `gtm-mirofish
 2. **Add the backend service:**
    - Connect your GitHub repo
    - Set the root directory to `backend/`
-   - Railway auto-detects the Dockerfile at `backend/Dockerfile`
+   - Railway auto-detects the Dockerfile at `backend/Dockerfile` and reads `railway.toml` for build/deploy configuration
    - Set the required environment variables (see [Railway Environment Variables](#railway-environment-variables))
 
 3. **Add the frontend service:**
    - Add a second service in the same Railway project
    - Connect the same GitHub repo
    - Set the root directory to `frontend/`
-   - Railway auto-detects the Dockerfile at `frontend/Dockerfile`
+   - Railway auto-detects the Dockerfile at `frontend/Dockerfile` and reads `railway.toml` for build/deploy configuration
    - Set `VITE_API_URL` to the backend's Railway URL (e.g., `https://backend-production-e9d7.up.railway.app/api`)
 
 4. **Verify deployment:**
@@ -210,7 +210,7 @@ The project is deployed to Railway as two separate services in the `gtm-mirofish
 | `AUTH_ALLOWED_DOMAIN` | `intercom.io` |
 | `GOOGLE_CLIENT_ID` | Your Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Your Google OAuth client secret |
-| `PORT` | `5001` (Railway sets this automatically) |
+| `PORT` | `5001` (injected automatically by Railway — do not set manually) |
 
 **Frontend service:**
 
@@ -375,6 +375,10 @@ For local development with hot-reload, use the [Manual Services](#manual-service
 ### CORS errors in production
 
 The backend uses `flask-cors` which allows all origins by default. If you need to restrict origins, set `FRONTEND_URL` in the backend environment and update the CORS configuration in `backend/app/__init__.py`.
+
+### Auth not working on Railway
+
+If authentication fails after deploying, ensure `AUTH_ENABLED=true` and the OAuth provider variables are configured. The OAuth redirect URI must match the Railway domain exactly.
 
 ### Frontend shows stale data after env change
 

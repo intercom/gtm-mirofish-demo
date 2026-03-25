@@ -1,0 +1,15 @@
+Task: Build provisioning status dashboard component
+Status: Complete
+
+Created frontend/src/components/orders/ProvisioningDashboard.vue with:
+- 4 stat cards: Total Orders, Success Rate, Avg Provisioning Time, Failed Count
+- D3.js horizontal stacked bar chart showing orders by status (Pending/Validated/Provisioned/Active/Failed)
+- Sortable orders table with status badges (sortable by date and status)
+- Failed orders highlighted with red background and Retry button
+- Auto-refresh indicator (top-right corner) with toggle and elapsed timer
+- Demo data generator (50 deterministic orders) for standalone operation
+- Accepts `orders` prop for integration with future Pinia store
+- Emits `retry` and `refresh` events for parent wiring
+- Uses existing Badge component and Intercom brand tokens
+- Responsive grid layout (2-col mobile, 4-col desktop for stat cards)
+- Build verified: passes vite build with zero errors

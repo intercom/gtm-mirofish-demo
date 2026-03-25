@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import BranchPointMarker from './BranchPointMarker.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -76,6 +77,33 @@ const filteredActions = computed(() => {
   if (activePlatform.value === 'all') return polling.recentActions.value
   return polling.recentActions.value.filter(a => a.platform === activePlatform.value)
 })
+
+const chartContainerRef = ref(null)
+const chartWidth = ref(0)
+
+const branchMarkerPositions = computed(() => {
+  const bps = polling.branchPoints?.value || []
+  const data = polling.timeline.value
+  if (!bps.length || !data.length || !chartWidth.value) return []
+
+  const pad = { left: 40, right: 16 }
+  const plotW = chartWidth.value - pad.left - pad.right
+
+  return bps
+    .filter(bp => bp.round >= 1 && bp.round <= data.length)
+    .map(bp => {
+      const idx = bp.round - 1
+      const x = pad.left + (idx / Math.max(data.length - 1, 1)) * plotW
+      return { ...bp, x }
+    })
+})
+
+const isReplayMode = computed(() => status.value === 'completed')
+
+function onBranchHere(round) {
+  // Placeholder — emits intent for future branching integration
+  console.info(`[Branch] User requested branch at round ${round}`)
+}
 
 const platformTabs = [
   { key: 'all', label: 'Both Platforms' },
@@ -338,9 +366,12 @@ watch(() => polling.timeline.value, () => {
 watch(activePlatform, () => drawChart())
 
 onMounted(() => {
-  const canvasContainer = chartCanvas.value?.parentElement
+  const canvasContainer = chartContainerRef.value || chartCanvas.value?.parentElement
   if (canvasContainer) {
-    resizeObserver = new ResizeObserver(() => {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        chartWidth.value = entry.contentRect.width
+      }
       drawChart()
     })
     resizeObserver.observe(canvasContainer)
@@ -471,8 +502,17 @@ onUnmounted(() => {
           <!-- Engagement Timeline Chart -->
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
             <h3 class="text-sm font-semibold text-[var(--color-text)] mb-4">Engagement Timeline</h3>
-            <div v-if="polling.timeline.value.length" class="relative" style="height: 200px">
+            <div v-if="polling.timeline.value.length" ref="chartContainerRef" class="relative" style="height: 200px">
               <canvas ref="chartCanvas" class="w-full h-full" />
+              <!-- Branch point markers overlay -->
+              <BranchPointMarker
+                v-for="bp in branchMarkerPositions"
+                :key="bp.id"
+                :branch-point="bp"
+                :x="bp.x"
+                :replay-mode="isReplayMode"
+                @branch-here="onBranchHere"
+              />
             </div>
             <div v-else class="flex items-center justify-center h-[200px] text-[var(--color-text-muted)] text-sm">
               <span v-if="status === 'building'">Waiting for simulation to start...</span>
@@ -484,6 +524,12 @@ onUnmounted(() => {
               </span>
               <span v-if="activePlatform !== 'twitter'" class="flex items-center gap-1">
                 <span class="inline-block w-3 h-0.5 bg-[var(--color-fin-orange)] rounded" /> Reddit
+              </span>
+              <span v-if="branchMarkerPositions.length" class="flex items-center gap-1 ml-auto">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" class="text-[var(--color-primary)]">
+                  <path d="M8 2v4M8 6L4 10M8 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ branchMarkerPositions.length }} branch point{{ branchMarkerPositions.length > 1 ? 's' : '' }}
               </span>
             </div>
           </div>
@@ -503,7 +549,7 @@ onUnmounted(() => {
               <div
                 v-for="(action, idx) in filteredActions.slice(0, 50)"
                 :key="idx"
-                class="flex items-start gap-2.5 py-2 border-b border-[var(--color-border)] last:border-0"
+                class="group flex items-start gap-2.5 py-2 border-b border-[var(--color-border)] last:border-0"
               >
                 <span class="text-base mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
                 <div class="min-w-0 flex-1">
@@ -515,6 +561,14 @@ onUnmounted(() => {
                       {{ platformBadge(action.platform).label }}
                     </span>
                     <span class="text-xs text-[var(--color-text-muted)]">R{{ action.round_num }}</span>
+                    <button
+                      v-if="isReplayMode"
+                      class="text-[10px] px-1.5 py-0.5 rounded border border-dashed border-[rgba(32,104,255,0.3)] text-[var(--color-primary)] hover:bg-[rgba(32,104,255,0.08)] transition-colors opacity-0 group-hover:opacity-100"
+                      @click.stop="onBranchHere(action.round_num)"
+                      title="Create branch at this round"
+                    >
+                      Branch
+                    </button>
                   </div>
                   <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
                     {{ actionLabel(action.action_type) }}

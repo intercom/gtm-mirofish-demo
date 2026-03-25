@@ -59,6 +59,10 @@ export const simulationApi = {
   interviewAll: (data) => client.post('/simulation/interview/all', data),
   interviewHistory: (data) => client.post('/simulation/interview/history', data),
 
+  // --- Branches ---
+  getBranchPoints: (simulationId) =>
+    client.get(`/simulation/${simulationId}/branch-points`),
+
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),

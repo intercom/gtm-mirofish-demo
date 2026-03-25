@@ -325,6 +325,16 @@ function exportRun(run) {
               >
                 {{ statusLabel(run.status) }}
               </span>
+              <span
+                v-if="run.branchCount"
+                class="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0 bg-[rgba(32,104,255,0.08)] text-[#2068FF] border-[rgba(32,104,255,0.2)]"
+                :title="`${run.branchCount} branch point${run.branchCount > 1 ? 's' : ''}`"
+              >
+                <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                  <path d="M8 2v4M8 6L4 10M8 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ run.branchCount }}
+              </span>
             </div>
             <div class="text-xs text-[var(--color-text-muted)]">
               {{ absoluteTime(run.timestamp) }} <span class="mx-1">-</span> {{ relativeTime(run.timestamp) }}

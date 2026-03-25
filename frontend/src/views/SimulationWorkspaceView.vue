@@ -3,6 +3,8 @@ import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSimulationPolling } from '../composables/useSimulationPolling'
 import { useTimelineScrubber, provideTimelineScrubber } from '../composables/useTimelineScrubber'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { useSimulationShortcuts } from '../composables/useSimulationShortcuts'
 import { useToast } from '../composables/useToast'
 import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
@@ -73,13 +75,21 @@ watch(activeTab, (tab) => {
   }
 })
 
-function handleKeydown(e) {
-  const tag = document.activeElement?.tagName?.toLowerCase()
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return
-  if (e.key === '1') activeTab.value = 'graph'
-  else if (e.key === '2') activeTab.value = 'simulation'
-  else if (e.key === '3') activeTab.value = 'communities'
-}
+// Tab-switching shortcuts via global registry
+const { register } = useKeyboardShortcuts()
+register('1', () => { activeTab.value = 'graph' }, { description: 'Switch to Graph tab', category: 'Workspace' })
+register('2', () => { activeTab.value = 'simulation' }, { description: 'Switch to Simulation tab', category: 'Workspace' })
+register('3', () => { activeTab.value = 'communities' }, { description: 'Switch to Communities tab', category: 'Workspace' })
+
+// Simulation-specific shortcuts (auto-unregistered on unmount)
+const {
+  playbackSpeed,
+  showMetrics,
+  showThinking,
+  isFullscreen,
+} = useSimulationShortcuts()
+
+provide('simShortcuts', { playbackSpeed, showMetrics, showThinking, isFullscreen })
 
 watch(() => polling.simStatus.value, (status, oldStatus) => {
   if (status === 'completed' && oldStatus !== 'completed') {
@@ -107,12 +117,10 @@ watch(() => polling.graphStatus.value, (status) => {
 
 onMounted(() => {
   polling.start()
-  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   polling.stop()
-  window.removeEventListener('keydown', handleKeydown)
   if (bannerTimer) clearTimeout(bannerTimer)
 })
 </script>

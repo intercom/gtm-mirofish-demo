@@ -18,6 +18,7 @@ const props = defineProps({
 })
 
 const polling = inject('polling')
+const simShortcuts = inject('simShortcuts', null)
 
 const activePlatform = ref('all')
 const chartViewMode = ref('detail') // 'detail' | 'overview'
@@ -465,12 +466,12 @@ onUnmounted(() => {
         </div>
 
         <!-- Shimmer loading state for metrics -->
-        <div v-if="!polling.runStatus.value && status === 'building'" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div v-if="!polling.runStatus.value && status === 'building' && (!simShortcuts || simShortcuts.showMetrics.value)" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
           <ShimmerCard v-for="i in 5" :key="i" :lines="2" height="80px" />
         </div>
 
         <!-- Metrics Cards -->
-        <div v-else class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div v-else-if="!simShortcuts || simShortcuts.showMetrics.value" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
             <div class="text-2xl md:text-3xl font-semibold text-[var(--color-primary)]">{{ animatedTotalActions }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Total Actions</div>

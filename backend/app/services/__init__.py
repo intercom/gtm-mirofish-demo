@@ -36,6 +36,12 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .campaign_generator import (
+    generate_campaigns,
+    get_campaign_stats,
+    get_roi_comparison,
+    get_budget_efficiency,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +75,9 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'generate_campaigns',
+    'get_campaign_stats',
+    'get_roi_comparison',
+    'get_budget_efficiency',
 ]
 

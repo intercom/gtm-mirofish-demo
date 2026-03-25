@@ -88,4 +88,8 @@ export const simulationApi = {
     client.get(`/simulation/${simulationId}/predictions`),
   getPredictionAccuracy: (simulationId) =>
     client.get(`/simulation/${simulationId}/predictions/accuracy`),
+
+  // --- Personality ---
+  getPersonalityEvolution: (simulationId, params) =>
+    client.get(`/simulation/${simulationId}/personality`, { params }),
 }

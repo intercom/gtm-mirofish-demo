@@ -1,6 +1,10 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import * as d3 from 'd3'
+import { select } from 'd3-selection'
+import { forceSimulation, forceCenter, forceManyBody, forceCollide, forceLink } from 'd3-force'
+import { zoom as d3zoom } from 'd3-zoom'
+import { drag as d3drag } from 'd3-drag'
+import 'd3-transition'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -118,9 +122,9 @@ function renderSkeletonGraph() {
   const height = container.clientHeight
   if (!width || !height) return
 
-  d3.select(svgRef.value).selectAll('*').remove()
+  select(svgRef.value).selectAll('*').remove()
 
-  svg = d3.select(svgRef.value).attr('width', width).attr('height', height)
+  svg = select(svgRef.value).attr('width', width).attr('height', height)
   zoomGroup = svg.append('g')
 
   const baseCount = 4
@@ -151,10 +155,10 @@ function renderSkeletonGraph() {
     .attr('fill', 'rgba(32,104,255,0.15)')
     .attr('class', 'skeleton-pulse')
 
-  skeletonSim = d3.forceSimulation(skeletonNodes)
-    .force('center', d3.forceCenter(width / 2, height / 2).strength(0.02))
-    .force('charge', d3.forceManyBody().strength(-30))
-    .force('collision', d3.forceCollide(20))
+  skeletonSim = forceSimulation(skeletonNodes)
+    .force('center', forceCenter(width / 2, height / 2).strength(0.02))
+    .force('charge', forceManyBody().strength(-30))
+    .force('collision', forceCollide(20))
     .alphaTarget(0.3)
     .on('tick', () => {
       nodeG.attr('cx', d => d.x).attr('cy', d => d.y)
@@ -212,13 +216,13 @@ function renderGraph() {
   nodeCount.value = nodes.length
   edgeCount.value = links.length
 
-  d3.select(svgRef.value).selectAll('*').remove()
+  select(svgRef.value).selectAll('*').remove()
 
-  svg = d3.select(svgRef.value)
+  svg = select(svgRef.value)
     .attr('width', width)
     .attr('height', height)
 
-  const zoom = d3.zoom()
+  const zoom = d3zoom()
     .scaleExtent([0.2, 5])
     .on('zoom', (event) => {
       zoomGroup.attr('transform', event.transform)
@@ -239,11 +243,11 @@ function renderGraph() {
     .attr('d', 'M0,-4L8,0L0,4')
     .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
 
-  simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
-    .force('charge', d3.forceManyBody().strength(-300))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => d.radius + 4))
+  simulation = forceSimulation(nodes)
+    .force('link', forceLink(links).id(d => d.id).distance(120))
+    .force('charge', forceManyBody().strength(-300))
+    .force('center', forceCenter(width / 2, height / 2))
+    .force('collision', forceCollide().radius(d => d.radius + 4))
 
   const link = zoomGroup.append('g')
     .selectAll('line')
@@ -271,7 +275,7 @@ function renderGraph() {
     .join('g')
     .style('cursor', 'pointer')
     .style('opacity', 0)
-    .call(d3.drag()
+    .call(d3drag()
       .on('start', dragstarted)
       .on('drag', dragged)
       .on('end', dragended)

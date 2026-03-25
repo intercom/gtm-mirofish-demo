@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { forceSimulation, forceX, forceY, forceManyBody, forceCollide } from 'd3'
+import { forceSimulation, forceX, forceY, forceManyBody, forceCollide } from 'd3-force'
 
 const canvasRef = ref(null)
 let simulation = null

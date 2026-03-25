@@ -1,6 +1,11 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import * as d3 from 'd3'
+import { select } from 'd3-selection'
+import { scaleLinear, scaleBand } from 'd3-scale'
+import { easeCubicOut } from 'd3-ease'
+import { pie as d3Pie, arc as d3Arc } from 'd3-shape'
+import { interpolate as d3Interpolate } from 'd3-interpolate'
+import 'd3-transition'
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
@@ -30,7 +35,7 @@ function hasChart(index) {
 
 function clearChart() {
   if (!chartRef.value) return
-  d3.select(chartRef.value).selectAll('*').remove()
+  select(chartRef.value).selectAll('*').remove()
 }
 
 function renderActiveChart() {
@@ -63,7 +68,7 @@ function renderPersonaEngagement() {
   const height = data.length * (barHeight + barGap) - barGap
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -90,11 +95,11 @@ function renderPersonaEngagement() {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  const x = d3.scaleLinear()
+  const x = scaleLinear()
     .domain([0, 50])
     .range([0, width])
 
-  const y = d3.scaleBand()
+  const y = scaleBand()
     .domain(data.map(d => d.label))
     .range([0, height])
     .padding(barGap / (barHeight + barGap))
@@ -161,7 +166,7 @@ function renderPersonaEngagement() {
     .transition()
     .duration(600)
     .delay((d, i) => i * 80)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('width', d => x(d.value))
 
   // Value labels
@@ -201,7 +206,7 @@ function renderSubjectLinePerformance() {
   const height = 260
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -228,18 +233,18 @@ function renderSubjectLinePerformance() {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  const x0 = d3.scaleBand()
+  const x0 = scaleBand()
     .domain(data.map(d => d.label))
     .range([0, width])
     .paddingInner(0.3)
     .paddingOuter(0.15)
 
-  const x1 = d3.scaleBand()
+  const x1 = scaleBand()
     .domain(['open', 'spam'])
     .range([0, x0.bandwidth()])
     .padding(0.1)
 
-  const y = d3.scaleLinear()
+  const y = scaleLinear()
     .domain([0, 40])
     .range([height, 0])
 
@@ -285,7 +290,7 @@ function renderSubjectLinePerformance() {
     .transition()
     .duration(600)
     .delay((d, i) => i * 100)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('y', d => y(d.open))
     .attr('height', d => height - y(d.open))
 
@@ -301,7 +306,7 @@ function renderSubjectLinePerformance() {
     .transition()
     .duration(600)
     .delay((d, i) => i * 100 + 50)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('y', d => y(d.spam))
     .attr('height', d => height - y(d.spam))
 
@@ -346,7 +351,7 @@ function renderSubjectLinePerformance() {
     .attr('font-size', '10px')
     .attr('fill', '#888')
     .each(function (d) {
-      const el = d3.select(this)
+      const el = select(this)
       const maxWidth = x0.bandwidth() + 10
       const words = d.label.replace(/"/g, '').split(' ')
       let line = ''
@@ -428,7 +433,7 @@ function renderBehavioralClusters() {
   const innerRadius = radius * 0.55
   const totalHeight = size + 60
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -457,17 +462,17 @@ function renderBehavioralClusters() {
   const g = svg.append('g')
     .attr('transform', `translate(${containerWidth / 2},${size / 2 + 50})`)
 
-  const pie = d3.pie()
+  const pie = d3Pie()
     .value(d => d.value)
     .sort(null)
     .padAngle(0.02)
 
-  const arc = d3.arc()
+  const arc = d3Arc()
     .innerRadius(innerRadius)
     .outerRadius(radius)
     .cornerRadius(4)
 
-  const labelArc = d3.arc()
+  const labelArc = d3Arc()
     .innerRadius(radius + 16)
     .outerRadius(radius + 16)
 
@@ -485,9 +490,9 @@ function renderBehavioralClusters() {
   paths.transition()
     .duration(600)
     .delay((d, i) => i * 80)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attrTween('d', function (d) {
-      const interpolate = d3.interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d)
+      const interpolate = d3Interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d)
       return t => arc(interpolate(t))
     })
 
@@ -524,7 +529,7 @@ function renderBehavioralClusters() {
     .style('opacity', 0)
 
   labelGroups.each(function (d, i) {
-    const group = d3.select(this)
+    const group = select(this)
     const pos = labelArc.centroid(d)
     const midAngle = (d.startAngle + d.endAngle) / 2
     const isRight = midAngle < Math.PI

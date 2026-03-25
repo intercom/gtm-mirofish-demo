@@ -92,6 +92,12 @@ from .whatif_engine import (
 )
 from .cpq_data_generator import CpqDataGenerator
 from .otc_data_generator import OTCDataGenerator
+from .campaign_generator import (
+    generate_campaigns,
+    get_campaign_stats,
+    get_roi_comparison,
+    get_budget_efficiency,
+)
 
 __all__ = [
     'OntologyGenerator',
@@ -168,4 +174,8 @@ __all__ = [
     'ScenarioStatus',
     'CpqDataGenerator',
     'OTCDataGenerator',
+    'generate_campaigns',
+    'get_campaign_stats',
+    'get_roi_comparison',
+    'get_budget_efficiency',
 ]

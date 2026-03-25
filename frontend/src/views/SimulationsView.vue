@@ -387,6 +387,12 @@ function exportRun(run) {
             Simulation
           </router-link>
           <router-link
+            :to="`/comparison?a=${run.id}`"
+            class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#ff5600]/50 hover:text-[#ff5600] transition-colors no-underline"
+          >
+            Compare
+          </router-link>
+          <router-link
             :to="`/report/${run.id}`"
             class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md bg-[#2068FF] text-white hover:bg-[#1a5ae0] transition-colors no-underline"
           >

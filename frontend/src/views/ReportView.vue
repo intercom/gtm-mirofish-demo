@@ -15,8 +15,10 @@ import { useReportTheme } from '../composables/useReportTheme'
 import ReportCanvas from '../components/report/ReportCanvas.vue'
 import { useReportStore } from '../stores/report'
 import ReportTemplateSelector from '../components/report/ReportTemplateSelector.vue'
+import ReportShareModal from '../components/report/ReportShareModal.vue'
 
 const { resolvedTheme, themeStyles } = useReportTheme()
+const showShareModal = ref(false)
 
 const props = defineProps({ taskId: String })
 const reportStore = useReportStore()
@@ -300,13 +302,23 @@ onUnmounted(() => {
         </button>
         <button
           v-if="!generating && sections.length > 0"
+          @click="showShareModal = true"
+          class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+          Share
+        </button>
+        <button
+          v-if="!generating && sections.length > 0"
           @click="exportMarkdown"
           class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
-          Export Markdown
+          Export
         </button>
         <button
           @click="showHelp = !showHelp"
@@ -581,6 +593,12 @@ onUnmounted(() => {
       </div>
     </div>
     </template>
+
+    <ReportShareModal
+      :open="showShareModal"
+      :reportId="reportId"
+      @close="showShareModal = false"
+    />
   </div>
 </template>
 

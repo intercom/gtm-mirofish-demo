@@ -30,6 +30,12 @@ export const reportApi = {
   // --- Visualizations ---
   getCampaignSpend: () => client.get('/report/campaign-spend'),
 
+  // --- Sharing ---
+  createShare: (reportId) => client.post(`/report/${reportId}/share`),
+  getShare: (reportId) => client.get(`/report/${reportId}/share`),
+  revokeShare: (reportId) => client.delete(`/report/${reportId}/share`),
+  getSharedReport: (token) => client.get(`/report/shared/${token}`),
+
   // --- Agent logs ---
   getAgentLog: (reportId, params) =>
     client.get(`/report/${reportId}/agent-log`, { params }),

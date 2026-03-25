@@ -1,13 +1,10 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed } from 'vue'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
 
-const route = useRoute()
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
-const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => {
   return [
@@ -15,10 +12,6 @@ const navLinks = computed(() => {
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
     { to: '/settings', label: 'Settings', exact: false },
   ]
-})
-
-watch(() => route.path, () => {
-  mobileMenuOpen.value = false
 })
 </script>
 
@@ -63,58 +56,12 @@ watch(() => route.path, () => {
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          <span>Local</span>
-        </div>
-
-        <button
-          @click="mobileMenuOpen = !mobileMenuOpen"
-          class="md:hidden text-white/60 hover:text-white transition-colors"
-          :aria-expanded="mobileMenuOpen"
-          aria-label="Toggle navigation menu"
-        >
-          <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
-          </svg>
-          <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
-          </svg>
-        </button>
+      <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
+        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+        <span>Local</span>
       </div>
     </div>
 
-    <!-- Mobile menu dropdown -->
-    <Transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="opacity-0 -translate-y-2"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition duration-150 ease-in"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 -translate-y-2"
-    >
-      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
-        <div class="px-4 py-3 space-y-1">
-          <router-link
-            v-for="link in navLinks"
-            :key="link.to"
-            :to="link.to"
-            class="flex items-center gap-1.5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
-          >
-            {{ link.label }}
-            <span
-              v-if="link.showActiveDot && simulationStore.isActive"
-              class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
-            ></span>
-          </router-link>
-        </div>
-        <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          Connected
-        </div>
-      </div>
-    </Transition>
   </nav>
 </template>
 

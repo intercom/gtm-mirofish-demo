@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppNav from './AppNav.vue'
 import AppFooter from './AppFooter.vue'
+import AiAnalyst from '../insights/AiAnalyst.vue'
 
 const route = useRoute()
 const showFooter = computed(() => route.name !== 'landing')
@@ -15,5 +16,6 @@ const showFooter = computed(() => route.name !== 'landing')
       <slot />
     </main>
     <AppFooter v-if="showFooter" />
+    <AiAnalyst :context="{ page: route.name }" />
   </div>
 </template>

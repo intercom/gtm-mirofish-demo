@@ -2,6 +2,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { API_BASE } from '../api/client'
+import { useReportShortcuts } from '../composables/useReportShortcuts'
+import { useToast } from '../composables/useToast'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
@@ -163,6 +165,21 @@ function exportMarkdown() {
   }
 }
 
+const toast = useToast()
+
+const { showHelp, shortcuts } = useReportShortcuts({
+  onPreview: () => window.print(),
+  onExport: () => exportMarkdown(),
+  onSaveTemplate: () => toast.info('Save as template — coming soon'),
+  onDeleteSection: () => toast.info('Section removal — coming soon'),
+  onMoveUp: () => {
+    if (activeChapter.value > 0) activeChapter.value--
+  },
+  onMoveDown: () => {
+    if (activeChapter.value < chapters.value.length - 1) activeChapter.value++
+  },
+})
+
 onMounted(checkAndLoad)
 onUnmounted(stopPolling)
 </script>
@@ -192,6 +209,15 @@ onUnmounted(stopPolling)
           </svg>
           Export Markdown
         </button>
+        <button
+          @click="showHelp = !showHelp"
+          class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text-secondary)] px-2.5 py-2 rounded-lg text-sm transition-colors"
+          title="Keyboard shortcuts (?)"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </button>
         <router-link
           :to="`/chat/${taskId}`"
           class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors no-underline"
@@ -200,6 +226,26 @@ onUnmounted(stopPolling)
         </router-link>
       </div>
     </div>
+
+    <!-- Keyboard Shortcuts Help -->
+    <Transition name="fade">
+      <div v-if="showHelp" class="mb-4 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-[var(--color-text)]">Keyboard Shortcuts</h3>
+          <button @click="showHelp = false" class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5">
+          <div v-for="s in shortcuts" :key="s.label" class="flex items-center justify-between gap-4 py-1">
+            <span class="text-xs text-[var(--color-text-secondary)]">{{ s.label }}</span>
+            <kbd class="shrink-0 text-[10px] font-mono bg-[var(--color-tint)] border border-[var(--color-border)] px-1.5 py-0.5 rounded text-[var(--color-text-muted)]">{{ s.keys }}</kbd>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Error State -->
     <div v-if="error" class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-4 mb-6 text-sm text-red-700 dark:text-red-400">
@@ -416,4 +462,6 @@ onUnmounted(stopPolling)
 .report-content :deep(td) { padding: 0.5rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); }
 .report-content :deep(hr) { border: none; border-top: 1px solid var(--color-border); margin: 1.5rem 0; }
 .finding-text :deep(strong) { font-weight: 700; color: var(--color-text); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

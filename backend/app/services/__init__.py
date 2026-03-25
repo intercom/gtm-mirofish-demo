@@ -101,6 +101,7 @@ from .campaign_generator import (
 from .revenue_data_generator import RevenueDataGenerator
 from .agent_intelligence import AgentIntelligence
 from .coalition_detector import CoalitionDetector
+from .sensitivity_analyzer import SensitivityAnalyzer
 
 __all__ = [
     'OntologyGenerator',
@@ -184,4 +185,5 @@ __all__ = [
     'RevenueDataGenerator',
     'AgentIntelligence',
     'CoalitionDetector',
+    'SensitivityAnalyzer',
 ]

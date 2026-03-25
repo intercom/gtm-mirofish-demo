@@ -1,0 +1,31 @@
+{
+  "id": "quarterly_pipeline_review",
+  "name": "Quarterly Pipeline Review",
+  "description": "Sales team reviews Q4 pipeline health, debates deal priorities, and stress-tests forecast assumptions with simulated buyer personas.",
+  "category": "pipeline",
+  "icon": "bar-chart-2",
+  "seed_text": "Intercom's sales leadership is conducting the Q4 pipeline review. The current pipeline stands at $18.2M against a $12M quarterly target, implying 1.52x coverage — below the 2x benchmark the CRO expects for reliable forecasting.\n\nThe pipeline breaks down as follows:\n- Stage 1 (Discovery): $6.1M across 42 deals — conversion rate last quarter was 18%\n- Stage 2 (Evaluation): $5.4M across 28 deals — 35% historical conversion\n- Stage 3 (Proposal/Negotiation): $4.2M across 15 deals — 62% historical conversion\n- Stage 4 (Contract Sent): $2.5M across 8 deals — 85% historical conversion\n\nKey concerns surfaced by the RevOps team:\n1. 38% of Stage 2 deals have been stalled for 30+ days with no champion activity\n2. Three enterprise deals ($1.2M combined) have single-threaded contacts — the champion left one account last week\n3. Mid-market ACV has dropped from $48K to $41K as reps discount to close before quarter-end\n4. Competitive displacement deals against Zendesk are converting at 42%, but Freshdesk displacement is only 19%\n5. EMEA pipeline is $2.8M but the region has closed only $900K YTD\n\nThe simulation should model how different sales personas (AEs, managers, leadership) evaluate pipeline risk, which deals they prioritize vs deprioritize, how they react to pressure to discount, and whether the team can realistically close the gap to target. The goal is to surface blind spots in the current forecast and identify the highest-leverage actions for the final 6 weeks of Q4.",
+  "agent_config": {
+    "count": 150,
+    "persona_types": ["Account Executive", "Sales Manager", "VP of Sales", "RevOps Analyst", "CRO"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Fintech", "E-commerce", "Healthcare"],
+      "company_sizes": ["50-200", "200-500", "500-2000"],
+      "regions": ["North America", "EMEA", "APAC"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 48,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Deal prioritization ranking by risk-adjusted value",
+    "Forecast accuracy prediction vs stated commit",
+    "Stalled deal recovery recommendations",
+    "Discounting impact analysis on ACV and margin",
+    "Region-level pipeline health assessment",
+    "Multi-threading risk score per enterprise deal",
+    "Recommended pipeline generation actions for gap closure"
+  ]
+}

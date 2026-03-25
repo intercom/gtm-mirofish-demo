@@ -1,0 +1,31 @@
+{
+  "id": "budget_allocation_debate",
+  "name": "Marketing Budget Allocation Debate",
+  "description": "Leadership allocates next year's marketing budget across channels, debating ROI trade-offs between brand, demand gen, and product-led growth.",
+  "category": "planning",
+  "icon": "pie-chart",
+  "seed_text": "Intercom's marketing leadership is planning the FY26 budget allocation. Total marketing budget is $28M (up 8% from FY25), but the CEO has asked for a plan that delivers 25% more pipeline on the increased budget — effectively demanding 16% improvement in marketing efficiency.\n\nCurrent FY25 spend breakdown and performance:\n- Paid Digital ($8.2M, 29%): 4,200 MQLs, $1,952 CAC, 12% MQL-to-SQL conversion\n- Content & SEO ($4.5M, 16%): 18,000 organic leads, $250 CAC, but only 3% MQL-to-SQL\n- Events & Field Marketing ($5.1M, 18%): 890 enterprise leads, highest close rate (28%) but $5,730 CAC\n- Brand & PR ($3.8M, 14%): Hard to attribute directly, but aided awareness up 12 points YoY\n- Product-Led Growth ($2.9M, 10%): 32,000 signups, 8% activation, $362 CAC for activated users\n- Partner & Ecosystem ($2.1M, 8%): 340 partner-sourced deals, 22% close rate, $6,176 CAC\n- ABM ($1.4M, 5%): 45 target accounts engaged, 6 closed ($2.1M TCV), $23K CAC\n\nDebate lines within the leadership team:\n1. CMO wants to double PLG spend — self-serve revenue grew 140% and Fin drives viral adoption\n2. CRO wants events budget protected — enterprise deals require face-to-face\n3. CFO wants brand spend cut to 8% and reallocated to measurable channels\n4. VP Demand Gen argues paid digital is saturating and needs creative refresh, not more budget\n5. Head of Partnerships believes ecosystem is underleveraged — competitors have 3x the partner base\n\nThe simulation should model how different budget allocation scenarios affect pipeline generation, CAC efficiency, and revenue mix across segments over 4 quarters.",
+  "agent_config": {
+    "count": 150,
+    "persona_types": ["CMO", "CRO", "CFO", "VP of Demand Generation", "Head of Partnerships", "Product Marketing Manager"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Fintech", "E-commerce", "Healthcare"],
+      "company_sizes": ["50-200", "200-500", "500-2000", "2000-5000"],
+      "regions": ["North America", "EMEA", "APAC"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 48,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Optimal budget allocation by channel and segment",
+    "Pipeline generation forecast per allocation scenario",
+    "CAC efficiency curve by channel at different spend levels",
+    "PLG vs sales-led investment trade-off analysis",
+    "Brand spend attribution modeling results",
+    "Channel saturation point predictions",
+    "Revenue mix impact forecast across 4 quarters"
+  ]
+}

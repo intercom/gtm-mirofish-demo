@@ -1,0 +1,31 @@
+{
+  "id": "enterprise_deal_strategy",
+  "name": "Enterprise Deal Strategy",
+  "description": "Team strategizes on a $500K enterprise deal, simulating buyer committee dynamics and multi-threaded engagement approaches.",
+  "category": "sales",
+  "icon": "briefcase",
+  "seed_text": "Intercom is pursuing a $500K ARR enterprise deal with a Fortune 500 financial services company (codename: 'Project Atlas'). The prospect currently uses Zendesk Enterprise ($380K/year) and is evaluating Intercom and Freshdesk as replacements during their contract renewal window, which closes in 8 weeks.\n\nBuyer committee mapped so far:\n- Executive Sponsor: SVP of Customer Experience — met once, expressed interest in AI-first support but concerned about migration risk\n- Champion: Director of Support Operations — strong advocate, ran a 30-day Fin pilot with 52% resolution rate, but lacks budget authority\n- Technical Evaluator: VP of Engineering — concerned about API compatibility with their custom Salesforce integration and SSO requirements\n- Blocker: CFO — has a mandate to cut vendor spend 15% across the board; views any solution above Zendesk's current cost as a non-starter\n- End Users: 200+ support agents — change-resistant, heavy Zendesk macro users, worried about learning curve\n\nDeal dynamics:\n1. Zendesk has offered a 25% renewal discount ($285K/year) plus free AI add-on for 12 months to retain\n2. Freshdesk is bidding at $210K/year but lacks enterprise security certifications the prospect requires\n3. The Champion is pushing for Intercom but needs a business case showing 18-month ROI to get CFO approval\n4. Legal has flagged Intercom's data processing agreement — they need EU data residency for 40% of their customer base\n5. The prospect's board meets in 6 weeks and the SVP wants to present a vendor recommendation\n\nThe simulation should model the buying committee dynamics, test different deal strategies (pricing, packaging, executive alignment), and predict which approach maximizes win probability while protecting deal value.",
+  "agent_config": {
+    "count": 150,
+    "persona_types": ["Enterprise AE", "Sales Engineer", "VP of Sales", "Solution Architect", "Deal Desk Analyst", "Executive Sponsor"],
+    "firmographic_mix": {
+      "industries": ["Financial Services", "Insurance", "Banking"],
+      "company_sizes": ["5000-10000", "10000+"],
+      "regions": ["North America", "EMEA"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 48,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Buyer committee influence map and engagement strategy",
+    "Win probability score under different pricing scenarios",
+    "Competitive displacement playbook vs Zendesk renewal offer",
+    "ROI business case framework for CFO objection handling",
+    "Multi-thread engagement plan by stakeholder",
+    "Deal timeline risk assessment and acceleration tactics",
+    "Optimal pricing and packaging recommendation"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "expansion_vs_acquisition",
+  "name": "Expansion vs New Logo Acquisition",
+  "description": "Leadership debates investing in expansion revenue from existing customers versus acquiring new logos, simulating long-term revenue impact.",
+  "category": "strategy",
+  "icon": "trending-up",
+  "seed_text": "Intercom's executive team is debating the FY26 GTM investment split between customer expansion and new logo acquisition. The company needs to grow ARR from $240M to $310M (29% growth) to hit the board's target, and the question is where to allocate the incremental $8M in GTM investment.\n\nCurrent state of the business:\n- Net Revenue Retention (NRR): 112% — good but below best-in-class SaaS (120%+)\n- Gross Revenue Retention: 91% — mid-market churn is the drag\n- New logo ARR added last year: $48M from 1,200 new customers\n- Expansion ARR from existing customers: $29M (seat expansion 60%, upsell to higher tiers 25%, add-on products 15%)\n- CAC for new logos: $18,200 average (12-month payback)\n- CAC for expansion: $4,100 average (3-month payback)\n- Sales team: 85 AEs focused on new business, 12 Account Managers handling expansion for 3,400 accounts\n\nExpansion opportunity analysis:\n1. 1,800 customers on Starter/Pro tiers have usage patterns suggesting they'd benefit from Premium ($6.2M potential)\n2. 940 customers haven't adopted Fin AI yet — average uplift when they do is $12K ARR ($11.3M potential)\n3. 420 accounts have grown headcount 20%+ but haven't added seats ($3.8M potential)\n4. Cross-sell into new departments (marketing, sales) is untapped — 0 customers use Intercom outside of support\n\nNew logo market sizing:\n- TAM for AI-first customer support: $12B, Intercom has ~2% share\n- Greenfield opportunity in mid-market alone: 14,000 companies matching ICP that don't use any modern support platform\n- Win rates have improved from 22% to 31% since Fin launch\n\nThe simulation should model the revenue trajectory under different investment splits (70/30, 50/50, 30/70 expansion vs acquisition), predict NRR and growth rate outcomes, and identify the optimal allocation for sustainable growth.",
+  "agent_config": {
+    "count": 200,
+    "persona_types": ["CEO", "CRO", "VP of Customer Success", "VP of Sales", "CFO", "Head of Growth"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Fintech", "E-commerce", "Healthcare", "Manufacturing"],
+      "company_sizes": ["50-200", "200-500", "500-2000", "2000-5000"],
+      "regions": ["North America", "EMEA", "APAC"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Revenue trajectory forecast per investment split scenario",
+    "NRR improvement potential from expansion investment",
+    "New logo acquisition curve at different spend levels",
+    "CAC payback comparison across scenarios",
+    "Optimal AE vs AM headcount ratio",
+    "Cross-sell and upsell prioritization matrix",
+    "3-year compounding growth analysis by strategy"
+  ]
+}

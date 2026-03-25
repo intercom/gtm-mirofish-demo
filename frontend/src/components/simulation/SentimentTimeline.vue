@@ -298,6 +298,49 @@ function renderTrend(container, data, containerWidth) {
     .style('box-shadow', '0 4px 12px rgba(0,0,0,0.1)')
     .style('z-index', '10')
 
+  // Invisible interaction targets (pointer events for mouse + touch)
+  let activeRound = null
+
+  function showTooltip(event, d) {
+    const sentimentLabel = d.avgSentiment > 0.1 ? 'Positive' : d.avgSentiment < -0.1 ? 'Negative' : 'Neutral'
+    const color = d.avgSentiment > 0.1 ? c.green : d.avgSentiment < -0.1 ? c.orange : c.primary
+    tooltip
+      .html(`
+        <div style="font-weight:600;color:${c.text};margin-bottom:4px">Round ${d.round}</div>
+        <div style="color:${color};font-weight:600">${sentimentLabel} (${d.avgSentiment >= 0 ? '+' : ''}${d.avgSentiment.toFixed(2)})</div>
+        <div style="color:${c.textMuted};margin-top:2px">
+          ${d.agentCount} agents · ${d.total} actions
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px;font-size:11px">
+          <span style="color:${c.green}">+${d.positive}</span>
+          <span style="color:${c.textMuted}">${d.neutral} neutral</span>
+          <span style="color:${c.orange}">-${d.negative}</span>
+        </div>
+      `)
+      .style('opacity', 1)
+
+    const rect = container.getBoundingClientRect()
+    const cx = x(d.round) + margin.left
+    tooltip
+      .style('left', `${cx + 12}px`)
+      .style('top', `${event.clientY - rect.top - 40}px`)
+
+    dots.filter(dd => dd.round === d.round)
+      .transition().duration(100)
+      .attr('r', 6)
+    activeRound = d.round
+  }
+
+  function hideTooltip() {
+    tooltip.style('opacity', 0)
+    if (activeRound != null) {
+      dots.filter(dd => dd.round === activeRound)
+        .transition().duration(100)
+        .attr('r', 4)
+      activeRound = null
+    }
+  }
+
   g.selectAll('.hover-target')
     .data(data)
     .join('rect')
@@ -314,40 +357,17 @@ function renderTrend(container, data, containerWidth) {
     .attr('height', height)
     .attr('fill', 'transparent')
     .attr('cursor', 'pointer')
-    .on('mouseenter', (event, d) => {
-      const sentimentLabel = d.avgSentiment > 0.1 ? 'Positive' : d.avgSentiment < -0.1 ? 'Negative' : 'Neutral'
-      const color = d.avgSentiment > 0.1 ? c.green : d.avgSentiment < -0.1 ? c.orange : c.primary
-      tooltip
-        .html(`
-          <div style="font-weight:600;color:${c.text};margin-bottom:4px">Round ${d.round}</div>
-          <div style="color:${color};font-weight:600">${sentimentLabel} (${d.avgSentiment >= 0 ? '+' : ''}${d.avgSentiment.toFixed(2)})</div>
-          <div style="color:${c.textMuted};margin-top:2px">
-            ${d.agentCount} agents · ${d.total} actions
-          </div>
-          <div style="display:flex;gap:8px;margin-top:4px;font-size:11px">
-            <span style="color:${c.green}">+${d.positive}</span>
-            <span style="color:${c.textMuted}">${d.neutral} neutral</span>
-            <span style="color:${c.orange}">-${d.negative}</span>
-          </div>
-        `)
-        .style('opacity', 1)
-
-      dots.filter(dd => dd.round === d.round)
-        .transition().duration(100)
-        .attr('r', 6)
-    })
-    .on('mousemove', (event) => {
+    .style('touch-action', 'none')
+    .on('pointerenter', showTooltip)
+    .on('pointermove', (event, d) => {
+      if (activeRound !== d.round) showTooltip(event, d)
       const rect = container.getBoundingClientRect()
       tooltip
         .style('left', `${event.clientX - rect.left + 12}px`)
         .style('top', `${event.clientY - rect.top - 40}px`)
     })
-    .on('mouseleave', (event, d) => {
-      tooltip.style('opacity', 0)
-      dots.filter(dd => dd.round === d.round)
-        .transition().duration(100)
-        .attr('r', 4)
-    })
+    .on('pointerleave', hideTooltip)
+    .on('pointercancel', hideTooltip)
 }
 
 function renderDistribution(container, data, containerWidth) {
@@ -528,7 +548,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="sentimentData.length" class="relative" ref="chartRef" style="height: 220px" />
+    <div v-if="sentimentData.length" class="relative" ref="chartRef" style="height: 220px; touch-action: pan-y" />
 
     <div v-else class="flex items-center justify-center h-[180px] text-[var(--color-text-muted)] text-sm">
       <span>Sentiment data will appear as agents interact</span>

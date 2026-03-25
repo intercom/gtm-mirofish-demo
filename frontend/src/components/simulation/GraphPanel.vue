@@ -937,6 +937,7 @@ onUnmounted(() => {
 
 .graph-canvas {
   transition: opacity 0.4s ease;
+  touch-action: none;
 }
 
 .slide-enter-active,

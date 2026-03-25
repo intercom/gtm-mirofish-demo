@@ -4,6 +4,22 @@
 
 from .task import TaskManager, TaskStatus
 from .project import Project, ProjectStatus, ProjectManager
+from .report_builder import (
+    ReportTemplate,
+    ReportSection,
+    GeneratedReport,
+    ReportBuilderManager,
+    SectionType,
+    SectionWidth,
+    GenerationMethod,
+    PageOrientation,
+)
 
-__all__ = ['TaskManager', 'TaskStatus', 'Project', 'ProjectStatus', 'ProjectManager']
+__all__ = [
+    'TaskManager', 'TaskStatus',
+    'Project', 'ProjectStatus', 'ProjectManager',
+    'ReportTemplate', 'ReportSection', 'GeneratedReport',
+    'ReportBuilderManager', 'SectionType', 'SectionWidth',
+    'GenerationMethod', 'PageOrientation',
+]
 

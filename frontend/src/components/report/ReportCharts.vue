@@ -79,6 +79,10 @@ function renderPersonaEngagement() {
     .attr('font-weight', '600')
     .attr('fill', COLORS.text)
     .text('Persona Engagement Rates')
+    .style('opacity', 0)
+    .transition()
+    .duration(350)
+    .style('opacity', 1)
 
   // Subtitle
   svg.append('text')
@@ -87,6 +91,11 @@ function renderPersonaEngagement() {
     .attr('font-size', '11px')
     .attr('fill', '#888')
     .text('Average email open rate by target persona')
+    .style('opacity', 0)
+    .transition()
+    .duration(350)
+    .delay(60)
+    .style('opacity', 1)
 
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
@@ -111,6 +120,11 @@ function renderPersonaEngagement() {
     .attr('y2', height)
     .attr('stroke', 'rgba(0,0,0,0.06)')
     .attr('stroke-dasharray', '2,3')
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 80 + i * 30)
+    .style('opacity', 1)
 
   // X-axis labels
   g.selectAll('.x-label')
@@ -122,6 +136,11 @@ function renderPersonaEngagement() {
     .attr('font-size', '10px')
     .attr('fill', '#aaa')
     .text(d => `${d}%`)
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 100 + i * 25)
+    .style('opacity', 1)
 
   // Labels
   g.selectAll('.bar-label')
@@ -134,6 +153,11 @@ function renderPersonaEngagement() {
     .attr('font-size', '12px')
     .attr('fill', '#555')
     .text(d => d.label)
+    .style('opacity', 0)
+    .transition()
+    .duration(300)
+    .delay((_, i) => 120 + i * 40)
+    .style('opacity', 1)
 
   // Bar background
   g.selectAll('.bar-bg')
@@ -145,6 +169,11 @@ function renderPersonaEngagement() {
     .attr('height', y.bandwidth())
     .attr('rx', 4)
     .attr('fill', 'rgba(0,0,0,0.03)')
+    .style('opacity', 0)
+    .transition()
+    .duration(300)
+    .delay((_, i) => 120 + i * 40)
+    .style('opacity', 1)
 
   // Bars with animation
   const barColors = [COLORS.primary, COLORS.primary, COLORS.orange, COLORS.purple, '#888']
@@ -161,7 +190,7 @@ function renderPersonaEngagement() {
     .attr('opacity', 0.85)
     .transition()
     .duration(600)
-    .delay((d, i) => i * 80)
+    .delay((d, i) => 200 + i * 80)
     .ease(d3.easeCubicOut)
     .attr('width', d => x(d.value))
 
@@ -179,7 +208,7 @@ function renderPersonaEngagement() {
     .text(d => `${d.value}%`)
     .transition()
     .duration(300)
-    .delay((d, i) => 600 + i * 80)
+    .delay((d, i) => 800 + i * 80)
     .style('opacity', 1)
 }
 
@@ -217,6 +246,10 @@ function renderSubjectLinePerformance() {
     .attr('font-weight', '600')
     .attr('fill', COLORS.text)
     .text('Subject Line Performance')
+    .style('opacity', 0)
+    .transition()
+    .duration(350)
+    .style('opacity', 1)
 
   // Subtitle
   svg.append('text')
@@ -225,6 +258,11 @@ function renderSubjectLinePerformance() {
     .attr('font-size', '11px')
     .attr('fill', '#888')
     .text('Open rate vs. spam flag rate by subject variant')
+    .style('opacity', 0)
+    .transition()
+    .duration(350)
+    .delay(60)
+    .style('opacity', 1)
 
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
@@ -255,6 +293,11 @@ function renderSubjectLinePerformance() {
     .attr('y2', d => y(d))
     .attr('stroke', 'rgba(0,0,0,0.06)')
     .attr('stroke-dasharray', '2,3')
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 80 + i * 30)
+    .style('opacity', 1)
 
   // Y-axis labels
   g.selectAll('.y-label')
@@ -267,6 +310,11 @@ function renderSubjectLinePerformance() {
     .attr('font-size', '10px')
     .attr('fill', '#aaa')
     .text(d => `${d}%`)
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 100 + i * 25)
+    .style('opacity', 1)
 
   // Grouped bars
   const groups = g.selectAll('.group')
@@ -285,7 +333,7 @@ function renderSubjectLinePerformance() {
     .attr('opacity', 0.85)
     .transition()
     .duration(600)
-    .delay((d, i) => i * 100)
+    .delay((d, i) => 200 + i * 100)
     .ease(d3.easeCubicOut)
     .attr('y', d => y(d.open))
     .attr('height', d => height - y(d.open))
@@ -301,7 +349,7 @@ function renderSubjectLinePerformance() {
     .attr('opacity', 0.85)
     .transition()
     .duration(600)
-    .delay((d, i) => i * 100 + 50)
+    .delay((d, i) => 250 + i * 100)
     .ease(d3.easeCubicOut)
     .attr('y', d => y(d.spam))
     .attr('height', d => height - y(d.spam))
@@ -318,7 +366,7 @@ function renderSubjectLinePerformance() {
     .text(d => `${d.open}%`)
     .transition()
     .duration(300)
-    .delay((d, i) => 600 + i * 100)
+    .delay((d, i) => 800 + i * 100)
     .style('opacity', 1)
 
   // Value labels for spam rate
@@ -333,7 +381,7 @@ function renderSubjectLinePerformance() {
     .text(d => `${d.spam}%`)
     .transition()
     .duration(300)
-    .delay((d, i) => 650 + i * 100)
+    .delay((d, i) => 850 + i * 100)
     .style('opacity', 1)
 
   // X-axis labels (wrapped)
@@ -346,6 +394,7 @@ function renderSubjectLinePerformance() {
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
     .attr('fill', '#888')
+    .style('opacity', 0)
     .each(function (d) {
       const el = d3.select(this)
       const maxWidth = x0.bandwidth() + 10
@@ -373,10 +422,15 @@ function renderSubjectLinePerformance() {
           .text(line)
       }
     })
+    .transition()
+    .duration(300)
+    .delay((_, i) => 200 + i * 60)
+    .style('opacity', 1)
 
   // Legend
   const legend = svg.append('g')
     .attr('transform', `translate(${containerWidth - margin.right - 180}, 14)`)
+    .style('opacity', 0)
 
   // Open rate legend
   legend.append('rect')
@@ -405,6 +459,11 @@ function renderSubjectLinePerformance() {
     .attr('font-size', '11px')
     .attr('fill', '#555')
     .text('Spam Flag')
+
+  legend.transition()
+    .duration(350)
+    .delay(100)
+    .style('opacity', 1)
 }
 
 // --- Chart 3: Donut — Behavioral Cluster Distribution ---
@@ -445,6 +504,10 @@ function renderBehavioralClusters() {
     .attr('font-weight', '600')
     .attr('fill', COLORS.text)
     .text('Behavioral Cluster Distribution')
+    .style('opacity', 0)
+    .transition()
+    .duration(350)
+    .style('opacity', 1)
 
   // Subtitle
   svg.append('text')
@@ -454,6 +517,11 @@ function renderBehavioralClusters() {
     .attr('font-size', '11px')
     .attr('fill', '#888')
     .text('Prospect segmentation by observed engagement pattern')
+    .style('opacity', 0)
+    .transition()
+    .duration(350)
+    .delay(60)
+    .style('opacity', 1)
 
   const g = svg.append('g')
     .attr('transform', `translate(${containerWidth / 2},${size / 2 + 50})`)
@@ -485,7 +553,7 @@ function renderBehavioralClusters() {
 
   paths.transition()
     .duration(600)
-    .delay((d, i) => i * 80)
+    .delay((d, i) => 200 + i * 80)
     .ease(d3.easeCubicOut)
     .attrTween('d', function (d) {
       const interpolate = d3.interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d)
@@ -503,7 +571,7 @@ function renderBehavioralClusters() {
     .text('100%')
     .transition()
     .duration(400)
-    .delay(600)
+    .delay(800)
     .style('opacity', 1)
 
   g.append('text')
@@ -515,7 +583,7 @@ function renderBehavioralClusters() {
     .text('of prospects')
     .transition()
     .duration(400)
-    .delay(650)
+    .delay(850)
     .style('opacity', 1)
 
   // Labels with lines
@@ -565,7 +633,7 @@ function renderBehavioralClusters() {
 
   labelGroups.transition()
     .duration(300)
-    .delay((d, i) => 600 + i * 80)
+    .delay((d, i) => 800 + i * 80)
     .style('opacity', 1)
 }
 

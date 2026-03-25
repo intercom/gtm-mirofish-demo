@@ -36,6 +36,11 @@ const tabs = computed(() => {
       label: 'Simulation',
       metric: simMetric,
     },
+    {
+      key: 'coalitions',
+      label: 'Coalitions',
+      metric: null,
+    },
   ]
 })
 </script>

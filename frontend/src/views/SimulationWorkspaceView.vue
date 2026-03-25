@@ -3,13 +3,15 @@ import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSimulationPolling } from '../composables/useSimulationPolling'
 import { useToast } from '../composables/useToast'
-import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
 import NavigationMiniMap from '../components/navigation/NavigationMiniMap.vue'
+import LiveFeed from '../components/simulation/LiveFeed.vue'
 import SimulationControls from '../components/simulation/SimulationControls.vue'
+import LiveMetrics from '../components/simulation/LiveMetrics.vue'
+import SimulationProgressBar from '../components/simulation/SimulationProgressBar.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -18,7 +20,6 @@ const props = defineProps({
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-const scenariosStore = useScenariosStore()
 const simulationStore = useSimulationStore()
 
 const polling = useSimulationPolling(() => props.taskId)
@@ -33,6 +34,11 @@ let bannerTimer = null
 
 const scenarioName = computed(() =>
   simulationStore.scenarioConfig?.scenarioName || 'Simulation',
+)
+
+const isReviewMode = computed(() => polling.simStatus.value === 'completed')
+const isSimActive = computed(() =>
+  polling.simStatus.value === 'running' || polling.simStatus.value === 'building',
 )
 
 watch(() => route.query.tab, (tab) => {
@@ -72,7 +78,6 @@ watch(() => polling.isDemoFallback.value, (fallback) => {
   }
 })
 
-// When graph demo completes, auto-complete the simulation run so it appears in history
 watch(() => polling.graphStatus.value, (status) => {
   if (status === 'complete' && demoMode.value && polling.simStatus.value !== 'completed') {
     setTimeout(() => polling.completeDemoRun(), 1500)
@@ -136,16 +141,46 @@ onUnmounted(() => {
 
     <!-- Panels -->
     <div class="flex-1 relative overflow-hidden">
+      <!-- Graph tab (unchanged) -->
       <div v-show="activeTab === 'graph'" class="absolute inset-0">
         <GraphPanel :taskId="taskId" :demoMode="demoMode" />
       </div>
-      <div v-show="activeTab === 'simulation'" class="absolute inset-0 flex">
-        <div class="flex-1 min-w-0">
+
+      <!-- Simulation tab -->
+      <div v-show="activeTab === 'simulation'" class="absolute inset-0 flex flex-col">
+
+        <!-- Active simulation: split panel layout -->
+        <div v-if="!isReviewMode" class="flex-1 overflow-hidden">
+          <div class="workspace-panels h-full p-4 md:p-6 gap-4 md:gap-6">
+            <!-- Left panel (60%): Live Feed -->
+            <div class="workspace-left min-h-0">
+              <LiveFeed />
+            </div>
+
+            <!-- Right panel (40%): Controls + Metrics -->
+            <div class="workspace-right flex flex-col gap-4 md:gap-6 min-h-0">
+              <!-- Controls (top ~30%) -->
+              <div class="workspace-controls shrink-0">
+                <SimulationControls :taskId="taskId" />
+              </div>
+              <!-- Metrics (bottom ~70%) -->
+              <div class="flex-1 min-h-0">
+                <LiveMetrics />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Review mode: full SimulationPanel with all data -->
+        <div v-else class="flex-1 overflow-hidden">
           <SimulationPanel :taskId="taskId" />
         </div>
-        <div class="hidden lg:block w-72 shrink-0 border-l border-[var(--color-border)] overflow-y-auto p-3">
-          <SimulationControls />
-        </div>
+
+        <!-- Bottom progress bar -->
+        <SimulationProgressBar
+          v-if="isSimActive || isReviewMode"
+          :taskId="taskId"
+        />
       </div>
     </div>
   </div>
@@ -160,5 +195,27 @@ onUnmounted(() => {
 .slide-down-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+/* Panel layout: side-by-side on desktop, stacked on mobile */
+.workspace-panels {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.workspace-left {
+  overflow: hidden;
+}
+
+.workspace-right {
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .workspace-panels {
+    grid-template-columns: 3fr 2fr;
+    grid-template-rows: 1fr;
+  }
 }
 </style>

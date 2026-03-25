@@ -19,6 +19,19 @@ function applyClass(dark) {
   document.documentElement.classList.toggle('dark', dark)
 }
 
+const isDark = computed(() => {
+  if (preference.value === 'dark') return true
+  if (preference.value === 'light') return false
+  if (!hasExplicitPreference.value && routeDefault.value) {
+    return routeDefault.value === 'dark'
+  }
+  return systemIsDark.value
+})
+
+const systemPreference = computed(() => systemIsDark.value ? 'dark' : 'light')
+
+watch(isDark, (dark) => applyClass(dark), { flush: 'sync' })
+
 export function useTheme() {
   if (!initialized) {
     initialized = true
@@ -32,19 +45,9 @@ export function useTheme() {
     mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     systemIsDark.value = mediaQuery.matches
     mediaQuery.addEventListener('change', onSystemChange)
+
+    applyClass(isDark.value)
   }
-
-  const isDark = computed(() => {
-    if (preference.value === 'dark') return true
-    if (preference.value === 'light') return false
-    // 'system' preference: use route default for first-time visitors
-    if (!hasExplicitPreference.value && routeDefault.value) {
-      return routeDefault.value === 'dark'
-    }
-    return systemIsDark.value
-  })
-
-  watch(isDark, (dark) => applyClass(dark), { immediate: true, flush: 'sync' })
 
   function setTheme(value) {
     if (!VALID_THEMES.includes(value)) return
@@ -57,5 +60,5 @@ export function useTheme() {
     routeDefault.value = value
   }
 
-  return { preference, isDark, setTheme, setRouteDefault }
+  return { preference, isDark, systemPreference, setTheme, setRouteDefault }
 }

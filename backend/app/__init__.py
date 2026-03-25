@@ -13,6 +13,7 @@ from flask import Flask, request
 from flask_cors import CORS
 
 from .config import Config
+from .shutdown import is_shutting_down
 from .utils.logger import setup_logger, get_logger
 
 
@@ -76,9 +77,11 @@ def create_app(config_class=Config):
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
     
-    # 健康检查
+    # 健康检查 — returns 503 during shutdown for load balancer draining
     @app.route('/health')
     def health():
+        if is_shutting_down():
+            return {'status': 'shutting_down', 'service': 'MiroFish Backend'}, 503
         return {'status': 'ok', 'service': 'MiroFish Backend'}
     
     if should_log_startup:

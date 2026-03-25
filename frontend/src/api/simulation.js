@@ -62,4 +62,14 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- Coalitions ---
+  getCoalitions: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions`),
+  getCoalitionEvolution: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions/evolution`),
+  getPolarization: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions/polarization`),
+  getSwingAgents: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions/swing-agents`),
 }

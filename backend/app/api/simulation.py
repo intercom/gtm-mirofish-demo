@@ -2709,3 +2709,138 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Coalition Detection API ==============
+
+@simulation_bp.route('/<simulation_id>/coalitions', methods=['GET'])
+def get_coalitions(simulation_id: str):
+    """
+    Detect and return coalitions for a simulation.
+
+    Returns labeled coalitions with members, shared positions, and strength.
+    Works in demo mode when no simulation data exists.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        from ..services.coalition_labeler import CoalitionLabeler
+
+        detector = CoalitionDetector()
+        labeler = CoalitionLabeler()
+
+        coalitions = detector.detect_coalitions(simulation_id)
+        coalitions = labeler.label_all(coalitions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "coalition_count": len(coalitions),
+                "coalitions": [c.to_dict() for c in coalitions],
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Coalition detection failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/evolution', methods=['GET'])
+def get_coalition_evolution(simulation_id: str):
+    """
+    Track coalition formation and changes across rounds.
+
+    Returns per-round coalition state and polarization index.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        from ..services.coalition_labeler import CoalitionLabeler
+
+        detector = CoalitionDetector()
+        labeler = CoalitionLabeler()
+
+        evolution = detector.track_coalition_evolution(simulation_id)
+        for evo in evolution:
+            labeler.label_all(evo.coalitions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "rounds_count": len(evolution),
+                "evolution": [e.to_dict() for e in evolution],
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Coalition evolution failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/polarization', methods=['GET'])
+def get_polarization(simulation_id: str):
+    """
+    Get polarization index timeline.
+
+    Returns 0-1 measure per round: 0 = consensus, 1 = fully polarized.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+
+        detector = CoalitionDetector()
+        timeline = detector.compute_polarization_index(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "timeline": timeline,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Polarization computation failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/swing-agents', methods=['GET'])
+def get_swing_agents(simulation_id: str):
+    """
+    Identify agents who switched coalitions during the simulation.
+
+    Returns agents with their transition history and influence scores.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+
+        detector = CoalitionDetector()
+        swing_agents = detector.identify_swing_agents(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "swing_agent_count": len(swing_agents),
+                "swing_agents": [s.to_dict() for s in swing_agents],
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Swing agent detection failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

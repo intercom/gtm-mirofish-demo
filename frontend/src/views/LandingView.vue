@@ -6,6 +6,7 @@ import { useDemoPreset } from '../composables/useDemoPreset'
 import { useCountUp } from '../composables/useCountUp'
 import { useParallax } from '../composables/useParallax'
 import { useOnboardingTour } from '../composables/useOnboardingTour'
+import { useLocale } from '../composables/useLocale'
 import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
 import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
@@ -18,6 +19,7 @@ const router = useRouter()
 const { isDemoMode } = useDemoMode()
 const { autoStart: autoStartTour } = useOnboardingTour()
 const { available: presetAvailable, loaded: presetLoaded, loading: presetLoading, loadPreset, checkStatus: checkPresetStatus } = useDemoPreset()
+const { formatCompactNumber } = useLocale()
 const showCards = ref(false)
 const showSteps = ref(false)
 
@@ -455,7 +457,7 @@ const year = new Date().getFullYear()
     <section ref="statsBanner" data-tour="stats" class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
       <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-center">
         <div>
-          <div class="text-2xl font-semibold text-[#2068FF]">{{ agentDisplay >= 1000000 ? `${Math.floor(agentDisplay / 1000000)}M+` : agentDisplay.toLocaleString() }}</div>
+          <div class="text-2xl font-semibold text-[#2068FF]">{{ formatCompactNumber(agentDisplay) }}</div>
           <div class="text-xs text-white/40 mt-1">Max Agents</div>
         </div>
         <div>

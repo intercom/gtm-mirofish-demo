@@ -4,6 +4,7 @@ import { select, scaleLinear, area as d3Area, line as d3Line, curveMonotoneX, st
 import { useChartEntrance } from '../../composables/useChartEntrance'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 import { useMobileChart } from '../../composables/useMobileChart'
+import { useLocale } from '../../composables/useLocale'
 
 const { isMobile } = useMobileChart()
 
@@ -11,6 +12,8 @@ const props = defineProps({
   actions: { type: Array, default: () => [] },
   timeline: { type: Array, default: () => [] },
 })
+
+const { locale, formatSignedDecimal, formatPercent } = useLocale()
 
 const chartRef = ref(null)
 const wrapperRef = ref(null)
@@ -181,10 +184,7 @@ function renderTrend(container, data, containerWidth) {
       if (d < 0) return c.orange
       return c.textMuted
     })
-    .text(d => {
-      if (d === 0) return '0'
-      return d > 0 ? `+${d.toFixed(1)}` : d.toFixed(1)
-    })
+    .text(d => d === 0 ? '0' : formatSignedDecimal(d, 1))
     .style('opacity', 0)
     .transition()
     .duration(250)
@@ -315,7 +315,7 @@ function renderTrend(container, data, containerWidth) {
     tooltip
       .html(`
         <div style="font-weight:600;color:${c.text};margin-bottom:4px">Round ${d.round}</div>
-        <div style="color:${color};font-weight:600">${sentimentLabel} (${d.avgSentiment >= 0 ? '+' : ''}${d.avgSentiment.toFixed(2)})</div>
+        <div style="color:${color};font-weight:600">${sentimentLabel} (${formatSignedDecimal(d.avgSentiment, 2)})</div>
         <div style="color:${c.textMuted};margin-top:2px">
           ${d.agentCount} agents · ${d.total} actions
         </div>
@@ -480,7 +480,7 @@ function renderDistribution(container, data, containerWidth) {
     .attr('text-anchor', 'end')
     .attr('font-size', '10px')
     .attr('fill', c.textMuted)
-    .text(d => `${Math.round(d * 100)}%`)
+    .text(d => formatPercent(d))
     .style('opacity', 0)
     .transition()
     .duration(250)
@@ -506,7 +506,7 @@ function renderDistribution(container, data, containerWidth) {
 
 // --- Lifecycle ---
 
-watch([() => props.actions.length, () => props.timeline.length, viewMode, isVisible, isDark, isMobile], () => {
+watch([() => props.actions.length, () => props.timeline.length, viewMode, isVisible, isDark, isMobile, locale], () => {
   if (isVisible.value) {
     nextTick(() => renderChart())
   }

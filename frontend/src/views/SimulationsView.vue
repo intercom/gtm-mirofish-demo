@@ -6,11 +6,13 @@ import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useStaggerAnimation } from '../composables/useStaggerAnimation'
 import { getAllCachedTaskIds } from '../composables/useReportCache'
 import DashboardMiniChart from '../components/dashboard/DashboardMiniChart.vue'
+import { useLocale } from '../composables/useLocale'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
 
 const store = useSimulationStore()
 const router = useRouter()
+const { formatRelativeTime, formatShortDateTime, formatNumber } = useLocale()
 
 const viewMode = ref('list')
 
@@ -157,31 +159,6 @@ const filteredRuns = computed(() => {
   return result
 })
 
-// --- Helpers ---
-
-function relativeTime(ts) {
-  const diff = Math.floor((Date.now() - ts) / 1000)
-  if (diff < 60) return 'just now'
-  if (diff < 3600) {
-    const m = Math.floor(diff / 60)
-    return `${m}m ago`
-  }
-  if (diff < 86400) {
-    const h = Math.floor(diff / 3600)
-    return `${h}h ago`
-  }
-  const d = Math.floor(diff / 86400)
-  return `${d}d ago`
-}
-
-function absoluteTime(ts) {
-  return new Date(ts).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
 
 function statusLabel(status) {
   const s = normalizeStatus(status)
@@ -367,11 +344,11 @@ function exportRun(run) {
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Total Actions</div>
-          <div class="kpi-value">{{ totalActions.toLocaleString() }}</div>
+          <div class="kpi-value">{{ formatNumber(totalActions) }}</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Avg / Run</div>
-          <div class="kpi-value">{{ avgActionsPerRun.toLocaleString() }}</div>
+          <div class="kpi-value">{{ formatNumber(avgActionsPerRun) }}</div>
         </div>
         <div class="kpi-card">
           <div class="kpi-label">Success Rate</div>
@@ -511,7 +488,7 @@ function exportRun(run) {
                   </span>
                 </div>
                 <div class="text-[11px] md:text-xs text-[var(--color-text-muted)]">
-                  <span class="hidden md:inline">{{ absoluteTime(run.timestamp) }} &mdash; </span>{{ relativeTime(run.timestamp) }}
+                  <span class="hidden md:inline">{{ formatShortDateTime(run.timestamp) }} &mdash; </span>{{ formatRelativeTime(run.timestamp) }}
                 </div>
               </div>
               <div class="flex items-center gap-0.5 ml-2 shrink-0">

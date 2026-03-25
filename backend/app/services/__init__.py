@@ -75,6 +75,11 @@ from .agent_prompts import (
     AgentPromptContext,
     PersonalityVector,
 )
+from .scenario_templates import (
+    ScenarioTemplateService,
+    ScenarioTemplate,
+    AgentConfig as ScenarioAgentConfig,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -138,5 +143,8 @@ __all__ = [
     'AgentPromptModifier',
     'AgentPromptContext',
     'PersonalityVector',
+    'ScenarioTemplateService',
+    'ScenarioTemplate',
+    'ScenarioAgentConfig',
 ]
 

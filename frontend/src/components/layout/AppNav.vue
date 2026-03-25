@@ -1,10 +1,12 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import NotificationCenter from '../ui/NotificationCenter.vue'
 
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
+const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => {
   return [
@@ -56,9 +58,26 @@ const navLinks = computed(() => {
         </div>
       </div>
 
-      <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
-        <span class="w-2 h-2 rounded-full bg-green-500"></span>
-        <span>Local</span>
+      <div class="flex items-center gap-3">
+        <NotificationCenter />
+        <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          <span>Local</span>
+        </div>
+
+        <button
+          @click="mobileMenuOpen = !mobileMenuOpen"
+          class="md:hidden text-white/60 hover:text-white transition-colors"
+          :aria-expanded="mobileMenuOpen"
+          aria-label="Toggle navigation menu"
+        >
+          <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+        </button>
       </div>
     </div>
 

@@ -2,6 +2,7 @@
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
+import client from '../api/client'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -146,34 +147,6 @@ const demoActions = computed(() => {
 })
 
 // --- Interview ---
-const INTERVIEW_RESPONSES = {
-  messaging: "The subject line 'Your Zendesk bill is 3x what it should be' caught my attention immediately — it called out a real pain point. However, the 'Replace Zendesk in 30 days' variant felt too aggressive. I'd respond better to messaging that positions Intercom as a complement or upgrade rather than a rip-and-replace.",
-  pricing: "Cost is a real factor for our team. We're spending $12K/month on Zendesk and the 40% savings claim is compelling. But I need to see a detailed TCO comparison that includes migration costs, training time, and the first 6 months of potential productivity loss.",
-  competition: "We evaluated Freshdesk last quarter and it didn't meet our needs on the AI front. Intercom's Fin agent is genuinely differentiated — the intent understanding is impressive. My concern is whether it handles our edge cases as well as the demo suggests.",
-  objection: "My biggest concern is migration risk. We have 3 years of customer data, 200+ macros, and custom integrations built on Zendesk's API. I need a clear migration playbook with timelines before I can advocate for a switch internally.",
-  engagement: "I engaged mostly on Twitter because that's where I follow industry conversations. I shared the ROI-focused content with my team because those numbers were specific enough to be credible. The generic 'AI is the future' posts didn't resonate — I need concrete evidence.",
-  recommendation: "If I were advising Intercom's GTM team: lead with the cost angle for execs like me, but make sure the technical documentation is solid for our IT team. We won't make a decision without IT sign-off, and they'll dig deep into the API docs.",
-}
-
-const KEYWORD_MAP = {
-  messaging: ['messag', 'subject', 'copy', 'email', 'content', 'campaign'],
-  pricing: ['pric', 'cost', 'budget', 'spend', 'tco', 'roi', 'money', 'savings'],
-  competition: ['compet', 'zendesk', 'freshdesk', 'rival', 'alternative', 'versus', 'vs'],
-  objection: ['objection', 'concern', 'risk', 'worry', 'block', 'hesitat', 'migrat'],
-  engagement: ['engage', 'interact', 'action', 'click', 'share', 'platform', 'twitter', 'reddit'],
-  recommendation: ['recommend', 'advice', 'suggest', 'improv', 'next step', 'gtm'],
-}
-
-function getInterviewResponse(question) {
-  const q = question.toLowerCase()
-  for (const [key, keywords] of Object.entries(KEYWORD_MAP)) {
-    if (keywords.some((kw) => q.includes(kw))) {
-      return INTERVIEW_RESPONSES[key]
-    }
-  }
-  return `That's a great question. From my perspective as ${agentRole.value || 'a stakeholder'}, the key factor in any vendor decision is whether the solution genuinely solves a pain point we have today. I saw some compelling data in the simulation, particularly around cost efficiency and AI-first resolution. I'd want to see a pilot program before committing to anything.`
-}
-
 const messages = ref([])
 const input = ref('')
 const sending = ref(false)
@@ -191,6 +164,12 @@ async function scrollToBottom() {
   messagesEnd.value?.scrollIntoView({ behavior: 'smooth' })
 }
 
+const chatHistory = computed(() =>
+  messages.value
+    .filter((m) => m.role === 'user' || m.role === 'assistant')
+    .map(({ role, content }) => ({ role, content })),
+)
+
 async function sendMessage() {
   const text = input.value.trim()
   if (!text || sending.value) return
@@ -201,12 +180,26 @@ async function sendMessage() {
   sending.value = true
   scrollToBottom()
 
-  await new Promise((r) => setTimeout(r, 1000))
+  try {
+    const { data: res } = await client.post('/simulation/interview', {
+      agent_name: agentName.value,
+      agent_role: agentRole.value,
+      agent_company: agentCompany.value,
+      prompt: text,
+      chat_history: chatHistory.value.slice(0, -1),
+    })
 
-  const response = getInterviewResponse(text)
-  messages.value.push({ role: 'assistant', content: response })
-  sending.value = false
-  scrollToBottom()
+    const response = res?.data?.response || res?.response || 'No response received.'
+    messages.value.push({ role: 'assistant', content: response })
+  } catch {
+    messages.value.push({
+      role: 'assistant',
+      content: `That's a great question. From my perspective as ${agentRole.value || 'a stakeholder'}, the key factor in any vendor decision is whether the solution genuinely solves a pain point we have today. I saw some compelling data in the simulation, particularly around cost efficiency and AI-first resolution. I'd want to see a pilot program before committing to anything.`,
+    })
+  } finally {
+    sending.value = false
+    scrollToBottom()
+  }
 }
 </script>
 
@@ -381,7 +374,7 @@ async function sendMessage() {
               <div class="max-w-[80%]">
                 <div class="bg-[var(--color-bg-alt)] text-[var(--color-text)] rounded-2xl rounded-bl-md px-4 py-3 text-sm leading-relaxed">
                   <div class="text-xs font-medium text-[var(--color-fin-orange)] mb-1">{{ agentName }}</div>
-                  {{ msg.content }}
+                  <div class="prose prose-sm max-w-none dark:prose-invert" v-html="marked.parse(msg.content || '')" />
                 </div>
               </div>
             </div>

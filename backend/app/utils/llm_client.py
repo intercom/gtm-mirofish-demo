@@ -59,7 +59,9 @@ class LLMClient:
         }
         
         if response_format:
-            kwargs["response_format"] = response_format
+            # Anthropic's API doesn't support response_format via the OpenAI SDK
+            if 'anthropic' not in (self.base_url or ''):
+                kwargs["response_format"] = response_format
         
         response = self.client.chat.completions.create(**kwargs)
         content = response.choices[0].message.content

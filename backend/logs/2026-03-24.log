@@ -1,0 +1,351 @@
+[2026-03-24 12:28:27] INFO [mirofish.create_app:38] ==================================================
+[2026-03-24 12:28:27] INFO [mirofish.create_app:39] MiroFish Backend 启动中...
+[2026-03-24 12:28:27] INFO [mirofish.create_app:40] ==================================================
+[2026-03-24 12:28:27] INFO [mirofish.create_app:49] 已注册模拟进程清理函数
+[2026-03-24 12:28:27] INFO [mirofish.create_app:85] MiroFish Backend 启动完成
+[2026-03-24 12:28:42] DEBUG [mirofish.request.log_request:55] 请求: GET /health
+[2026-03-24 12:28:42] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:28:42] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:28:42] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:28:47] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios/outbound_campaign
+[2026-03-24 12:28:47] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:30:58] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/demo-sim-00001/journeys
+[2026-03-24 12:30:58] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:31:04] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/demo-sim-00001/journeys
+[2026-03-24 12:31:04] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:31:09] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/demo-sim-00001/journeys
+[2026-03-24 12:31:09] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:38:24] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:38:24] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:38:27] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios/outbound_campaign
+[2026-03-24 12:38:27] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:38:28] DEBUG [mirofish.request.log_request:55] 请求: POST /api/graph/build
+[2026-03-24 12:38:28] DEBUG [mirofish.request.log_request:57] 请求体: {'seed_text': "Intercom is launching an automated outbound campaign targeting mid-market SaaS companies with 500-2000 employees who currently use Zendesk for customer support. The campaign pitches Fin AI agent as a superior alternative that can resolve 50% of support conversations automatically.\n\nThe target audience includes VP of Support, CX Directors, IT Leaders, and Heads of Operations at companies in SaaS, Healthcare, Fintech, and E-commerce verticals.\n\nKey messaging angles:\n1. ROI: Reduce support costs by 40% with AI-first resolution\n2. Speed: Deploy Fin in weeks, not months\n3. Quality: AI that actually understands customer intent\n4. Scale: Handle 10x volume without hiring\n\nEmail subject line variants being tested:\n- 'Your Zendesk bill is 3x what it should be'\n- 'How [Company] cut support costs 40% with AI'\n- 'Replace Zendesk in 30 days — here is how'\n- 'The AI agent your support team actually wants'\n\nCurrent pain points from internal data:\n- 56K incorrect website records in account data\n- Clay enrichment accuracy is only 25-32% for support tool data\n- Previous AI SDR (Conversica) achieved 74% open rate but 0% conversion\n- Reps spend 5-30 minutes per account validating data before engaging\n\nThe simulation should reveal: Which messaging resonates by persona type, which subject lines trigger engagement vs spam perception, how different industries react to competitive displacement messaging, and optimal sequence cadence.", 'agent_count': 200, 'persona_types': ['VP of Support', 'CX Director', 'IT Leader', 'Head of Operations'], 'industries': ['SaaS', 'Healthcare', 'Fintech', 'E-commerce'], 'company_sizes': [], 'regions': [], 'duration_hours': 72, 'minutes_per_round': 30, 'platform_mode': 'parallel'}
+[2026-03-24 12:38:28] INFO [mirofish.api.build_graph:283] === 开始构建图谱 ===
+[2026-03-24 12:38:28] DEBUG [mirofish.api.build_graph:299] 请求参数: project_id=None
+[2026-03-24 12:38:28] DEBUG [mirofish.request.log_response:62] 响应: 400
+[2026-03-24 12:38:34] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:38:34] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:39:35] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:39:35] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:41:14] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:41:14] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:41:27] DEBUG [mirofish.request.log_request:55] 请求: GET /api/settings/test-connection
+[2026-03-24 12:41:27] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:42:33] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:42:33] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:42:38] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:42:38] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:43:28] INFO [mirofish.create_app:38] ==================================================
+[2026-03-24 12:43:28] INFO [mirofish.create_app:39] MiroFish Backend 启动中...
+[2026-03-24 12:43:28] INFO [mirofish.create_app:40] ==================================================
+[2026-03-24 12:43:28] INFO [mirofish.create_app:49] 已注册模拟进程清理函数
+[2026-03-24 12:43:28] INFO [mirofish.create_app:85] MiroFish Backend 启动完成
+[2026-03-24 12:44:06] INFO [mirofish.create_app:38] ==================================================
+[2026-03-24 12:44:06] INFO [mirofish.create_app:39] MiroFish Backend 启动中...
+[2026-03-24 12:44:06] INFO [mirofish.create_app:40] ==================================================
+[2026-03-24 12:44:06] INFO [mirofish.create_app:49] 已注册模拟进程清理函数
+[2026-03-24 12:44:06] INFO [mirofish.create_app:85] MiroFish Backend 启动完成
+[2026-03-24 12:44:26] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:44:26] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:50:45] INFO [mirofish.create_app:38] ==================================================
+[2026-03-24 12:50:45] INFO [mirofish.create_app:39] MiroFish Backend 启动中...
+[2026-03-24 12:50:45] INFO [mirofish.create_app:40] ==================================================
+[2026-03-24 12:50:45] INFO [mirofish.create_app:49] 已注册模拟进程清理函数
+[2026-03-24 12:50:45] INFO [mirofish.create_app:85] MiroFish Backend 启动完成
+[2026-03-24 12:51:14] DEBUG [mirofish.request.log_request:55] 请求: GET /health
+[2026-03-24 12:51:14] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:51:14] DEBUG [mirofish.request.log_request:55] 请求: POST /api/gtm/simulate
+[2026-03-24 12:51:14] DEBUG [mirofish.request.log_request:57] 请求体: {'seed_text': 'test'}
+[2026-03-24 12:51:14] INFO [mirofish.gtm.simulate:154] [simulate] Created project proj_9e9e67d1e13f
+[2026-03-24 12:51:14] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:51:14] ERROR [mirofish.gtm.build._run:307] [1b003882-c5de-4374-add5-51f2ce673d1d] Simulation failed: Error code: 400 - {'error': {'code': 'invalid_request_error', 'message': "response_format.type: Input should be 'json_schema'", 'type': 'invalid_request_error', 'param': None}}
+[2026-03-24 12:51:14] DEBUG [mirofish.gtm.build._run:308] Traceback (most recent call last):
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/app/api/gtm_scenarios.py", line 185, in _run
+    ontology = generator.generate(
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/app/services/ontology_generator.py", line 197, in generate
+    result = self.llm_client.chat_json(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/app/utils/llm_client.py", line 87, in chat_json
+    response = self.chat(
+               ^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/app/utils/llm_client.py", line 64, in chat
+    response = self.client.chat.completions.create(**kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/openai/_utils/_utils.py", line 286, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/openai/resources/chat/completions/completions.py", line 1147, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/openai/_base_client.py", line 1259, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/openai/_base_client.py", line 1047, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.BadRequestError: Error code: 400 - {'error': {'code': 'invalid_request_error', 'message': "response_format.type: Input should be 'json_schema'", 'type': 'invalid_request_error', 'param': None}}
+
+[2026-03-24 12:51:28] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/1b003882-c5de-4374-add5-51f2ce673d1d
+[2026-03-24 12:51:28] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:51:49] INFO [mirofish.create_app:38] ==================================================
+[2026-03-24 12:51:49] INFO [mirofish.create_app:39] MiroFish Backend 启动中...
+[2026-03-24 12:51:49] INFO [mirofish.create_app:40] ==================================================
+[2026-03-24 12:51:49] INFO [mirofish.create_app:49] 已注册模拟进程清理函数
+[2026-03-24 12:51:49] INFO [mirofish.create_app:85] MiroFish Backend 启动完成
+[2026-03-24 12:54:01] DEBUG [mirofish.request.log_request:55] 请求: POST /api/gtm/simulate
+[2026-03-24 12:54:01] DEBUG [mirofish.request.log_request:57] 请求体: {'seed_text': 'Test outbound campaign for SaaS companies targeting VP of Support with AI-powered customer service platform. The messaging focuses on reducing ticket volume by 40%% and improving CSAT scores.'}
+[2026-03-24 12:54:01] INFO [mirofish.gtm.simulate:154] [simulate] Created project proj_4a166e65a51a
+[2026-03-24 12:54:01] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:22] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/40c6efa2-f3cf-47c2-9251-aff514debe99
+[2026-03-24 12:54:22] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:38] INFO [mirofish.gtm.build._run:192] [40c6efa2-f3cf-47c2-9251-aff514debe99] Ontology generated: 10 entity types, 8 edge types
+[2026-03-24 12:54:46] INFO [mirofish.gtm.build._run:286] [40c6efa2-f3cf-47c2-9251-aff514debe99] Graph complete: graph_id=mirofish_e040599bbb164aa2, nodes=3, edges=2
+[2026-03-24 12:54:47] DEBUG [mirofish.request.log_request:55] 请求: POST /api/gtm/simulate
+[2026-03-24 12:54:47] DEBUG [mirofish.request.log_request:57] 请求体: {'seed_text': "Intercom is launching an automated outbound campaign targeting mid-market SaaS companies with 500-2000 employees who currently use Zendesk for customer support. The campaign pitches Fin AI agent as a superior alternative that can resolve 50% of support conversations automatically.\n\nThe target audience includes VP of Support, CX Directors, IT Leaders, and Heads of Operations at companies in SaaS, Healthcare, Fintech, and E-commerce verticals.\n\nKey messaging angles:\n1. ROI: Reduce support costs by 40% with AI-first resolution\n2. Speed: Deploy Fin in weeks, not months\n3. Quality: AI that actually understands customer intent\n4. Scale: Handle 10x volume without hiring\n\nEmail subject line variants being tested:\n- 'Your Zendesk bill is 3x what it should be'\n- 'How [Company] cut support costs 40% with AI'\n- 'Replace Zendesk in 30 days — here is how'\n- 'The AI agent your support team actually wants'\n\nCurrent pain points from internal data:\n- 56K incorrect website records in account data\n- Clay enrichment accuracy is only 25-32% for support tool data\n- Previous AI SDR (Conversica) achieved 74% open rate but 0% conversion\n- Reps spend 5-30 minutes per account validating data before engaging\n\nThe simulation should reveal: Which messaging resonates by persona type, which subject lines trigger engagement vs spam perception, how different industries react to competitive displacement messaging, and optimal sequence cadence.", 'agent_count': 200, 'persona_types': ['VP of Support', 'CX Director', 'IT Leader', 'Head of Operations'], 'industries': ['SaaS', 'Healthcare', 'Fintech', 'E-commerce'], 'company_sizes': [], 'regions': [], 'duration_hours': 72, 'minutes_per_round': 30, 'platform_mode': 'parallel'}
+[2026-03-24 12:54:47] INFO [mirofish.gtm.simulate:154] [simulate] Created project proj_e6f1dff28005
+[2026-03-24 12:54:47] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:48] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:54:48] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:54:48] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:54:48] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:50] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:54:50] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:54:51] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:54:51] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:52] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:54:52] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:54:54] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:54:54] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:54:54] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:54] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:54:56] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:54:56] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:54:57] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:54:57] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:57] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:54:57] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:57] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:54:57] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:54:59] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/40c6efa2-f3cf-47c2-9251-aff514debe99
+[2026-03-24 12:54:59] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:54:59] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:54:59] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:00] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:00] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:01] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:01] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:03] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:03] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:03] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:03] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:05] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:05] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:06] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:06] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:07] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:07] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:09] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:09] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:09] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:09] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:11] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:11] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:12] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:12] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:13] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:13] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:16] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:16] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:16] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:16] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:18] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:18] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:19] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:19] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:19] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:19] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:21] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:21] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:21] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:21] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:23] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:23] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:24] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:24] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:24] INFO [mirofish.gtm.build._run:192] [26313ed9-a748-49da-beda-4d8da0da4715] Ontology generated: 10 entity types, 8 edge types
+[2026-03-24 12:55:25] ERROR [mirofish.gtm.build._run:307] [26313ed9-a748-49da-beda-4d8da0da4715] Simulation failed: headers: {'date': 'Tue, 24 Mar 2026 19:55:25 GMT', 'content-type': 'application/json; charset=utf-8', 'content-length': '69', 'connection': 'keep-alive', 'vary': 'Origin', 'x-content-type-options': 'nosniff', 'x-ratelimit-limit': '300', 'x-ratelimit-remaining': '293', 'x-ratelimit-reset': '1774382160', 'strict-transport-security': 'max-age=31536000; includeSubDomains', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'cf-ray': '9e183bba983f29a0-SJC'}, status_code: 400, body: message='source_targets cannot contain more than 10 items (max)'
+[2026-03-24 12:55:25] DEBUG [mirofish.gtm.build._run:308] Traceback (most recent call last):
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/app/api/gtm_scenarios.py", line 240, in _run
+    builder.set_ontology(graph_id, proj.ontology)
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/app/services/graph_builder.py", line 282, in set_ontology
+    self.client.graph.set_ontology(
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/zep_cloud/external_clients/graph.py", line 113, in set_ontology
+    return self.set_entity_types(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/zep_cloud/external_clients/graph.py", line 229, in set_entity_types
+    res = self.set_entity_types_internal(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/zep_cloud/graph/client.py", line 134, in set_entity_types_internal
+    _response = self._raw_client.set_entity_types_internal(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/spenser.wellen/Documents/GitHub/gtm-mirofish-demo/backend/.venv/lib/python3.12/site-packages/zep_cloud/graph/raw_client.py", line 189, in set_entity_types_internal
+    raise BadRequestError(
+zep_cloud.errors.bad_request_error.BadRequestError: headers: {'date': 'Tue, 24 Mar 2026 19:55:25 GMT', 'content-type': 'application/json; charset=utf-8', 'content-length': '69', 'connection': 'keep-alive', 'vary': 'Origin', 'x-content-type-options': 'nosniff', 'x-ratelimit-limit': '300', 'x-ratelimit-remaining': '293', 'x-ratelimit-reset': '1774382160', 'strict-transport-security': 'max-age=31536000; includeSubDomains', 'cf-cache-status': 'DYNAMIC', 'server': 'cloudflare', 'cf-ray': '9e183bba983f29a0-SJC'}, status_code: 400, body: message='source_targets cannot contain more than 10 items (max)'
+
+[2026-03-24 12:55:25] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:25] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:27] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:27] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:27] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:27] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:29] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:29] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:30] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:30] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:31] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:31] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:33] DEBUG [mirofish.request.log_request:55] 请求: GET /health
+[2026-03-24 12:55:33] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:33] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:33] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:33] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:33] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:35] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:35] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:36] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:36] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:37] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:37] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:39] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 12:55:39] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:45] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:45] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:45] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 12:55:45] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:47] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 12:55:47] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:51] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/demo-graph-41672
+[2026-03-24 12:55:51] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/demo-graph-41672/run-status
+[2026-03-24 12:55:51] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:51] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:55:53] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/demo-graph-41672
+[2026-03-24 12:55:53] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:55:54] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/demo-graph-41672/run-status
+[2026-03-24 12:55:54] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 12:56:23] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/interview
+[2026-03-24 12:56:23] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 12:56:23] DEBUG [mirofish.request.log_request:55] 请求: GET /favicon.ico
+[2026-03-24 12:56:23] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:08] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:08] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:08] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:08] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:10] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:10] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:11] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:11] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:12] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:12] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:14] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:14] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:14] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:14] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:16] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:16] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:17] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:17] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:18] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:18] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:20] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:20] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:20] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:20] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:22] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:22] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:23] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:23] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:24] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:24] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:26] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:26] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:26] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:26] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:28] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:28] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:29] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:29] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:30] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:30] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:32] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:32] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:32] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:32] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:34] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:34] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:35] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:35] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:36] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:36] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:38] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:38] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:38] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:38] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:40] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:40] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:41] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:41] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:42] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:42] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:44] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:44] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:44] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:44] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:46] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:46] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:47] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:47] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:48] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:48] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:50] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:50] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:50] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:50] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:52] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:52] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:53] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:53] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:54] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:54] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:56] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:56] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:01:56] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/undefined/run-status
+[2026-03-24 13:01:56] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:01:58] DEBUG [mirofish.request.log_request:55] 请求: GET /api/graph/task/undefined
+[2026-03-24 13:01:58] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:02:00] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:02:00] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:08:22] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:08:22] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:09:11] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:09:11] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:11:34] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:11:34] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:13:17] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:13:17] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:14:08] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:14:08] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:15:25] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:15:25] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:16:26] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:16:26] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:16:27] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/interview
+[2026-03-24 13:16:27] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:16:27] DEBUG [mirofish.request.log_request:55] 请求: GET /favicon.ico
+[2026-03-24 13:16:27] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:16:29] DEBUG [mirofish.request.log_request:55] 请求: GET /api/simulation/interview
+[2026-03-24 13:16:29] DEBUG [mirofish.request.log_response:62] 响应: 404
+[2026-03-24 13:18:07] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:18:07] DEBUG [mirofish.request.log_response:62] 响应: 200
+[2026-03-24 13:24:53] DEBUG [mirofish.request.log_request:55] 请求: GET /api/gtm/scenarios
+[2026-03-24 13:24:53] DEBUG [mirofish.request.log_response:62] 响应: 200

@@ -1,0 +1,698 @@
+[
+  {
+    "title": "Install and configure camel-ai OASIS dependencies",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Add camel-ai[all] to backend/requirements.txt if not already present. Create backend/app/services/oasis_config.py that configures the OASIS framework: 1) Import from camel.agents and camel.societies. 2) Define OasisConfig dataclass: num_agents, environment_type, llm_provider, max_rounds, temperature. 3) Create `get_oasis_config()` that reads from environment variables with sensible defaults. 4) Add LLM provider mapping: anthropic\u2192Claude, openai\u2192GPT-4, gemini\u2192Gemini Pro. 5) Validate that at least one LLM provider key is available, or fall back to demo mode. Test import: `python -c 'from camel.agents import ChatAgent; print(\"OASIS OK\")'`."
+  },
+  {
+    "title": "Create OASIS agent factory",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Create backend/app/services/oasis_agent_factory.py that builds configured OASIS agents. Define `create_agent(persona, role, llm_config)` that creates a camel ChatAgent with: - System message based on persona (name, background, personality traits, domain expertise) - LLM model configuration from llm_client.py - Temperature and max_tokens from OasisConfig Define persona templates for GTM simulation roles: Sales Rep (aggressive, quota-driven), Marketing Manager (data-driven, brand-focused), Customer Success (empathetic, retention-focused), Product Manager (feature-focused, user-centric), Finance Analyst (risk-averse, numbers-driven), Executive (strategic, growth-oriented). Each persona has 3-5 personality traits that affect their simulation behavior. Add `create_agent_team(scenario_type, num_agents)` that builds a balanced team."
+  },
+  {
+    "title": "Create OASIS environment manager",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Create backend/app/services/oasis_environment.py that manages simulation environments. Define EnvironmentManager class with: 1) `create_environment(env_type, config)` \u2014 sets up the simulation space (GTM pipeline, market, internal meeting). 2) `add_agents(environment, agents)` \u2014 places agents into the environment. 3) `set_constraints(environment, rules)` \u2014 adds behavioral rules (budget limits, market conditions, competitive pressure). 4) `step(environment)` \u2014 advances simulation by one time step, triggering agent interactions. 5) `get_state(environment)` \u2014 returns current environment state (agent positions, interactions, metrics). Environment types: 'pipeline_review', 'deal_negotiation', 'market_simulation', 'team_standup', 'quarterly_review'. Each type has specific constraints and interaction patterns."
+  },
+  {
+    "title": "Create OASIS interaction protocol",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Create backend/app/services/oasis_interaction.py defining how agents interact within OASIS. Define interaction types: 1) DirectMessage \u2014 one agent messages another (e.g., sales rep \u2192 customer). 2) GroupDiscussion \u2014 multiple agents discuss a topic (e.g., deal review meeting). 3) Broadcast \u2014 one agent broadcasts to all (e.g., marketing campaign launch). 4) Reaction \u2014 agent responds to an event (e.g., competitor price change). Each interaction produces a structured InteractionResult: participants, messages, sentiment_scores, decisions_made, next_actions. Implement `run_interaction(agents, interaction_type, context)` that orchestrates the LLM calls through OASIS. Track token usage per interaction for cost monitoring."
+  },
+  {
+    "title": "Create OASIS simulation orchestrator",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Create backend/app/services/oasis_orchestrator.py \u2014 the main simulation loop coordinator. OasisOrchestrator class with: 1) `initialize(scenario, config)` \u2014 creates environment, agents, and initial state. 2) `run_round(round_number)` \u2014 executes one simulation round: each agent acts, interactions resolve, state updates. 3) `run_full(max_rounds)` \u2014 runs complete simulation with progress tracking. 4) `get_results()` \u2014 returns structured simulation results (rounds, interactions, metrics, agent states). 5) `pause()` / `resume()` \u2014 control simulation execution. Emit events at each round for real-time streaming. Handle LLM errors gracefully \u2014 retry with backoff, skip agent on persistent failure. Log all interactions to backend/logs/ with structured JSON format."
+  },
+  {
+    "title": "Create OASIS metrics collector",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Create backend/app/services/oasis_metrics.py \u2014 collects and aggregates simulation metrics. Track per-round: agent sentiment scores, interaction count, decision count, consensus level, information spread. Track per-agent: total messages, avg sentiment, influence score (how often others reference them), decision participation rate, opinion change count. Track overall: simulation convergence (are opinions stabilizing?), polarization index, information cascade detection, coalition formation. Store metrics in a MetricsCollector class with `record_round(round_data)` and `get_summary()` methods. Export metrics as time-series data suitable for charting."
+  },
+  {
+    "title": "Create OASIS demo mode fallback",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Create backend/app/services/oasis_demo.py \u2014 generates realistic mock simulation data when OASIS/LLM is unavailable. DemoSimulator class that mimics the OasisOrchestrator interface but uses pre-generated data. Generate 10 rounds of realistic interactions with: - Message content from templates with variable substitution (agent name, product, metric values). - Sentiment scores following a natural arc (start neutral, diverge, reconverge). - Decision points at rounds 3, 6, 9 with realistic outcomes. - Metric progressions that tell a coherent story. The demo mode should be indistinguishable from real simulation in the frontend. Activate automatically when no LLM_API_KEY is configured."
+  },
+  {
+    "title": "Wire OASIS into simulation API endpoints",
+    "completed": false,
+    "parallel_group": 26,
+    "description": "Update backend/app/api/simulation.py to use the OASIS orchestrator for real simulations. POST /api/simulation/start \u2014 check if LLM available: use OasisOrchestrator if yes, DemoSimulator if no. GET /api/simulation/<id>/round/<n> \u2014 get specific round results from orchestrator. POST /api/simulation/<id>/pause \u2014 pause running simulation. POST /api/simulation/<id>/resume \u2014 resume paused simulation. GET /api/simulation/<id>/metrics \u2014 get MetricsCollector summary. Add 'mode' field to simulation response: 'oasis' or 'demo' so frontend can display which mode is active. Handle concurrent simulations with a simulation registry (dict[id, orchestrator])."
+  },
+  {
+    "title": "Install and configure Zep Cloud SDK",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Add zep-cloud to backend/requirements.txt if not present. Create backend/app/services/zep_config.py: 1) Import from zep_cloud.client import AsyncZep. 2) Create ZepConfig dataclass: api_key, project_name, default_collection. 3) Create `get_zep_client()` singleton that returns configured AsyncZep client. 4) Create `is_zep_available()` that checks if ZEP_API_KEY is set and client can connect. 5) Add connection test endpoint helper: try client.memory.get() with a test session. 6) Handle missing ZEP_API_KEY gracefully \u2014 log info message, return None from get_zep_client(). Test: `python -c 'from zep_cloud.client import AsyncZep; print(\"Zep SDK OK\")'`."
+  },
+  {
+    "title": "Create Zep entity extraction service",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Create backend/app/services/zep_entity_extractor.py that extracts entities from simulation interactions. EntityExtractor class with: 1) `extract_from_message(message, agent_name)` \u2014 uses Zep's built-in entity extraction to identify:    people, companies, products, amounts, dates, sentiments mentioned in agent messages. 2) `extract_from_round(round_data)` \u2014 processes all messages in a simulation round. 3) `build_entity_map(simulation_id)` \u2014 builds a complete entity map from all rounds. Entity types: Person, Company, Product, Metric, Decision, Risk, Opportunity. Each entity has: name, type, first_mentioned_round, mention_count, associated_agents, sentiment_context. When Zep unavailable, use a regex-based fallback that extracts named entities from templates."
+  },
+  {
+    "title": "Create Zep graph memory service",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Create backend/app/services/zep_graph_memory.py that builds and queries the knowledge graph. GraphMemoryService class with: 1) `add_episode(session_id, messages)` \u2014 adds simulation conversation to Zep memory. 2) `build_graph(session_id)` \u2014 triggers Zep's graph construction from episodes. 3) `query_graph(query, filters)` \u2014 searches the knowledge graph with natural language. 4) `get_entity_relationships(entity_name)` \u2014 returns all relationships for an entity. 5) `get_community_summary(session_id)` \u2014 returns Zep's community detection summary. 6) `get_temporal_facts(session_id, time_range)` \u2014 returns facts from a specific time window. Map simulation rounds to Zep episodes. Each agent message becomes a memory entry. When Zep unavailable, return mock graph data with pre-built entity relationships."
+  },
+  {
+    "title": "Create Zep-powered knowledge graph API",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Add new endpoints to backend/app/api/graph.py (existing Blueprint): GET /api/graph/entities \u2014 list entities from Zep graph with type filter. GET /api/graph/entities/<name>/relationships \u2014 entity's relationships. GET /api/graph/search \u2014 natural language search over knowledge graph. GET /api/graph/communities \u2014 detected communities/clusters. GET /api/graph/temporal \u2014 temporal facts with time range filter. GET /api/graph/stats \u2014 graph statistics: entity count, relationship count, community count. Each endpoint checks is_zep_available() and returns mock data if Zep is not configured. Add 'source' field to responses: 'zep' or 'mock'."
+  },
+  {
+    "title": "Build knowledge graph visualization component",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Create frontend/src/components/graph/KnowledgeGraphViz.vue \u2014 D3.js force-directed graph of Zep entities. Nodes: entities, colored by type (Person=blue, Company=green, Product=purple, Metric=orange). Edges: relationships, labeled with relationship type. Edge thickness by mention count. Node size proportional to mention count. Add zoom/pan with D3 zoom behavior. On node click: show entity details panel (name, type, mentions, relationships, sentiment context). On edge click: show relationship details. Add physics controls: charge strength, link distance sliders. Filter by entity type with toggleable checkboxes. Search by entity name."
+  },
+  {
+    "title": "Build temporal knowledge timeline component",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Create frontend/src/components/graph/TemporalTimeline.vue \u2014 D3.js timeline of knowledge graph facts. X-axis: simulation rounds/time. Y-axis: entity categories. Plot facts as dots on the timeline, color-coded by type (new entity=blue, relationship formed=green, opinion changed=yellow, decision made=red). Connect related facts with lines. Add tooltip showing fact details on hover. Add playback control: play/pause/speed that animates facts appearing over time. Show cumulative entity count and relationship count as area chart below the timeline."
+  },
+  {
+    "title": "Build community detection visualization",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Create frontend/src/components/graph/CommunityView.vue \u2014 visualization of detected agent communities. Use D3.js to draw community clusters as grouped nodes within dashed-border containers. Each community has a label (auto-generated from shared topics). Nodes within community colored by role. Inter-community edges shown as thinner, lighter lines. Show community summary: member count, key topics, sentiment, cohesion score. Add ability to expand/collapse communities. Animate community formation over rounds. When Zep provides community detection, use that; otherwise, use simple clustering based on interaction frequency."
+  },
+  {
+    "title": "Build graph search interface component",
+    "completed": false,
+    "parallel_group": 27,
+    "description": "Create frontend/src/components/graph/GraphSearch.vue \u2014 natural language search over the knowledge graph. Search input with autocomplete suggestions (entity names, common queries). Results displayed as: matching entities with relationship context, matching facts with timestamps, matching communities with member lists. Each result type has a distinct card format. Click result to highlight in KnowledgeGraphViz. Example queries: 'Which agents discussed pricing?', 'What decisions were made about the product launch?', 'Show relationships between Sales and Marketing agents'. Use the /api/graph/search endpoint. Show 'Powered by Zep' or 'Demo mode' badge based on source."
+  },
+  {
+    "title": "Create simulation scenario templates",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Create backend/app/services/scenario_templates.py with pre-built simulation scenarios for GTM demos. Each template: name, description, agent_configs (roles + personas), environment_type, num_rounds, constraints. Templates: 1) 'Pipeline Review' \u2014 Sales team reviews Q4 pipeline, debates deal priorities. 4 agents, 6 rounds. 2) 'Competitive Response' \u2014 Team reacts to competitor price cut. 5 agents, 8 rounds. 3) 'Product Launch GTM' \u2014 Cross-functional team plans go-to-market. 6 agents, 10 rounds. 4) 'Churn Prevention' \u2014 CS + Sales + Product discuss at-risk accounts. 4 agents, 6 rounds. 5) 'Budget Allocation' \u2014 Leadership allocates marketing budget across channels. 5 agents, 8 rounds. 6) 'MRR Reconciliation Investigation' \u2014 Finance + Ops investigate billing discrepancies. 4 agents, 6 rounds. Each template uses real Intercom product names and realistic GTM scenarios."
+  },
+  {
+    "title": "Build simulation execution engine",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Create backend/app/services/simulation_engine.py \u2014 the core simulation execution loop. SimulationEngine class: 1) `prepare(template_or_custom)` \u2014 configures agents and environment from template or custom config. 2) `execute_round(round_num)` \u2014 runs one round: determine agent order, process each agent's turn,    collect interactions, update environment state, record metrics. 3) `execute_all()` \u2014 runs all rounds with yield between rounds for streaming. Agent turn: agent receives context (environment state + recent messages + their memory), generates response via LLM, response is parsed for actions (message, decision, data_request). Between rounds: update sentiment scores, check for consensus, evaluate stopping conditions. Store full execution history in memory for replay. Thread-safe execution using threading.Lock for concurrent simulation access."
+  },
+  {
+    "title": "Create simulation state manager",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Create backend/app/services/simulation_state.py \u2014 manages simulation lifecycle and state. SimulationStateManager class (module-level singleton): 1) `create_simulation(config)` \u2192 simulation_id. 2) `get_simulation(id)` \u2192 SimulationState object. 3) `list_simulations()` \u2192 all simulations with status. 4) `delete_simulation(id)` \u2192 cleanup. SimulationState: id, status (created/running/paused/completed/failed), config, engine reference, current_round, total_rounds, created_at, started_at, completed_at, error_message. Persist simulation results to JSON files in backend/data/simulations/ for replay. Limit concurrent running simulations to 3 (configurable). Queue excess requests."
+  },
+  {
+    "title": "Create agent prompt engineering module",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Create backend/app/services/agent_prompts.py \u2014 LLM prompt templates for OASIS agents. Define structured prompts that produce parseable agent responses: System prompt template: 'You are {name}, a {role} at Intercom. {personality}. {expertise}. You are in a {scenario_type} meeting. {constraints}. Respond in character.' Turn prompt template: 'Current discussion: {recent_messages}. Environment: {state}. Your memory: {memories}. What do you say or decide? Format: THOUGHT: (internal reasoning) MESSAGE: (what you say to others) DECISION: (any decision you make, or NONE) SENTIMENT: (1-10 scale).' Parse responses to extract structured data. Handle malformed LLM responses gracefully. Support all three providers with provider-specific optimizations (Claude uses XML tags, GPT uses JSON mode)."
+  },
+  {
+    "title": "Build real-time simulation progress API",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Update backend/app/api/simulation.py with enhanced endpoints for real simulation progress: GET /api/simulation/<id>/status \u2014 current status, round progress (3/10), elapsed time. GET /api/simulation/<id>/stream \u2014 Server-Sent Events (SSE) endpoint streaming round completions. Each SSE event: {round: N, agents_acted: [...], messages: [...], metrics: {...}, timestamp: ISO}. GET /api/simulation/<id>/replay \u2014 full simulation history for replay (all rounds, all interactions). GET /api/simulation/<id>/agent/<agent_id> \u2014 specific agent's full history (messages, decisions, sentiment arc). Add proper SSE headers (Content-Type: text/event-stream, Cache-Control: no-cache). Handle client disconnection gracefully."
+  },
+  {
+    "title": "Build simulation control panel Vue component",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Create frontend/src/components/simulation/SimulationControls.vue \u2014 controls for running simulations. Start section: template selector dropdown, agent count slider (2-8), round count slider (4-20), LLM provider selector (auto/anthropic/openai/gemini), Start button. Running section: progress bar (round X of Y), elapsed time, current agent acting, Pause/Resume button, Stop button. Show 'OASIS Mode' badge (green) or 'Demo Mode' badge (yellow) based on backend response. Real-time update via EventSource connection to the SSE endpoint. Disable start button while a simulation is running."
+  },
+  {
+    "title": "Build simulation replay viewer component",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Create frontend/src/components/simulation/ReplayViewer.vue \u2014 replay completed simulations round by round. Transport controls: play/pause, speed (0.5x, 1x, 2x, 4x), step forward/back, jump to round. Timeline scrubber showing round markers. Current round highlighted. Main view: agent messages appearing in chat-bubble format as replay progresses. Side panel: agent sentiment chart updating in real-time with replay. Bottom: metric charts (interaction count, consensus level) updating with replay position. Use requestAnimationFrame for smooth playback. Emit events for synchronized chart updates."
+  },
+  {
+    "title": "Build simulation comparison component",
+    "completed": false,
+    "parallel_group": 28,
+    "description": "Create frontend/src/components/simulation/SimulationComparison.vue \u2014 side-by-side comparison of two simulation runs. Left/right panels each showing a simulation's results. Sync controls: lock round navigation (both panels advance together). Comparison metrics: overlay charts showing both simulations' metrics on the same axes. Difference highlighting: where outcomes diverged between simulations. Use case: compare same scenario with different agent compositions or LLM providers. Dropdown selectors for choosing which two simulations to compare. Show summary table: metric, sim A value, sim B value, difference, winner."
+  },
+  {
+    "title": "Create agent memory abstraction layer",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Create backend/app/services/agent_memory.py \u2014 abstraction over Zep for agent memory. AgentMemory class: 1) `store_message(agent_id, session_id, role, content, metadata)` \u2014 stores message in agent's memory. 2) `get_history(agent_id, session_id, last_n)` \u2014 retrieves recent messages. 3) `search_memory(agent_id, query, limit)` \u2014 semantic search over agent's past interactions. 4) `get_facts(agent_id)` \u2014 returns extracted facts about the agent from Zep. 5) `clear_memory(agent_id, session_id)` \u2014 resets agent's memory. When Zep available: use Zep memory API with sessions mapped to simulation IDs. When Zep unavailable: use in-memory dict with simple keyword search fallback. Memory is per-agent, per-simulation (agents don't share memories unless explicitly transferred)."
+  },
+  {
+    "title": "Implement temporal memory with Zep",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Create backend/app/services/zep_temporal_memory.py \u2014 leverages Zep's temporal memory features. TemporalMemory class: 1) `add_episode(session_id, messages, timestamp)` \u2014 adds timestamped conversation episode. 2) `query_at_time(session_id, query, before_timestamp)` \u2014 retrieves facts known at a specific time. 3) `get_memory_evolution(session_id, entity)` \u2014 shows how knowledge about an entity changed over time. 4) `get_contradictions(session_id)` \u2014 identifies contradictory facts in memory. Use Zep's temporal fact extraction to track: when agents learned information, when opinions changed, when decisions were made. Enable 'time travel' \u2014 reconstruct what an agent knew at any simulation round. Mock fallback: return chronologically ordered facts from in-memory store."
+  },
+  {
+    "title": "Build cross-simulation memory transfer",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Create backend/app/services/memory_transfer.py \u2014 allows agents to carry memories between simulations. MemoryTransfer class: 1) `export_agent_memory(agent_id, simulation_id)` \u2192 serialized memory bundle. 2) `import_agent_memory(agent_id, simulation_id, memory_bundle)` \u2014 loads memories into new simulation. 3) `selective_transfer(agent_id, from_sim, to_sim, filter)` \u2014 transfer only specific memory types. Filters: 'decisions_only', 'relationships_only', 'facts_only', 'all'. This enables multi-simulation story arcs: agent remembers outcomes of previous simulations. Add API endpoint: POST /api/simulation/<id>/agents/<agent_id>/import-memory with source simulation ID."
+  },
+  {
+    "title": "Build agent memory viewer component",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Create frontend/src/components/simulation/AgentMemoryView.vue \u2014 displays an agent's memory state. Tabs: Conversation History, Facts & Knowledge, Relationships, Memory Timeline. Conversation History: chat-style display of all messages the agent sent/received. Facts & Knowledge: list of extracted facts with confidence scores and source references. Relationships: mini graph showing this agent's connections to entities and other agents. Memory Timeline: when the agent learned each fact, with ability to 'time travel'. Search bar for semantic search over agent's memory. Show memory source badge: 'Zep' or 'Local'."
+  },
+  {
+    "title": "Build memory diff visualization",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Create frontend/src/components/simulation/MemoryDiff.vue \u2014 shows how agent memory changed between rounds. Two-column diff view: 'Before Round X' vs 'After Round X'. Highlight: new facts (green), updated facts (yellow), contradicted facts (red). Round selector slider to pick which transition to examine. Summary stats: facts added, facts updated, facts contradicted, net knowledge growth. Useful for understanding what each round contributed to agent knowledge."
+  },
+  {
+    "title": "Build agent knowledge graph component",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Create frontend/src/components/simulation/AgentKnowledgeGraph.vue \u2014 per-agent knowledge as a mini graph. Center node: the agent. Connected nodes: entities the agent knows about. Edge labels: relationship type (knows_about, made_decision_about, disagrees_with, supports). Node color: entity type. Edge color: sentiment (green=positive, red=negative, gray=neutral). Animate graph growing over simulation rounds (slider control). D3.js force-directed layout with collision detection. Click entity to see all agent's facts about it."
+  },
+  {
+    "title": "Create memory persistence API endpoints",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Add to backend/app/api/simulation.py: GET /api/simulation/<id>/agents/<agent_id>/memory \u2014 full memory dump for an agent. GET /api/simulation/<id>/agents/<agent_id>/memory/search?q=query \u2014 semantic memory search. GET /api/simulation/<id>/agents/<agent_id>/memory/facts \u2014 extracted facts with confidence. GET /api/simulation/<id>/agents/<agent_id>/memory/timeline \u2014 temporal memory evolution. GET /api/simulation/<id>/agents/<agent_id>/memory/diff?round=N \u2014 memory diff at round N. POST /api/simulation/<id>/agents/<agent_id>/memory/transfer \u2014 import memories from another simulation. All endpoints fall back to in-memory data when Zep unavailable."
+  },
+  {
+    "title": "Build memory configuration panel",
+    "completed": false,
+    "parallel_group": 29,
+    "description": "Create frontend/src/components/simulation/MemoryConfig.vue \u2014 configuration for agent memory behavior. Settings: memory window size (how many past rounds to include in context), memory search depth (max results from semantic search), fact extraction aggressiveness (low=only explicit, medium=inferred, high=speculative), cross-simulation memory (enable/disable carrying memories forward). Show current Zep connection status with test button. Show memory usage stats: total facts stored, total episodes, graph size. Save settings to simulation config. Display in simulation setup wizard."
+  },
+  {
+    "title": "Create ReportAgent tool definitions",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Create backend/app/services/report_tools.py \u2014 tools available to the ReportAgent for data analysis. Define tools as function schemas (OpenAI function-calling format for compatibility): 1) `query_simulation_data(simulation_id, metric, time_range)` \u2014 fetches specific simulation metrics. 2) `analyze_sentiment_trend(simulation_id, agent_ids)` \u2014 computes sentiment statistics. 3) `identify_key_decisions(simulation_id)` \u2014 extracts decisions from simulation history. 4) `compare_agent_behaviors(simulation_id, agent_ids)` \u2014 comparative agent analysis. 5) `generate_chart_data(chart_type, data_query)` \u2014 prepares data for specific chart types. 6) `search_knowledge_graph(query)` \u2014 searches Zep graph for relevant information. 7) `calculate_gtm_metrics(metric_name, parameters)` \u2014 computes GTM-specific calculations. Each tool has clear parameter schemas and return type definitions."
+  },
+  {
+    "title": "Build ReportAgent execution engine",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Create backend/app/services/report_agent_engine.py \u2014 ReACT-pattern agent that writes analysis reports. ReportAgentEngine class: 1) `generate_report(simulation_id, report_type, custom_prompt)` \u2014 main entry point. 2) Uses ReACT loop: Thought \u2192 Action \u2192 Observation \u2192 repeat until report complete. 3) Agent decides which tools to call based on report requirements. 4) Compiles observations into structured report sections. 5) Generates executive summary, detailed findings, recommendations. Report types: 'executive_summary', 'detailed_analysis', 'agent_comparison', 'decision_audit', 'custom'. Max 10 tool calls per report to prevent runaway loops. Track token usage and tool call history for transparency. Fallback: when LLM unavailable, generate template-based report from raw data."
+  },
+  {
+    "title": "Create report templates and formatting",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Create backend/app/services/report_templates.py \u2014 Markdown templates for different report types. Templates use Jinja2-style placeholders filled by ReportAgent: Executive Summary: title, date, key findings (3-5 bullets), metrics table, recommendation. Detailed Analysis: executive summary + per-round breakdown + agent analysis + decision timeline + appendix. Agent Comparison: side-by-side agent stats table + personality analysis + influence ranking. Decision Audit: chronological decision list + rationale + dissenting opinions + outcomes. Each template outputs clean Markdown that can be rendered in the frontend. Add chart placeholders: `{{chart:sentiment_trend}}`, `{{chart:agent_comparison}}` that frontend renders as actual charts."
+  },
+  {
+    "title": "Build report generation API",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Update backend/app/api/report.py Blueprint: POST /api/reports/generate \u2014 start report generation (async, returns report_id). Body: {simulation_id, report_type, custom_prompt, include_charts: bool}. GET /api/reports/<id>/status \u2014 generation progress (pending/generating/complete/failed). GET /api/reports/<id> \u2014 full report content (Markdown + chart data). GET /api/reports \u2014 list all generated reports with metadata. DELETE /api/reports/<id> \u2014 delete a report. GET /api/reports/<id>/tool-calls \u2014 transparency log of tool calls the agent made. Use threading to run report generation asynchronously. Return immediately with report_id."
+  },
+  {
+    "title": "Build report viewer Vue component",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Create frontend/src/components/report/ReportViewer.vue \u2014 renders generated reports. Parse Markdown content and render with proper formatting (use a markdown renderer library). Replace chart placeholders ({{chart:...}}) with actual D3.js chart components. Add table of contents sidebar generated from heading structure. Support print/export: add print-friendly CSS styles. Show report metadata header: title, date, simulation reference, generation time. Add 'Regenerate' button to create a new version. Show generation transparency: expandable section showing tool calls the agent made."
+  },
+  {
+    "title": "Build report generation wizard component",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Create frontend/src/components/report/ReportWizard.vue \u2014 step-by-step wizard for generating reports. Step 1: Select simulation (dropdown of completed simulations). Step 2: Select report type (cards with descriptions for each type). Step 3: Customize (optional custom prompt, select which sections to include, chart preferences). Step 4: Generate \u2014 show progress with real-time status updates. Step 5: Review \u2014 show generated report with ReportViewer. Stepper component at top showing current step. Back/Next navigation. Save report preferences for next time."
+  },
+  {
+    "title": "Build tool call transparency component",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Create frontend/src/components/report/ToolCallLog.vue \u2014 shows the ReportAgent's reasoning process. Display the ReACT loop: Thought (agent's reasoning), Action (tool called), Observation (tool result). Each step in a collapsible card. Color-code: thoughts in blue, actions in purple, observations in green. Show tool call parameters and return values. Track timing per step. Summary at top: total tool calls, total tokens used, generation time. This provides transparency into how the AI generated the report \u2014 important for trust."
+  },
+  {
+    "title": "Update report view with new components",
+    "completed": false,
+    "parallel_group": 30,
+    "description": "Update frontend/src/views/ReportView.vue to integrate new report generation features. Add 'Generate New Report' button that opens ReportWizard as a modal or slide-over. Show list of previously generated reports with metadata (date, type, simulation, quality score). Click report to open in ReportViewer. Add report comparison: select two reports to view side-by-side. Add export options: download as Markdown, copy to clipboard, print. Show ReportAgent status badge: 'AI-Powered' (green) or 'Template' (yellow) mode."
+  },
+  {
+    "title": "Implement WebSocket server for simulation streaming",
+    "completed": false,
+    "parallel_group": 31,
+    "description": "Create backend/app/services/websocket_manager.py \u2014 WebSocket support for real-time simulation updates. Use flask-socketio library (add to requirements.txt). WebSocketManager class: 1) `emit_round_update(simulation_id, round_data)` \u2014 broadcast round completion to connected clients. 2) `emit_agent_message(simulation_id, agent_id, message)` \u2014 stream individual agent messages as they arrive. 3) `emit_metric_update(simulation_id, metrics)` \u2014 stream metric changes. 4) `emit_status_change(simulation_id, status)` \u2014 stream simulation status changes. Events: 'round_complete', 'agent_message', 'metric_update', 'simulation_status', 'error'. Handle connection/disconnection. Room-based: clients join simulation_id room. Update backend/run.py to use socketio.run() instead of app.run()."
+  },
+  {
+    "title": "Build WebSocket client composable",
+    "completed": false,
+    "parallel_group": 31,
+    "description": "Create frontend/src/composables/useWebSocket.js \u2014 Vue composable for WebSocket connections. Uses socket.io-client (install via pnpm). Exports: connect(simulationId), disconnect(), onRoundComplete(callback), onAgentMessage(callback), onMetricUpdate(callback), onStatusChange(callback), connected (ref), error (ref). Auto-reconnect on disconnect with exponential backoff. Clean up listeners on component unmount. Fallback to SSE polling if WebSocket connection fails. Use the same URL as the API client base URL."
+  },
+  {
+    "title": "Build live simulation feed component",
+    "completed": false,
+    "parallel_group": 31,
+    "description": "Create frontend/src/components/simulation/LiveFeed.vue \u2014 real-time message feed during simulation. Messages appear as they stream in from WebSocket, not waiting for full round completion. Each message: agent avatar/icon, agent name, message content, timestamp, sentiment badge. Auto-scroll to bottom as new messages arrive (with 'scroll to latest' button if user scrolled up). Show typing indicator when an agent is processing (between message events). Group messages by round with round dividers. Add message reactions: thumbs up/down that agents might reference in later rounds. Smooth animation for new messages sliding in from bottom."
+  },
+  {
+    "title": "Build live metrics dashboard component",
+    "completed": false,
+    "parallel_group": 31,
+    "description": "Create frontend/src/components/simulation/LiveMetrics.vue \u2014 real-time updating charts during simulation. 4 mini charts that update as metric_update events stream in: 1) Sentiment trend \u2014 line chart with one line per agent, updating each round. 2) Interaction volume \u2014 bar chart showing messages per round. 3) Consensus gauge \u2014 circular gauge showing group agreement level. 4) Information spread \u2014 network diagram showing who has received what information. Charts animate smoothly between updates using D3 transitions. Show 'LIVE' indicator badge when simulation is running."
+  },
+  {
+    "title": "Build simulation workspace layout",
+    "completed": false,
+    "parallel_group": 31,
+    "description": "Update frontend/src/views/SimulationWorkspaceView.vue to integrate real-time components. Layout during active simulation: Left panel (60%): LiveFeed showing agent messages in real-time. Right panel (40%): Split into SimulationControls (top 30%), LiveMetrics (bottom 70%). Bottom bar: simulation progress (round X of Y), elapsed time, agent status indicators. When simulation completes, transition to review mode: ReplayViewer replaces LiveFeed, full metrics replace LiveMetrics, report generation button appears. Use the WebSocket composable for all real-time data. Responsive: stack panels vertically on mobile."
+  },
+  {
+    "title": "Create persona generator from Zep graph data",
+    "completed": false,
+    "parallel_group": 32,
+    "description": "Create backend/app/services/persona_from_graph.py \u2014 generates agent personas from knowledge graph. PersonaGenerator class: 1) `generate_from_graph(role, graph_context)` \u2014 creates a rich persona using Zep graph entities.    Extracts: relevant companies, products, market conditions, competitor info from graph.    Incorporates: real GTM data (accounts, pipeline, revenue) into persona's knowledge. 2) `enhance_persona(base_persona, simulation_context)` \u2014 adds simulation-specific context. 3) `generate_team(scenario, num_agents)` \u2014 creates a balanced team with complementary personas. Personas include: name, title, department, personality traits, domain expertise areas, biases (e.g., 'tends to overestimate conversion rates'), known facts (from graph), goals. When Zep unavailable, generate from pre-built persona templates with randomized traits."
+  },
+  {
+    "title": "Build persona customization API",
+    "completed": false,
+    "parallel_group": 32,
+    "description": "Add endpoints to backend/app/api/simulation.py: GET /api/agents/personas \u2014 list available persona templates. POST /api/agents/personas/generate \u2014 generate personas from graph + scenario. Body: {scenario_type, num_agents, role_distribution, personality_diversity}. GET /api/agents/personas/<id> \u2014 full persona details. PUT /api/agents/personas/<id> \u2014 customize a generated persona. POST /api/agents/personas/<id>/clone \u2014 clone and modify a persona. Return personas with 'source' field: 'zep_graph', 'template', 'custom'."
+  },
+  {
+    "title": "Build persona card Vue component",
+    "completed": false,
+    "parallel_group": 32,
+    "description": "Create frontend/src/components/simulation/PersonaCard.vue \u2014 visual card representing an agent persona. Show: agent name (generated), title, department badge, personality radar chart (5 traits), expertise tags, bias indicator, avatar (generated initials with background color based on department). Personality radar chart using D3.js: analytical, creative, assertive, empathetic, risk-tolerant. Click to expand: full persona details, known facts, goals, history from previous simulations. Edit button to customize persona fields. Compact mode for use in simulation setup (just name, role, key trait)."
+  },
+  {
+    "title": "Build team composition editor component",
+    "completed": false,
+    "parallel_group": 32,
+    "description": "Create frontend/src/components/simulation/TeamComposer.vue \u2014 drag-and-drop team builder. Left panel: available persona pool (filterable by role, personality type). Right panel: current team slots (empty slots shown as dashed outlines). Drag personas from pool to team slots. Remove by dragging back or clicking X. Team balance indicators: role coverage (sales, marketing, CS, product, finance), personality diversity score, expertise coverage. Warnings: 'No sales perspective' if no sales agent, 'Low diversity' if all similar personalities. Auto-generate button: fill empty slots with recommended agents based on scenario. Save team compositions as templates for reuse."
+  },
+  {
+    "title": "Build persona generation wizard",
+    "completed": false,
+    "parallel_group": 32,
+    "description": "Create frontend/src/components/simulation/PersonaWizard.vue \u2014 step wizard for AI-generated personas. Step 1: Select scenario type \u2192 auto-suggest role composition. Step 2: Configure generation \u2014 personality diversity slider, expertise focus areas, graph context toggle. Step 3: Generate \u2014 show loading state, then display generated personas as PersonaCards. Step 4: Customize \u2014 edit any persona, swap out, regenerate individuals. Step 5: Confirm team \u2192 proceed to simulation setup. Show 'Powered by Zep Knowledge Graph' when graph data enriches personas. Show generation metadata: which graph entities influenced each persona."
+  },
+  {
+    "title": "Create unified service availability checker",
+    "completed": false,
+    "parallel_group": 33,
+    "description": "Create backend/app/services/availability.py \u2014 centralized check for all external service dependencies. ServiceAvailability class (singleton): 1) `check_all()` \u2192 {llm: {available, provider, model}, zep: {available, features}, oasis: {available, version}}. 2) `check_llm()` \u2192 tests LLM provider connection with a minimal API call. Cache result for 60 seconds. 3) `check_zep()` \u2192 tests Zep Cloud connection. Cache result for 60 seconds. 4) `get_mode()` \u2192 'full' (all services), 'partial' (some services), 'demo' (no external services). Add endpoint: GET /api/system/status that returns full availability info. Log availability changes. Emit event when service availability changes."
+  },
+  {
+    "title": "Create graceful degradation middleware",
+    "completed": false,
+    "parallel_group": 33,
+    "description": "Create backend/app/middleware/degradation.py \u2014 middleware that automatically degrades features when services unavailable. Before each request, check service availability (from cached results). Add to Flask g object: g.mode ('full'/'partial'/'demo'), g.available_services (set). Each Blueprint endpoint can check g.mode to decide whether to use real or mock data. Add response header X-Service-Mode: full|partial|demo so frontend knows which mode is active. Log when degradation occurs with reason. Create decorator @requires_service('llm') that returns 503 if service unavailable, or @degrades_gracefully('llm') that falls back to mock."
+  },
+  {
+    "title": "Build comprehensive mock data layer",
+    "completed": false,
+    "parallel_group": 33,
+    "description": "Create backend/app/services/mock_data.py \u2014 centralized mock data for all features. MockDataProvider class that provides mock responses for every API endpoint: 1) Simulation mock: pre-generated 10-round simulation with 4 agents (from existing demo data). 2) Graph mock: pre-built knowledge graph with 20 entities and 30 relationships. 3) Report mock: pre-generated executive summary report. 4) Memory mock: pre-built agent memory with facts and timeline. 5) GTM data mocks: all salesforce, cpq, pipeline, revenue, orders, reconciliation data. Mock data should be internally consistent (same accounts referenced across features). Load from JSON fixtures in backend/data/fixtures/ directory. Generate fixtures once and commit to repo for deterministic demo experience."
+  },
+  {
+    "title": "Build service status indicator Vue component",
+    "completed": false,
+    "parallel_group": 33,
+    "description": "Create frontend/src/components/common/ServiceStatus.vue \u2014 shows current service connectivity. Compact mode (for navbar): colored dot (green=full, yellow=partial, red=demo) with tooltip. Expanded mode (for settings page): card per service (LLM, Zep, OASIS) with: status indicator, provider name, last checked timestamp, test connection button. Auto-refresh status every 60 seconds. Animate transitions between states. Show 'Demo Mode' banner at top of page when in demo mode with message: 'Running in demo mode \u2014 set API keys in Settings for full functionality'. Add to AppNav.vue in compact mode. Add to SettingsView.vue in expanded mode."
+  },
+  {
+    "title": "Build demo mode onboarding overlay",
+    "completed": false,
+    "parallel_group": 33,
+    "description": "Create frontend/src/components/common/DemoModeOverlay.vue \u2014 helpful overlay shown in demo mode. Semi-transparent overlay on features that use mock data, with a small 'Demo Data' badge. On first visit, show a welcome modal explaining: 'You are running in demo mode. All data is simulated. To enable real AI-powered features: 1) Add your LLM API key in Settings, 2) Add your Zep API key for knowledge graph features.' Add 'Don't show again' checkbox that persists to localStorage. Badge click shows tooltip: 'This data is simulated. Configure API keys for real data.' Use a subtle yellow tint for demo mode badges \u2014 not intrusive but visible."
+  },
+  {
+    "title": "Create agent interaction graph data processor",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create backend/app/services/interaction_graph.py \u2014 processes simulation data into network graph format. InteractionGraphBuilder class: 1) `build_from_simulation(simulation_id)` \u2192 {nodes: [...], edges: [...]}. Nodes: agents with attributes (role, avg_sentiment, message_count, influence_score). Edges: interactions between agents with attributes (message_count, avg_sentiment, topics). 2) `build_temporal_graph(simulation_id, round)` \u2192 graph state at specific round. 3) `compute_centrality(graph)` \u2192 betweenness, closeness, degree centrality per node. 4) `detect_clusters(graph)` \u2192 community detection using Louvain method (implement simple version). Add API endpoints: GET /api/simulation/<id>/network and GET /api/simulation/<id>/network/round/<n>."
+  },
+  {
+    "title": "Build agent network force graph component",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create frontend/src/components/visualization/AgentNetworkGraph.vue \u2014 D3.js force-directed graph. Nodes: agents as circles. Size by influence score. Color by role/department. Edges: interactions. Width by message count. Color by average sentiment (green to red gradient). Edge labels (on hover): message count, primary topics. Node labels: agent name, role. Show avatar initials inside circle. Physics: D3 force simulation with charge, link, center, collision forces. Interactive: drag nodes, zoom/pan, hover tooltips, click to focus. Controls panel: charge strength, link distance, show labels toggle, edge filter (min messages)."
+  },
+  {
+    "title": "Build adjacency matrix heatmap component",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create frontend/src/components/visualization/AdjacencyMatrix.vue \u2014 D3.js matrix showing all agent interactions. Rows and columns: agents. Cell color: interaction intensity (white=none, light blue=few, dark blue=many). Cell click shows interaction details (messages exchanged, sentiment, topics). Sort options: alphabetical, by cluster, by influence. Add row/column totals showing total interactions per agent. Diagonal cells show agent's total activity. Responsive sizing based on number of agents."
+  },
+  {
+    "title": "Build information flow animation component",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create frontend/src/components/visualization/InformationFlow.vue \u2014 animated visualization of information cascade. Show how information spreads through the agent network over simulation rounds. Each piece of information (fact, decision, opinion) represented as a colored particle. Particles travel along edges from sender to receiver, timing based on round. Speed control: slow/medium/fast. Round counter. Play/pause. Show which agents have received each piece of information at current time. Use D3.js with requestAnimationFrame for smooth animation. Legend: particle colors by information type (fact=blue, decision=red, opinion=yellow)."
+  },
+  {
+    "title": "Build centrality analysis component",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create frontend/src/components/visualization/CentralityAnalysis.vue \u2014 multi-chart centrality view. Bar chart: agents ranked by centrality score. Toggle between betweenness, closeness, degree. Radar chart: overlay all three centrality measures for selected agent. Network graph: nodes sized by selected centrality measure. Insight text: auto-generated description of who is most central and why. Example: 'Marketing Manager has highest betweenness centrality \u2014 they bridge Sales and Product conversations.' Use D3.js for all charts. Responsive layout."
+  },
+  {
+    "title": "Build cluster visualization component",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create frontend/src/components/visualization/ClusterView.vue \u2014 community detection visualization. D3.js force graph with nodes grouped into detected clusters. Cluster boundaries shown as convex hulls with semi-transparent fill colors. Cluster labels showing auto-generated descriptions (e.g., 'Revenue-focused group', 'Product advocates'). Inter-cluster edges shown as thinner lines. Intra-cluster edges thicker. Summary panel: cluster count, sizes, cohesion scores, key topics per cluster. Allow manual cluster assignment (drag node between clusters)."
+  },
+  {
+    "title": "Build communication pattern timeline",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create frontend/src/components/visualization/CommPatternTimeline.vue \u2014 shows communication patterns over time. X-axis: simulation rounds. Y-axis: agent pairs. Marks at intersection of round and pair when communication occurred. Mark size: message count. Mark color: sentiment. Highlight patterns: regular communicators (consistent marks), burst communicators (clustered marks), one-time interactions (single marks). Add summary: busiest round, most talkative agent, most common pair. D3.js scatter plot with custom marks."
+  },
+  {
+    "title": "Create Network Analysis view",
+    "completed": false,
+    "parallel_group": 34,
+    "description": "Create frontend/src/views/NetworkAnalysisView.vue \u2014 dedicated network analysis page. Accessible from simulation results as 'Network Analysis' tab. Layout: AgentNetworkGraph (main, 2/3), CentralityAnalysis (side, 1/3). Below: two-column \u2014 AdjacencyMatrix (left), ClusterView (right). Below: full-width InformationFlow animation + CommPatternTimeline. Controls: round selector to view network at different points in simulation. Add to simulation workspace as a tab alongside LiveFeed and other views."
+  },
+  {
+    "title": "Build data flow animation engine",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/composables/useFlowAnimation.js \u2014 Vue composable for managing flow animations. State: playing (boolean), speed (0.5-4x), currentTime (number), duration (number). Methods: play(), pause(), setSpeed(speed), seek(time), onFrame(callback). Uses requestAnimationFrame internally. Emits frame events at 60fps. Supports multiple synchronized animations (chart A and chart B move together). Auto-pause when component not visible (IntersectionObserver). Cleanup on unmount. Provide/inject pattern for child components."
+  },
+  {
+    "title": "Build animated pipeline flow component",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/components/visualization/PipelineFlow.vue \u2014 animated GTM pipeline. Horizontal flow: Lead \u2192 MQL \u2192 SQL \u2192 SAO \u2192 Proposal \u2192 Won/Lost. Animated dots flow through stages, representing individual leads/opportunities. Dot speed varies by time-in-stage. Dots accumulate at bottlenecks. Lost dots fall off the bottom with a red trail. Won dots celebrate with a green pulse. Stage gates with conversion rate labels. Counter per stage showing current count. Use the flow animation composable. D3.js for rendering. SVG-based for crisp animation."
+  },
+  {
+    "title": "Build animated revenue waterfall component",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/components/visualization/AnimatedWaterfall.vue \u2014 animated revenue bridge. Bars grow from left to right over time: Starting MRR \u2192 +New \u2192 +Expansion \u2192 -Contraction \u2192 -Churn \u2192 End. Each bar animates from zero to full height. Positive bars grow up (green), negative grow down (red). Running total line animates along the top of the waterfall. Numbers count up with easing. Connector lines draw between bars. Use the flow animation composable for synchronized timing."
+  },
+  {
+    "title": "Build animated Sankey flow component",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/components/visualization/AnimatedSankey.vue \u2014 animated Sankey diagram with flowing particles. Nodes: pipeline stages or process steps. Links: transitions between stages. Animated particles flow along links, density proportional to volume. Particle color matches the source node. Particles merge at destination. Link width transitions smoothly when data updates. Use d3-sankey for layout, custom animation for particles. Responsive: recalculates layout on container resize."
+  },
+  {
+    "title": "Build animated org chart with information flow",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/components/visualization/OrgInfoFlow.vue \u2014 org chart showing information flowing between teams. Tree layout: CEO \u2192 VP Sales + VP Marketing + VP CS + VP Product. Each VP has team members. Animated arrows showing information flow: reports flow up, directives flow down, cross-team collaboration flows horizontally. Arrow thickness: information volume. Arrow color: information type (data=blue, decision=red, feedback=green). Show bottlenecks: when information piles up at a node, show a warning indicator. Click node to see what information is passing through. Timeline control to show flow at different time points."
+  },
+  {
+    "title": "Build animated deal lifecycle component",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/components/visualization/DealLifecycle.vue \u2014 animated visualization of a single deal's journey. Horizontal timeline with stage milestones. Deal 'token' moves through stages. At each stage: show key events (meeting, proposal sent, negotiation, approval). Branch points: where the deal could have gone differently (competitor entered, budget challenge). Side panel: running commentary of what happened at each stage. Auto-play through the lifecycle, or click stages to jump. Multiple deals can be compared by stacking timelines."
+  },
+  {
+    "title": "Build animated metric counter component",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/components/visualization/AnimatedCounter.vue \u2014 reusable animated number counter. Props: targetValue, duration, prefix ($, etc.), suffix (%, etc.), decimals. Animates from 0 (or previous value) to target with easing. Large display format for dashboard KPI cards. Color transition: start gray, end in brand blue (or red if negative trend). Optional sparkline that draws as the counter animates. Uses requestAnimationFrame. Triggers animation on mount or when targetValue changes. Format large numbers: 1,234,567 \u2192 $1.2M."
+  },
+  {
+    "title": "Create Animated Visualizations showcase view",
+    "completed": false,
+    "parallel_group": 35,
+    "description": "Create frontend/src/views/VisualizationsShowcaseView.vue \u2014 a page showcasing all animated visualizations. Grid layout showing each visualization in its own card with title and description. Each card has a 'Play' button to start the animation. 'View Full' expands to full-screen. Add route: { path: '/visualizations', name: 'Visualizations', component: VisualizationsShowcaseView }. This page serves double duty: demo showcase for the presentation and a development gallery. Add to AppNav.vue with an eye/play icon. Page title: 'Visualization Gallery' subtitle: 'Animated data storytelling for GTM operations'."
+  },
+  {
+    "title": "CHECKPOINT: Verify app builds and runs after OASIS and visualization integration",
+    "completed": false,
+    "parallel_group": 36,
+    "description": "Run comprehensive build and smoke test: 1) cd frontend && pnpm install && pnpm build \u2014 verify no build errors. 2) cd frontend && pnpm lint \u2014 verify no linting errors. 3) cd backend && pip install -r requirements.txt \u2014 verify all new dependencies install. 4) Verify OASIS imports work: python -c 'from app.services.oasis_orchestrator import OasisOrchestrator; print(\"OK\")'. 5) Verify Zep imports work: python -c 'from app.services.zep_graph_memory import GraphMemoryService; print(\"OK\")'. 6) Verify all new Blueprints registered in backend/app/api/__init__.py. 7) Verify all new Vue routes in frontend/src/router/index.js. 8) Verify WebSocket setup: python -c 'from app.services.websocket_manager import WebSocketManager; print(\"OK\")'. 9) Check for circular imports by importing the app factory. 10) Verify demo mode works: set no API keys and confirm mock data endpoints return data. Fix any issues found. Create docs/checkpoint-group-36.md with results."
+  },
+  {
+    "title": "Create dashboard configuration data model",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create backend/app/models/dashboard.py with dataclasses: DashboardConfig (id, name, description, widgets: list[WidgetConfig], layout: list[LayoutItem], created_by, created_at, updated_at, is_default), WidgetConfig (id, type: str, title: str, data_source: str, config: dict, refresh_interval_seconds: int), LayoutItem (widget_id, x, y, width, height, min_width, min_height). Widget types: 'kpi_card', 'line_chart', 'bar_chart', 'donut_chart', 'table', 'funnel', 'gauge', 'text', 'activity_feed'. Data sources: 'revenue', 'pipeline', 'salesforce', 'cpq', 'orders', 'simulation', 'reconciliation'. Add factory methods for default dashboard configurations."
+  },
+  {
+    "title": "Create dashboard persistence API",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create backend/app/api/dashboards.py as a Flask Blueprint: GET /api/dashboards \u2014 list saved dashboards. POST /api/dashboards \u2014 create new dashboard from config. GET /api/dashboards/<id> \u2014 get dashboard with full widget and layout config. PUT /api/dashboards/<id> \u2014 update dashboard (name, widgets, layout). DELETE /api/dashboards/<id> \u2014 delete dashboard. POST /api/dashboards/<id>/duplicate \u2014 clone a dashboard. GET /api/dashboards/default \u2014 get the default dashboard config. Persist to JSON files in backend/data/dashboards/. Register Blueprint."
+  },
+  {
+    "title": "Build widget registry",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/components/dashboard/WidgetRegistry.js \u2014 registry of all available widget types. Export a map of widget_type \u2192 { component, defaultConfig, icon, label, description, supportedDataSources }. Widget types: KpiCardWidget, LineChartWidget, BarChartWidget, DonutChartWidget, TableWidget, FunnelWidget, GaugeWidget, TextWidget, ActivityFeedWidget. Each widget component accepts standard props: { config, data, loading, error, onConfigChange }. Registry enables dynamic rendering: `<component :is=\"registry[widget.type].component\" />`."
+  },
+  {
+    "title": "Build KPI card widget component",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/components/dashboard/widgets/KpiCardWidget.vue \u2014 configurable KPI card. Config: data_source, metric_name, label, prefix, suffix, show_trend, show_sparkline, color. Displays: large value, label, trend arrow (up/down with percentage), optional 6-period sparkline. Edit mode: form to configure all options. Preview mode: rendered card. Supports all data sources \u2014 fetches the configured metric from the appropriate store. Color options: auto (based on trend), or fixed brand color."
+  },
+  {
+    "title": "Build chart widgets (line, bar, donut)",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/components/dashboard/widgets/LineChartWidget.vue, BarChartWidget.vue, DonutChartWidget.vue. Each uses D3.js v7 with consistent styling. Config: data_source, metrics (array), time_range, colors, show_legend, show_labels. Line chart: multiple lines, hover crosshair, legend. Bar chart: single or grouped bars, horizontal/vertical orientation. Donut chart: segments with labels, center text showing total. All charts: responsive to container size, animated on mount, configurable in edit mode. Edit mode: form with metric selector, time range, color pickers."
+  },
+  {
+    "title": "Build table and text widgets",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/components/dashboard/widgets/TableWidget.vue and TextWidget.vue. Table widget: data_source, columns config (which fields to show), sort, pagination, row limit. Renders sortable table with configurable columns. Supports formatting (currency, date, percentage). Text widget: markdown content, font size, alignment. Useful for dashboard titles, notes, annotations. Edit with a simple markdown editor. Both widgets follow the standard widget props interface."
+  },
+  {
+    "title": "Build drag-and-drop grid layout",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/components/dashboard/DashboardGrid.vue \u2014 drag-and-drop grid layout using CSS Grid. Grid: 12 columns, auto rows. Widgets placed by grid coordinates (x, y, width, height). Drag to reposition widgets. Resize by dragging edges/corners. Snap to grid. Show placement guidelines while dragging. Prevent overlap. Use a drag-and-drop library (vue-grid-layout or implement with native drag events). Install via pnpm. Edit mode: show grid lines, handles on widgets, add/remove buttons. View mode: clean layout without edit chrome."
+  },
+  {
+    "title": "Build widget picker panel",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/components/dashboard/WidgetPicker.vue \u2014 panel for adding widgets to dashboard. Opens as a slide-over from the right side. Shows all available widget types from WidgetRegistry as cards with icon, label, description. Click to add widget to dashboard (placed in next available position). Category grouping: Charts, Cards, Tables, Other. Search filter. Preview of each widget type with sample data. After adding, auto-open widget configuration panel."
+  },
+  {
+    "title": "Build dashboard Pinia store",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/stores/dashboards.js \u2014 manages dashboard state. State: dashboards (array), activeDashboard (object), editMode (boolean), loading, error. Actions: fetchDashboards(), fetchDashboard(id), saveDashboard(config), deleteDashboard(id), setEditMode(bool), addWidget(widgetConfig), removeWidget(widgetId), updateWidgetConfig(widgetId, config), updateLayout(layoutItems), duplicateDashboard(id). Getters: widgetConfigs, layoutItems, isDirty (unsaved changes), widgetCount. API client: frontend/src/api/dashboards.js with matching functions."
+  },
+  {
+    "title": "Create Dashboard Builder view",
+    "completed": false,
+    "parallel_group": 37,
+    "description": "Create frontend/src/views/DashboardBuilderView.vue \u2014 the dashboard builder page. Toolbar: dashboard name (editable), Save button, Edit/View toggle, Add Widget button, Dashboard selector dropdown, New Dashboard button, Delete button. Main area: DashboardGrid with all configured widgets. Edit mode: WidgetPicker slide-over, grid handles, widget config panels. View mode: clean presentation of the dashboard. Add route: { path: '/dashboards', name: 'Dashboards', component: DashboardBuilderView }. Add route: { path: '/dashboards/:id', name: 'DashboardDetail', component: DashboardBuilderView }. Nav item with layout-grid icon."
+  },
+  {
+    "title": "Build timeline scrubber composable",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Create frontend/src/composables/useTimelineScrubber.js \u2014 Vue composable for synchronized timeline control. State: currentPosition (0-1 normalized), isPlaying, playbackSpeed, duration, marks (event positions). Methods: play(), pause(), togglePlay(), seek(position), stepForward(), stepBack(), setSpeed(multiplier). Events: onPositionChange(callback), onPlay(callback), onPause(callback). Provide/inject pattern so all child components can synchronize to the same timeline. Keyboard shortcuts: Space (play/pause), Arrow Left/Right (step), +/- (speed). Auto-calculate duration from data range."
+  },
+  {
+    "title": "Build timeline scrubber UI component",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Create frontend/src/components/timeline/TimelineScrubber.vue \u2014 the visual timeline control bar. Horizontal bar with: progress indicator, draggable playhead, event markers (colored dots at notable events). Below bar: timestamp labels, play/pause button, speed selector (0.5x, 1x, 2x, 4x), step buttons. Above bar: current time/round display. Hover over bar: tooltip showing timestamp at cursor position. Event markers: colored by type (decision=red, milestone=green, interaction=blue). Click marker to jump there. Smooth playhead animation during playback. Responsive to container width."
+  },
+  {
+    "title": "Build synchronized chart wrapper component",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Create frontend/src/components/timeline/SyncedChart.vue \u2014 wrapper that connects any chart to the timeline. Props: chartComponent (the actual chart), timeField (data field to sync on), highlightMode ('point'|'range'|'crosshair'). Renders the chart component and overlays a position indicator: - 'point': highlights the data point at current timeline position. - 'range': shades everything before current position. - 'crosshair': vertical line at current position. Uses the timeline composable inject to stay synced. Bidirectional: clicking on the chart also updates the timeline position."
+  },
+  {
+    "title": "Build timeline event markers component",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Create frontend/src/components/timeline/EventMarkers.vue \u2014 shows notable events on the timeline. Extracts events from simulation data: decisions, sentiment peaks/valleys, consensus moments, conflicts. Renders as clickable icons above the scrubber bar. Hover: tooltip with event details. Click: jump timeline to that position and show event detail panel. Category filtering: toggle which event types to show. Density indicator: when many events cluster, show a count badge instead of individual markers."
+  },
+  {
+    "title": "Build snapshot comparison component",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Create frontend/src/components/timeline/SnapshotComparison.vue \u2014 compare state at two timeline points. Two position pickers: 'Compare Point A at [time] with Point B at [time]'. Side-by-side view showing: metrics at point A vs point B, agent sentiments, network state. Diff highlighting: what changed between the two points (green=new, red=removed, yellow=changed). Summary statistics: total changes, biggest change, most affected agent. Preset comparisons: 'First vs Last', 'Before vs After Decision X'."
+  },
+  {
+    "title": "Build timeline annotations component",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Create frontend/src/components/timeline/TimelineAnnotations.vue \u2014 user-addable annotations on the timeline. Click any point on the timeline to add a note (stored locally in component state or Pinia). Annotations appear as small flag icons on the scrubber bar. Click to view/edit annotation text. Delete button per annotation. Export annotations as part of report data. Import annotations from shared configurations. Use for demo narration: pre-add annotations explaining what's happening at key moments."
+  },
+  {
+    "title": "Build multi-metric synchronized view component",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Create frontend/src/components/timeline/MultiMetricView.vue \u2014 stacked synchronized charts. Multiple chart rows, all synchronized to the same timeline scrubber: Row 1: Agent sentiment lines. Row 2: Interaction volume bars. Row 3: Consensus gauge. All rows share the same X-axis (handled by timeline scrubber). Crosshair line moves vertically across all rows simultaneously. Each row has its own Y-axis and can be individually toggled. Compact mode: sparkline versions. Expanded mode: full charts."
+  },
+  {
+    "title": "Integrate timeline scrubber into simulation workspace",
+    "completed": false,
+    "parallel_group": 38,
+    "description": "Update frontend/src/views/SimulationWorkspaceView.vue to include the timeline scrubber. Add TimelineScrubber as a fixed bar at the bottom of the simulation workspace. Wrap existing simulation charts (sentiment, interactions, etc.) in SyncedChart wrappers. Add EventMarkers above the scrubber. In replay mode: timeline controls the replay position (replaces ReplayViewer transport controls). In live mode: timeline shows completed rounds and auto-advances. Add MultiMetricView as an alternative to individual chart panels. The timeline becomes the central navigation element for simulation data."
+  },
+  {
+    "title": "Build radar chart component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/RadarChart.vue \u2014 reusable D3.js radar/spider chart. Props: data (array of {label, values: {seriesName: value}}), maxValue, levels (grid circles), showLegend. Multiple overlapping polygons for comparing series (e.g., Agent A vs Agent B personality traits). Grid circles with value labels. Axis labels at each spoke. Tooltip on hover: axis name, all series values at that axis. Color per series from brand palette. Legend with toggleable series. Animated mount: polygons expand from center. Responsive to container size."
+  },
+  {
+    "title": "Build parallel coordinates chart component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/ParallelCoordinates.vue \u2014 D3.js parallel coordinates plot. Props: data (array of objects), dimensions (array of axis configs), colorBy (field name). Each vertical axis is a dimension. Lines connect data points across all dimensions. Line color based on a categorical field (e.g., segment, outcome). Brushable axes: drag to select range on any axis, filter lines accordingly. Axis reordering: drag axis labels to reorder. Highlighted line on hover with all other lines dimmed. Use for: comparing agents across multiple metrics, comparing accounts across dimensions."
+  },
+  {
+    "title": "Build chord diagram component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/ChordDiagram.vue \u2014 D3.js chord diagram. Props: matrix (NxN flow matrix), labels (array of names), colors (array). Arcs around the circle for each entity. Chords connecting entities with flow thickness. Hover arc: highlight all chords connected to that entity. Hover chord: show flow value. Tooltip with exact values. Legend if color-coded by type. Use for: agent-to-agent communication volume, data flow between systems. Animated mount: chords grow from zero. Responsive."
+  },
+  {
+    "title": "Build sunburst chart component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/SunburstChart.vue \u2014 D3.js hierarchical sunburst. Props: data (tree structure with value at leaves), colorScheme, centerLabel. Concentric rings showing hierarchy: inner ring = top level, outer = leaves. Arc size proportional to value. Click to zoom into a segment (becomes new center). Breadcrumb trail showing current zoom path. Back button to zoom out. Tooltip on hover: name, value, percentage of parent. Use for: account revenue by industry \u2192 plan \u2192 size, pipeline by stage \u2192 owner \u2192 product. Animated transitions when zooming."
+  },
+  {
+    "title": "Build streamgraph component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/StreamGraph.vue \u2014 D3.js streamgraph (stacked area with flowing shape). Props: data (time series with multiple categories), colorScheme, interpolation. Smooth flowing shape showing how category proportions change over time. Hover: highlight single stream, show value and percentage. Legend with toggleable categories. Click category to isolate. Use for: topic evolution over simulation rounds, revenue mix over time. Use d3.stackOffsetWiggle for aesthetic baseline. Animated mount."
+  },
+  {
+    "title": "Build bullet chart component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/BulletChart.vue \u2014 D3.js bullet chart for KPI targets. Props: metrics (array of {label, actual, target, ranges: [poor, ok, good]}). Each metric as a horizontal bar: gray range bands, black bar for actual, red marker for target. Compact format: multiple bullet charts stacked vertically. Use for: KPI target achievement (quota attainment, pipeline coverage, NRR target). Color actual bar: red if below poor threshold, yellow if in ok range, green if in good range. Responsive with proper label truncation."
+  },
+  {
+    "title": "Build calendar heatmap component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/CalendarHeatmap.vue \u2014 GitHub-style contribution calendar. Props: data (array of {date, value}), colorScheme, monthsToShow, tooltipFormatter. Grid of small squares: each day is a square. Color intensity by value. Month labels on top. Day-of-week labels on left. Hover: tooltip with date and value. Click: emit event with date for filtering. Use for: daily deal activity, daily sync job status, daily simulation runs. Color scale: white (no activity) to dark blue (high activity). Responsive: scroll horizontally if not enough width."
+  },
+  {
+    "title": "Build small multiples chart component",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/components/charts/SmallMultiples.vue \u2014 D3.js small multiples layout. Props: data (array of datasets), chartType ('line'|'bar'|'area'), columns, sharedYAxis. Renders the same chart type for each dataset in a grid layout. All charts share the same scale when sharedYAxis=true for easy comparison. Individual chart hover shows value. Cross-chart hover highlights same X position across all charts. Use for: comparing metrics across agents, comparing funnel shapes across months. Grid layout adapts to number of datasets. Title for each small chart."
+  },
+  {
+    "title": "Build chart theme and utility library",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create frontend/src/lib/chartUtils.js \u2014 shared utilities for all D3 charts. Exports: brandColorScale (categorical), sentimentColorScale (diverging green-red), quantitativeColorScale (sequential blue), formatCurrency, formatPercentage, formatNumber, responsiveResize (handles window resize for D3 charts), createTooltip (standard tooltip creator), axisFormatter (consistent axis label formatting), chartMargins (standard margin convention). Brand palette: #2068FF (primary), #050505 (navy), #ff5600 (orange), #A0F (accent), plus 6 additional chart colors. All chart components should import from this shared library."
+  },
+  {
+    "title": "Create Charts Gallery view",
+    "completed": false,
+    "parallel_group": 39,
+    "description": "Create a section in the existing VisualizationsShowcaseView.vue for the advanced chart gallery. Or extend the page to include: 'Advanced Charts' section with one example of each chart type: Radar (agent personality comparison), Parallel Coords (account multi-dimensional analysis), Chord (agent communication flow), Sunburst (revenue hierarchy), Stream (topic evolution), Bullet (KPI targets), Calendar (activity heatmap), Small Multiples (monthly comparisons). Each chart has a brief description and sample data. Interactive \u2014 users can explore. This serves as both a demo gallery and a component reference."
+  },
+  {
+    "title": "Create comparison data service",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create backend/app/services/comparison_service.py \u2014 service for comparing simulations side by side. ComparisonService class: 1) `compare_simulations(sim_id_a, sim_id_b)` \u2192 structured comparison across all metrics. 2) `compare_agents(sim_id, agent_id_a, agent_id_b)` \u2192 agent-level comparison. 3) `compare_scenarios(scenario_type, sim_ids)` \u2192 compare multiple runs of same scenario. 4) `compute_statistical_significance(metric_a, metric_b)` \u2192 basic stat test for meaningful difference. Return ComparisonResult: {dimensions: [{name, sim_a_value, sim_b_value, difference, winner, significant}]}. Add API endpoint: GET /api/simulations/compare?ids=a,b"
+  },
+  {
+    "title": "Build side-by-side comparison layout component",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create frontend/src/components/comparison/ComparisonLayout.vue \u2014 split-screen comparison view. Left panel: Simulation A. Right panel: Simulation B. Header: simulation selectors (dropdowns), swap button, sync toggle. Sync toggle: when on, scrolling/interacting in one panel mirrors in the other. Divider bar: draggable to resize panels. Double-click to reset to 50/50. Each panel renders the same set of charts/metrics for its simulation. Difference overlay: toggle to show only where A and B differ."
+  },
+  {
+    "title": "Build comparison metrics table component",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create frontend/src/components/comparison/ComparisonTable.vue \u2014 metrics comparison table. Columns: Metric, Simulation A, Simulation B, Difference, Winner, Statistical Significance. Rows: all comparable metrics (sentiment, consensus, decisions, agent engagement, etc.). Color-code winner column: A=blue, B=orange, Tie=gray. Significant differences highlighted with bold. Sortable by any column. Grouped by category (Engagement, Sentiment, Outcomes, etc.). Summary row: overall comparison score (how many metrics each simulation 'won')."
+  },
+  {
+    "title": "Build comparative chart overlays",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create frontend/src/components/comparison/ChartOverlay.vue \u2014 overlay two datasets on one chart. Props: chartType ('line'|'bar'|'area'), dataA, dataB, labelA, labelB. Renders both datasets on the same axes with different colors (blue for A, orange for B). Toggle buttons: show A only, show B only, show both, show difference. 'Difference' mode: chart shows the delta between A and B values. Use for: overlaying sentiment trends, comparing pipeline progressions. Shared tooltip showing both values on hover. D3.js based."
+  },
+  {
+    "title": "Build A/B scenario builder component",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create frontend/src/components/comparison/AbScenarioBuilder.vue \u2014 set up A/B comparison experiments. Select base scenario. Choose variable to change: LLM provider, agent count, personality distribution, round count, temperature setting. Configure A variant and B variant (the single changed parameter). Run both simulations in parallel with a 'Run A/B Test' button. Progress bar for each simulation. When both complete, auto-navigate to comparison view. Save A/B test configurations for repeatability."
+  },
+  {
+    "title": "Build comparison radar chart component",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create frontend/src/components/comparison/ComparisonRadar.vue \u2014 radar chart showing two simulations. Dimensions: overall sentiment, consensus reached, decision quality, agent engagement, information spread, outcome satisfaction. Two overlapping polygons (blue=A, orange=B). Click dimension label to see detailed breakdown of that dimension's scoring. Summary text: 'Simulation A excels at X, while Simulation B performs better on Y.' Auto-generated from comparison service data."
+  },
+  {
+    "title": "Build comparison timeline component",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create frontend/src/components/comparison/ComparisonTimeline.vue \u2014 synchronized dual timeline. Two stacked timelines (A on top, B on bottom) with shared X-axis. Events plotted on each timeline at the round they occurred. Visual links between similar events in A and B (e.g., both reached a decision at round 5 vs 7). Highlight divergence points: where outcomes differed. Shared scrubber control that moves both timelines together. Color-coded events matching the A/B color scheme."
+  },
+  {
+    "title": "Create Comparison view",
+    "completed": false,
+    "parallel_group": 40,
+    "description": "Create frontend/src/views/ComparisonView.vue \u2014 the comparison analytics page. Layout: ComparisonLayout containing: Top: ComparisonTable showing overall metrics comparison. Middle: ComparisonRadar (left 1/3) + ChartOverlay (right 2/3) showing selected metric over time. Bottom: ComparisonTimeline (full width). Sidebar: AbScenarioBuilder for setting up new comparisons. Add route: { path: '/comparison', name: 'Comparison', component: ComparisonView }. Accessible from simulation results via 'Compare' button. Also direct nav access."
+  },
+  {
+    "title": "Build navigation mini-map component",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Create frontend/src/components/common/NavigationMiniMap.vue \u2014 a mini-map showing system overview. Small rectangular overview in bottom-right corner showing all GTM data dimensions. Dots/icons: revenue (green), pipeline (blue), orders (orange), accounts (purple). Dot size: proportional to metric magnitude. Dot brightness: recency of activity. Click a dot to navigate to that view. Current page highlighted with a box outline. Collapsible: click toggle to expand/collapse. Remember state in localStorage. Use SVG for crisp rendering at small sizes. z-index above other content."
+  },
+  {
+    "title": "Build global activity feed service",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Create backend/app/services/activity_feed.py \u2014 aggregates activity across all GTM domains. ActivityFeedService class: 1) `get_recent(limit, types, since)` \u2192 list of activity items. Activity types: deal_update, lead_scored, churn_risk, sync_complete, simulation_finished, report_generated, reconciliation_alert, order_provisioned, pipeline_milestone. Each activity: id, type, title, description, timestamp, severity (info|warning|critical), related_entity. Generate 50 realistic activities spread over last 24 hours using data from all generator services. Add API endpoint: GET /api/activity?limit=20&types=deal_update,churn_risk&since=ISO_DATE"
+  },
+  {
+    "title": "Build global activity feed component",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Create frontend/src/components/common/GlobalActivityFeed.vue \u2014 real-time activity feed sidebar. Renders as a slide-out panel from the right edge, triggered by a bell icon in navbar. Each activity item: type icon, title, description, timestamp (relative), severity badge. Critical items: red background with pulsing dot. Warning: yellow highlight. Info: normal style. Category filter tabs: All, Deals, Leads, Risk, System. Unread count badge on the bell icon. Mark as read on view. Auto-refresh every 30 seconds. Smooth animations for new items. Maximum height with scrollable content."
+  },
+  {
+    "title": "Build notification toast system",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Create frontend/src/components/common/NotificationToast.vue \u2014 toast notification system. Types: success (green), warning (yellow), error (red), info (blue). Appears in top-right corner. Auto-dismiss after 5 seconds (configurable). Click to dismiss. Optional action button (e.g., 'View Details'). Stack multiple toasts vertically. Animate in from right, fade out. Create frontend/src/composables/useNotifications.js composable: notify({title, message, type, duration, action}). Inject anywhere in the app. Update existing components to use this system for feedback messages."
+  },
+  {
+    "title": "Build breadcrumb navigation component",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Create frontend/src/components/common/Breadcrumbs.vue \u2014 hierarchical breadcrumb navigation. Auto-generates breadcrumbs from current route path and router meta fields. Example: Home > GTM Dashboard > Revenue > Account Detail. Last item is current page (not clickable). Others are links. Separator: chevron icon. Responsive: collapse middle items on mobile with '...' ellipsis. Add meta.breadcrumb to all routes in router/index.js. Place at top of main content area in the app layout."
+  },
+  {
+    "title": "Build quick search/command palette component",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Create frontend/src/components/common/CommandPalette.vue \u2014 Cmd+K style search palette. Opens with Ctrl/Cmd+K keyboard shortcut. Search across: page names (navigate), accounts (go to account), simulations, reports, metrics. Sections: Navigation (pages), Data (accounts, opportunities), Actions (create simulation, generate report). Fuzzy search with highlighting of matched characters. Keyboard navigation: arrow keys to select, Enter to execute, Escape to close. Recent searches shown by default. Popular actions pinned at top. Use overlay with semi-transparent backdrop. Smooth animation open/close."
+  },
+  {
+    "title": "Build system status bar component",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Create frontend/src/components/common/SystemStatusBar.vue \u2014 thin status bar at the very bottom of the app. Shows: current data mode (Full/Partial/Demo), active simulation count, last data refresh time, WebSocket connection status (green dot = connected), API response time (avg last 10 requests). Compact single-line format, 24px height, monospace font for data. Expandable on click: shows detailed system info (version, API endpoint, feature flags). Background color subtle: green tint for healthy, yellow for degraded, red for issues. Only visible in development mode or when user enables it in settings."
+  },
+  {
+    "title": "Integrate mini-map and activity feed into app layout",
+    "completed": false,
+    "parallel_group": 41,
+    "description": "Update the main app layout (frontend/src/App.vue or layout component) to include: 1) NavigationMiniMap in bottom-right corner (persistent, collapsible). 2) GlobalActivityFeed triggered by bell icon in AppNav.vue (slide-out panel). 3) Breadcrumbs at top of main content area. 4) NotificationToast provider wrapping the app. 5) CommandPalette overlay (Cmd+K activated). 6) SystemStatusBar at the very bottom (toggle in settings). Ensure z-index ordering: palette > activity feed > toasts > mini-map > status bar. Update AppNav.vue: add bell icon with unread count, add Cmd+K hint in search area."
+  }
+]

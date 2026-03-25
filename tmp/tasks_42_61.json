@@ -1,0 +1,794 @@
+[
+  {
+    "title": "Create long-term memory consolidation service",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Create backend/app/services/memory_consolidation.py \u2014 consolidates agent memories across rounds. MemoryConsolidator class: 1) `consolidate(agent_id, memories)` \u2014 merges similar/redundant memories into consolidated facts. 2) `prioritize(memories, context)` \u2014 ranks memories by relevance to current context (recency, frequency, importance). 3) `forget(agent_id, threshold)` \u2014 remove low-priority memories (simulates forgetting curve). 4) `summarize_session(agent_id, session_id)` \u2014 creates a summary of key learnings from a simulation. Memory importance scoring: decisions=10, facts=7, opinions=5, observations=3. Recency decay: importance *= 0.9^(rounds_since_created). When Zep available, use Zep's built-in memory management. Otherwise, in-memory implementation."
+  },
+  {
+    "title": "Build memory-augmented agent prompts",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Update backend/app/services/agent_prompts.py to incorporate long-term memory into agent context. New prompt section: 'Your memories from previous rounds: {consolidated_memories}'. Memory injection strategy: include top-K most relevant memories (default K=10). Relevance determined by: similarity to current discussion, recency, importance score. Add 'memory reflection' prompt: 'Based on your memories, your current beliefs are: {beliefs}. Your key knowledge is: {facts}. Your relationships: {relationships}.' Token budget: allocate max 30% of context window to memory injection. Truncate older/less relevant memories to fit within budget."
+  },
+  {
+    "title": "Build agent belief system tracker",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Create backend/app/services/belief_tracker.py \u2014 tracks how agent beliefs evolve over rounds. BeliefTracker class: 1) `extract_beliefs(agent_id, response)` \u2014 parse agent responses for belief statements. 2) `update_beliefs(agent_id, new_beliefs)` \u2014 merge new beliefs, handle contradictions. 3) `get_belief_history(agent_id, topic)` \u2014 timeline of belief changes on a topic. 4) `detect_belief_change(agent_id, round)` \u2014 identify when an agent changed their mind. Beliefs: key-value pairs like {'pipeline_outlook': 'optimistic', 'competitor_threat': 'high'}. Track confidence level per belief (0-1). Detect and flag contradictions. Store belief snapshots per round for temporal analysis."
+  },
+  {
+    "title": "Build agent relationship tracker",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Create backend/app/services/relationship_tracker.py \u2014 tracks inter-agent relationships over simulation. RelationshipTracker class: 1) `update_relationship(agent_a, agent_b, interaction)` \u2014 updates relationship based on interaction. 2) `get_relationship(agent_a, agent_b)` \u2192 {affinity: -1 to 1, agreement_rate, interaction_count, topics}. 3) `get_alliances()` \u2192 groups of agents who consistently agree. 4) `get_conflicts()` \u2192 pairs of agents who consistently disagree. Affinity calculation: +0.1 for agreement, -0.1 for disagreement, +0.05 for neutral interaction. Decay: affinity *= 0.95 per round without interaction (relationships fade without maintenance). Feed relationship data into agent prompts: 'You trust Agent X but disagree with Agent Y.'"
+  },
+  {
+    "title": "Build memory search and retrieval component",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Create frontend/src/components/simulation/MemorySearch.vue \u2014 search through agent memories. Search input with: agent selector, query text, memory type filter (facts, beliefs, decisions). Results: memory cards with content, timestamp, importance score, source round. Highlight search terms in results. Sort by relevance or chronological. Click result to navigate to the round where this memory was formed. Show 'memory strength' indicator (bar) based on consolidated importance. Add 'memory map' visualization: word cloud of agent's most frequent memory topics."
+  },
+  {
+    "title": "Build belief evolution chart component",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Create frontend/src/components/simulation/BeliefEvolution.vue \u2014 tracks belief changes over time. X-axis: simulation rounds. Y-axis: belief topics. Each belief shown as a colored track: color represents the belief value (green=positive, red=negative, blue=neutral). Track width represents confidence level. Vertical markers where beliefs changed. Hover: see exact belief value and what triggered the change. Multi-agent comparison mode: overlay belief tracks from different agents. Summary: 'Agent changed their mind X times. Most volatile topic: Y.'"
+  },
+  {
+    "title": "Build relationship network evolution animation",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Create frontend/src/components/simulation/RelationshipEvolution.vue \u2014 animated relationship graph. D3.js force graph where edges represent relationships between agents. Edge color: green (positive affinity), red (negative), gray (neutral). Edge thickness: strength of relationship. Animation: play through simulation rounds, watch relationships form and change. Timeline scrubber integration. Pause at any round to examine state. Side panel: click an edge to see relationship history (timeline of interactions and affinity changes). Show alliance and conflict indicators as group outlines."
+  },
+  {
+    "title": "Create agent intelligence API endpoints",
+    "completed": false,
+    "parallel_group": 42,
+    "description": "Add endpoints to backend/app/api/simulation.py: GET /api/simulation/<id>/agents/<agent_id>/beliefs \u2014 current beliefs with confidence. GET /api/simulation/<id>/agents/<agent_id>/beliefs/history \u2014 belief evolution timeline. GET /api/simulation/<id>/agents/<agent_id>/relationships \u2014 all relationships. GET /api/simulation/<id>/relationships \u2014 complete relationship graph. GET /api/simulation/<id>/alliances \u2014 detected alliances/coalitions. GET /api/simulation/<id>/conflicts \u2014 detected conflicts/disagreements. GET /api/simulation/<id>/agents/<agent_id>/memory/consolidated \u2014 consolidated memories. All endpoints return structured JSON suitable for direct visualization."
+  },
+  {
+    "title": "Create personality dynamics engine",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Create backend/app/services/personality_dynamics.py \u2014 models personality changes during simulation. PersonalityDynamics class: Personality is a vector of 5 traits (each 0-100): analytical, creative, assertive, empathetic, risk_tolerant. 1) `update_personality(agent_id, interaction_outcome)` \u2014 subtle personality shifts based on what happened. Positive consensus \u2192 slight increase in agreeableness. Rejected idea \u2192 slight decrease in assertiveness. Successful risk \u2192 increase risk tolerance. Failed prediction \u2192 increase analytical, decrease confidence. 2) `get_personality_snapshot(agent_id, round)` \u2014 personality vector at specific round. 3) `get_personality_trajectory(agent_id)` \u2192 full personality evolution. Changes are small (\u00b11-3 per interaction) so personality is relatively stable but gradually evolves. Keep changes within bounds (20-80 range to prevent extreme personalities)."
+  },
+  {
+    "title": "Create dynamic sentiment engine",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Create backend/app/services/sentiment_dynamics.py \u2014 models mood/sentiment changes during simulation. SentimentDynamics class: Agent sentiment is a floating value 1-10 (1=very negative, 10=very positive). 1) `update_sentiment(agent_id, events)` \u2014 shift sentiment based on round events. Good news/agreement \u2192 +0.5 to +1.0. Bad news/conflict \u2192 -0.5 to -1.0. Neutral interaction \u2192 slight regression to mean (5.0). 2) `get_group_mood()` \u2192 average sentiment across all agents. 3) `detect_mood_swings(agent_id)` \u2192 identify sudden large sentiment changes. Inject sentiment into agent prompts: 'Your current mood is {description}. This affects your tone.' Sentiment descriptions: 1-3='frustrated/pessimistic', 4-5='neutral/cautious', 6-7='engaged/optimistic', 8-10='enthusiastic/confident'."
+  },
+  {
+    "title": "Create personality-aware prompt modification",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Update backend/app/services/agent_prompts.py to incorporate personality dynamics into agent behavior. Based on personality vector, modify system prompt: High analytical \u2192 'You prefer data-driven arguments and ask for evidence.' High creative \u2192 'You often suggest unconventional approaches and think outside the box.' High assertive \u2192 'You speak confidently and advocate strongly for your positions.' High empathetic \u2192 'You consider others feelings and seek win-win outcomes.' High risk tolerant \u2192 'You are comfortable with uncertainty and favor bold moves.' Also inject current sentiment as mood modifier. Combine personality + sentiment + memories for a rich, evolving agent character."
+  },
+  {
+    "title": "Build personality radar chart evolution component",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Create frontend/src/components/simulation/PersonalityEvolution.vue \u2014 animated radar chart showing personality change. D3.js radar chart with 5 axes (analytical, creative, assertive, empathetic, risk_tolerant). Animated: polygon shape morphs over simulation rounds as personality evolves. Timeline scrubber controls the animation. Play to see personality shift. Color: start with blue outline, transition through stages to final purple. Show trait labels with current values. Change highlights: flash when a trait changes. Multi-agent comparison: show multiple agents' personality polygons overlapping."
+  },
+  {
+    "title": "Build sentiment arc visualization component",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Create frontend/src/components/simulation/SentimentArc.vue \u2014 narrative arc visualization of agent sentiments. D3.js area chart showing all agents' sentiments over simulation rounds. Each agent as a separate colored line with semi-transparent fill below. Annotate key events: decisions (vertical marker), conflicts (red zone), consensus (green zone). Show group mood average as a thick line. Highlight mood swing points. Interactive: hover to see exact sentiment values, click to see what happened that round. Story arc template overlay: setup \u2192 rising tension \u2192 climax \u2192 resolution (dashed reference line)."
+  },
+  {
+    "title": "Build agent mood indicator component",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Create frontend/src/components/simulation/AgentMoodIndicator.vue \u2014 visual mood indicator per agent. Emoji-style face that changes expression based on sentiment: 1-2: angry/frustrated (red), 3-4: worried/skeptical (orange), 5-6: neutral/thoughtful (gray), 7-8: pleased/engaged (light green), 9-10: excited/enthusiastic (green). Animate transitions between states. Pulse effect on mood changes. Show as overlay on agent avatars in the simulation feed. Click to see sentiment history for that agent. Compact and large versions for different contexts."
+  },
+  {
+    "title": "Build personality comparison matrix component",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Create frontend/src/components/simulation/PersonalityMatrix.vue \u2014 matrix comparing agent personalities. Rows: agents. Columns: personality traits. Cell: colored bar showing trait value (0-100). Color scale: low=red, medium=yellow, high=green (or brand-specific scale). Sortable by any trait column. Show initial vs current personality side by side. Highlight biggest personality changes with a delta indicator. Click agent to see PersonalityEvolution animation for that agent. Click trait column to see distribution across all agents."
+  },
+  {
+    "title": "Create personality dynamics API endpoints",
+    "completed": false,
+    "parallel_group": 43,
+    "description": "Add endpoints to backend/app/api/simulation.py: GET /api/simulation/<id>/agents/<agent_id>/personality \u2014 current personality vector. GET /api/simulation/<id>/agents/<agent_id>/personality/history \u2014 trait history per round. GET /api/simulation/<id>/agents/<agent_id>/sentiment/history \u2014 sentiment per round. GET /api/simulation/<id>/personality/comparison \u2014 all agents' personalities for comparison. GET /api/simulation/<id>/mood \u2014 group mood overview. GET /api/simulation/<id>/mood-swings \u2014 detected significant mood changes. All endpoints return structured data suitable for direct charting."
+  },
+  {
+    "title": "Create coalition detection algorithm",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Create backend/app/services/coalition_detector.py \u2014 identifies groups of aligned agents. CoalitionDetector class: 1) `detect_coalitions(simulation_id)` \u2192 list of Coalition objects. Coalition: {members, shared_positions, formation_round, strength, label}. Detection algorithm: cluster agents by agreement matrix (who agrees with whom most). Use agglomerative clustering: start with each agent alone, merge pairs with highest agreement rate. Threshold: agents in same coalition agree on >60% of discussion points. 2) `track_coalition_evolution(simulation_id)` \u2192 how coalitions formed/split over rounds. 3) `identify_swing_agents(simulation_id)` \u2192 agents who switched coalitions. 4) `compute_polarization_index()` \u2192 0-1 measure of how divided the group is."
+  },
+  {
+    "title": "Create coalition labeling service",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Create backend/app/services/coalition_labeler.py \u2014 auto-generates descriptive labels for coalitions. CoalitionLabeler class: 1) `label_coalition(coalition)` \u2192 descriptive name based on shared positions. Use LLM (or template fallback) to generate labels: - Analyze shared positions/opinions of coalition members. - Generate label like 'Revenue Optimists', 'Conservative Growth', 'Product-First Advocates'. 2) `describe_coalition(coalition)` \u2192 longer description of what the coalition stands for. 3) `explain_split(coalition_a, coalition_b)` \u2192 what divides two coalitions. Template fallback labels: '{Department} Block', 'Pro-{topic} Group', '{Trait}-Leaning'."
+  },
+  {
+    "title": "Build coalition visualization component",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Create frontend/src/components/simulation/CoalitionView.vue \u2014 D3.js visualization of coalitions. Force-directed graph with nodes grouped into coalition clusters. Coalition boundaries: colored convex hull shapes (semi-transparent). Intra-coalition edges: thick, colored by coalition color. Inter-coalition edges: thin, gray, dashed. Coalition labels displayed above each group. Strength indicator: border opacity correlates with coalition strength. Swing agents: shown with pulsing animation on the border between coalitions. Click coalition to see member details, shared positions, and formation history."
+  },
+  {
+    "title": "Build coalition evolution timeline component",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Create frontend/src/components/simulation/CoalitionTimeline.vue \u2014 shows how coalitions form and change. D3.js alluvial/river plot: X-axis is simulation rounds, flows show agents moving between coalitions. Each flow stream colored by coalition. Streams merge (coalitions forming) and split (coalitions breaking). Width of stream proportional to number of members. Annotate key events: coalition formed (marker), agent switched (highlighted flow). Click any round to see the coalition state at that moment. Summary: number of coalition changes, most stable coalition, most dynamic agent."
+  },
+  {
+    "title": "Build polarization index gauge component",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Create frontend/src/components/simulation/PolarizationGauge.vue \u2014 shows group division level. Semicircular gauge: left (consensus, green), middle (moderate, yellow), right (polarized, red). Needle shows current polarization index (0-1). Below gauge: text description: 'Low polarization \u2014 group mostly agrees' to 'High polarization \u2014 deeply divided'. Sparkline showing polarization over simulation rounds. Click for breakdown: what topics are most divisive, which agent pairs are most opposed."
+  },
+  {
+    "title": "Build swing agent profile component",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Create frontend/src/components/simulation/SwingAgentProfile.vue \u2014 detailed view of agents who changed coalitions. Shows: agent name, role, personality, and their coalition journey (which coalitions they belonged to when). Timeline: coalition membership over rounds with color-coded periods. Influence analysis: did this agent influence others when they switched? Key moments: what messages/decisions preceded the coalition change. Link to the specific round messages showing the transition."
+  },
+  {
+    "title": "Build consensus tracking component",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Create frontend/src/components/simulation/ConsensusTracker.vue \u2014 tracks group consensus over time. D3.js line chart: consensus percentage per discussion topic over rounds. 100% = full agreement, 50% = evenly split, 0% = impossible in practice. Multiple topics tracked simultaneously as separate lines. Highlight 'consensus moments' when group reaches agreement on a topic. Show number of open (unresolved) topics vs resolved topics as a stacked bar alongside. Useful for determining when a simulation has 'resolved' its main questions."
+  },
+  {
+    "title": "Create coalition API endpoints",
+    "completed": false,
+    "parallel_group": 44,
+    "description": "Add endpoints to backend/app/api/simulation.py: GET /api/simulation/<id>/coalitions \u2014 detected coalitions with labels. GET /api/simulation/<id>/coalitions/evolution \u2014 coalition changes over rounds. GET /api/simulation/<id>/coalitions/polarization \u2014 polarization index timeline. GET /api/simulation/<id>/coalitions/swing-agents \u2014 agents who changed coalitions. GET /api/simulation/<id>/consensus \u2014 consensus tracking per topic. GET /api/simulation/<id>/consensus/resolved \u2014 list of topics where consensus was reached. All endpoints include both round-level and summary data."
+  },
+  {
+    "title": "Create agent behavior prediction model",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Create backend/app/services/behavior_predictor.py \u2014 predicts what agents will do next. BehaviorPredictor class: 1) `predict_next_action(agent_id, context)` \u2192 predicted action with confidence. Use simple Bayesian model: P(action | personality, sentiment, history, topic). Action categories: agree, disagree, propose_new_idea, ask_question, make_decision, stay_silent. 2) `predict_consensus_round(simulation_id)` \u2192 estimated round when group reaches consensus. 3) `predict_outcome(simulation_id)` \u2192 predicted final state (who wins the argument, final sentiment). All predictions include confidence intervals. Training data: past simulation rounds within the same simulation. Simple implementation: frequency-based prediction from agent's past behavior patterns."
+  },
+  {
+    "title": "Create behavior anomaly detector",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Create backend/app/services/anomaly_detector.py \u2014 detects unexpected agent behaviors. AnomalyDetector class: 1) `detect_anomalies(simulation_id, round)` \u2192 list of unusual events. Anomaly types: sudden sentiment reversal (>3 points), unexpected agreement (hostile agents agreeing), leadership emergence (quiet agent suddenly influential), topic hijacking (agent changes subject dramatically). 2) `score_surprise(event)` \u2192 0-1 surprise score based on how unexpected the event was. 3) `explain_anomaly(event)` \u2192 generates human-readable explanation. Use Z-score of agent behavior metrics to identify outliers. Flag anomalies in simulation data for visualization."
+  },
+  {
+    "title": "Build prediction dashboard component",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Create frontend/src/components/simulation/PredictionDashboard.vue \u2014 shows behavioral predictions. Per-agent cards: predicted next action with confidence bars. Consensus prediction: estimated round with confidence range (\u00b12 rounds). Outcome prediction: pie chart of predicted outcomes with percentages. Track prediction accuracy: after each round, compare prediction to actual. Show accuracy score. Update predictions after each round completes. Color-coded confidence: green >80%, yellow 50-80%, red <50%."
+  },
+  {
+    "title": "Build anomaly highlight component",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Create frontend/src/components/simulation/AnomalyHighlights.vue \u2014 surfaces unexpected events. List of detected anomalies sorted by surprise score. Each anomaly: agent name, description, surprise score (bar), round number, explanation. High surprise anomalies have eye-catching styling (border glow, bold text). Click to jump to the round where the anomaly occurred. Summary: total anomalies, most surprising agent, trend (anomalies increasing or decreasing)."
+  },
+  {
+    "title": "Build what-if prediction panel component",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Create frontend/src/components/simulation/WhatIfPanel.vue \u2014 interactive what-if predictions. User can modify hypothetical conditions: 'What if Agent X's sentiment was higher?' Sliders: adjust agent sentiments, personality traits, add/remove agents. 'Predict' button: runs prediction model with modified inputs. Shows predicted outcome vs actual outcome side by side. Useful for understanding which factors most influence simulation outcomes. Sensitivity display: bar chart showing which input change has biggest impact on outcome."
+  },
+  {
+    "title": "Build agent behavior patterns component",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Create frontend/src/components/simulation/BehaviorPatterns.vue \u2014 recurring behavior pattern analysis. D3.js visualization showing patterns like: - Agent A always responds to Agent B within 1 message. - Agent C tends to agree initially then push back in later rounds. - Agent D escalates when sentiment drops below 4. Render as a pattern timeline with repeating motifs highlighted. Summary table: agent, pattern description, frequency, consistency score."
+  },
+  {
+    "title": "Build influence flow chart component",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Create frontend/src/components/simulation/InfluenceFlow.vue \u2014 shows how influence propagates. D3.js directed graph with edge labels showing influence direction and strength. Node size: overall influence score. Edge arrows: who influences whom. Edge thickness: influence strength. Edge color: influence type (opinion change vs decision impact). Animate influence propagation over rounds. Identify 'influence chains': A influenced B who influenced C. Highlight key influencers and their reach (direct and indirect influence count)."
+  },
+  {
+    "title": "Create prediction API endpoints",
+    "completed": false,
+    "parallel_group": 45,
+    "description": "Add endpoints to backend/app/api/simulation.py: GET /api/simulation/<id>/predictions \u2014 current predictions for all agents. GET /api/simulation/<id>/predictions/accuracy \u2014 prediction accuracy scorecard. GET /api/simulation/<id>/anomalies \u2014 detected anomalies with surprise scores. POST /api/simulation/<id>/predictions/what-if \u2014 what-if prediction with modified inputs. Body: {modifications: [{agent_id, trait, new_value}]}. Returns predicted outcome. GET /api/simulation/<id>/patterns \u2014 detected recurring behavior patterns. GET /api/simulation/<id>/influence \u2014 influence flow graph data."
+  },
+  {
+    "title": "CHECKPOINT: Verify app builds and runs after agent intelligence features",
+    "completed": false,
+    "parallel_group": 46,
+    "description": "Run comprehensive build and smoke test: 1) cd frontend && pnpm install && pnpm build \u2014 verify no build errors from new Vue components. 2) cd frontend && pnpm lint \u2014 verify no linting errors. 3) cd backend && pip install -r requirements.txt \u2014 verify all dependencies. 4) Test agent intelligence imports: python -c 'from app.services.personality_dynamics import PersonalityDynamics'. 5) Test coalition detection: python -c 'from app.services.coalition_detector import CoalitionDetector'. 6) Test behavior predictor: python -c 'from app.services.behavior_predictor import BehaviorPredictor'. 7) Verify all new API endpoints registered. 8) Start backend in demo mode and test: /api/simulation endpoints return mock data. 9) Verify no circular imports in the services layer. 10) Check total new Vue components count and route count. Fix any issues. Create docs/checkpoint-group-46.md."
+  },
+  {
+    "title": "Create agent reasoning parser",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Create backend/app/services/reasoning_parser.py \u2014 parses agent responses to extract reasoning steps. ReasoningParser class: 1) `parse_response(raw_response)` \u2192 {thought, message, decision, sentiment, reasoning_steps}. Reasoning steps: ordered list of {step_type, content, confidence}. Step types: observation, inference, evaluation, decision, justification. 2) `extract_logic_chain(reasoning_steps)` \u2192 simplified cause-and-effect chain. 3) `identify_assumptions(reasoning_steps)` \u2192 implicit assumptions the agent made. Handle different LLM output formats: Claude (XML tags), GPT (JSON), Gemini (structured). Graceful fallback: if reasoning can't be parsed, return raw response with 'unparsed' flag."
+  },
+  {
+    "title": "Create decision explanation generator",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Create backend/app/services/decision_explainer.py \u2014 generates human-readable explanations of agent decisions. DecisionExplainer class: 1) `explain_decision(agent_id, decision, context)` \u2192 explanation in plain English. Uses LLM (or template) to generate: 'Agent made this decision because... They considered X, Y, Z. The main factor was Z because it aligned with their personality trait of {trait}.' 2) `generate_counterfactual(decision, alternative)` \u2192 what would have happened differently. 3) `score_decision_quality(decision, outcome)` \u2192 retrospective quality score. Template fallback: fill-in-the-blank explanations based on decision type and agent traits."
+  },
+  {
+    "title": "Build reasoning trace component",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Create frontend/src/components/simulation/ReasoningTrace.vue \u2014 shows agent's thinking process. Expandable card that shows the full reasoning behind an agent's message. Sections: THOUGHT (internal reasoning, italic), OBSERVATION (what the agent noticed), INFERENCE (conclusions drawn), DECISION (action taken), JUSTIFICATION (why this action). Each section with an icon and collapsible. Show confidence indicator per step. Highlight assumptions with a subtle warning icon. Toggle between 'clean' view (just message) and 'transparent' view (full reasoning)."
+  },
+  {
+    "title": "Build decision tree visualization component",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Create frontend/src/components/simulation/DecisionTree.vue \u2014 D3.js tree showing decision logic. Root: the question/topic. Branches: considerations/options. Leaves: chosen/rejected options. Green path: the agent's chosen path. Red paths: rejected alternatives. Edge labels: reasoning for branching. Node labels: consideration or option. Confidence percentages on each branch. Click node to see the agent's reasoning for that consideration. Collapsible branches for complex decisions."
+  },
+  {
+    "title": "Build argument map component",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Create frontend/src/components/simulation/ArgumentMap.vue \u2014 visual map of arguments for/against a decision. D3.js layout with central thesis node, supporting arguments (green) and opposing arguments (red). Each argument node: agent who made it, round number, strength score. Arguments can have sub-arguments (supporting/undermining the parent argument). Edge labels: relationship type (supports, undermines, rebuts). Build from parsing all agent messages related to a specific decision topic. Summary: argument strength balance, key turning points."
+  },
+  {
+    "title": "Build counterfactual comparison component",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Create frontend/src/components/simulation/Counterfactual.vue \u2014 shows what-if scenarios for decisions. Select a decision point in the simulation. Show: what happened (actual outcome) vs what could have happened (alternative). Side-by-side comparison with impact assessment: 'If Agent X had agreed instead of disagreed, the group would likely have reached consensus 2 rounds earlier.' Confidence estimate on counterfactual. Useful for understanding pivotal moments in the simulation."
+  },
+  {
+    "title": "Build transparency toggle for simulation messages",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Update frontend/src/components/simulation/LiveFeed.vue (or SimulationPanel.vue) to add transparency mode. Toggle button: 'Show Agent Thinking'. When on, each message shows the full ReasoningTrace inline. When off, only the final MESSAGE is shown (clean view). In transparent mode: indent the THOUGHT/OBSERVATION sections, show them in a lighter font. Add 'Thinking...' indicator while agent is processing (between message events). Per-agent toggle: choose which agents to see thinking for. Useful for demo: show thinking for one key agent while keeping others clean."
+  },
+  {
+    "title": "Create reasoning transparency API endpoints",
+    "completed": false,
+    "parallel_group": 47,
+    "description": "Add endpoints to backend/app/api/simulation.py: GET /api/simulation/<id>/round/<n>/reasoning \u2014 all agents' reasoning traces for a round. GET /api/simulation/<id>/agents/<agent_id>/reasoning \u2014 all reasoning traces for an agent. GET /api/simulation/<id>/decisions \u2014 list of all decisions with reasoning and explanations. GET /api/simulation/<id>/decisions/<decision_id>/explain \u2014 detailed explanation of a decision. GET /api/simulation/<id>/decisions/<decision_id>/counterfactual \u2014 counterfactual analysis. GET /api/simulation/<id>/argument-map/<topic> \u2014 argument map for a discussion topic."
+  },
+  {
+    "title": "Create custom agent configuration model",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create backend/app/models/custom_agent.py with dataclasses: CustomAgentConfig (id, name, role, department, personality: PersonalityVector, expertise_areas: list[str], communication_style: str, biases: list[str], goals: list[str], backstory: str, avatar_color: str, created_at). PersonalityVector (analytical, creative, assertive, empathetic, risk_tolerant \u2014 each 0-100). Communication styles: 'formal', 'casual', 'data_driven', 'storytelling', 'diplomatic'. Persist to backend/data/agents/ as JSON files. Add validation: name required, personality values 0-100, at least one expertise area."
+  },
+  {
+    "title": "Create custom agent CRUD API",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create backend/app/api/agents.py as a Flask Blueprint: GET /api/agents \u2014 list saved custom agents. POST /api/agents \u2014 create new custom agent from config. GET /api/agents/<id> \u2014 get agent details. PUT /api/agents/<id> \u2014 update agent. DELETE /api/agents/<id> \u2014 delete agent. POST /api/agents/<id>/clone \u2014 clone an agent. GET /api/agents/templates \u2014 pre-built agent templates (GTM roles). POST /api/agents/generate \u2014 AI-generate an agent from description (LLM or template fallback). Register Blueprint in backend/app/api/__init__.py."
+  },
+  {
+    "title": "Build agent creation wizard - basic info step",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create frontend/src/components/agents/AgentWizardBasic.vue \u2014 first step of agent creation wizard. Fields: Name (text input), Role/Title (text input with suggestions), Department (dropdown: Sales, Marketing, CS, Product, Finance, Engineering, Executive). Avatar: color picker (generates initials-based avatar), or select from preset agent icons. Backstory: text area for agent background (100-500 chars, optional). Template selector: 'Start from template' with cards for common GTM roles. Clicking a template pre-fills all fields. Validation: name and role required."
+  },
+  {
+    "title": "Build agent creation wizard - personality step",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create frontend/src/components/agents/AgentWizardPersonality.vue \u2014 personality configuration step. 5 sliders (0-100) for personality traits: Analytical, Creative, Assertive, Empathetic, Risk Tolerant. Live-updating radar chart preview showing the personality shape. Preset personality profiles: 'The Analyst' (high analytical), 'The Visionary' (high creative), 'The Leader' (high assertive), 'The Mediator' (high empathetic), 'The Innovator' (high risk tolerant), 'The Balanced' (all moderate). Communication style selector: radio buttons with descriptions. Preview text: dynamically generated sample message showing how this personality would communicate."
+  },
+  {
+    "title": "Build agent creation wizard - expertise step",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create frontend/src/components/agents/AgentWizardExpertise.vue \u2014 expertise and knowledge configuration. Multi-select tag input for expertise areas: Revenue Operations, Pipeline Management, Product Strategy, Customer Retention, Competitive Analysis, Data Analytics, Marketing Strategy, Financial Planning, Enterprise Sales, Growth Marketing, etc. Add custom expertise tags. Show max 5 tags recommended. Biases section: checklist of cognitive biases the agent might have: Optimism bias, Status quo bias, Recency bias, Confirmation bias, Anchoring. Each bias with a brief description and how it affects behavior. Optional \u2014 interesting for advanced use. Goals section: add 1-3 goals that drive the agent's behavior in simulations."
+  },
+  {
+    "title": "Build agent creation wizard - preview and save step",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create frontend/src/components/agents/AgentWizardPreview.vue \u2014 final review and save step. Full preview of the agent: PersonaCard rendering with all configured attributes. Sample interaction preview: 'Here is how this agent might respond to a typical scenario...' Generate a sample response using the configured personality (LLM or template). Edit buttons next to each section to jump back to that step. Save button: creates agent via API. 'Save & Add to Simulation' button: saves and adds to current team. Success confirmation with animation."
+  },
+  {
+    "title": "Build agent creation wizard container",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create frontend/src/components/agents/AgentCreationWizard.vue \u2014 multi-step wizard container. Steps: 1) Basic Info, 2) Personality, 3) Expertise, 4) Preview & Save. Step indicator at top with progress. Navigation: Back/Next buttons. State management: hold all form data in local reactive state, pass to child steps via props. Validate each step before allowing Next. Show validation errors inline. Open as a full-page modal or slide-over panel. Cancel with confirmation if data entered. Also create frontend/src/stores/agents.js Pinia store and frontend/src/api/agents.js API client."
+  },
+  {
+    "title": "Create Agent Management view",
+    "completed": false,
+    "parallel_group": 48,
+    "description": "Create frontend/src/views/AgentsView.vue \u2014 page for managing custom agents. Grid of PersonaCards for all saved agents. Search and filter by role, department, personality type. 'Create New Agent' button opens AgentCreationWizard. Card actions: Edit, Clone, Delete (with confirmation). Section: 'Template Agents' showing pre-built templates. Add route: { path: '/agents', name: 'Agents', component: AgentsView }. Nav item with users icon. Page title: 'Agent Management' subtitle: 'Create and customize AI simulation agents'."
+  },
+  {
+    "title": "Create debate orchestration engine",
+    "completed": false,
+    "parallel_group": 49,
+    "description": "Create backend/app/services/debate_engine.py \u2014 structured debate mode for agent simulations. DebateEngine class: 1) `setup_debate(topic, agents, format)` \u2014 configures a structured debate. Formats: 'oxford' (for/against teams), 'panel' (moderated discussion), 'roundtable' (free discussion). 2) `run_opening_statements(agents)` \u2014 each agent presents initial position. 3) `run_rebuttal_round(agents)` \u2014 agents respond to others' positions. 4) `run_cross_examination(questioner, respondent)` \u2014 one agent questions another. 5) `run_closing_statements(agents)` \u2014 final positions after hearing all arguments. 6) `run_vote(agents)` \u2192 vote result on the debate topic. Oxford format: assign agents to 'For' and 'Against' teams. Moderator (optional) manages flow. Track argument quality, persuasion events, and opinion changes throughout."
+  },
+  {
+    "title": "Create debate scoring system",
+    "completed": false,
+    "parallel_group": 49,
+    "description": "Create backend/app/services/debate_scorer.py \u2014 scores debate participants and arguments. DebateScorer class: 1) `score_argument(argument)` \u2192 quality score (0-10) based on: evidence provided, logical coherence, relevance to topic, persuasion effectiveness (did others change their position?). 2) `score_agent_performance(agent_id)` \u2192 debate performance score. Metrics: argument quality avg, rebuttal effectiveness, question quality, audience impact. 3) `determine_winner(debate)` \u2192 winning side/agent based on aggregate scoring. 4) `generate_scorecard(debate)` \u2192 formatted scorecard with per-agent breakdown. Use LLM for argument quality assessment (or simple heuristics as fallback)."
+  },
+  {
+    "title": "Build debate view component",
+    "completed": false,
+    "parallel_group": 49,
+    "description": "Create frontend/src/components/simulation/DebateView.vue \u2014 structured debate interface. Oxford format: two columns (For/Against) with agent avatars at top. Debate phases shown sequentially: Opening \u2192 Rebuttal \u2192 Cross-Examination \u2192 Closing \u2192 Vote. Current phase highlighted. Timer showing time in phase. Messages appear under the speaking agent's column. Cross-examination: highlighted pair with question/answer format. Vote results: animated bar chart showing for vs against. Panel/roundtable format: circular seating arrangement with speaking indicator."
+  },
+  {
+    "title": "Build debate scorecard component",
+    "completed": false,
+    "parallel_group": 49,
+    "description": "Create frontend/src/components/simulation/DebateScorecard.vue \u2014 debate results and scoring. Agent-by-agent breakdown: argument quality, rebuttal effectiveness, persuasion score. Ranked list with medal icons for top 3. Argument quality chart: bar chart per agent with breakdown by argument. Opinion change tracker: who changed their mind during the debate. Best moment highlight: the most impactful argument (highest score). Overall debate quality score: how productive was the discussion."
+  },
+  {
+    "title": "Build debate topic configurator component",
+    "completed": false,
+    "parallel_group": 49,
+    "description": "Create frontend/src/components/simulation/DebateSetup.vue \u2014 setup interface for debates. Topic input: text field for debate proposition (e.g., 'We should prioritize retention over acquisition'). Suggested topics from GTM context: 'Should we match competitor pricing?', 'Is the current pipeline sufficient for Q4 target?', 'Should we invest in PLG vs sales-led?'. Format selector: Oxford (structured), Panel (moderated), Roundtable (free). Agent assignment: drag agents to 'For' and 'Against' teams (Oxford) or just select participants. Moderator: optional, select from agents or use AI moderator. Round configuration: number of rebuttal rounds, time per round."
+  },
+  {
+    "title": "Create debate API endpoints and view",
+    "completed": false,
+    "parallel_group": 49,
+    "description": "Add to backend/app/api/simulation.py: POST /api/simulation/debate \u2014 start a structured debate (returns simulation_id). Body: {topic, format, agents, moderator, rounds}. GET /api/simulation/<id>/debate \u2014 debate-specific data (phases, scores, vote). GET /api/simulation/<id>/debate/scorecard \u2014 debate scoring results. Create or update frontend/src/views/SimulationWorkspaceView.vue to handle debate mode: When simulation type is 'debate', render DebateView instead of standard LiveFeed. After debate completes, show DebateScorecard. Add 'Debate Mode' option to simulation creation flow."
+  },
+  {
+    "title": "Create scenario template data model",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Create backend/app/models/scenario_template.py with dataclasses: ScenarioTemplate (id, name, description, category, difficulty: easy|medium|hard, recommended_agents: int, recommended_rounds: int, agent_roles: list[str], environment_config: dict, initial_state: dict, objectives: list[str], tags: list[str], author, created_at, usage_count, avg_rating). Categories: 'GTM Strategy', 'Pipeline Management', 'Competitive Response', 'Revenue Operations', 'Customer Success', 'Product Launch', 'Team Dynamics'. Persist to backend/data/templates/ as JSON files."
+  },
+  {
+    "title": "Create 10 GTM scenario templates",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Create backend/data/templates/ with 10 pre-built scenario JSON files: 1) quarterly_pipeline_review.json \u2014 Sales team reviews Q4 pipeline, debates priorities. 2) competitor_price_war.json \u2014 Competitor cuts prices 30%, team decides response. 3) product_launch_gtm.json \u2014 Cross-functional team plans go-to-market for new product. 4) churn_prevention_war_room.json \u2014 CS + Sales + Product address spike in churn. 5) budget_allocation_debate.json \u2014 Leadership allocates marketing budget. 6) mrr_reconciliation_investigation.json \u2014 Finance investigates billing discrepancies. 7) enterprise_deal_strategy.json \u2014 Team strategizes on a $500K enterprise deal. 8) expansion_vs_acquisition.json \u2014 Debate: invest in expansion revenue vs new logos. 9) ai_adoption_strategy.json \u2014 Team discusses implementing AI in GTM workflows. 10) market_entry_analysis.json \u2014 Evaluate entering a new market segment. Each template has realistic Intercom context, 4-6 recommended agents, and 6-10 rounds."
+  },
+  {
+    "title": "Create scenario template API",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Create backend/app/api/templates.py as a Flask Blueprint: GET /api/templates \u2014 list all scenario templates with category filter, tag filter, search. GET /api/templates/<id> \u2014 full template details. POST /api/templates \u2014 create custom template. PUT /api/templates/<id> \u2014 update template. DELETE /api/templates/<id> \u2014 delete template. POST /api/templates/<id>/use \u2014 create a simulation from template (increments usage_count). POST /api/templates/<id>/rate \u2014 rate a template (1-5 stars). GET /api/templates/categories \u2014 list categories with template counts. Register Blueprint."
+  },
+  {
+    "title": "Build scenario template card component",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Create frontend/src/components/scenarios/TemplateCard.vue \u2014 card displaying a scenario template. Show: name, category badge, difficulty badge (green/yellow/red), description (truncated), recommended agents (icon), recommended rounds (icon), rating (stars), usage count. Tags displayed as small pills. Click to view full details. 'Use Template' button. Hover: expand description, show objectives. Different card styles per category (subtle color tinting). Grid-friendly dimensions for gallery layout."
+  },
+  {
+    "title": "Build scenario template gallery component",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Create frontend/src/components/scenarios/TemplateGallery.vue \u2014 browseable gallery of templates. Category tabs at top with template counts. Search bar. Grid of TemplateCards (3 columns desktop, 2 tablet, 1 mobile). Sort: newest, most popular, highest rated, difficulty. Filter: category, difficulty, agent count range, tags. 'Featured' section at top with editor-pick templates. Empty state: 'No templates match your filters. Try creating your own!'"
+  },
+  {
+    "title": "Build scenario template detail modal",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Create frontend/src/components/scenarios/TemplateDetail.vue \u2014 full template detail view. Opens as a modal or slide-over. Shows: Full description, all objectives, recommended agent roles with descriptions, environment configuration details, difficulty explanation, tags. Preview: what a simulation using this template would look like. Customize before use: adjust agent count, rounds, add/remove roles. 'Use Template' button: creates simulation with these settings. Rating system: 1-5 stars with submit. Show average and count."
+  },
+  {
+    "title": "Build scenario import/export functionality",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Add import/export to scenario templates: Backend: GET /api/templates/<id>/export \u2014 returns template as downloadable JSON. Backend: POST /api/templates/import \u2014 accepts JSON file, validates, creates template. Frontend: Export button on TemplateDetail that downloads JSON file. Frontend: Import button on gallery that opens file picker, validates JSON, and creates template. JSON schema validation: check required fields, data types, value ranges. Error messages for invalid imports with specific field-level issues."
+  },
+  {
+    "title": "Create Scenario Marketplace view",
+    "completed": false,
+    "parallel_group": 50,
+    "description": "Create or update frontend/src/views/ScenarioBuilderView.vue to include template marketplace. Add 'Templates' tab alongside existing scenario builder. Templates tab: TemplateGallery with full filtering and search. Custom tab: existing scenario builder for creating from scratch. Both paths lead to simulation configuration. Add 'My Templates' section for user-created templates. Import button in header for uploading template JSON files."
+  },
+  {
+    "title": "Create campaign ROI data models",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create backend/app/models/campaign.py with dataclasses: Campaign (id, name, type: paid|organic|event|email|partner, channel, start_date, end_date, budget, spend_to_date, leads_generated, mqls, sqls, opportunities, closed_won_value, cpl, cpa, roi_percentage, status: active|completed|planned), CampaignCostBreakdown (campaign_id, cost_type: ad_spend|tools|content|events|labor, amount), CampaignAttribution (campaign_id, opportunity_id, attribution_model: first_touch|last_touch|linear|time_decay, credit_percentage). Populate with realistic Intercom-relevant campaigns: LinkedIn ads, Google ads, webinars, content marketing, partner referrals."
+  },
+  {
+    "title": "Build campaign ROI data generator",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create backend/app/services/campaign_generator.py generating 15 realistic campaigns. Campaigns: LinkedIn Paid ($50K budget, 500 leads), Google Ads ($80K, 800 leads), Webinar Series ($20K, 200 leads), Blog Content ($15K, 600 leads), Partner Referrals ($30K, 150 leads), Product Hunt Launch ($5K, 1000 leads), Trade Show ($100K, 300 leads), etc. Conversion rates: leads\u2192MQL 25-40%, MQL\u2192SQL 30-50%, SQL\u2192Won 15-35% (varies by campaign type). Calculate ROI: (closed_won_value - spend) / spend * 100. Some campaigns negative ROI (trade show, early-stage content). Some very positive (referrals, organic)."
+  },
+  {
+    "title": "Create campaign API Blueprint",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create backend/app/api/campaigns.py as a Flask Blueprint: GET /api/campaigns \u2014 list campaigns with type/status filter. GET /api/campaigns/<id> \u2014 campaign details with cost breakdown and attribution. GET /api/campaigns/stats \u2014 aggregate: total spend, total ROI, best/worst campaign, spend by channel. GET /api/campaigns/roi-comparison \u2014 all campaigns ranked by ROI. GET /api/campaigns/attribution/<model> \u2014 attribution analysis by model (first_touch, last_touch, linear). GET /api/campaigns/budget-efficiency \u2014 spend efficiency metrics (CPL, CPA by channel). Register Blueprint."
+  },
+  {
+    "title": "Build ROI comparison chart component",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create frontend/src/components/campaigns/RoiComparison.vue \u2014 D3.js chart comparing campaign ROI. Horizontal bar chart: campaigns ranked by ROI percentage. Bar color: green for positive ROI, red for negative. Bar length proportional to ROI %. Show spend and revenue labels on each bar. Secondary view: scatter plot with X=spend, Y=revenue, bubble size=lead volume. Quadrant labeling: high spend/high return, low spend/high return (best), etc. Toggle between ROI view and efficiency view (cost per lead, cost per acquisition)."
+  },
+  {
+    "title": "Build campaign spend allocation chart",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create frontend/src/components/campaigns/SpendAllocation.vue \u2014 D3.js charts showing budget distribution. Donut chart: spend by channel type (paid, organic, events, partner, email). Stacked bar: monthly spend over time by channel. Treemap: spend breakdown with campaign names in each rectangle, sized by spend. Toggle between: planned budget, actual spend, remaining budget. Variance highlighting: over-budget campaigns in red, under-budget in green."
+  },
+  {
+    "title": "Build attribution model comparison component",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create frontend/src/components/campaigns/AttributionComparison.vue \u2014 compare attribution models. Table: campaigns \u00d7 attribution models. Shows credit percentage per campaign per model. Highlight differences: cells where models disagree significantly. Bar chart: same campaign revenue credited differently by each model. Explanation text for each model: first touch credits the campaign that generated the lead, last touch credits the final campaign before conversion, linear splits equally, time decay weights recent. Recommendation: which model seems most appropriate based on data patterns."
+  },
+  {
+    "title": "Build cost modeling calculator component",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create frontend/src/components/campaigns/CostModeler.vue \u2014 interactive cost modeling tool. Input sliders: budget per channel, expected CPL per channel, expected conversion rates. Output: predicted leads, MQLs, SQLs, closed won, total revenue, predicted ROI. Real-time calculation as sliders move. Comparison mode: current allocation vs optimized allocation (auto-optimize for max ROI). Charts: predicted funnel for each scenario side-by-side. Save scenarios for comparison. Export as part of reports."
+  },
+  {
+    "title": "Create Campaign Analytics view",
+    "completed": false,
+    "parallel_group": 51,
+    "description": "Create frontend/src/views/CampaignsView.vue \u2014 campaign analytics and ROI page. Layout: 4 KPI cards (Total Spend, Total Revenue from Campaigns, Overall ROI, Best Campaign). RoiComparison chart (full width). Two-column: SpendAllocation (left), AttributionComparison (right). Full-width: CostModeler interactive calculator. Add route: { path: '/campaigns', name: 'Campaigns', component: CampaignsView }. Nav item with megaphone icon. Create frontend/src/stores/campaigns.js and frontend/src/api/campaigns.js."
+  },
+  {
+    "title": "Create what-if analysis engine",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Create backend/app/services/whatif_engine.py \u2014 runs scenario variations for what-if analysis. WhatIfEngine class: 1) `create_scenario(base_scenario_id, modifications)` \u2192 modified scenario config. Modification types: change_agent_count, change_agent_personality, change_environment, change_llm_provider, change_rounds, change_constraints. 2) `run_scenario(scenario_config)` \u2192 simulation results. 3) `compare_to_base(base_id, variant_id)` \u2192 structured comparison. 4) `run_sensitivity(base_id, parameter, range)` \u2192 run multiple variations of one parameter. Support batch execution: run 5 scenarios in sequence for parameter sweep. Store all variants linked to base scenario for comparison."
+  },
+  {
+    "title": "Create parameter sensitivity analyzer",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Create backend/app/services/sensitivity_analyzer.py \u2014 analyzes which parameters most affect outcomes. SensitivityAnalyzer class: 1) `analyze_parameter(base_results, parameter, variants)` \u2192 sensitivity score. Sensitivity score: how much the outcome metric changes per unit change in the parameter. 2) `rank_parameters(base_id, parameters)` \u2192 ranked list of most impactful parameters. 3) `generate_tornado_data(base_id, parameters)` \u2192 data for tornado chart (best/worst case per parameter). Parameters to analyze: agent count, round count, personality mix, temperature, initial conditions. Outcome metrics: consensus reached (bool), avg sentiment, decision quality, time to resolution."
+  },
+  {
+    "title": "Create what-if API endpoints",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Add to backend/app/api/simulation.py: POST /api/simulation/whatif \u2014 create and run a what-if scenario. Body: {base_simulation_id, modifications: [{parameter, value}]}. GET /api/simulation/<id>/whatif/variants \u2014 list all what-if variants of a base simulation. POST /api/simulation/sensitivity \u2014 run parameter sensitivity analysis. Body: {base_simulation_id, parameter, min_value, max_value, steps}. GET /api/simulation/<id>/sensitivity \u2014 sensitivity analysis results. GET /api/simulation/<id>/tornado \u2014 tornado chart data."
+  },
+  {
+    "title": "Build what-if configurator component",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Create frontend/src/components/whatif/WhatIfConfigurator.vue \u2014 interface for setting up what-if scenarios. Select base simulation from dropdown. Modification panel: list of parameters with +/- buttons and sliders. Each parameter shows: current value, new value, change amount. Add multiple modifications at once. 'Run What-If' button. Quick presets: 'More Agents', 'Fewer Rounds', 'Higher Temperature', 'Conservative Personalities'. Progress indicator while scenario runs. Link to comparison view when complete."
+  },
+  {
+    "title": "Build tornado chart component",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Create frontend/src/components/whatif/TornadoChart.vue \u2014 D3.js tornado diagram for sensitivity analysis. Horizontal butterfly chart: one bar per parameter extending left (decrease outcome) and right (increase outcome). Sorted by total impact (longest bars at top). Left side: parameter decrease effect. Right side: parameter increase effect. Center line: base scenario outcome. Color: red for decrease, green for increase. Labels: parameter name, low/high values, outcome impact. Tooltip with detailed numbers. Click bar to see the specific scenario run."
+  },
+  {
+    "title": "Build scenario variant comparison grid",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Create frontend/src/components/whatif/VariantGrid.vue \u2014 compact grid comparing what-if variants. Columns: variant name, parameter changed, value, key outcome metrics. Color-coded cells: green (better than base), red (worse), white (similar). Sortable by any column. Click row to see full variant results. Sparkline in each cell showing the metric over simulation rounds. Summary row: base scenario values for reference. Highlight the 'best' variant (highest/lowest target metric)."
+  },
+  {
+    "title": "Build parameter sweep chart component",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Create frontend/src/components/whatif/ParameterSweep.vue \u2014 D3.js chart showing outcome vs parameter value. X-axis: parameter value (e.g., agent count 2-8). Y-axis: outcome metric. Line or scatter plot showing how outcome changes as parameter varies. Multiple outcome metrics as separate lines (toggleable). Confidence band around each point (from variance in simulation results). Annotate optimal parameter value. Show diminishing returns if applicable. Useful for finding the 'sweet spot' for simulation parameters."
+  },
+  {
+    "title": "Create What-If Analysis view",
+    "completed": false,
+    "parallel_group": 52,
+    "description": "Create frontend/src/views/WhatIfView.vue \u2014 what-if analysis page. Layout: WhatIfConfigurator (sidebar, 1/3), main content (2/3): TornadoChart showing overall parameter sensitivity. VariantGrid listing all ran what-if scenarios. ParameterSweep chart for selected parameter deep-dive. Accessible from simulation results via 'What-If Analysis' button. Add route: { path: '/what-if/:simulationId?', name: 'WhatIf', component: WhatIfView }. Store: frontend/src/stores/whatif.js. API client: frontend/src/api/whatif.js."
+  },
+  {
+    "title": "Create scenario branching engine",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Create backend/app/services/branching_engine.py \u2014 allows forking simulations at any round. BranchingEngine class: 1) `fork(simulation_id, at_round, modifications)` \u2192 new simulation_id that starts from at_round. Copies all state (agent memories, beliefs, relationships, environment) up to at_round. Applies modifications (change agent, change constraint, inject event). Continues from that point with new conditions. 2) `get_branch_tree(root_simulation_id)` \u2192 tree of all branches from a root simulation. 3) `compare_branches(branch_ids)` \u2192 structured comparison of branch outcomes. Maintain parent-child relationship between simulations. Each branch gets a descriptive label based on its modification."
+  },
+  {
+    "title": "Create branch management API",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Add to backend/app/api/simulation.py: POST /api/simulation/<id>/branch \u2014 fork simulation at a round. Body: {at_round, label, modifications: [{type, value}]}. GET /api/simulation/<id>/branches \u2014 list all branches from this simulation. GET /api/simulation/<id>/branch-tree \u2014 full branch tree structure. GET /api/simulation/compare-branches?ids=a,b,c \u2014 compare multiple branches. DELETE /api/simulation/<id>/branch \u2014 delete a branch (and its descendants optionally)."
+  },
+  {
+    "title": "Build branch creation interface component",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Create frontend/src/components/simulation/BranchCreator.vue \u2014 interface for forking a simulation. Displays simulation timeline with round markers. Click a round to set branch point. Modification options: 'Add agent', 'Remove agent', 'Change agent personality', 'Inject event' (e.g., 'A competitor launches a product'), 'Change constraint'. Branch label input. 'Create Branch' button. Shows preview: 'Branch from Round 5 with modification: Added finance agent.' Can create multiple branches from the same point (A/B/C testing)."
+  },
+  {
+    "title": "Build branch tree visualization component",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Create frontend/src/components/simulation/BranchTree.vue \u2014 D3.js tree showing simulation branches. Root: original simulation. Child nodes: branches at their branch points. Horizontal tree layout: left to right. Each node: simulation label, branch point round, final outcome indicator (color). Edge label: modification that created this branch. Click node to navigate to that simulation's results. Show outcome comparison at leaf level. Collapsible sub-trees for complex branch structures."
+  },
+  {
+    "title": "Build branch comparison view component",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Create frontend/src/components/simulation/BranchComparison.vue \u2014 compare multiple branches. Select 2-4 branches from a tree. Stacked view: aligned timelines showing rounds side by side. Shared timeline up to branch point, then diverging paths. Highlight divergence: where and how branches differ in outcomes. Summary table: key metrics per branch with winner highlighting. Useful for understanding which modification had the most impact."
+  },
+  {
+    "title": "Build branch merge/recommendation component",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Create frontend/src/components/simulation/BranchInsights.vue \u2014 AI-generated insights from branches. Takes all branches and their outcomes. Generates (via LLM or templates): 'Based on X branches, the most impactful modification was Y, which improved Z by N%.' 'The optimal configuration appears to be: {recommended settings}.' 'Diminishing returns observed after N agents.' Display as insight cards with evidence links to specific branch results. Confidence levels on each insight."
+  },
+  {
+    "title": "Build inline branch point markers",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Update the simulation timeline/replay UI to show branch points inline. When a simulation has branches, show fork icons at the round where branches occurred. Hover fork: tooltip showing branch labels and outcomes. Click fork: expand to show branch tree mini-view. Add 'Branch Here' quick action button on any round in replay mode. Show branch count badge on the simulation card in the simulation list."
+  },
+  {
+    "title": "Create Branching view integration",
+    "completed": false,
+    "parallel_group": 53,
+    "description": "Integrate branching into the simulation workspace: Add 'Branches' tab in SimulationWorkspaceView showing BranchTree and BranchComparison. Add 'Branch' button to timeline controls. Add BranchInsights panel to post-simulation results. Update simulation list page to show branch indicators. Update frontend/src/stores/simulation.js to track branch relationships. Update frontend/src/api/simulation.js with branch API calls."
+  },
+  {
+    "title": "Create scenario aggregation service",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create backend/app/services/scenario_aggregator.py \u2014 aggregates results across multiple simulations. ScenarioAggregator class: 1) `aggregate_metrics(simulation_ids)` \u2192 averaged metrics across simulations. 2) `find_common_outcomes(simulation_ids)` \u2192 outcomes that occurred in >50% of simulations. 3) `find_rare_events(simulation_ids)` \u2192 events that occurred in <10% of simulations. 4) `compute_confidence_intervals(simulation_ids, metric)` \u2192 CI for a metric across runs. 5) `cluster_simulations(simulation_ids)` \u2192 group similar simulation outcomes. Add API: GET /api/simulations/aggregate?ids=a,b,c,d"
+  },
+  {
+    "title": "Build multi-scenario comparison matrix component",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create frontend/src/components/scenarios/ScenarioMatrix.vue \u2014 matrix comparing many simulations. Rows: simulations. Columns: key metrics (sentiment, consensus, decisions, agents, rounds). Cell: colored by relative performance (best=darkest green, worst=darkest red). Row headers: scenario name + template name + key modification. Sort by any column. Filter by template, date range, outcome. Click cell to see detailed breakdown. Click row to navigate to simulation. Summary statistics at bottom: mean, median, best, worst per column."
+  },
+  {
+    "title": "Build cross-scenario trend chart component",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create frontend/src/components/scenarios/CrossScenarioTrend.vue \u2014 D3.js chart showing trends across scenarios. X-axis: simulation date/sequence. Y-axis: selected metric. Each dot is a simulation run. Color by template/category. Trend line showing whether results are improving over time. Confidence band around the trend. Toggle between metrics using dropdown. Useful for seeing: 'Are our simulations producing better outcomes over time?'"
+  },
+  {
+    "title": "Build outcome distribution chart component",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create frontend/src/components/scenarios/OutcomeDistribution.vue \u2014 D3.js histogram of outcomes. X-axis: outcome metric value. Y-axis: frequency (number of simulations). Color by category or template. Show normal distribution overlay if data is approximately normal. Mean, median, and mode markers. Click bar to see the simulations in that bin. Multiple metrics in tabs. Box plot alternative view."
+  },
+  {
+    "title": "Build scenario performance leaderboard component",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create frontend/src/components/scenarios/Leaderboard.vue \u2014 ranked list of simulations by performance. Rank by composite score: weighted combination of sentiment, consensus, decision quality. Top 3 with medal icons. Full list below with rank, name, score, key metrics. Click to see simulation details. 'Why this rank?' expandable with scoring breakdown. Compare any two entries directly. Filter by template, date range. Sort by individual metrics."
+  },
+  {
+    "title": "Build scenario insights summary component",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create frontend/src/components/scenarios/InsightsSummary.vue \u2014 AI/template-generated insights. Analyzes patterns across many simulation runs: 'Simulations with 6+ agents consistently reach consensus faster than those with 4.' 'Revenue Ops scenarios have 20% higher conflict than Product scenarios.' 'The Pipeline Review template produces the most actionable decisions.' Each insight as a card with: insight text, confidence, supporting data (link to simulations). Generated from aggregation data using templates (or LLM if available)."
+  },
+  {
+    "title": "Build scenario calendar view component",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create frontend/src/components/scenarios/ScenarioCalendar.vue \u2014 calendar showing simulation runs over time. Month view with colored dots on each day a simulation ran. Dot color: outcome quality (green=good, yellow=moderate, red=poor). Click day to see simulations run that day. Summary stats per week/month: total runs, avg quality, templates used. Uses the CalendarHeatmap component from group 39 with scenario-specific data."
+  },
+  {
+    "title": "Create Multi-Scenario Dashboard view",
+    "completed": false,
+    "parallel_group": 54,
+    "description": "Create frontend/src/views/MultiScenarioDashboardView.vue \u2014 dashboard for all simulation runs. Layout: 4 KPI cards (Total Simulations, Avg Quality Score, Most Used Template, Best Outcome). ScenarioMatrix (full width). Two-column: CrossScenarioTrend (left), OutcomeDistribution (right). Leaderboard (1/3) + InsightsSummary (2/3). ScenarioCalendar (full width). Add route: { path: '/scenario-dashboard', name: 'Scenario Dashboard' }. Nav item with chart-pie icon. Stores and API clients as needed."
+  },
+  {
+    "title": "Create order validation simulation scenario",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create backend/data/templates/order_validation_workflow.json \u2014 scenario simulating order validation. Agents: Order Manager, Finance Validator, Product Compliance, Billing Specialist. Scenario: A complex enterprise order comes in with 12 line items, custom pricing, multi-year contract. Agents must: validate product compatibility, check discount thresholds, verify contract terms, ensure billing configuration is correct. Built-in conflicts: one product requires another as prerequisite, discount exceeds auto-approval limit, billing frequency mismatch between products. 8 rounds. Objective: resolve all validation issues and approve or reject the order."
+  },
+  {
+    "title": "Create pipeline optimization simulation scenario",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create backend/data/templates/pipeline_optimization.json \u2014 scenario for optimizing pipeline management. Agents: Sales VP, SDR Manager, AE Lead, Sales Ops, Marketing Director. Scenario: Pipeline is at 2.5x coverage (below 3x target). Q4 target is $5M. Team must: identify pipeline gaps, prioritize lead sources, decide resource allocation, set specific action items for next 30 days. Agents have different opinions: SDR Manager wants more outbound, Marketing wants to scale content, AE Lead wants better lead quality, Sales Ops wants process improvements. 10 rounds. Objective: create an actionable 30-day pipeline acceleration plan."
+  },
+  {
+    "title": "Create MRR reconciliation simulation scenario",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create backend/data/templates/mrr_reconciliation.json \u2014 scenario investigating MRR discrepancies. Agents: Revenue Analyst, Billing Engineer, SF Admin, Data Engineer. Scenario: $150K discrepancy found between Salesforce MRR, Stripe billing, and Snowflake mart. Investigation: timing lag (sync delays), currency rounding, cancelled orders not reflected, manual overrides in Salesforce, Stripe webhook failures, dbt transformation bugs. Agents must: identify root cause, quantify each contributor, propose fixes, prioritize. 8 rounds. Realistic data from reconciliation_generator."
+  },
+  {
+    "title": "Create competitive response simulation scenario",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create backend/data/templates/competitive_response.json \u2014 team responds to competitor move. Agents: CEO, VP Sales, VP Marketing, VP Product, VP CS, Finance Director. Scenario: Major competitor just launched an AI feature matching Fin at 50% lower price. Social media buzz is high. Three enterprise prospects are now evaluating the competitor. Team must: assess threat level, decide on response (price match? feature differentiation? ignore?), plan communications (customer reassurance, prospect counter-positioning), budget implications. 10 rounds. Agents have strong, conflicting opinions based on their department perspective."
+  },
+  {
+    "title": "Create expansion revenue simulation scenario",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create backend/data/templates/expansion_revenue.json \u2014 strategizing on expansion revenue. Agents: CS Director, Sales Ops, Product Manager, Growth Lead, Finance Analyst. Scenario: Net retention has dropped from 115% to 108%. Board wants it back above 112%. Agents discuss: upsell programs, cross-sell opportunities, usage-based pricing adjustments, customer health scoring improvements, CSM-led expansion conversations. Each approach has different cost, timeline, and expected impact. 8 rounds. Objective: create a prioritized expansion revenue plan with ROI projections."
+  },
+  {
+    "title": "Build GTM scenario launcher component",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create frontend/src/components/scenarios/GtmScenarioLauncher.vue \u2014 specialized launcher for GTM scenarios. Shows GTM-specific templates with Intercom-relevant context. Card layout with scenario illustrations/icons. Quick-launch: one click to start with default agents and settings. Each scenario card shows: estimated time, complexity, recommended audience. Add 'Demo Mode' label on scenarios that work well for presentations. 'Coming Soon' badge on scenarios still in development."
+  },
+  {
+    "title": "Build GTM scenario context panel component",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create frontend/src/components/scenarios/GtmContextPanel.vue \u2014 displays GTM context during simulation. Side panel showing relevant GTM data while simulation runs: Current pipeline value, MRR, churn rate, active campaigns \u2014 from the data generators. When an agent references a metric, highlight it in the context panel. Agents can 'look up' this data during simulation (tool use in their prompts). Makes the simulation feel grounded in real(istic) business data. Collapsible sections: Revenue, Pipeline, Accounts, Campaigns."
+  },
+  {
+    "title": "Build GTM scenario outcome mapper component",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create frontend/src/components/scenarios/GtmOutcomeMapper.vue \u2014 maps simulation outcomes to GTM impact. Takes simulation decisions and maps them to projected business impact: 'Decision: Increase SDR headcount by 2 \u2192 Projected impact: +$200K pipeline/month, +$80K cost/month.' 'Decision: Launch competitive comparison campaign \u2192 Projected impact: 50 MQLs, $15K cost.' Stacked bar chart showing total projected impact vs cost. Timeline showing when impacts would materialize (30/60/90 day projections). ROI calculation for recommended actions."
+  },
+  {
+    "title": "Build GTM simulation summary report component",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create frontend/src/components/scenarios/GtmSimulationReport.vue \u2014 GTM-specific report format. Sections: Executive Summary, Key Decisions Made, Action Items, Impact Projections, Risks Identified. Each section populated from simulation results using GTM-specific formatting. Action items: assignable to roles (sales, marketing, CS, etc.) with priority and timeline. Include relevant GTM charts: pipeline forecast, revenue projection, campaign recommendations. Export-ready format (clean Markdown, printable CSS). Share button: copy report link or download as PDF-formatted HTML."
+  },
+  {
+    "title": "Create GTM Scenarios hub page",
+    "completed": false,
+    "parallel_group": 55,
+    "description": "Create frontend/src/views/GtmScenariosView.vue \u2014 dedicated page for GTM-specific scenarios. Hero section: 'GTM Simulation Scenarios \u2014 Run realistic GTM team simulations'. Featured scenarios grid with GtmScenarioLauncher. Recent GTM simulations list with GtmSimulationReport quick-view. Stats: total GTM simulations run, avg decision quality, most popular scenario. Add route: { path: '/gtm-scenarios', name: 'GTM Scenarios' }. Make this accessible from both the main nav and the GTM Dashboard. This is a key demo page \u2014 should look impressive and polished."
+  },
+  {
+    "title": "CHECKPOINT: Verify app builds and runs after scenarios and campaign features",
+    "completed": false,
+    "parallel_group": 56,
+    "description": "Run comprehensive build and smoke test: 1) cd frontend && pnpm install && pnpm build \u2014 verify no build errors. 2) cd frontend && pnpm lint \u2014 verify no linting errors. 3) cd backend && pip install -r requirements.txt. 4) Verify all new Blueprints: templates, campaigns, dashboards, agents registered. 5) Verify all scenario template JSON files are valid: python -c 'import json,glob; [json.load(open(f)) for f in glob.glob(\"backend/data/templates/*.json\")]'. 6) Verify all new Vue routes are registered. 7) Count total components: find frontend/src/components -name '*.vue' | wc -l. 8) Count total API endpoints: check all Blueprints. 9) Start backend in demo mode and verify: /api/templates, /api/campaigns, /api/dashboards all return data. 10) Verify nav bar has all new items and isn't overflowing. Fix any issues. Create docs/checkpoint-group-56.md."
+  },
+  {
+    "title": "Create report builder data model",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create backend/app/models/report_builder.py with dataclasses: ReportTemplate (id, name, sections: list[ReportSection], theme, page_orientation, header_config, footer_config, created_at, updated_at), ReportSection (id, type: text|chart|table|kpi_row|divider|image, title, config: dict, data_source, position: int, width: full|half|third), GeneratedReport (id, template_id, simulation_ids, content_markdown, chart_data, generated_at, generation_method: ai|template). Persist to backend/data/reports/. Section types support all the chart components built in previous groups."
+  },
+  {
+    "title": "Create report builder API",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create backend/app/api/report_builder.py as a Flask Blueprint: GET /api/report-builder/templates \u2014 list report templates. POST /api/report-builder/templates \u2014 save report template. GET /api/report-builder/templates/<id> \u2014 get template with sections. PUT /api/report-builder/templates/<id> \u2014 update template. POST /api/report-builder/generate \u2014 generate report from template + simulation data. GET /api/report-builder/reports \u2014 list generated reports. GET /api/report-builder/reports/<id> \u2014 get generated report content. DELETE /api/report-builder/reports/<id> \u2014 delete report. Register Blueprint."
+  },
+  {
+    "title": "Build report section palette component",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create frontend/src/components/report-builder/SectionPalette.vue \u2014 palette of addable report sections. Categories: Text (heading, paragraph, callout), Charts (line, bar, donut, radar, etc.), Data (table, KPI row, metric cards), Layout (divider, spacer, columns). Each section type as a draggable card with icon and label. Drag from palette to report canvas to add. Click to add at cursor position. Search/filter sections by name."
+  },
+  {
+    "title": "Build report canvas component",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create frontend/src/components/report-builder/ReportCanvas.vue \u2014 WYSIWYG report editor canvas. Renders report sections in order. Drop zones between sections for insertion. Each section has: drag handle (reorder), edit button (configure), delete button, resize handle. Sections render with real data (from selected simulation/data source). Page-like appearance: white background with shadow, A4/Letter aspect ratio. Support half-width sections side by side (two columns). Show section boundaries in edit mode, clean in preview mode."
+  },
+  {
+    "title": "Build report section editors",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create editors for each section type in frontend/src/components/report-builder/editors/: TextSectionEditor.vue \u2014 rich text with bold, italic, headings, bullet lists. Simple Markdown. ChartSectionEditor.vue \u2014 chart type selector, data source, metrics, colors, axis labels. TableSectionEditor.vue \u2014 data source, column selector, sort, filter, row limit. KpiRowEditor.vue \u2014 metrics selector, layout (2/3/4 cards), formatting. Each editor opens as a popover when clicking the edit button on a section. Changes apply immediately (live preview). Cancel reverts."
+  },
+  {
+    "title": "Build report theme configurator",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create frontend/src/components/report-builder/ThemeConfigurator.vue \u2014 report styling options. Theme presets: 'Intercom' (brand blue, clean), 'Corporate' (dark navy, formal), 'Minimal' (mostly white, thin lines), 'Colorful' (vibrant, modern). Custom options: primary color, font family, font sizes, header/footer text, logo. Preview updates in real-time on the report canvas. Theme settings saved with the report template. Apply CSS variables for consistent theming across all sections."
+  },
+  {
+    "title": "Build report data source connector",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create frontend/src/components/report-builder/DataSourceConnector.vue \u2014 links report sections to data. Data sources: Simulation (select simulation), Revenue, Pipeline, Salesforce, CPQ, Orders, Campaigns. For simulation-connected reports: dropdown to select which simulation's data to use. For GTM data reports: auto-connected to the data generators. Each section independently configurable data source. Data preview panel: show available metrics and sample data for selected source. Handle missing data gracefully: show placeholder text."
+  },
+  {
+    "title": "Build report preview and export component",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create frontend/src/components/report-builder/ReportPreview.vue \u2014 clean preview of the report. Renders the report without edit chrome \u2014 exactly as it would appear in export. Toolbar: export options \u2014 Download Markdown, Copy to Clipboard, Print (CSS @media print). Print styles: page breaks between sections, no shadows/decorations, clean typography. Full-screen preview mode (modal). Generate table of contents from heading sections. Page count indicator."
+  },
+  {
+    "title": "Build report builder Pinia store",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create frontend/src/stores/reportBuilder.js \u2014 manages report builder state. State: templates, activeTemplate, activeReport, sections, theme, isDirty, loading, error. Actions: fetchTemplates(), loadTemplate(id), saveTemplate(), addSection(type, position), removeSection(id), updateSection(id, config), reorderSections(newOrder), setTheme(theme), generateReport(simulationIds), fetchReports(), fetchReport(id). API client: frontend/src/api/reportBuilder.js."
+  },
+  {
+    "title": "Create Report Builder view",
+    "completed": false,
+    "parallel_group": 57,
+    "description": "Create frontend/src/views/ReportBuilderView.vue \u2014 the report builder page. Layout: SectionPalette (left sidebar, 1/4), ReportCanvas (center, 2/4), Configuration panel (right sidebar, 1/4 \u2014 shows section editor or theme configurator). Toolbar: template name, Save, Preview, Generate, New, Load Template. Add route: { path: '/report-builder', name: 'Report Builder', component: ReportBuilderView }. Add route: { path: '/report-builder/:templateId', name: 'ReportBuilderEdit' }. Nav item with document-text icon. On first visit, offer to create from a template or start blank."
+  },
+  {
+    "title": "Create LLM insight generation service",
+    "completed": false,
+    "parallel_group": 58,
+    "description": "Create backend/app/services/insight_generator.py \u2014 uses LLM to generate insights from data. InsightGenerator class: 1) `generate_insights(data_type, data)` \u2192 list of Insight objects (title, description, evidence, confidence). Insight types: trend detection, anomaly explanation, recommendation, comparison finding. Data types supported: revenue, pipeline, simulation results, campaign, reconciliation. Use LLM when available, template-based generation as fallback. Template fallback: if metric > threshold, generate specific insight text. Rate limit: max 5 insight generation requests per minute. Add API: GET /api/insights?data_type=revenue&limit=5"
+  },
+  {
+    "title": "Build insight cards component",
+    "completed": false,
+    "parallel_group": 58,
+    "description": "Create frontend/src/components/insights/InsightCards.vue \u2014 displays generated insights. Each insight card: icon (lightbulb), title, description, confidence bar, evidence (collapsible). Priority sorting: most significant insights first. Category grouping: Revenue, Pipeline, Operations, Simulation, System. Refresh button to regenerate insights. Loading state with skeleton cards. Dismiss button per insight. 'Pin' button to keep important insights visible. Add to GTM Dashboard as a widget option."
+  },
+  {
+    "title": "Build AI analyst chatbot component",
+    "completed": false,
+    "parallel_group": 58,
+    "description": "Create frontend/src/components/insights/AiAnalyst.vue \u2014 chat interface for asking questions about data. User types questions: 'Why did churn increase last month?', 'Which campaign has best ROI?'. Backend: POST /api/insights/chat with message and context (which data is loaded). Uses LLM (or canned responses in demo mode) to answer using actual GTM data. Chat history maintained in session. Reference specific metrics in responses. Suggested questions shown as chips when chat is empty. Accessible via a chat bubble icon on any data page."
+  },
+  {
+    "title": "Build automated daily digest generator",
+    "completed": false,
+    "parallel_group": 58,
+    "description": "Create backend/app/services/digest_generator.py \u2014 generates daily GTM digest. DigestGenerator class: 1) `generate_daily_digest()` \u2192 structured digest with sections: Top-line metrics (MRR, pipeline, churn rate changes), Notable events (big deals, churns, milestones), Alerts (anomalies, SLA breaches), Recommendations (data-driven next actions). 2) `format_as_markdown()` \u2192 clean Markdown for display. API: GET /api/digest/today \u2014 today's digest. GET /api/digest/history \u2014 past digests. In demo mode, generate realistic sample digests. Frontend: frontend/src/components/insights/DailyDigest.vue showing the digest."
+  },
+  {
+    "title": "Build cohort analysis component",
+    "completed": false,
+    "parallel_group": 59,
+    "description": "Create frontend/src/components/analytics/CohortAnalysis.vue \u2014 comprehensive cohort analysis tool. Cohort definition: by signup date, plan tier, source channel, region. Metrics: retention rate, expansion rate, churn rate, lifetime value. Heatmap view (using CohortRetention component from group 20). Line chart view: overlay cohort curves. Comparison: select two cohorts to compare curves. Summary: best performing cohort, worst performing, statistically significant differences."
+  },
+  {
+    "title": "Build attribution analysis component",
+    "completed": false,
+    "parallel_group": 59,
+    "description": "Create frontend/src/components/analytics/AttributionAnalysis.vue \u2014 multi-touch attribution view. Sankey diagram: channels \u2192 stages \u2192 conversion. Table: touchpoint sequence for converted accounts. Model comparison: first-touch, last-touch, linear, time-decay, position-based. Chart: revenue attributed to each channel by model. Insight: which model gives the most different results (biggest disagreement). Data from campaign and pipeline generators."
+  },
+  {
+    "title": "Build segment performance component",
+    "completed": false,
+    "parallel_group": 59,
+    "description": "Create frontend/src/components/analytics/SegmentPerformance.vue \u2014 performance by customer segment. Segments: by plan tier, industry, company size, region. Metrics per segment: avg MRR, NRR, churn rate, expansion rate, CSAT. Bar chart comparing segments side by side. Radar chart for multi-metric comparison. Highlight best/worst performing segments. Drill-down: click segment to see individual accounts. Trend lines showing how each segment's performance changes over time."
+  },
+  {
+    "title": "Create Analytics view",
+    "completed": false,
+    "parallel_group": 59,
+    "description": "Create frontend/src/views/AnalyticsView.vue \u2014 advanced analytics page. Layout: CohortAnalysis (full width), AttributionAnalysis (half) + SegmentPerformance (half). Add InsightCards sidebar with AI-generated insights. AiAnalyst chat bubble in corner. Add route: { path: '/analytics', name: 'Analytics' }. Nav item with chart-scatter icon."
+  },
+  {
+    "title": "Build predictive analytics dashboard component",
+    "completed": false,
+    "parallel_group": 60,
+    "description": "Create frontend/src/components/analytics/PredictiveDashboard.vue \u2014 forward-looking predictions. Cards: Predicted MRR (next 3 months), Predicted Churn (next month), Predicted Pipeline close rate. Line chart: actual vs predicted for past months + forecast for future months with confidence band. Simple prediction: linear regression on past 12 months data (calculated in Python backend). Accuracy indicator: how well past predictions matched actuals. Backend: GET /api/analytics/predictions \u2014 returns predictions with confidence intervals. Create backend/app/services/predictor.py with basic linear regression using numpy (or manual calculation)."
+  },
+  {
+    "title": "Build anomaly detection dashboard component",
+    "completed": false,
+    "parallel_group": 60,
+    "description": "Create frontend/src/components/analytics/AnomalyDashboard.vue \u2014 surfaces data anomalies across GTM. Shows anomalies detected in: revenue (unexpected spikes/drops), pipeline (unusual velocity changes), sync (failed syncs), billing (payment failures). Each anomaly: severity badge, metric name, expected vs actual, deviation. Timeline: when anomalies occurred. Heatmap: which metrics have most anomalies. Backend: GET /api/analytics/anomalies \u2014 simple Z-score based anomaly detection."
+  },
+  {
+    "title": "Build goal tracking component",
+    "completed": false,
+    "parallel_group": 60,
+    "description": "Create frontend/src/components/analytics/GoalTracker.vue \u2014 track progress toward business goals. Goals: Q4 ARR target ($2.5M), Pipeline coverage (3x), NRR (>112%), Churn rate (<3%). Each goal: progress bar, current value, target, projected attainment date. Red/yellow/green status based on pace vs required pace. Bullet chart visualization per goal. Celebration animation when goal is achieved. Backend: goals stored in backend/data/goals.json, API: GET /api/analytics/goals."
+  },
+  {
+    "title": "Create Predictive Analytics view",
+    "completed": false,
+    "parallel_group": 60,
+    "description": "Update AnalyticsView.vue to include predictive analytics section. Add tabs: Historical Analytics, Predictive Analytics. Predictive tab: PredictiveDashboard (top), GoalTracker (middle), AnomalyDashboard (bottom). Alternatively, create a separate view if AnalyticsView is too large. Ensure all prediction endpoints work in demo mode with pre-computed predictions."
+  },
+  {
+    "title": "Build report export to multiple formats",
+    "completed": false,
+    "parallel_group": 61,
+    "description": "Create backend/app/services/report_exporter.py \u2014 exports reports to various formats. ReportExporter class: 1) `to_markdown(report)` \u2192 clean Markdown text. 2) `to_html(report)` \u2192 self-contained HTML with inline CSS (for email/print). 3) `to_csv(report)` \u2192 tabular data extracted from report tables. Use Jinja2 HTML template with Intercom branding for HTML export. API: POST /api/reports/<id>/export?format=markdown|html|csv \u2014 returns file download. Frontend: download button on ReportViewer with format selector dropdown."
+  },
+  {
+    "title": "Build report sharing component",
+    "completed": false,
+    "parallel_group": 61,
+    "description": "Create frontend/src/components/report-builder/ReportSharing.vue \u2014 sharing interface for reports. Options: Copy link (to report view page), Download (format selector), Email (form with recipient + message). For demo: email just formats and shows a preview, doesn't actually send. Copy as: Markdown, HTML, or image (using html2canvas for screenshot). Share button on ReportViewer and ReportPreview. Track share count per report. Success toast notification on share action."
+  },
+  {
+    "title": "Create pre-built report templates",
+    "completed": false,
+    "parallel_group": 61,
+    "description": "Create 5 report template JSON files in backend/data/report-templates/: 1) executive_summary.json \u2014 1-page overview: KPIs, trends, key insights, recommendations. 2) pipeline_report.json \u2014 funnel, velocity, forecast, conversion analysis. 3) revenue_report.json \u2014 MRR waterfall, ARR trend, cohort retention, churn analysis. 4) simulation_report.json \u2014 simulation results, agent analysis, decisions, outcomes. 5) gtm_quarterly_review.json \u2014 comprehensive quarterly review combining all GTM data. Each template has pre-configured sections with data source bindings. API: GET /api/report-builder/default-templates \u2014 returns these templates."
+  },
+  {
+    "title": "Update report-related navigation and routing",
+    "completed": false,
+    "parallel_group": 61,
+    "description": "Consolidate report-related routes: { path: '/reports', name: 'Reports' } \u2014 list of all generated reports. { path: '/reports/builder', name: 'ReportBuilder' } \u2014 report builder. { path: '/reports/:id', name: 'ReportDetail' } \u2014 view a specific report. Update nav: 'Reports' dropdown with sub-items: 'All Reports', 'Report Builder', 'Templates'. Ensure ReportView.vue integrates with new report builder functionality. Add 'Generate Report' button to all data views (revenue, pipeline, etc.) that opens report builder pre-configured with that data source."
+  }
+]

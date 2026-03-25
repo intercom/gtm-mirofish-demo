@@ -1,19 +1,37 @@
 project:
-  name: gtm-mirofish-demo
-  language: Unknown
-  framework: ""
-  description: ""
+  name: "gtm-mirofish-demo"
+  language: "TypeScript,Python"
+  framework: "Vue 3,Flask"
+
 commands:
-  test: ""
-  lint: ""
-  build: ""
+  test: "cd frontend && pnpm test"
+  lint: "cd frontend && pnpm lint"
+
 rules:
-  - Use pnpm, never npm
-  - "Use Intercom brand tokens: primary blue #2068FF, navy #050505, fin orange
-    #ff5600, accent purple #A0F"
-  - All Vue components use Composition API with script setup
-  - Use Tailwind CSS utility classes from frontend/src/assets/brand-tokens.css
-  - Backend services in backend/app/services/ are read-only - do not modify
-  - Frontend API requests use /api prefix which proxies to Flask backend
+  - "Use Vue 3 Composition API with <script setup> syntax"
+  - "Use Intercom brand colors: primary=#2068FF, navy=#050505, orange=#ff5600, text=#1a1a1a"
+  - "Use D3.js v7 for all data visualizations, install via pnpm"
+  - "Backend: use Flask Blueprints in backend/app/api/ directory"
+  - "Backend routes follow pattern: @bp.route('/api/v1/...')"
+  - "Install frontend packages with pnpm, backend packages with pip"
+  - "Reuse existing composables from frontend/src/composables/"
+  - "Reuse existing API client from frontend/src/api/client.js (baseURL pattern)"
+  - "Follow component patterns in frontend/src/components/"
+  - "All new backend files go in backend/app/api/ (Blueprints) or backend/app/services/"
+  - "All LLM calls go through backend/app/utils/llm_client.py"
+  - "Never hardcode API keys. Use environment variables from .env"
+  - "Support all three LLM providers: Anthropic, OpenAI, Gemini"
+  - "Every endpoint must work in demo/mock mode when no LLM key is configured"
+  - "Use existing Pinia stores pattern from frontend/src/stores/"
+  - "Read CLAUDE.md before starting any task"
+
 boundaries:
-  never_touch: null
+  never_touch:
+    - "*.lock"
+    - "node_modules/**"
+    - ".git/**"
+    - ".env"
+    - "pnpm-lock.yaml"
+
+notifications:
+  macos: true

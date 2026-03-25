@@ -18,6 +18,8 @@ An Intercom-branded fork of [MiroFish](https://github.com/666ghj/MiroFish) — a
 - [Screenshots](#screenshots)
 - [Features](#features)
 - [Quick Start](#quick-start)
+- [Running Your First Simulation](#running-your-first-simulation)
+- [Troubleshooting](#troubleshooting)
 - [Configuration](#configuration)
 - [Architecture](#architecture)
 - [GTM Scenarios](#gtm-scenarios)
@@ -77,12 +79,12 @@ D3.js force-directed graph with entity type coloring (Topics, Personas, Relation
 - **Multi-LLM Support** — Claude (Anthropic), OpenAI (GPT-4o), Google Gemini — switchable in settings
 - **Intercom Branding** — Full Intercom design language with brand colors (#2068FF blue, #050505 navy, #ff5600 Fin orange), typography, and logo
 - **Real GTM Seed Data** — Anonymized data from Intercom's actual GTM models (accounts, signals, templates, personas)
-- **8 Interactive Views** — Landing, Scenario Builder, Knowledge Graph, Live Simulation, Report Explorer, Chat, Settings, Login
+- **8 Interactive Views** — Landing, Scenario Builder, Knowledge Graph, Live Simulation, Report Explorer, Chat, Settings, Simulation History
 - **D3.js Knowledge Graphs** — Force-directed graph visualization with entity type coloring, zoom/pan, and click-to-inspect
 - **Async Task System** — All long-running operations (graph build, simulation, report gen) return task IDs for progress polling
 - **Report Agent** — AI-powered report generation with section-by-section streaming and tool-call logging
 - **Agent Interviews** — Chat with individual simulated agents or batch-interview entire populations
-- **Optional Auth** — Google OAuth / Okta SSO with @intercom.io email enforcement (toggle via `.env`)
+- **Optional Auth** — Google OAuth / Okta SSO with @intercom.io email enforcement (toggle via `.env`, disabled by default)
 - **Docker Deployment** — Single `docker compose up` for local development
 
 ---
@@ -92,7 +94,7 @@ D3.js force-directed graph with entity type coloring (Topics, Personas, Relation
 ### Prerequisites
 
 - **Docker** (recommended) or:
-  - Python 3.11+ with [uv](https://docs.astral.sh/uv/) package manager
+  - Python 3.11+ (with [uv](https://docs.astral.sh/uv/) or plain venv + pip)
   - Node 18+ with [pnpm](https://pnpm.io/)
 - **API Keys:**
   - An LLM API key (Anthropic, OpenAI, or Google)
@@ -110,7 +112,11 @@ docker compose up -d
 
 - **Frontend:** http://localhost:3000
 - **Backend:** http://localhost:5001
-- **Health check:** http://localhost:5001/health
+- **Health check:** http://localhost:5001/api/health
+
+> **Note:** The Docker build uses `demo_app.py` — a lightweight mock backend that serves realistic pre-built data without the heavy camel-ai/PyTorch stack (~150 MB image vs ~5.8 GB). The frontend is built with `VITE_DEMO_MODE=true` by default. For real LLM-powered simulations, use the [Manual Development](#manual-development) setup below.
+>
+> The Docker health check uses Python `urllib` (not `curl`) because the backend image is `python:3.11-slim`.
 
 ### Manual Development
 
@@ -119,20 +125,39 @@ docker compose up -d
 git clone https://github.com/intercom/gtm-mirofish-demo.git
 cd gtm-mirofish-demo
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env — set LLM_API_KEY and ZEP_API_KEY at minimum
 
-# 2. Backend (terminal 1)
+# 2. Create required upload directories
+mkdir -p backend/uploads/simulations backend/uploads/projects backend/uploads/reports
+
+# 3. Backend (terminal 1) — choose ONE of the approaches below:
+
+# Option A: Using uv (if installed)
 cd backend
 uv sync
 uv run python run.py
+
+# Option B: Using venv + pip
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python run.py
+
 # Backend runs on http://localhost:5001
 
-# 3. Frontend (terminal 2)
+# 4. Frontend (terminal 2)
 cd frontend
 pnpm install
-pnpm dev
+VITE_DEMO_MODE=false pnpm dev
 # Frontend runs on http://localhost:3000
 ```
+
+> **Proxy:** The Vite dev server automatically proxies all `/api/*` requests to the Flask backend at `http://localhost:5001`, so the frontend and backend work together without CORS issues.
+>
+> **Demo mode:** Set `VITE_DEMO_MODE=false` (shown above) when running locally so the frontend calls the real backend for simulations instead of using mock data. The `frontend/.env.example` already defaults to `false`.
+>
+> **Port conflict:** If port 3000 is taken, use `VITE_DEMO_MODE=false pnpm dev --port 3001`.
 
 ### Verify Installation
 
@@ -144,6 +169,57 @@ curl http://localhost:5001/health
 # List available GTM scenarios
 curl http://localhost:5001/api/gtm/scenarios
 ```
+
+---
+
+## Running Your First Simulation
+
+1. **Pick a scenario** — Open http://localhost:3000 and choose one of the four pre-built GTM scenarios from the landing page (Outbound Campaign, Signal Validation, Pricing Change, or Personalization). You can also select **Custom** to upload your own seed text.
+
+2. **Configure the run** — Adjust personas, industries, and agent count on the Scenario Builder page. The defaults are tuned for a quick demo run.
+
+3. **Hit "Run Simulation"** — This kicks off a three-stage pipeline:
+   - **Ontology generation** — the LLM extracts entity types and relationships from the seed text
+   - **Graph build** — chunks are sent to Zep Cloud to construct a knowledge graph
+   - **Simulation** — OASIS spawns AI agents that interact on simulated Twitter/Reddit (23 action types)
+
+4. **Watch progress** — The Workspace view shows real-time progress across the Graph and Simulation tabs. Each stage updates its progress bar as tasks complete.
+
+5. **Explore results** — Once the simulation completes:
+   - **Generate a report** — click "Generate Report" to produce an evidence-based predictive analysis (the Report Agent searches the graph + simulation data)
+   - **Chat** — use the Chat view to ask questions about the simulated world or interview individual agents
+
+---
+
+## Troubleshooting
+
+### Port conflicts
+
+- **Port 5001 in use** (common on macOS — AirPlay Receiver uses 5001): Disable AirPlay Receiver in System Settings > General > AirDrop & Handoff, or change `BACKEND_PORT` in `.env`.
+- **Port 3000 in use**: Run `pnpm dev --port 3001` or change `FRONTEND_PORT` in `.env` for Docker.
+
+### Missing uploads directories
+
+If the backend crashes with a `FileNotFoundError` related to uploads, create the directories:
+
+```bash
+mkdir -p backend/uploads/simulations backend/uploads/projects backend/uploads/reports
+```
+
+### API key validation errors on startup
+
+The backend validates `LLM_API_KEY` and `ZEP_API_KEY` on startup. If either is missing or set to the placeholder value from `.env.example`, it exits with an error. Double-check your `.env` file has real keys:
+
+```
+LLM_API_KEY=sk-ant-...    # not "your-api-key-here"
+ZEP_API_KEY=z_...          # not "your-zep-api-key-here"
+```
+
+### `ERR_NAME_NOT_RESOLVED` when using Docker frontend directly
+
+The Docker Compose frontend is built with `VITE_API_URL=http://backend:5001/api` — this is the Docker-internal hostname. If you open the frontend container's URL in your browser and see network errors referencing `backend:5001`, that is because `backend` is only resolvable inside the Docker network, not from your host machine.
+
+The Docker frontend uses `serve` to host the static build, and API calls are baked in at build time pointing to the internal Docker hostname. This works correctly within the Docker network (frontend container -> backend container), but the browser runs on the host. For local development with hot-reload, use the [Manual Development](#manual-development) setup where Vite's dev proxy handles `/api` routing to `localhost:5001`.
 
 ---
 
@@ -368,8 +444,6 @@ gtm-mirofish-demo/
 │   ├── package.json
 │   └── vite.config.js          # Proxy /api -> backend:5001
 ├── docker-compose.yml          # Two-service Docker setup
-├── Dockerfile.backend          # Python 3.11 + uv
-├── Dockerfile.frontend         # Node 18
 └── .env.example                # All environment variables
 ```
 
@@ -385,7 +459,7 @@ pnpm build        # Production build to dist/
 pnpm preview      # Preview production build
 ```
 
-The Vite dev server proxies all `/api` requests to `http://localhost:5001` (configurable via `VITE_API_URL`).
+The Vite dev server proxies all `/api` requests to `http://localhost:5001` (configurable via `BACKEND_URL` env var).
 
 **Conventions:**
 - All components use Composition API with `<script setup>`
@@ -405,7 +479,6 @@ The Vite dev server proxies all `/api` requests to `http://localhost:5001` (conf
 | `/report/:taskId` | ReportView | Multi-chapter report explorer |
 | `/chat/:taskId` | ChatView | Q&A with simulated world |
 | `/settings` | SettingsView | LLM provider, API keys, theme |
-| `/login` | LoginView | OAuth login (when `AUTH_ENABLED=true`) |
 
 **Intercom Design Tokens:**
 - Primary blue: `#2068FF`
@@ -450,7 +523,7 @@ docker compose up -d --build
 docker compose down
 ```
 
-The Docker setup mounts source code as volumes for hot-reloading during development.
+The Docker setup uses a named volume for `backend/uploads` to persist simulation data across container restarts.
 
 ### Running Tests
 

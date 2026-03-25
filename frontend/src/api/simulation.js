@@ -53,6 +53,10 @@ export const simulationApi = {
   getComments: (simulationId, params) =>
     client.get(`/simulation/${simulationId}/comments`, { params }),
 
+  // --- Anomalies ---
+  getAnomalies: (simulationId, params) =>
+    client.get(`/simulation/${simulationId}/anomalies`, { params }),
+
   // --- Interviews ---
   interview: (data) => client.post('/simulation/interview', data),
   interviewBatch: (data) => client.post('/simulation/interview/batch', data),

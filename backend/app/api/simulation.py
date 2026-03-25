@@ -2709,3 +2709,171 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Anomaly Detection ==============
+
+import random
+import hashlib
+
+
+def _generate_demo_anomalies(simulation_id, round_filter=None):
+    """Generate deterministic demo anomaly data seeded by simulation_id."""
+    seed = int(hashlib.md5(simulation_id.encode()).hexdigest()[:8], 16)
+    rng = random.Random(seed)
+
+    agents = [
+        ("Sarah Chen", "VP of Sales"),
+        ("Marcus Rivera", "Product Manager"),
+        ("Emily Watson", "Enterprise AE"),
+        ("David Kim", "Solutions Engineer"),
+        ("Priya Sharma", "Customer Success Lead"),
+        ("James O'Brien", "Marketing Director"),
+        ("Aisha Patel", "BDR Team Lead"),
+        ("Tom Nakamura", "Revenue Ops Analyst"),
+    ]
+
+    anomaly_types = [
+        {
+            "type": "sentiment_reversal",
+            "templates": [
+                "Abruptly shifted from skeptical to strongly supportive after round {r}",
+                "Reversed negative stance — now actively championing the proposal",
+                "Dramatic sentiment shift: went from dismissive to enthusiastic mid-discussion",
+            ],
+            "explanations": [
+                "A compelling data point about ROI caused a rapid opinion change, deviating 2.4σ from expected trajectory.",
+                "Peer influence from a trusted colleague triggered an unexpected alignment shift.",
+                "New competitive intelligence introduced in the discussion overrode prior objections.",
+            ],
+        },
+        {
+            "type": "unexpected_agreement",
+            "templates": [
+                "Aligned with {other} despite historically opposing positions",
+                "Broke from usual adversarial stance to support consensus",
+                "Unexpectedly endorsed a proposal they previously blocked",
+            ],
+            "explanations": [
+                "Cross-functional pressure created an unusual coalition — both agents prioritized a shared KPI.",
+                "Strategic concession detected: agent traded opposition on this topic for leverage elsewhere.",
+                "Shared external threat (competitor move) created temporary alignment between rival viewpoints.",
+            ],
+        },
+        {
+            "type": "leadership_emergence",
+            "templates": [
+                "Suddenly became the most-referenced voice in round {r}",
+                "Shifted from observer to primary influencer within 2 rounds",
+                "Quiet participant emerged as de-facto decision driver",
+            ],
+            "explanations": [
+                "Domain expertise became unexpectedly relevant, elevating this agent's influence 3.1σ above baseline.",
+                "Power vacuum after a dominant agent disengaged — this agent filled the leadership gap.",
+                "Introduced a novel framing that reoriented the entire discussion trajectory.",
+            ],
+        },
+        {
+            "type": "topic_hijack",
+            "templates": [
+                "Redirected discussion from pricing to implementation risk",
+                "Introduced an off-agenda concern that dominated the next 2 rounds",
+                "Steered conversation toward {topic} despite group momentum elsewhere",
+            ],
+            "explanations": [
+                "Agent's latent priority surfaced when the discussion hit a trigger keyword.",
+                "Strategic topic shift detected — redirected attention from a losing argument to stronger ground.",
+                "Emotional reaction to a specific data point caused an unplanned topic pivot.",
+            ],
+        },
+    ]
+
+    topics = ["security concerns", "budget constraints", "timeline risks", "team capacity", "competitive positioning"]
+    total_rounds = rng.randint(8, 15)
+    num_anomalies = rng.randint(4, 10)
+
+    anomalies = []
+    for i in range(num_anomalies):
+        anomaly_type = rng.choice(anomaly_types)
+        agent_name, agent_role = rng.choice(agents)
+        other_agent = rng.choice([a[0] for a in agents if a[0] != agent_name])
+        round_num = rng.randint(1, total_rounds)
+        surprise = round(rng.betavariate(2, 5) * 0.6 + 0.35, 3)
+        if i == 0:
+            surprise = round(rng.uniform(0.85, 0.98), 3)
+
+        desc = rng.choice(anomaly_type["templates"])
+        desc = desc.format(r=round_num, other=other_agent, topic=rng.choice(topics))
+
+        anomalies.append({
+            "id": f"anomaly-{simulation_id[:8]}-{i}",
+            "agent_name": agent_name,
+            "agent_role": agent_role,
+            "type": anomaly_type["type"],
+            "description": desc,
+            "surprise_score": surprise,
+            "round_num": round_num,
+            "explanation": rng.choice(anomaly_type["explanations"]),
+        })
+
+    anomalies.sort(key=lambda a: a["surprise_score"], reverse=True)
+
+    if round_filter is not None:
+        anomalies = [a for a in anomalies if a["round_num"] == round_filter]
+
+    return anomalies, total_rounds
+
+
+@simulation_bp.route('/<simulation_id>/anomalies', methods=['GET'])
+def get_simulation_anomalies(simulation_id: str):
+    """
+    Get detected anomalies for a simulation.
+
+    Query params:
+        round_num: filter by round (optional)
+
+    Returns list of anomalies sorted by surprise score (descending).
+    Uses demo data when anomaly_detector service is not available.
+    """
+    try:
+        round_filter = request.args.get('round_num', type=int)
+
+        anomalies, total_rounds = _generate_demo_anomalies(simulation_id, round_filter)
+
+        most_surprising = anomalies[0] if anomalies else None
+
+        round_counts = {}
+        for a in anomalies:
+            round_counts[a["round_num"]] = round_counts.get(a["round_num"], 0) + 1
+        rounds_sorted = sorted(round_counts.keys())
+        trend = "stable"
+        if len(rounds_sorted) >= 3:
+            first_half = sum(round_counts[r] for r in rounds_sorted[:len(rounds_sorted)//2])
+            second_half = sum(round_counts[r] for r in rounds_sorted[len(rounds_sorted)//2:])
+            if second_half > first_half * 1.3:
+                trend = "increasing"
+            elif second_half < first_half * 0.7:
+                trend = "decreasing"
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "anomalies": anomalies,
+                "summary": {
+                    "total": len(anomalies),
+                    "most_surprising_agent": most_surprising["agent_name"] if most_surprising else None,
+                    "highest_surprise_score": most_surprising["surprise_score"] if most_surprising else 0,
+                    "trend": trend,
+                    "total_rounds": total_rounds,
+                },
+                "demo_mode": True,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get anomalies: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

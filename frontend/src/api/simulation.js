@@ -53,6 +53,12 @@ export const simulationApi = {
   getComments: (simulationId, params) =>
     client.get(`/simulation/${simulationId}/comments`, { params }),
 
+  // --- Sentiment dynamics ---
+  getSentimentDynamics: (simulationId, params) =>
+    client.get(`/simulation/${simulationId}/sentiment-dynamics`, { params }),
+  getSentimentPrompts: (simulationId, params) =>
+    client.get(`/simulation/${simulationId}/sentiment-dynamics/prompt`, { params }),
+
   // --- Interviews ---
   interview: (data) => client.post('/simulation/interview', data),
   interviewBatch: (data) => client.post('/simulation/interview/batch', data),

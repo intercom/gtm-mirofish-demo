@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Reconciliation API (three-way MRR reconciliation)
+    from .api.reconciliation import reconciliation_bp
+    app.register_blueprint(reconciliation_bp)
     
     # 健康检查
     @app.route('/health')

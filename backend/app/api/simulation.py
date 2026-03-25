@@ -2709,3 +2709,98 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Personality Evolution API ==============
+
+import hashlib
+import math
+
+PERSONALITY_TRAITS = ['analytical', 'creative', 'assertive', 'empathetic', 'risk_tolerant']
+
+
+def _generate_demo_personality(agent_id, agent_name, total_rounds=10):
+    """Generate deterministic demo personality evolution data for an agent."""
+    seed = int(hashlib.md5(str(agent_id).encode()).hexdigest()[:8], 16)
+
+    def seeded_value(trait_idx, round_num):
+        h = hashlib.md5(f"{seed}-{trait_idx}-{round_num}".encode()).hexdigest()
+        return int(h[:8], 16) / 0xFFFFFFFF
+
+    history = []
+    for r in range(1, total_rounds + 1):
+        traits = {}
+        for i, trait in enumerate(PERSONALITY_TRAITS):
+            base = 30 + (seeded_value(i, 0) * 50)
+            drift = (seeded_value(i, r) - 0.5) * 20
+            trend = (r / total_rounds) * (seeded_value(i, 999) - 0.5) * 30
+            traits[trait] = round(max(5, min(95, base + drift + trend)), 1)
+        history.append({"round": r, "traits": traits})
+
+    return {
+        "agent_id": agent_id,
+        "agent_name": agent_name,
+        "history": history,
+    }
+
+
+@simulation_bp.route('/<simulation_id>/personality', methods=['GET'])
+def get_personality_evolution(simulation_id: str):
+    """
+    Get personality evolution data for all agents across simulation rounds.
+
+    Returns per-agent trait values (0-100) for each round, suitable for
+    radar-chart visualisation.
+
+    Query params:
+        agent_ids: comma-separated list to filter (optional)
+    """
+    try:
+        agent_ids_str = request.args.get('agent_ids', '')
+        requested_ids = [a.strip() for a in agent_ids_str.split(',') if a.strip()] if agent_ids_str else None
+
+        stats = SimulationRunner.get_agent_stats(simulation_id)
+
+        if not stats:
+            # Demo mode — return synthetic data
+            demo_agents = [
+                {"agent_id": i, "agent_name": name}
+                for i, name in enumerate([
+                    "Alex Chen", "Maria Santos", "James Wright",
+                    "Priya Patel", "David Kim",
+                ])
+            ]
+            agents = demo_agents
+            total_rounds = 10
+        else:
+            agents = [{"agent_id": s["agent_id"], "agent_name": s["agent_name"]} for s in stats]
+            runner_state = SimulationRunner.get_run_state(simulation_id)
+            total_rounds = runner_state.total_rounds if runner_state and runner_state.total_rounds else 10
+
+        if requested_ids:
+            str_ids = set(requested_ids)
+            agents = [a for a in agents if str(a["agent_id"]) in str_ids]
+
+        result = []
+        for agent in agents:
+            result.append(_generate_demo_personality(
+                agent["agent_id"], agent["agent_name"], total_rounds
+            ))
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "traits": PERSONALITY_TRAITS,
+                "total_rounds": total_rounds,
+                "agents": result,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Personality evolution error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

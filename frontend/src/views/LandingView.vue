@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
 import { useParallax } from '../composables/useParallax'
+import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
 import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
 import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
@@ -65,6 +66,78 @@ const steps = [
     description: 'Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.',
   },
 ]
+
+const ICON_MAP = {
+  mail: '📧',
+  signal: '📡',
+  dollar: '💰',
+  sparkle: '✨',
+  pipeline: '🔄',
+}
+
+function resolveIcon(icon) {
+  if (!icon) return '🐟'
+  if (/\p{Emoji}/u.test(icon)) return icon
+  return ICON_MAP[icon] || '🐟'
+}
+
+const scenarios = ref([])
+const loading = ref(true)
+const error = ref(null)
+
+
+async function loadScenarios() {
+  loading.value = true
+  error.value = null
+  try {
+    const res = await fetch(`${API_BASE}/gtm/scenarios`)
+    if (!res.ok) throw new Error(`Failed to load scenarios (${res.status})`)
+    const json = await res.json()
+    const list = json.scenarios || json
+    if (list.length) list[0].hero = true
+    scenarios.value = list
+  } catch (e) {
+    error.value = e.message
+    scenarios.value = [
+      {
+        id: 'outbound_campaign',
+        name: 'Outbound Campaign Pre-Testing',
+        description: 'Simulate how AI-generated outbound emails land with synthetic prospect populations.',
+        icon: '📧',
+        hero: true,
+      },
+      {
+        id: 'signal_validation',
+        name: 'Sales Signal Validation',
+        description: 'Test whether signals actually predict buying behavior.',
+        icon: '📡',
+      },
+      {
+        id: 'pricing_simulation',
+        name: 'Pricing Change Simulation',
+        description: 'Predict customer reactions to P5 pricing migration.',
+        icon: '💰',
+      },
+      {
+        id: 'personalization',
+        name: 'Personalization Optimization',
+        description: 'Rank email variants by simulated engagement.',
+        icon: '✨',
+      },
+      {
+        id: 'pipeline_optimization',
+        name: 'Pipeline Optimization',
+        description: 'Identify pipeline bottlenecks and test intervention strategies.',
+        icon: '🔄',
+      },
+    ]
+    error.value = null
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(loadScenarios)
 
 const scenarioSection = ref(null)
 

@@ -1,0 +1,29 @@
+{
+  "id": "pipeline_optimization",
+  "name": "Pipeline Optimization",
+  "description": "Simulate deal progression through pipeline stages to identify bottlenecks, test intervention strategies, and predict conversion rate improvements across segments.",
+  "category": "pipeline",
+  "icon": "🔄",
+  "seed_text": "Intercom's sales pipeline currently converts MQLs to closed-won at 8.2% overall, but performance varies dramatically by segment: Enterprise deals close at 12% while SMB self-serve converts at just 4.1%. Leadership has identified three critical pipeline stages where deals stall or leak:\n\n1. Discovery → Demo: 38% of qualified leads never schedule a demo. Sales development reps report that prospects go dark after initial outreach, particularly in the Mid-Market segment where no dedicated SDR motion exists.\n\n2. Demo → Technical Evaluation: 45% of demos do not advance. Post-demo surveys indicate prospects are impressed by Fin AI capabilities but uncertain about migration complexity from existing tools (Zendesk, Freshdesk, Salesforce Service Cloud).\n\n3. Proposal → Closed-Won: 28% of proposals stall in procurement. Legal review of data processing agreements and security questionnaires adds 3-6 weeks, during which competitor re-engagement spikes.\n\nIntervention strategies to simulate:\n- Automated nurture sequences triggered by stage-specific engagement signals\n- Peer customer reference matching (connecting prospects with similar-profile customers)\n- Technical proof-of-concept fast-track program (48-hour sandbox provisioning)\n- Deal desk escalation rules based on deal size and days-in-stage thresholds\n- Champion enablement kits (ROI calculators, internal pitch decks, security pre-approval docs)\n\nThe simulation should model 400 deals across segments entering the pipeline simultaneously, with AI agents representing buyers at different stages. Each agent has a propensity to advance, stall, or churn based on their persona, firmographic profile, and which interventions they receive.\n\nKey questions:\n- Which pipeline stage has the highest ROI for intervention investment?\n- Do automated nurture sequences cannibalize rep-led outreach effectiveness?\n- What is the optimal days-in-stage threshold before deal desk escalation?\n- How does champion enablement impact multi-threaded deal progression?\n- Which segment benefits most from the proof-of-concept fast-track program?",
+  "agent_config": {
+    "count": 400,
+    "persona_types": ["VP of Support", "CX Director", "IT Leader", "Head of Operations", "Procurement Lead"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Healthcare", "Fintech", "E-commerce", "Manufacturing"],
+      "company_sizes": ["50-200", "200-500", "500-1000", "1000-5000"],
+      "regions": ["North America", "EMEA", "APAC"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Stage-by-stage conversion rate heatmap by segment",
+    "Intervention effectiveness ranking with ROI estimates",
+    "Optimal days-in-stage escalation thresholds",
+    "Champion enablement impact on deal velocity",
+    "Segment-specific pipeline optimization recommendations"
+  ]
+}

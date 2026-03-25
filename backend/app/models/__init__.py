@@ -16,6 +16,12 @@ from .custom_agent import (
     PersonalityVector, VALID_COMMUNICATION_STYLES,
 )
 from .salesforce import Account, Opportunity, Contact, Lead
+from .cpq import (
+    Product, PriceBookEntry, Quote, QuoteLine,
+    QuoteStatus, BillingFrequency,
+    INTERCOM_PRODUCTS, INTERCOM_PRICEBOOK,
+    generate_demo_quotes,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -25,5 +31,9 @@ __all__ = [
     'CustomAgentConfig', 'CustomAgentManager',
     'PersonalityVector', 'VALID_COMMUNICATION_STYLES',
     'Account', 'Opportunity', 'Contact', 'Lead',
+    'Product', 'PriceBookEntry', 'Quote', 'QuoteLine',
+    'QuoteStatus', 'BillingFrequency',
+    'INTERCOM_PRODUCTS', 'INTERCOM_PRICEBOOK',
+    'generate_demo_quotes',
 ]
 

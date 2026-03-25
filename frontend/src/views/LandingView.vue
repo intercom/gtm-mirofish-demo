@@ -5,6 +5,7 @@ import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
 import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
+import SkeletonScenarioCard from '../components/ui/SkeletonScenarioCard.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -288,16 +289,7 @@ const year = new Date().getFullYear()
         <!-- Loading State -->
         <div v-if="loading" class="max-w-2xl mx-auto">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="n in 4" :key="n"
-              class="rounded-lg p-5 border border-white/10 bg-white/5 animate-pulse">
-              <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded bg-white/10"></div>
-                <div class="flex-1 space-y-2">
-                  <div class="h-4 bg-white/10 rounded w-3/4"></div>
-                  <div class="h-3 bg-white/10 rounded w-full"></div>
-                </div>
-              </div>
-            </div>
+            <SkeletonScenarioCard v-for="n in 4" :key="n" dark />
           </div>
         </div>
 

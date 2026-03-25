@@ -41,7 +41,7 @@ function mountView(id = 'outbound_campaign') {
     global: {
       stubs: {
         'router-link': { template: '<a><slot /></a>', props: ['to'] },
-        LoadingSpinner: { template: '<div data-testid="loading">Loading...</div>', props: ['label'] },
+        SkeletonFormLayout: { template: '<div data-testid="loading">Loading...</div>' },
         ErrorState: {
           template: '<div data-testid="error"><button @click="$emit(\'retry\')">Retry</button></div>',
           props: ['title', 'message'],
@@ -59,7 +59,7 @@ describe('ScenarioBuilderView', () => {
     graphApi.build.mockReset()
   })
 
-  it('shows loading spinner while fetching scenario', () => {
+  it('shows loading skeleton while fetching scenario', () => {
     const store = useScenariosStore()
     store.fetchOne = vi.fn(() => new Promise(() => {})) // never resolves
     const wrapper = mountView()

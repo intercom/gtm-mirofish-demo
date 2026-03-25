@@ -2051,6 +2051,80 @@ def admin_cleanup():
 
 
 # ---------------------------------------------------------------------------
+# Pipeline Forecast
+# ---------------------------------------------------------------------------
+
+_PIPELINE_STAGES = [
+    {"stage": "Lead", "probability": 0.10, "target_days": 7},
+    {"stage": "MQL", "probability": 0.25, "target_days": 14},
+    {"stage": "SQL", "probability": 0.45, "target_days": 21},
+    {"stage": "SAO", "probability": 0.60, "target_days": 14},
+    {"stage": "Proposal", "probability": 0.75, "target_days": 10},
+    {"stage": "Negotiation", "probability": 0.90, "target_days": 7},
+]
+
+
+def _generate_pipeline_forecast():
+    """Generate deterministic demo pipeline forecast data."""
+    rng = random.Random(42)
+
+    stages = []
+    for s in _PIPELINE_STAGES:
+        deal_count = rng.randint(8, 35)
+        avg_deal = rng.randint(15000, 120000)
+        unweighted = deal_count * avg_deal
+        weighted = int(unweighted * s["probability"])
+        stages.append({
+            "stage": s["stage"],
+            "probability": s["probability"],
+            "deal_count": deal_count,
+            "avg_deal_size": avg_deal,
+            "unweighted_value": unweighted,
+            "weighted_value": weighted,
+        })
+
+    total_weighted = sum(s["weighted_value"] for s in stages)
+    total_unweighted = sum(s["unweighted_value"] for s in stages)
+
+    # Time-based projection: monthly expected closes for next 6 months
+    months = []
+    month_names = ["Apr 2026", "May 2026", "Jun 2026", "Jul 2026", "Aug 2026", "Sep 2026"]
+    for i, name in enumerate(month_names):
+        month_data = {"month": name}
+        for s in _PIPELINE_STAGES:
+            # Later stages close sooner; earlier stages spread across later months
+            stage_idx = next(j for j, ps in enumerate(_PIPELINE_STAGES) if ps["stage"] == s["stage"])
+            weight = max(0, 1.0 - abs(i - (5 - stage_idx)) * 0.3)
+            stage_val = next(st for st in stages if st["stage"] == s["stage"])
+            month_data[s["stage"]] = int(stage_val["weighted_value"] * weight * 0.25)
+        months.append(month_data)
+
+    # Scenario analysis
+    best_case = int(total_weighted * 1.30)
+    expected = total_weighted
+    worst_case = int(total_weighted * 0.70)
+
+    return {
+        "stages": stages,
+        "total_weighted": total_weighted,
+        "total_unweighted": total_unweighted,
+        "confidence_range": 0.15,
+        "monthly_projection": months,
+        "stage_names": [s["stage"] for s in _PIPELINE_STAGES],
+        "scenarios": {
+            "best_case": best_case,
+            "expected": expected,
+            "worst_case": worst_case,
+        },
+    }
+
+
+@app.route("/api/pipeline/forecast")
+def pipeline_forecast():
+    return _ok(_generate_pipeline_forecast())
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

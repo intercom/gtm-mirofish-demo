@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useSimulationStore } from '../stores/simulation'
+import { useLocale } from '../composables/useLocale'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 
 const store = useSimulationStore()
+const { formatRelativeTime, formatShortDateTime, formatNumber } = useLocale()
 
 const showDeleteDialog = ref(false)
 const showClearDialog = ref(false)
@@ -84,29 +86,6 @@ const filteredRuns = computed(() => {
   return result
 })
 
-function relativeTime(ts) {
-  const diff = Math.floor((Date.now() - ts) / 1000)
-  if (diff < 60) return 'just now'
-  if (diff < 3600) {
-    const m = Math.floor(diff / 60)
-    return `${m} min${m === 1 ? '' : 's'} ago`
-  }
-  if (diff < 86400) {
-    const h = Math.floor(diff / 3600)
-    return `${h} hour${h === 1 ? '' : 's'} ago`
-  }
-  const d = Math.floor(diff / 86400)
-  return `${d} day${d === 1 ? '' : 's'} ago`
-}
-
-function absoluteTime(ts) {
-  return new Date(ts).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
-}
 
 function statusLabel(status) {
   const s = normalizeStatus(status)
@@ -236,7 +215,7 @@ function exportRun(run) {
       </div>
       <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-4 py-3">
         <div class="text-xs text-[var(--color-text-muted)]">Total Actions</div>
-        <div class="text-lg font-semibold text-[var(--color-text)]">{{ totalActions.toLocaleString() }}</div>
+        <div class="text-lg font-semibold text-[var(--color-text)]">{{ formatNumber(totalActions) }}</div>
       </div>
       <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-4 py-3">
         <div class="text-xs text-[var(--color-text-muted)]">Top Scenario</div>
@@ -327,7 +306,7 @@ function exportRun(run) {
               </span>
             </div>
             <div class="text-xs text-[var(--color-text-muted)]">
-              {{ absoluteTime(run.timestamp) }} <span class="mx-1">-</span> {{ relativeTime(run.timestamp) }}
+              {{ formatShortDateTime(run.timestamp) }} <span class="mx-1">-</span> {{ formatRelativeTime(run.timestamp) }}
             </div>
           </div>
           <div class="flex items-center gap-1 ml-2 shrink-0">

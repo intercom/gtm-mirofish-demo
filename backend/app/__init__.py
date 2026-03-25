@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Simulation result cache (offline replay)
+    from .api.cache import cache_bp
+    app.register_blueprint(cache_bp)
     
     # 健康检查
     @app.route('/health')

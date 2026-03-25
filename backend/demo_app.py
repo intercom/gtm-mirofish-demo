@@ -638,6 +638,211 @@ def sim_entities(graph_id):
 
 
 # ---------------------------------------------------------------------------
+# GTM Summary Report API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/simulation/<sim_id>/gtm-summary")
+def sim_gtm_summary(sim_id):
+    """Return structured GTM simulation summary for the report component."""
+    rng = random.Random(hash(sim_id) + 7)
+
+    executive_summary = {
+        "total_agents": 200,
+        "simulation_hours": 72,
+        "total_interactions": 12384,
+        "conversation_threads": 847,
+        "convergence_score": 0.89,
+        "confidence": 94.2,
+        "top_performing_subject": "Your Zendesk bill is 3x what it should be",
+        "top_open_rate": 34.7,
+        "ai_resolution_rate": 50,
+        "estimated_savings": 280000,
+    }
+
+    key_decisions = [
+        {
+            "id": "kd-1",
+            "decision": "Segment-specific message variants outperform universal templates by 35-45%",
+            "evidence": "SaaS engagement at 34.2% vs Healthcare at 19.8% with identical messaging",
+            "confidence": 96,
+            "impact": "high",
+        },
+        {
+            "id": "kd-2",
+            "decision": "Subject line #1 excluded from Healthcare due to 14.8% spam flag rate",
+            "evidence": "Healthcare spam perception 1.8x higher than other verticals for competitive framing",
+            "confidence": 94,
+            "impact": "high",
+        },
+        {
+            "id": "kd-3",
+            "decision": "Optimal cadence is Day 1-3-8-15 instead of Day 1-2-4",
+            "evidence": "23% lower unsubscribe rate, 18% higher meeting bookings in simulation",
+            "confidence": 91,
+            "impact": "medium",
+        },
+        {
+            "id": "kd-4",
+            "decision": "Multi-threading increases meeting booking likelihood by 4.7x",
+            "evidence": "3+ personas from same company engaging triggers cascade conversion effect",
+            "confidence": 87,
+            "impact": "high",
+        },
+        {
+            "id": "kd-5",
+            "decision": "Fin AI resolution rate (50%) is the single most persuasive data point",
+            "evidence": "Referenced in 67% of positive engagement signals across all personas",
+            "confidence": 93,
+            "impact": "medium",
+        },
+    ]
+
+    roles = ["Sales", "Marketing", "CS", "Product Marketing", "Sales Ops", "Growth"]
+    priorities = ["critical", "high", "medium", "low"]
+    action_items = [
+        {
+            "id": "ai-1",
+            "title": "Create 4 industry-specific email variants",
+            "description": "SaaS: migration ease + Fin rates. Healthcare: HIPAA + patient AI. Fintech: security + cost-per-ticket. E-commerce: scaling + Shopify.",
+            "assigned_to": "Marketing",
+            "priority": "critical",
+            "timeline": "Week 1",
+            "status": "pending",
+        },
+        {
+            "id": "ai-2",
+            "title": "Implement optimized subject line strategy",
+            "description": "Default to cost-savings subject; competitive displacement only for confirmed Zendesk SaaS accounts.",
+            "assigned_to": "Growth",
+            "priority": "critical",
+            "timeline": "Week 1",
+            "status": "pending",
+        },
+        {
+            "id": "ai-3",
+            "title": "Switch to Day 1-3-8-15 email cadence",
+            "description": "Reduce unsubscribe pressure. Add research-acknowledgment touchpoint at Day 5.",
+            "assigned_to": "Sales Ops",
+            "priority": "high",
+            "timeline": "Week 2",
+            "status": "pending",
+        },
+        {
+            "id": "ai-4",
+            "title": "Build influencer prospect target list",
+            "description": "VP/Director at 500+ employee companies who evaluated 2+ support tools in past 18 months.",
+            "assigned_to": "Sales Ops",
+            "priority": "high",
+            "timeline": "Week 2",
+            "status": "pending",
+        },
+        {
+            "id": "ai-5",
+            "title": "Create Fin accuracy benchmark one-pager",
+            "description": "Address 28% of personas concerned about AI chatbot quality with comparable company data.",
+            "assigned_to": "Product Marketing",
+            "priority": "medium",
+            "timeline": "Week 3",
+            "status": "pending",
+        },
+        {
+            "id": "ai-6",
+            "title": "Build interactive migration cost calculator",
+            "description": "Address 22% citing budget constraints. Show first-year savings offset.",
+            "assigned_to": "Marketing",
+            "priority": "medium",
+            "timeline": "Week 3",
+            "status": "pending",
+        },
+        {
+            "id": "ai-7",
+            "title": "Launch A/B tests with optimized variants",
+            "description": "Test all segment-specific variants against control. Measure open rate, reply rate, meeting bookings.",
+            "assigned_to": "Growth",
+            "priority": "high",
+            "timeline": "Week 3",
+            "status": "pending",
+        },
+    ]
+
+    # Pipeline forecast: monthly projected pipeline from campaign
+    pipeline_forecast = []
+    base_pipeline = 120000
+    for i in range(6):
+        month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]
+        growth = 1 + (0.12 + rng.uniform(0.02, 0.08)) * (i + 1) / 2
+        optimized = base_pipeline * growth
+        baseline = base_pipeline * (1 + 0.04 * (i + 1))
+        pipeline_forecast.append({
+            "month": month_names[i],
+            "optimized": round(optimized),
+            "baseline": round(baseline),
+        })
+
+    # Revenue projection (quarterly)
+    revenue_projection = [
+        {"quarter": "Q1 2026", "current": 2400000, "projected": 2400000},
+        {"quarter": "Q2 2026", "current": 2520000, "projected": 2760000},
+        {"quarter": "Q3 2026", "current": 2640000, "projected": 3180000},
+        {"quarter": "Q4 2026", "current": 2760000, "projected": 3650000},
+    ]
+
+    # Campaign effectiveness by segment
+    campaign_effectiveness = [
+        {"segment": "SaaS", "open_rate": 34.2, "reply_rate": 10.8, "meeting_rate": 4.2},
+        {"segment": "Healthcare", "open_rate": 19.8, "reply_rate": 6.1, "meeting_rate": 5.1},
+        {"segment": "Fintech", "open_rate": 29.4, "reply_rate": 8.9, "meeting_rate": 3.8},
+        {"segment": "E-commerce", "open_rate": 26.7, "reply_rate": 7.4, "meeting_rate": 2.9},
+    ]
+
+    risks = [
+        {
+            "id": "r-1",
+            "title": "Spam filter sensitivity",
+            "severity": "high",
+            "description": "Aggressive competitive messaging carries brand risk. Monitor deliverability in first 48 hours.",
+            "mitigation": "Use safe default subject line; exclude competitive framing from Healthcare/Fintech.",
+        },
+        {
+            "id": "r-2",
+            "title": "Data freshness concern",
+            "severity": "medium",
+            "description": "Technographic data (who uses Zendesk) may be stale — 25-32% accuracy in Clay enrichment.",
+            "mitigation": "Cross-reference with recent G2/TrustRadius reviews and LinkedIn job postings.",
+        },
+        {
+            "id": "r-3",
+            "title": "AI perception gap",
+            "severity": "medium",
+            "description": "28% of personas had negative preconceptions about AI chatbots.",
+            "mitigation": "Consider 'intelligent automation' or 'smart support' as alternative positioning.",
+        },
+        {
+            "id": "r-4",
+            "title": "Competitive backlash",
+            "severity": "low",
+            "description": "Satisfied Zendesk users (22% of market) react negatively to competitive displacement.",
+            "mitigation": "Lead with value proposition; introduce comparisons only in follow-up emails.",
+        },
+    ]
+
+    return _ok({
+        "simulation_id": sim_id,
+        "generated_at": "2026-01-18T14:30:00Z",
+        "executive_summary": executive_summary,
+        "key_decisions": key_decisions,
+        "action_items": action_items,
+        "impact_projections": {
+            "pipeline_forecast": pipeline_forecast,
+            "revenue_projection": revenue_projection,
+            "campaign_effectiveness": campaign_effectiveness,
+            "estimated_improvement": "45-65%",
+        },
+        "risks": risks,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Report API
 # ---------------------------------------------------------------------------
 

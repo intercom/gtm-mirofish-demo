@@ -41,6 +41,10 @@ class OrchestratorState(str, Enum):
     FAILED = "failed"
 
 
+# Alias for compatibility with the simulation registry API layer
+OrchestratorStatus = OrchestratorState
+
+
 @dataclass
 class RoundResult:
     """Outcome of a single simulation round."""
@@ -181,12 +185,22 @@ class OasisOrchestrator:
     when it is not installed (demo mode returns immediately with empty results).
     """
 
-    def __init__(self, simulation_id: str, simulation_dir: str):
+    def __init__(self, simulation_id: str, config=None):
         self.simulation_id = simulation_id
-        self.simulation_dir = simulation_dir
+
+        # Accept either a config dict (from SimulationRegistry) or a
+        # simulation_dir string (from direct / CLI usage).
+        if isinstance(config, dict):
+            self._config = config
+            self.simulation_dir = config.get('simulation_dir', '')
+        elif isinstance(config, str):
+            self._config = {}
+            self.simulation_dir = config
+        else:
+            self._config = {}
+            self.simulation_dir = ''
 
         self.state = OrchestratorState.IDLE
-        self._config: Dict[str, Any] = {}
         self._agent_names: Dict[int, str] = {}
 
         # Platform environments & graphs (populated during initialize)
@@ -219,11 +233,32 @@ class OasisOrchestrator:
         self._progress_callback: Optional[Callable] = None
 
         # JSONL log file handles (opened lazily)
-        self._twitter_log_path = os.path.join(simulation_dir, "twitter", "actions.jsonl")
-        self._reddit_log_path = os.path.join(simulation_dir, "reddit", "actions.jsonl")
+        if self.simulation_dir:
+            self._twitter_log_path = os.path.join(self.simulation_dir, "twitter", "actions.jsonl")
+            self._reddit_log_path = os.path.join(self.simulation_dir, "reddit", "actions.jsonl")
+        else:
+            self._twitter_log_path = ""
+            self._reddit_log_path = ""
 
         # OASIS library availability flag
         self._oasis_available = False
+
+    # ------------------------------------------------------------------
+    # Lightweight start (called by the API / registry layer)
+    # ------------------------------------------------------------------
+
+    def start(self, max_rounds: Optional[int] = None) -> Dict[str, Any]:
+        """Mark the orchestrator as running.
+
+        The API layer calls this after creating the orchestrator via the
+        SimulationRegistry.  The actual round execution is handled either
+        by ``run_full`` (async) or by the SimulationRunner subprocess.
+        """
+        self._total_rounds = max_rounds or self._config.get("time_config", {}).get("total_rounds", 10)
+        self.state = OrchestratorState.RUNNING
+        self._started_at = datetime.now().isoformat()
+        logger.info(f"OasisOrchestrator started: {self.simulation_id}, max_rounds={self._total_rounds}")
+        return self.get_status()
 
     # ------------------------------------------------------------------
     # Initialization
@@ -606,8 +641,11 @@ class OasisOrchestrator:
         return {
             "simulation_id": self.simulation_id,
             "state": self.state.value,
+            "status": self.state.value,
+            "mode": "oasis",
             "current_round": self._current_round,
             "total_rounds": self._total_rounds,
+            "max_rounds": self._total_rounds,
             "progress_percent": round(
                 self._current_round / max(self._total_rounds, 1) * 100, 1
             ),
@@ -781,3 +819,8 @@ class OasisOrchestrator:
             model_platform=ModelPlatformType.OPENAI,
             model_type=llm_model,
         )
+
+    @staticmethod
+    def is_available() -> bool:
+        """Check if an LLM API key is configured."""
+        return bool(Config.LLM_API_KEY)

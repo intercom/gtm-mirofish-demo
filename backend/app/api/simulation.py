@@ -15,6 +15,7 @@ from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
 from ..services.whatif_engine import WhatIfEngine
 from ..services.sensitivity_analyzer import SensitivityAnalyzer
+from ..services.simulation_registry import SimulationRegistry
 from ..utils.logger import get_logger
 from ..models.project import ProjectManager
 
@@ -1597,7 +1598,29 @@ def start_simulation():
             
             logger.info(f"启用图谱记忆更新: simulation_id={simulation_id}, graph_id={graph_id}")
         
-        # 启动模拟
+        # Register simulation in the OASIS registry (picks oasis vs demo mode)
+        sim_config = manager.get_simulation_config(simulation_id) or {}
+        orchestrator, metrics_collector = SimulationRegistry.create(simulation_id, sim_config)
+        mode = SimulationRegistry.get_mode(simulation_id)
+
+        if mode == "demo":
+            # Demo mode: run DemoSimulator synchronously (no subprocess)
+            orchestrator.start(max_rounds=max_rounds or Config.OASIS_DEFAULT_MAX_ROUNDS)
+            metrics_collector.ingest_from_orchestrator(orchestrator)
+
+            state.status = SimulationStatus.COMPLETED
+            manager._save_simulation_state(state)
+
+            response_data = orchestrator.get_status()
+            response_data['force_restarted'] = force_restarted
+            response_data['graph_memory_update_enabled'] = False
+
+            return jsonify({
+                "success": True,
+                "data": response_data
+            })
+
+        # OASIS mode: use existing SimulationRunner subprocess approach
         run_state = SimulationRunner.start_simulation(
             simulation_id=simulation_id,
             platform=platform,
@@ -1605,19 +1628,21 @@ def start_simulation():
             enable_graph_memory_update=enable_graph_memory_update,
             graph_id=graph_id
         )
-        
+        orchestrator.start(max_rounds=max_rounds)
+
         # 更新模拟状态
         state.status = SimulationStatus.RUNNING
         manager._save_simulation_state(state)
-        
+
         response_data = run_state.to_dict()
+        response_data['mode'] = mode
         if max_rounds:
             response_data['max_rounds_applied'] = max_rounds
         response_data['graph_memory_update_enabled'] = enable_graph_memory_update
         response_data['force_restarted'] = force_restarted
         if enable_graph_memory_update:
             response_data['graph_id'] = graph_id
-        
+
         return jsonify({
             "success": True,
             "data": response_data
@@ -1728,12 +1753,23 @@ def get_run_status(simulation_id: str):
     try:
         run_state = SimulationRunner.get_run_state(simulation_id)
         
+        mode = SimulationRegistry.get_mode(simulation_id)
+
+        # If this simulation is in demo mode, return orchestrator status directly
+        orch = SimulationRegistry.get(simulation_id)
+        if orch and mode == "demo":
+            return jsonify({
+                "success": True,
+                "data": orch.get_status()
+            })
+
         if not run_state:
             return jsonify({
                 "success": True,
                 "data": {
                     "simulation_id": simulation_id,
                     "runner_status": "idle",
+                    "mode": mode or "unknown",
                     "current_round": 0,
                     "total_rounds": 0,
                     "progress_percent": 0,
@@ -1742,12 +1778,15 @@ def get_run_status(simulation_id: str):
                     "total_actions_count": 0,
                 }
             })
-        
+
+        data = run_state.to_dict()
+        data['mode'] = mode or "oasis"
+
         return jsonify({
             "success": True,
-            "data": run_state.to_dict()
+            "data": data
         })
-        
+
     except Exception as e:
         logger.error(f"获取运行状态失败: {str(e)}")
         return jsonify({
@@ -1858,11 +1897,168 @@ def get_run_status_detail(simulation_id: str):
         }), 500
 
 
+# ============== OASIS Orchestrator Endpoints ==============
+
+@simulation_bp.route('/<simulation_id>/round/<int:round_num>', methods=['GET'])
+def get_simulation_round(simulation_id: str, round_num: int):
+    """
+    Get results for a specific simulation round from the orchestrator.
+
+    Returns round data (actions, agent stats) or 404 if the round
+    hasn't been reached yet.
+    """
+    try:
+        orch = SimulationRegistry.get(simulation_id)
+        if not orch:
+            return jsonify({
+                "success": False,
+                "error": f"Simulation not found in registry: {simulation_id}"
+            }), 404
+
+        round_data = orch.get_round(round_num)
+        if round_data is None:
+            return jsonify({
+                "success": False,
+                "error": f"Round {round_num} not available yet"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "mode": SimulationRegistry.get_mode(simulation_id),
+                "round": round_data,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get round {round_num} for {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/pause', methods=['POST'])
+def pause_simulation(simulation_id: str):
+    """
+    Pause a running simulation via the orchestrator.
+    """
+    try:
+        orch = SimulationRegistry.get(simulation_id)
+        if not orch:
+            return jsonify({
+                "success": False,
+                "error": f"Simulation not found in registry: {simulation_id}"
+            }), 404
+
+        result = orch.pause()
+
+        # Also update SimulationManager state
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+        if state:
+            state.status = SimulationStatus.PAUSED
+            manager._save_simulation_state(state)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+    except Exception as e:
+        logger.error(f"Failed to pause {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/resume', methods=['POST'])
+def resume_simulation(simulation_id: str):
+    """
+    Resume a paused simulation via the orchestrator.
+    """
+    try:
+        orch = SimulationRegistry.get(simulation_id)
+        if not orch:
+            return jsonify({
+                "success": False,
+                "error": f"Simulation not found in registry: {simulation_id}"
+            }), 404
+
+        result = orch.resume()
+
+        # Also update SimulationManager state
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+        if state:
+            state.status = SimulationStatus.RUNNING
+            manager._save_simulation_state(state)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+    except Exception as e:
+        logger.error(f"Failed to resume {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/metrics', methods=['GET'])
+def get_simulation_metrics(simulation_id: str):
+    """
+    Get aggregated metrics from the MetricsCollector for a simulation.
+    """
+    try:
+        metrics = SimulationRegistry.get_metrics(simulation_id)
+        if not metrics:
+            return jsonify({
+                "success": False,
+                "error": f"No metrics available for simulation: {simulation_id}"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "mode": SimulationRegistry.get_mode(simulation_id) or "unknown",
+                **metrics.get_summary(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get metrics for {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Agent动作与结果接口 ==============
+
 @simulation_bp.route('/<simulation_id>/actions', methods=['GET'])
 def get_simulation_actions(simulation_id: str):
     """
     获取模拟中的Agent动作历史
-    
+
     Query参数：
         limit: 返回数量（默认100）
         offset: 偏移量（默认0）

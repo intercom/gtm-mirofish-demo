@@ -1458,6 +1458,27 @@ def auth_logout():
 # Demo Speed Control
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Activity Feed
+# ---------------------------------------------------------------------------
+
+from app.services.activity_feed import ActivityFeedService
+
+
+@app.route("/api/activity")
+def activity_feed():
+    limit = request.args.get("limit", 20, type=int)
+    limit = max(1, min(limit, 100))
+
+    types_param = request.args.get("types", "")
+    types = [t.strip() for t in types_param.split(",") if t.strip()] or None
+
+    since = request.args.get("since")
+
+    items = ActivityFeedService.get_recent(limit=limit, types=types, since=since)
+    return _ok({"items": items, "count": len(items)})
+
+
 @app.route("/api/demo/speed", methods=["GET", "POST"])
 def demo_speed():
     global _demo_speed

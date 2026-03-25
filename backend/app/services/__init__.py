@@ -36,6 +36,7 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .activity_feed import ActivityFeedService, ACTIVITY_TYPES
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +70,7 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'ActivityFeedService',
+    'ACTIVITY_TYPES',
 ]
 

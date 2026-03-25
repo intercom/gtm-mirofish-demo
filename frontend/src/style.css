@@ -63,6 +63,58 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   opacity: 0;
 }
 
+/* ── Modal transitions ──────────────────────────────────────────────────── */
+
+/* Overlay: fade backdrop + blur */
+.modal-overlay-enter-active {
+  transition: opacity 200ms ease-out;
+}
+.modal-overlay-leave-active {
+  transition: opacity 150ms ease-in;
+}
+.modal-overlay-enter-from,
+.modal-overlay-leave-to {
+  opacity: 0;
+}
+
+/* Content: scale up + fade */
+.modal-content-enter-active {
+  transition: opacity 250ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-content-leave-active {
+  transition: opacity 150ms ease-in,
+              transform 150ms ease-in;
+}
+.modal-content-enter-from {
+  opacity: 0;
+  transform: scale(0.96) translateY(6px);
+}
+.modal-content-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
+}
+
+/* ── Panel slide transitions ────────────────────────────────────────────── */
+
+/* Right-sliding panel */
+.panel-right-enter-active {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 200ms ease-out;
+}
+.panel-right-leave-active {
+  transition: transform 200ms ease-in,
+              opacity 150ms ease-in;
+}
+.panel-right-enter-from {
+  transform: translateX(100%);
+  opacity: 0;
+}
+.panel-right-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
 .slide-up-enter-active {
   transition: all var(--transition-base);
 }

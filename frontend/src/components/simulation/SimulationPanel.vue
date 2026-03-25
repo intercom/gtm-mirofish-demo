@@ -709,16 +709,16 @@ onUnmounted(() => {
     </div>
 
     <!-- Overlay when agent panel is open -->
-    <Transition name="fade">
+    <Transition name="modal-overlay">
       <div
         v-if="selectedAgent"
-        class="fixed inset-0 z-40 bg-black/20"
+        class="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
         @click="selectedAgent = null"
       />
     </Transition>
 
     <!-- Agent Detail Panel -->
-    <Transition name="slide-right">
+    <Transition name="panel-right">
       <div
         v-if="selectedAgent"
         class="fixed top-0 right-0 z-50 h-full w-96 max-w-[90vw] bg-[var(--color-surface)] border-l border-[var(--color-border)] shadow-xl overflow-y-auto"
@@ -813,17 +813,3 @@ onUnmounted(() => {
   </div>
 </template>
 
-<style scoped>
-.slide-right-enter-active, .slide-right-leave-active {
-  transition: transform 0.25s ease;
-}
-.slide-right-enter-from, .slide-right-leave-to {
-  transform: translateX(100%);
-}
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-</style>

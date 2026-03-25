@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
 import NotificationCenter from '../ui/NotificationCenter.vue'
+import UserMenu from '../common/UserMenu.vue'
 
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
@@ -65,6 +66,8 @@ const navLinks = computed(() => {
           <span>Local</span>
         </div>
 
+        <UserMenu />
+
         <button
           @click="mobileMenuOpen = !mobileMenuOpen"
           class="md:hidden text-white/60 hover:text-white transition-colors"
@@ -81,6 +84,35 @@ const navLinks = computed(() => {
       </div>
     </div>
 
+    <!-- Mobile menu dropdown -->
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
+        <div class="px-4 py-3 space-y-1">
+          <router-link
+            v-for="link in navLinks"
+            :key="link.to"
+            :to="link.to"
+            class="flex items-center gap-1.5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
+          >
+            {{ link.label }}
+            <span
+              v-if="link.showActiveDot && simulationStore.isActive"
+              class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+            ></span>
+          </router-link>
+        </div>
+        <div class="px-4 pb-3 border-t border-white/10 pt-3">
+          <UserMenu />
+        </div>
+      </div>
+    </Transition>
   </nav>
 </template>
 

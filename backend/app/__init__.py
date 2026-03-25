@@ -75,11 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
-    
-    # 健康检查
-    @app.route('/health')
-    def health():
-        return {'status': 'ok', 'service': 'MiroFish Backend'}
+
+    # Health checks
+    from .api.health import health_bp
+    app.register_blueprint(health_bp)
     
     if should_log_startup:
         logger.info("MiroFish Backend 启动完成")

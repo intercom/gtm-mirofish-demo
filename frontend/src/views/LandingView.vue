@@ -8,6 +8,7 @@ import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
 import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
 import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
+import GtmScenarioLauncher from '../components/scenarios/GtmScenarioLauncher.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -770,7 +771,22 @@ const year = new Date().getFullYear()
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- 12. FAQ                                                            -->
+    <!-- 12. SCENARIO LAUNCHER                                              -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-10 md:mb-14">
+          <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Ready to Launch?</h2>
+          <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
+            Pick a pre-built GTM scenario and launch with one click, or customize the parameters to match your exact use case.
+          </p>
+        </div>
+        <GtmScenarioLauncher />
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- 13. FAQ                                                            -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg-alt)]">
       <div class="max-w-3xl mx-auto">
@@ -805,7 +821,7 @@ const year = new Date().getFullYear()
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- 13. CTA                                                            -->
+    <!-- 14. CTA                                                            -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-16 md:py-24">
       <div class="max-w-2xl mx-auto text-center">

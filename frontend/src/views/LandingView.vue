@@ -1,8 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
+import { useParallax } from '../composables/useParallax'
 import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
 
@@ -10,6 +11,20 @@ const router = useRouter()
 const { isDemoMode } = useDemoMode()
 const showCards = ref(false)
 const showSteps = ref(false)
+
+const heroSection = ref(null)
+const { scrollY, progress } = useParallax(heroSection)
+
+const heroSwarmStyle = computed(() => ({
+  transform: `translateY(${scrollY.value * 0.4}px)`,
+  willChange: 'transform',
+}))
+
+const heroContentStyle = computed(() => ({
+  transform: `translateY(${scrollY.value * 0.15}px)`,
+  opacity: Math.max(1 - progress.value * 1.2, 0),
+  willChange: 'transform, opacity',
+}))
 
 function onStaggerBeforeEnter(el) {
   el.style.opacity = 0
@@ -268,9 +283,11 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 1. HERO SECTION                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section class="relative overflow-hidden bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-12 md:py-32">
-      <HeroSwarm />
-      <div class="relative max-w-4xl mx-auto text-center">
+    <section ref="heroSection" class="relative overflow-hidden bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-12 md:py-32">
+      <div class="absolute inset-0" :style="heroSwarmStyle">
+        <HeroSwarm />
+      </div>
+      <div class="relative max-w-4xl mx-auto text-center" :style="heroContentStyle">
         <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
           Intercom GTM Systems
         </p>

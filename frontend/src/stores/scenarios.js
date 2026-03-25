@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { API_BASE } from '../api/client'
+import { scenariosApi } from '../api/scenarios'
 
 export const useScenariosStore = defineStore('scenarios', () => {
   const scenarios = ref([])
@@ -50,6 +51,21 @@ export const useScenariosStore = defineStore('scenarios', () => {
     }
   }
 
+  async function importScenario(scenarioData) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await scenariosApi.importScenario(scenarioData)
+      await fetchScenarios(true)
+      return res.data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   function clearCache() {
     scenarios.value = []
     detailCache.value = {}
@@ -64,6 +80,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
     hasScenarios,
     fetchScenarios,
     fetchScenarioById,
+    importScenario,
     clearCache,
   }
 })

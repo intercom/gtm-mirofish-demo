@@ -7,10 +7,11 @@ ScenarioBuilder with the backend ontology/graph pipeline.
 
 import json
 import os
+import re
 import traceback
 import threading
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, Response
 
 from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
@@ -83,6 +84,67 @@ def get_scenario_seed_text(scenario_id):
     if data and 'seed_text' in data:
         return jsonify({'seed_text': data['seed_text']})
     return jsonify({'error': 'Seed text not found'}), 404
+
+
+@gtm_bp.route('/scenarios/<scenario_id>/export', methods=['GET'])
+def export_scenario(scenario_id):
+    """Export a scenario as a downloadable JSON file."""
+    filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
+    data = _load_json(filepath)
+    if not data:
+        return jsonify({'error': f'Scenario {scenario_id} not found'}), 404
+
+    json_bytes = json.dumps(data, indent=2, ensure_ascii=False).encode('utf-8')
+    return Response(
+        json_bytes,
+        mimetype='application/json',
+        headers={
+            'Content-Disposition': f'attachment; filename="{scenario_id}.json"',
+        },
+    )
+
+
+REQUIRED_SCENARIO_FIELDS = {'id', 'name', 'seed_text', 'agent_config', 'simulation_config'}
+SAFE_ID_RE = re.compile(r'^[a-z0-9][a-z0-9_-]{0,62}$')
+
+
+@gtm_bp.route('/scenarios/import', methods=['POST'])
+def import_scenario():
+    """Import a scenario from JSON payload and save to the scenarios directory."""
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({'error': 'Invalid or missing JSON body'}), 400
+
+    missing = REQUIRED_SCENARIO_FIELDS - set(data.keys())
+    if missing:
+        return jsonify({'error': f'Missing required fields: {", ".join(sorted(missing))}'}), 400
+
+    scenario_id = str(data['id']).strip()
+    if not SAFE_ID_RE.match(scenario_id):
+        return jsonify({
+            'error': 'Invalid scenario id. Use lowercase alphanumeric, hyphens, and underscores only.'
+        }), 400
+
+    os.makedirs(SCENARIOS_DIR, exist_ok=True)
+    filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
+    overwritten = os.path.exists(filepath)
+
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+    logger.info(f"[import] {'Overwritten' if overwritten else 'Created'} scenario: {scenario_id}")
+
+    return jsonify({
+        'success': True,
+        'scenario': {
+            'id': data.get('id'),
+            'name': data.get('name', ''),
+            'description': data.get('description', ''),
+            'category': data.get('category', 'custom'),
+            'icon': data.get('icon', 'upload'),
+        },
+        'overwritten': overwritten,
+    }), 201 if not overwritten else 200
 
 
 # ============== Unified Simulation Endpoint ==============

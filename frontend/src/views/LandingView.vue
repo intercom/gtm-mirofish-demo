@@ -57,6 +57,7 @@ const ICON_MAP = {
   signal: '📡',
   dollar: '💰',
   sparkle: '✨',
+  pipeline: '🔄',
 }
 
 function resolveIcon(icon) {
@@ -107,6 +108,12 @@ async function loadScenarios() {
         name: 'Personalization Optimization',
         description: 'Rank email variants by simulated engagement.',
         icon: '✨',
+      },
+      {
+        id: 'pipeline_optimization',
+        name: 'Pipeline Optimization',
+        description: 'Identify pipeline bottlenecks and test intervention strategies.',
+        icon: '🔄',
       },
     ]
     error.value = null

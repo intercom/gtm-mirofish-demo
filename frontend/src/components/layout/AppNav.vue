@@ -2,19 +2,24 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
+import { usePermissions } from '../../composables/usePermissions'
 import { useSimulationStore } from '../../stores/simulation'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
+const { hasRole } = usePermissions()
 const simulationStore = useSimulationStore()
 const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => {
-  return [
+  const links = [
     { to: '/', label: 'Home', exact: true },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
-    { to: '/settings', label: 'Settings', exact: false },
   ]
+  if (hasRole('viewer')) {
+    links.push({ to: '/settings', label: 'Settings', exact: false })
+  }
+  return links
 })
 
 watch(() => route.path, () => {

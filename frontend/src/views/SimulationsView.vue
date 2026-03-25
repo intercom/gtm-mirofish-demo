@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useSimulationStore } from '../stores/simulation'
+import { usePermissions } from '../composables/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 
 const store = useSimulationStore()
+const { can } = usePermissions()
 
 const showDeleteDialog = ref(false)
 const showClearDialog = ref(false)
@@ -210,13 +212,14 @@ function exportRun(run) {
       </div>
       <div class="flex items-center gap-2">
         <button
-          v-if="store.hasRuns"
+          v-if="store.hasRuns && can('delete_simulations')"
           @click="clearAll"
           class="text-xs font-medium px-3 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors"
         >
           Clear All
         </button>
         <router-link
+          v-if="can('create_simulations')"
           to="/"
           class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors no-underline"
         >
@@ -289,6 +292,7 @@ function exportRun(run) {
         Run your first simulation from the home page to see your results here.
       </p>
       <router-link
+        v-if="can('create_simulations')"
         to="/"
         class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors no-underline"
       >
@@ -341,6 +345,7 @@ function exportRun(run) {
               </svg>
             </button>
             <button
+              v-if="can('delete_simulations')"
               @click="deleteRun(run)"
               class="p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
               title="Delete run"
@@ -396,7 +401,7 @@ function exportRun(run) {
 
         <!-- Re-run link -->
         <router-link
-          v-if="canRerun(run)"
+          v-if="canRerun(run) && can('create_simulations')"
           :to="rerunUrl(run)"
           class="mt-3 flex items-center justify-center gap-1.5 text-xs text-[var(--color-text-muted)] hover:text-[#2068FF] transition-colors no-underline"
         >

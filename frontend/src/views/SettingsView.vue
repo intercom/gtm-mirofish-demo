@@ -3,11 +3,13 @@ import { ref, watch, onMounted } from 'vue'
 import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
+import { usePermissions } from '../composables/usePermissions'
 import { API_BASE } from '../api/client'
 
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
 const { isDemoMode } = useDemoMode()
+const { isReadOnly, can } = usePermissions()
 
 const themeOptions = [
   { id: 'system', label: 'System', icon: '💻' },
@@ -64,6 +66,7 @@ function load() {
 }
 
 function save() {
+  if (isReadOnly.value) return
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       provider: provider.value,
@@ -156,6 +159,16 @@ onMounted(() => {
       </p>
     </section>
 
+    <!-- Read-only Banner -->
+    <section v-if="isReadOnly" class="mb-8 md:mb-10 bg-[rgba(255,86,0,0.06)] border border-[#ff5600]/20 rounded-lg p-3 md:p-4 flex items-start gap-3">
+      <svg class="w-5 h-5 text-[#ff5600] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+      </svg>
+      <p class="text-sm text-[var(--color-text-secondary)]">
+        <span class="font-semibold text-[var(--color-text)]">Read-only</span> — You can view settings but editing requires the Editor role.
+      </p>
+    </section>
+
     <!-- Theme -->
     <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Theme</h2>
@@ -182,12 +195,15 @@ onMounted(() => {
         <label
           v-for="p in providers"
           :key="p.id"
-          class="flex items-center gap-3 p-3 md:p-4 rounded-lg border cursor-pointer transition-colors"
-          :class="provider === p.id
-            ? 'border-[#2068FF] bg-[rgba(32,104,255,0.04)]'
-            : 'border-[var(--color-border)] hover:border-[#2068FF]/50'"
+          class="flex items-center gap-3 p-3 md:p-4 rounded-lg border transition-colors"
+          :class="[
+            provider === p.id
+              ? 'border-[#2068FF] bg-[rgba(32,104,255,0.04)]'
+              : 'border-[var(--color-border)] hover:border-[#2068FF]/50',
+            isReadOnly ? 'cursor-default opacity-60' : 'cursor-pointer',
+          ]"
         >
-          <input type="radio" :value="p.id" v-model="provider" class="accent-[#2068FF]" />
+          <input type="radio" :value="p.id" v-model="provider" :disabled="isReadOnly" class="accent-[#2068FF]" />
           <div>
             <div class="text-sm font-medium text-[var(--color-text)]">{{ p.name }}</div>
             <div class="text-xs text-[var(--color-text-muted)]">Model: {{ p.model }}</div>
@@ -202,16 +218,16 @@ onMounted(() => {
             type="password"
             v-model="apiKey"
             :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter your API key'"
-            :disabled="isDemoMode"
+            :disabled="isDemoMode || isReadOnly"
             class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
-            :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
+            :class="{ 'opacity-40 cursor-not-allowed': isDemoMode || isReadOnly }"
           />
           <span
             v-if="isDemoMode"
             class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
           >Simulated</span>
           <button
-            v-else
+            v-else-if="!isReadOnly"
             @click="testConnection('llm')"
             :disabled="!apiKey || connectionStatus.llm === 'testing'"
             class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
@@ -232,16 +248,16 @@ onMounted(() => {
           type="password"
           v-model="zepKey"
           :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter Zep API key'"
-          :disabled="isDemoMode"
+          :disabled="isDemoMode || isReadOnly"
           class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
-          :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
+          :class="{ 'opacity-40 cursor-not-allowed': isDemoMode || isReadOnly }"
         />
         <span
           v-if="isDemoMode"
           class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
         >Simulated</span>
         <button
-          v-else
+          v-else-if="!isReadOnly"
           @click="testConnection('zep')"
           :disabled="!zepKey || connectionStatus.zep === 'testing'"
           class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
@@ -271,7 +287,9 @@ onMounted(() => {
             min="10"
             max="500"
             step="10"
+            :disabled="isReadOnly"
             class="w-full accent-[var(--color-primary)]"
+            :class="{ 'opacity-40 cursor-not-allowed': isReadOnly }"
           />
           <div class="text-center text-2xl font-semibold text-[var(--color-primary)]">{{ agentCount }}</div>
         </div>
@@ -283,11 +301,15 @@ onMounted(() => {
             <button
               v-for="d in durations"
               :key="d.value"
-              @click="duration = d.value"
-              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors cursor-pointer"
-              :class="duration === d.value
-                ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
+              @click="isReadOnly || (duration = d.value)"
+              :disabled="isReadOnly"
+              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors"
+              :class="[
+                duration === d.value
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50',
+                isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+              ]"
             >
               {{ d.label }}
             </button>
@@ -301,11 +323,15 @@ onMounted(() => {
             <button
               v-for="p in platforms"
               :key="p.id"
-              @click="platformMode = p.id"
-              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors cursor-pointer"
-              :class="platformMode === p.id
-                ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
+              @click="isReadOnly || (platformMode = p.id)"
+              :disabled="isReadOnly"
+              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors"
+              :class="[
+                platformMode === p.id
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50',
+                isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+              ]"
             >
               {{ p.label }}
             </button>

@@ -62,6 +62,12 @@ from .report_builder import (
     GenerationMethod,
     PageOrientation,
 )
+from .scenario_template import (
+    ScenarioTemplate,
+    ScenarioCategory,
+    ScenarioDifficulty,
+    ScenarioTemplateManager,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -93,4 +99,5 @@ __all__ = [
     'ReportTemplate', 'ReportSection', 'GeneratedReport',
     'ReportBuilderManager', 'SectionType', 'SectionWidth',
     'GenerationMethod', 'PageOrientation',
+    'ScenarioTemplate', 'ScenarioCategory', 'ScenarioDifficulty', 'ScenarioTemplateManager',
 ]

@@ -40,7 +40,10 @@ def create_app(config_class=Config):
         logger.info("=" * 50)
     
     # 启用CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    CORS(app, resources={
+        r"/api/*": {"origins": "*"},
+        r"/auth/*": {"origins": "*"},
+    })
     
     # 注册模拟进程清理函数（确保服务器关闭时终止所有模拟进程）
     from .services.simulation_runner import SimulationRunner
@@ -75,6 +78,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # OAuth flow (login, callback, logout, me)
+    from auth.oauth_routes import auth_bp
+    app.register_blueprint(auth_bp)
     
     # 健康检查
     @app.route('/health')

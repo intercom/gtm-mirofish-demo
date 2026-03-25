@@ -96,8 +96,17 @@ class Config:
     AUTH_ENABLED = os.environ.get('AUTH_ENABLED', 'false').lower() == 'true'
     AUTH_PROVIDER = os.environ.get('AUTH_PROVIDER', 'google')
     AUTH_ALLOWED_DOMAIN = os.environ.get('AUTH_ALLOWED_DOMAIN', 'intercom.io')
+    FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+    OAUTH_REDIRECT_URI = os.environ.get('OAUTH_REDIRECT_URI', '')
+
+    # Google OAuth
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+
+    # Okta OAuth
+    OKTA_ISSUER = os.environ.get('OKTA_ISSUER', '')
+    OKTA_CLIENT_ID = os.environ.get('OKTA_CLIENT_ID', '')
+    OKTA_CLIENT_SECRET = os.environ.get('OKTA_CLIENT_SECRET', '')
 
     @classmethod
     def validate(cls):

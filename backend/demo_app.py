@@ -23,6 +23,14 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 load_dotenv(override=True)
 
 from llm_client import chat_completion  # noqa: E402
+from data.demo_preset.loader import (   # noqa: E402
+    get_dashboard,
+    get_preset_report_id,
+    get_preset_sim_id,
+    get_report as get_preset_report,
+    get_simulation as get_preset_simulation,
+    is_demo_preset_enabled,
+)
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +45,7 @@ SCENARIOS_DIR = Path(__file__).parent / "gtm_scenarios"
 _graph_tasks: dict = {}     # task_id -> {"start": float}
 _simulations: dict = {}     # sim_id  -> {"start": float}
 _reports: dict = {}         # report_id -> {"start": float, "sim_id": str}
+_preset_loaded: bool = False  # True when demo preset data is active
 
 _BASE_GRAPH_BUILD_SECONDS = 6
 _BASE_SIMULATION_RUN_SECONDS = 35
@@ -440,6 +449,24 @@ def sim_start():
 
 @app.route("/api/simulation/<sim_id>/run-status")
 def sim_run_status(sim_id):
+    if _preset_loaded and sim_id == get_preset_sim_id():
+        m = get_preset_simulation()["metrics"]
+        return _ok({
+            "runner_status": "completed",
+            "progress_percent": 100,
+            "current_round": TOTAL_ROUNDS,
+            "total_rounds": TOTAL_ROUNDS,
+            "total_actions_count": m["total_actions_count"],
+            "twitter_actions_count": m["twitter_actions_count"],
+            "reddit_actions_count": m["reddit_actions_count"],
+            "twitter_current_round": TOTAL_ROUNDS,
+            "reddit_current_round": TOTAL_ROUNDS,
+            "twitter_completed": True,
+            "reddit_completed": True,
+            "simulated_hours": m["simulated_hours"],
+            "total_simulation_hours": m["total_simulation_hours"],
+        })
+
     if sim_id not in _simulations:
         _simulations[sim_id] = {"start": time.time()}
 
@@ -594,6 +621,13 @@ def sim_timeline(sim_id):
 
 @app.route("/api/simulation/<sim_id>")
 def sim_get(sim_id):
+    if _preset_loaded and sim_id == get_preset_sim_id():
+        preset = get_preset_simulation()
+        return _ok({
+            "simulation_id": sim_id,
+            "status": "completed",
+            "config": preset["config"],
+        })
     return _ok({
         "simulation_id": sim_id,
         "status": "completed" if sim_id in _simulations and _elapsed(_simulations, sim_id) > SIMULATION_RUN_SECONDS() else "running",
@@ -613,6 +647,8 @@ def sim_history():
 
 @app.route("/api/simulation/<sim_id>/actions")
 def sim_actions(sim_id):
+    if _preset_loaded and sim_id == get_preset_sim_id():
+        return _ok({"actions": get_preset_simulation()["actions"]})
     return _ok({"actions": _generate_agent_actions(72)})
 
 
@@ -946,6 +982,10 @@ def report_progress(report_id):
 
 @app.route("/api/report/<report_id>/sections")
 def report_sections(report_id):
+    if _preset_loaded and report_id == get_preset_report_id():
+        preset = get_preset_report()
+        return _ok({"sections": preset["sections"], "is_complete": True})
+
     if report_id not in _reports:
         _reports[report_id] = {"start": time.time(), "sim_id": "unknown"}
 
@@ -969,6 +1009,8 @@ def report_section(report_id, section_index):
 
 @app.route("/api/report/<report_id>")
 def report_get(report_id):
+    if _preset_loaded and report_id == get_preset_report_id():
+        return _ok(get_preset_report())
     return _ok({
         "report_id": report_id,
         "status": "completed",
@@ -1002,6 +1044,12 @@ def report_download(report_id):
 
 @app.route("/api/report/check/<sim_id>")
 def report_check(sim_id):
+    if _preset_loaded and sim_id == get_preset_sim_id():
+        return _ok({
+            "has_report": True,
+            "report_id": get_preset_report_id(),
+            "report_status": "completed",
+        })
     report_id = f"demo-report-{sim_id.split('-')[-1]}"
     if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS():
         return _ok({
@@ -1489,12 +1537,79 @@ def demo_skip(phase):
 @app.route("/api/demo/reset", methods=["POST"])
 def demo_reset():
     """Clear all in-memory state for a fresh demo."""
-    global _demo_speed
+    global _demo_speed, _preset_loaded
     _graph_tasks.clear()
     _simulations.clear()
     _reports.clear()
     _demo_speed = 1.0
+    _preset_loaded = False
     return _ok({"reset": True})
+
+
+# ---------------------------------------------------------------------------
+# Demo Preset API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/demo-preset")
+def demo_preset_status():
+    """Check if demo preset is available and/or loaded."""
+    return _ok({
+        "available": is_demo_preset_enabled(),
+        "loaded": _preset_loaded,
+        "simulation_id": get_preset_sim_id() if _preset_loaded else None,
+        "report_id": get_preset_report_id() if _preset_loaded else None,
+    })
+
+
+@app.route("/api/demo-preset/load", methods=["POST"])
+def demo_preset_load():
+    """Load demo preset data into in-memory state for a curated presentation."""
+    global _preset_loaded
+
+    if not is_demo_preset_enabled():
+        return _err("Demo preset not enabled. Set DEMO_PRESET=true in environment.", 403)
+
+    preset_sim = get_preset_simulation()
+    preset_report = get_preset_report()
+    sim_id = preset_sim["simulation_id"]
+    report_id = preset_report["report_id"]
+
+    # Seed in-memory state so existing endpoints serve preset data
+    _simulations[sim_id] = {"start": 0}  # start=0 means completed (elapsed > threshold)
+    _graph_tasks[f"demo-graph-preset"] = {"start": 0}
+    _reports[report_id] = {"start": 0, "sim_id": sim_id}
+    _preset_loaded = True
+
+    return _ok({
+        "loaded": True,
+        "simulation_id": sim_id,
+        "report_id": report_id,
+        "graph_task_id": "demo-graph-preset",
+    })
+
+
+@app.route("/api/demo-preset/simulation")
+def demo_preset_simulation():
+    """Return full preset simulation data including coalitions and belief changes."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_preset_simulation())
+
+
+@app.route("/api/demo-preset/report")
+def demo_preset_report():
+    """Return full preset report data."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_preset_report())
+
+
+@app.route("/api/demo-preset/dashboard")
+def demo_preset_dashboard():
+    """Return preset dashboard widget configuration."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_dashboard())
 
 
 # ---------------------------------------------------------------------------
@@ -1504,5 +1619,16 @@ def demo_reset():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+
+    if is_demo_preset_enabled():
+        # Auto-load preset so the app starts with curated data ready to go
+        sim = get_preset_simulation()
+        rpt = get_preset_report()
+        _simulations[sim["simulation_id"]] = {"start": 0}
+        _graph_tasks["demo-graph-preset"] = {"start": 0}
+        _reports[rpt["report_id"]] = {"start": 0, "sim_id": sim["simulation_id"]}
+        _preset_loaded = True
+        print(f"Demo preset loaded: sim={sim['simulation_id']}, report={rpt['report_id']}")
+
     print(f"MiroFish Demo Backend starting on port {port} (demo mode)")
     app.run(host="0.0.0.0", port=port, debug=debug)

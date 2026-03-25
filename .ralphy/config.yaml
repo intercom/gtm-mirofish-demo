@@ -34,4 +34,4 @@ boundaries:
     - "pnpm-lock.yaml"
 
 notifications:
-  slack_webhook: ""
+  macos: true

@@ -56,6 +56,12 @@
   --transition-fast: 150ms ease;
   --transition-base: 300ms ease;
 
+  /* ── Interaction Animations ────────────────────────────────────────── */
+  --btn-press-scale: 0.97;
+  --btn-hover-lift: -1px;
+  --btn-focus-ring: 0 0 0 3px rgba(32, 104, 255, 0.4);
+  --input-focus-shadow: 0 0 0 3px rgba(32, 104, 255, 0.15);
+
   /* ── Component: Buttons ──────────────────────────────────────────────── */
   --btn-primary-bg: var(--color-primary);
   --btn-primary-bg-hover: var(--color-primary-hover);
@@ -142,6 +148,10 @@
   --input-bg: var(--color-surface);
 
   --color-tint: rgba(255, 255, 255, 0.05);
+
+  /* Interaction Animations */
+  --btn-focus-ring: 0 0 0 3px rgba(32, 104, 255, 0.5);
+  --input-focus-shadow: 0 0 0 3px rgba(32, 104, 255, 0.25);
 
   /* Component: Badges — soft variants */
   --badge-secondary-bg: rgba(32, 104, 255, 0.15);

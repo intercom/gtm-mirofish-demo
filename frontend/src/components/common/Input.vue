@@ -25,7 +25,7 @@ const props = defineProps({
 defineEmits(['update:modelValue'])
 
 const inputClasses =
-  'w-full border border-[var(--input-border)] rounded-[var(--input-radius)] px-4 py-2 text-sm bg-[var(--input-bg)] text-[var(--input-text)] placeholder-[var(--input-placeholder)] focus:ring-2 focus:ring-[var(--input-ring)] focus:border-transparent outline-none disabled:opacity-50 disabled:cursor-not-allowed'
+  'input-interactive w-full border border-[var(--input-border)] rounded-[var(--input-radius)] px-4 py-2 text-sm bg-[var(--input-bg)] text-[var(--input-text)] placeholder-[var(--input-placeholder)] focus:ring-2 focus:ring-[var(--input-ring)] focus:border-transparent outline-none disabled:opacity-50 disabled:cursor-not-allowed'
 </script>
 
 <template>
@@ -39,7 +39,6 @@ const inputClasses =
       :value="modelValue"
       :disabled="disabled"
       :class="inputClasses"
-      style="transition: var(--input-transition)"
       @change="$emit('update:modelValue', $event.target.value)"
     >
       <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
@@ -55,7 +54,6 @@ const inputClasses =
       :disabled="disabled"
       :rows="rows"
       :class="[inputClasses, 'resize-y']"
-      style="transition: var(--input-transition)"
       @input="$emit('update:modelValue', $event.target.value)"
     />
 
@@ -66,7 +64,6 @@ const inputClasses =
       :placeholder="placeholder"
       :disabled="disabled"
       :class="inputClasses"
-      style="transition: var(--input-transition)"
       @input="$emit('update:modelValue', $event.target.value)"
     />
   </div>

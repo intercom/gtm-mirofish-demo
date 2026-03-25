@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import { createPinia } from 'pinia'
+import { createPinia, setActivePinia } from 'pinia'
 import AppNav from '../AppNav.vue'
 
 const localStorageMock = (() => {
@@ -28,8 +28,10 @@ function createTestRouter() {
 }
 
 function mountNav(options = {}) {
+  const pinia = createPinia()
+  setActivePinia(pinia)
   const router = createTestRouter()
-  return { wrapper: mount(AppNav, { global: { plugins: [createPinia(), router] }, ...options }), router }
+  return { wrapper: mount(AppNav, { global: { plugins: [pinia, router] }, ...options }), router }
 }
 
 describe('AppNav', () => {
@@ -81,10 +83,10 @@ describe('AppNav', () => {
     expect(hamburger.exists()).toBe(true)
 
     await hamburger.trigger('click')
-    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(true)
+    expect(hamburger.attributes('aria-expanded')).toBe('true')
 
     await hamburger.trigger('click')
-    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(false)
+    expect(hamburger.attributes('aria-expanded')).toBe('false')
   })
 
   it('mobile menu shows Connected text', async () => {
@@ -98,10 +100,17 @@ describe('AppNav', () => {
     const { wrapper, router } = mountNav()
     const hamburger = wrapper.find('button[aria-label="Toggle navigation menu"]')
     await hamburger.trigger('click')
-    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(true)
+    expect(hamburger.attributes('aria-expanded')).toBe('true')
 
     await router.push('/settings')
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(false)
+    expect(hamburger.attributes('aria-expanded')).toBe('false')
+  })
+
+  it('renders Simulations nav link', () => {
+    const { wrapper } = mountNav()
+    const links = wrapper.findAll('a')
+    const hrefs = links.map(l => l.attributes('href'))
+    expect(hrefs).toContain('/simulations')
   })
 })

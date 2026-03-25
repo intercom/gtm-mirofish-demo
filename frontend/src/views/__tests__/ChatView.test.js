@@ -197,10 +197,22 @@ describe('ChatView', () => {
       },
     })
 
+    vi.useFakeTimers()
+
     const wrapper = mountChat()
     await wrapper.find('input').setValue('Analyze')
     await wrapper.findAll('button').find((b) => b.text() === 'Send').trigger('click')
     await flushPromises()
+
+    // revealToolCalls uses delay(800) per tool + delay(500) at end
+    await vi.advanceTimersByTimeAsync(800)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(800)
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(500)
+    await flushPromises()
+
+    vi.useRealTimers()
 
     const details = wrapper.findAll('details')
     expect(details).toHaveLength(2)

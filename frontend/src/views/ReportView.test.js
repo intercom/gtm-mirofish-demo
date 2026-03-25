@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import ReportView from './ReportView.vue'
 
-/**
- * E2E-style integration test for the report generation flow.
- * Exercises the full lifecycle: check → generate → poll → sections → complete.
- */
+// === E2E lifecycle test helpers ===
 
 const mockRouterLink = {
   template: '<a :href="to"><slot /></a>',
@@ -16,11 +14,7 @@ function okJson(data) {
   return { ok: true, json: async () => data }
 }
 
-function failJson(error, status = 200) {
-  return { ok: status >= 200 && status < 300, status, json: async () => ({ success: false, error }) }
-}
-
-function mountReport(fetchFn) {
+function mountReportE2E(fetchFn) {
   global.fetch = fetchFn
   return mount(ReportView, {
     props: { taskId: 'sim_e2e' },
@@ -29,6 +23,147 @@ function mountReport(fetchFn) {
     },
   })
 }
+
+// === Component rendering test helpers ===
+
+function createTestRouter() {
+  return createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: '/report/:taskId', component: ReportView, props: true },
+      { path: '/chat/:taskId', component: { template: '<div />' } },
+      { path: '/', component: { template: '<div />' } },
+      { path: '/workspace/:taskId', component: { template: '<div />' } },
+    ],
+  })
+}
+
+const MOCK_SECTIONS = [
+  {
+    filename: 'section_01.md',
+    section_index: 1,
+    content: '## Executive Summary\n\nThis report analyzes the simulation results.\n\n### Key Findings\n\n- Market sentiment shifted positively after the product launch\n- Competitor response was slower than expected\n- Social media engagement exceeded baseline by 3x',
+  },
+  {
+    filename: 'section_02.md',
+    section_index: 2,
+    content: '## Market Analysis\n\nDetailed analysis of market conditions.\n\n- Segment A showed 40% growth\n- Segment B remained flat',
+  },
+  {
+    filename: 'section_03.md',
+    section_index: 3,
+    content: '## Recommendations\n\nBased on the simulation:\n\n- Accelerate go-to-market timeline\n- Focus resources on Segment A',
+  },
+]
+
+function mockFetchForGenerated() {
+  return vi.fn((url) => {
+    if (url.includes('/report/check/')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: {
+            has_report: true,
+            report_id: 'report_abc123',
+            report_status: 'completed',
+          },
+        }),
+      })
+    }
+    if (url.includes('/report/report_abc123/sections')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: { sections: MOCK_SECTIONS, total_sections: 3, is_complete: true },
+        }),
+      })
+    }
+    return Promise.resolve({ ok: false })
+  })
+}
+
+function mockFetchForGenerating() {
+  return vi.fn((url) => {
+    if (url.includes('/report/check/')) {
+      return Promise.resolve({ ok: false })
+    }
+    if (url.includes('/report/generate')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: {
+            report_id: 'report_new456',
+            task_id: 'task_789',
+            status: 'generating',
+            already_generated: false,
+          },
+        }),
+      })
+    }
+    if (url.includes('/report/report_new456/sections')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: { sections: [MOCK_SECTIONS[0]], total_sections: 1, is_complete: false },
+        }),
+      })
+    }
+    if (url.includes('/report/report_new456/progress')) {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: {
+            status: 'generating',
+            progress: 33,
+            message: 'Generating chapter: Market Analysis',
+            completed_sections: ['Executive Summary'],
+            current_section: 'Market Analysis',
+          },
+        }),
+      })
+    }
+    return Promise.resolve({ ok: false })
+  })
+}
+
+function mockFetchForError() {
+  return vi.fn((url) => {
+    if (url.includes('/report/check/')) {
+      return Promise.resolve({ ok: false })
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        success: false,
+        error: 'Simulation not found',
+      }),
+    })
+  })
+}
+
+function mountReport(fetchMock, opts = {}) {
+  globalThis.fetch = fetchMock
+  const router = createTestRouter()
+  return mount(ReportView, {
+    props: { taskId: 'sim_test' },
+    global: {
+      plugins: [router],
+      stubs: {
+        PhaseNav: { props: ['taskId', 'activePhase'], template: '<div class="phase-nav"></div>' },
+        ShimmerCard: { template: '<div class="shimmer"></div>' },
+        ReportCharts: { props: ['chapterIndex'], template: '<div class="charts"></div>' },
+      },
+    },
+    ...opts,
+  })
+}
+
+// === E2E lifecycle tests ===
 
 describe('ReportView — report generation flow (E2E)', () => {
   let originalFetch
@@ -48,12 +183,10 @@ describe('ReportView — report generation flow (E2E)', () => {
       let pollCount = 0
 
       const fetchFn = vi.fn(async (url) => {
-        // Step 1: check endpoint returns 404 (no existing report)
         if (url.includes('/report/check/')) {
           return { ok: false, status: 404, json: async () => ({ success: false }) }
         }
 
-        // Step 2: generate endpoint starts generation
         if (url.includes('/report/generate')) {
           return okJson({
             success: true,
@@ -66,7 +199,6 @@ describe('ReportView — report generation flow (E2E)', () => {
           })
         }
 
-        // Step 3+: poll progress — simulate increasing progress
         if (url.includes('/report/rpt_001/progress')) {
           pollCount++
           if (pollCount === 1) {
@@ -78,7 +210,6 @@ describe('ReportView — report generation flow (E2E)', () => {
           return okJson({ success: true, data: { progress: 100, message: 'Report complete' } })
         }
 
-        // Step 3+: sections — simulate incremental delivery
         if (url.includes('/report/rpt_001/sections')) {
           if (pollCount <= 1) {
             return okJson({
@@ -122,36 +253,28 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
 
-      // Initial mount triggers checkAndLoad → 404 → startGeneration
       await flushPromises()
-      // startPolling fires pollProgress immediately
       await flushPromises()
 
-      // After first poll: 1 section visible, still generating
       expect(wrapper.findAll('nav button').length).toBe(1)
       expect(wrapper.text()).toContain('Executive Summary')
       expect(wrapper.text()).toContain('Generating next...')
 
-      // Advance timer for second poll (3s interval)
       await vi.advanceTimersByTimeAsync(3000)
       await flushPromises()
 
-      // After second poll: 2 sections, still generating
       expect(wrapper.findAll('nav button').length).toBe(2)
       expect(wrapper.text()).toContain('Market Analysis')
 
-      // Advance timer for third poll
       await vi.advanceTimersByTimeAsync(3000)
       await flushPromises()
 
-      // After third poll: 3 sections, complete — polling should stop
       expect(wrapper.findAll('nav button').length).toBe(3)
       expect(wrapper.text()).toContain('Recommendations')
       expect(wrapper.text()).not.toContain('Generating next...')
 
-      // Verify polling stopped: no more fetch calls after completion
       const callCountAtComplete = fetchFn.mock.calls.length
       await vi.advanceTimersByTimeAsync(6000)
       expect(fetchFn.mock.calls.length).toBe(callCountAtComplete)
@@ -188,21 +311,18 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
       await flushPromises()
 
-      // Progress bar should show 45%
       expect(wrapper.text()).toContain('45%')
       const progressBar = wrapper.find('[style*="width"]')
       expect(progressBar.exists()).toBe(true)
 
-      // Complete the generation
       pollDone = true
       await vi.advanceTimersByTimeAsync(3000)
       await flushPromises()
 
-      // Progress bar should be gone (generating = false)
       expect(wrapper.text()).not.toContain('45%')
     })
   })
@@ -234,14 +354,12 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
 
-      // Should render the cached report directly, no polling
       expect(wrapper.text()).toContain('Cached Report')
       expect(wrapper.text()).not.toContain('Generating next...')
 
-      // No progress endpoint should have been called
       const progressCalls = fetchFn.mock.calls.filter(([url]) => url.includes('/progress'))
       expect(progressCalls.length).toBe(0)
     })
@@ -272,15 +390,13 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
 
-      // Report should render immediately
       expect(wrapper.findAll('nav button').length).toBe(2)
       expect(wrapper.text()).toContain('Existing Report')
       expect(wrapper.text()).not.toContain('Generating')
 
-      // Never called generate or progress
       const generateCalls = fetchFn.mock.calls.filter(([url]) => url.includes('/report/generate'))
       const progressCalls = fetchFn.mock.calls.filter(([url]) => url.includes('/progress'))
       expect(generateCalls.length).toBe(0)
@@ -316,14 +432,12 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
       await flushPromises()
 
-      // Should be polling (generating indicator visible)
       expect(wrapper.text()).toContain('Generating next...')
 
-      // Complete on next poll
       await vi.advanceTimersByTimeAsync(3000)
       await flushPromises()
 
@@ -343,7 +457,7 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
 
       expect(wrapper.text()).toContain('Simulation has no agents')
@@ -354,7 +468,7 @@ describe('ReportView — report generation flow (E2E)', () => {
         throw new Error('Network failure')
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
 
       expect(wrapper.text()).toContain('Failed to check report status')
@@ -394,15 +508,13 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
       await flushPromises()
 
-      // First poll failed (progress threw), but sections still loaded
       expect(wrapper.text()).toContain('Recovered')
       expect(wrapper.text()).toContain('Generating next...')
 
-      // Second poll succeeds and completes
       await vi.advanceTimersByTimeAsync(3000)
       await flushPromises()
 
@@ -438,17 +550,15 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
       await flushPromises()
 
       const callsBeforeUnmount = fetchFn.mock.calls.length
       wrapper.unmount()
 
-      // Advance timers well beyond poll interval
       await vi.advanceTimersByTimeAsync(10000)
 
-      // No additional fetch calls after unmount
       expect(fetchFn.mock.calls.length).toBe(callsBeforeUnmount)
     })
   })
@@ -475,14 +585,12 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
 
-      // Export button visible
       const exportBtn = wrapper.findAll('button').find((b) => b.text().includes('Export'))
       expect(exportBtn).toBeTruthy()
 
-      // Chat link points to correct path
       const chatLink = wrapper.find('a[href="/chat/sim_e2e"]')
       expect(chatLink.exists()).toBe(true)
       expect(chatLink.text()).toContain('Ask Follow-Up')
@@ -515,12 +623,187 @@ describe('ReportView — report generation flow (E2E)', () => {
         return { ok: false, json: async () => ({}) }
       })
 
-      const wrapper = mountReport(fetchFn)
+      const wrapper = mountReportE2E(fetchFn)
       await flushPromises()
 
       expect(wrapper.text()).toContain('Pipeline velocity increased 40%')
       expect(wrapper.text()).toContain('Win rate improved from 22% to 31%')
       expect(wrapper.text()).toContain('Average deal size grew by $15K')
     })
+  })
+})
+
+// === Component rendering tests ===
+
+describe('ReportView', () => {
+  let originalFetch
+
+  beforeEach(() => {
+    originalFetch = global.fetch
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch
+    vi.useRealTimers()
+  })
+
+  it('shows shimmer loading state while generating with no content', async () => {
+    globalThis.fetch = vi.fn(() => new Promise(() => {}))
+    const router = createTestRouter()
+    const wrapper = mount(ReportView, {
+      props: { taskId: 'sim_test' },
+      global: {
+        plugins: [router],
+        stubs: {
+          PhaseNav: { props: ['taskId', 'activePhase'], template: '<div class="phase-nav"></div>' },
+          ShimmerCard: { template: '<div class="shimmer"></div>' },
+          ReportCharts: { props: ['chapterIndex'], template: '<div class="charts"></div>' },
+        },
+      },
+    })
+    expect(wrapper.text()).toContain('Predictive Report')
+  })
+
+  it('renders header with title', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Predictive Report')
+  })
+
+  it('renders sidebar with chapter titles for completed report', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Executive Summary')
+    expect(wrapper.text()).toContain('Market Analysis')
+    expect(wrapper.text()).toContain('Recommendations')
+  })
+
+  it('shows key findings extracted from chapters', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Key Findings')
+    expect(wrapper.text()).toContain('Market sentiment shifted positively')
+    expect(wrapper.text()).toContain('Competitor response was slower')
+  })
+
+  it('renders chapter content when a chapter is clicked', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    const chapterButtons = wrapper.findAll('nav button')
+    const marketAnalysisBtn = chapterButtons.find(b => b.text().includes('Market Analysis'))
+    await marketAnalysisBtn.trigger('click')
+
+    expect(wrapper.find('.report-content').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Detailed analysis of market conditions')
+  })
+
+  it('shows completion checkmarks for chapters', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    const checkmarks = wrapper.findAll('nav svg path[d="M5 13l4 4L19 7"]')
+    expect(checkmarks.length).toBe(3)
+  })
+
+  it('shows export button when chapters exist and report is complete', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Export Markdown')
+  })
+
+  it('exports markdown via window.open', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+    const exportBtn = wrapper.findAll('button').find(b => b.text().includes('Export'))
+    await exportBtn.trigger('click')
+
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/report/report_abc123/download'),
+      '_blank',
+    )
+    openSpy.mockRestore()
+  })
+
+  it('shows error state when generation API fails', async () => {
+    const wrapper = mountReport(mockFetchForError())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Simulation not found')
+  })
+
+  it('shows empty state when no sections and not generating', async () => {
+    globalThis.fetch = vi.fn((url) => {
+      if (url.includes('/report/check/')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: { has_report: true, report_id: 'report_empty', report_status: 'completed' },
+          }),
+        })
+      }
+      if (url.includes('/report/report_empty/sections')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            success: true,
+            data: { sections: [], total_sections: 0, is_complete: true },
+          }),
+        })
+      }
+      return Promise.resolve({ ok: false })
+    })
+    const router = createTestRouter()
+    const wrapper = mount(ReportView, {
+      props: { taskId: 'sim_test' },
+      global: {
+        plugins: [router],
+        stubs: {
+          PhaseNav: { props: ['taskId', 'activePhase'], template: '<div class="phase-nav"></div>' },
+          ShimmerCard: { template: '<div class="shimmer"></div>' },
+          ReportCharts: { props: ['chapterIndex'], template: '<div class="charts"></div>' },
+        },
+      },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('No report content available')
+  })
+
+  it('shows progress bar when generating', async () => {
+    const wrapper = mountReport(mockFetchForGenerating())
+    await flushPromises()
+
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Executive Summary')
+    expect(wrapper.text()).toContain('33%')
+  })
+
+  it('renders Ask Follow-Up link to chat', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    const link = wrapper.find('a')
+    expect(link.text()).toContain('Ask Follow-Up')
+  })
+
+  it('displays chapter navigation footer when multiple chapters exist', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Previous Chapter')
+    expect(wrapper.text()).toContain('Next Chapter')
+    expect(wrapper.text()).toContain('1 of 3')
   })
 })

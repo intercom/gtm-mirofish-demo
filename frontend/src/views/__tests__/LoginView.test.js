@@ -49,53 +49,48 @@ describe('LoginView', () => {
     expect(wrapper.text()).toContain('Restricted to @intercom.io accounts')
   })
 
-  it('renders Google and Okta buttons by default', async () => {
+  it('renders email input and Continue button', async () => {
     const router = createTestRouter()
     await router.isReady()
     const wrapper = mountLoginView(router, pinia)
+
+    const emailInput = wrapper.find('input[type="email"]')
+    expect(emailInput.exists()).toBe(true)
+    expect(emailInput.attributes('placeholder')).toBe('you@intercom.io')
 
     const buttons = wrapper.findAll('button')
-    expect(buttons).toHaveLength(2)
-    expect(buttons[0].text()).toContain('Continue with Google')
-    expect(buttons[1].text()).toContain('Continue with Okta SSO')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0].text()).toBe('Continue')
   })
 
-  it('calls loginWithGoogle when Google button is clicked', async () => {
-    delete window.location
-    window.location = { href: '' }
-
+  it('shows error when submitting empty email', async () => {
     const router = createTestRouter()
     await router.isReady()
     const wrapper = mountLoginView(router, pinia)
 
-    await wrapper.findAll('button')[0].trigger('click')
-    expect(window.location.href).toBe('/api/auth/google')
+    await wrapper.find('form').trigger('submit')
+    expect(wrapper.text()).toContain('Please enter your email address.')
   })
 
-  it('calls loginWithOkta when Okta button is clicked', async () => {
-    delete window.location
-    window.location = { href: '' }
-
+  it('shows error when email domain is not allowed', async () => {
     const router = createTestRouter()
     await router.isReady()
     const wrapper = mountLoginView(router, pinia)
 
-    await wrapper.findAll('button')[1].trigger('click')
-    expect(window.location.href).toBe('/api/auth/okta')
+    await wrapper.find('input[type="email"]').setValue('user@gmail.com')
+    await wrapper.find('form').trigger('submit')
+    expect(wrapper.text()).toContain('Only @intercom.io accounts are allowed.')
   })
 
-  it('fetches user on callback and redirects to home on success', async () => {
-    const mockUser = { email: 'test@intercom.io', name: 'Test' }
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve(mockUser),
-    })
-
-    const router = createTestRouter('/login?callback=true')
+  it('redirects to home on valid email login', async () => {
+    const router = createTestRouter()
     await router.isReady()
-    mountLoginView(router, pinia)
+    const wrapper = mountLoginView(router, pinia)
 
+    await wrapper.find('input[type="email"]').setValue('test@intercom.io')
+    await wrapper.find('form').trigger('submit')
     await flushPromises()
+
     expect(router.currentRoute.value.path).toBe('/')
   })
 

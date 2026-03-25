@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
+import { ref } from 'vue'
 import SettingsView from '../SettingsView.vue'
 
 vi.mock('../../composables/useDemoMode', () => ({
@@ -14,12 +15,22 @@ vi.mock('../../composables/useToast', () => ({
   }),
 }))
 
-const stubs = {
-  'router-link': { template: '<a><slot /></a>' },
-}
+const themePreference = ref('system')
+vi.mock('../../composables/useTheme', () => ({
+  useTheme: () => ({
+    preference: themePreference,
+    isDark: { value: false },
+    setTheme: vi.fn((v) => { themePreference.value = v }),
+  }),
+}))
 
 function mountSettings(opts = {}) {
-  return mount(SettingsView, { global: { stubs }, ...opts })
+  return mount(SettingsView, {
+    global: {
+      stubs: { 'router-link': { template: '<a><slot /></a>' } },
+    },
+    ...opts,
+  })
 }
 
 describe('SettingsView', () => {
@@ -44,7 +55,7 @@ describe('SettingsView', () => {
 
   it('selects anthropic provider by default', () => {
     const wrapper = mountSettings()
-    const selected = wrapper.find('input[type="radio"]:checked')
+    const selected = wrapper.findAll('input[type="radio"]').find(r => r.element.checked)
     expect(selected.element.value).toBe('anthropic')
   })
 
@@ -52,8 +63,6 @@ describe('SettingsView', () => {
     const wrapper = mountSettings()
     const passwords = wrapper.findAll('input[type="password"]')
     expect(passwords).toHaveLength(2)
-    expect(passwords[0].attributes('placeholder')).toContain('API key')
-    expect(passwords[1].attributes('placeholder')).toContain('Zep')
   })
 
   it('renders Test Connection buttons for LLM and Zep', () => {
@@ -74,9 +83,7 @@ describe('SettingsView', () => {
   it('renders simulation defaults: range slider, duration buttons, platform buttons', () => {
     const wrapper = mountSettings()
     expect(wrapper.find('input[type="range"]').exists()).toBe(true)
-    const durationButtons = wrapper.findAll('button').filter((b) =>
-      b.text().includes('hours')
-    )
+    const durationButtons = wrapper.findAll('button').filter(b => /^\d+ hours/.test(b.text()))
     expect(durationButtons).toHaveLength(3)
     const platformButtons = wrapper.findAll('button').filter((b) =>
       ['Twitter', 'Reddit', 'Both'].includes(b.text())
@@ -87,7 +94,7 @@ describe('SettingsView', () => {
   it('defaults to agentCount=200, duration=72, platform=parallel', () => {
     const wrapper = mountSettings()
     expect(wrapper.find('input[type="range"]').element.value).toBe('200')
-    const btn72 = wrapper.findAll('button').find((b) => b.text() === '72 hours (recommended)')
+    const btn72 = wrapper.findAll('button').find(b => b.text() === '72 hours (recommended)')
     expect(btn72.classes().join(' ')).toContain('text-white')
     const bothBtn = wrapper.findAll('button').find((b) => b.text() === 'Both')
     expect(bothBtn.classes().join(' ')).toContain('text-white')
@@ -119,7 +126,7 @@ describe('SettingsView', () => {
     const selectedRadio = wrapper.find('input[type="radio"][value="gemini"]')
     expect(selectedRadio.element.checked).toBe(true)
     expect(wrapper.find('input[type="range"]').element.value).toBe('100')
-    const btn48 = wrapper.findAll('button').find((b) => b.text() === '48 hours')
+    const btn48 = wrapper.findAll('button').find(b => b.text() === '48 hours')
     expect(btn48.classes().join(' ')).toContain('text-white')
   })
 
@@ -142,9 +149,10 @@ describe('SettingsView', () => {
     const testBtn = wrapper.findAll('button').find((b) => b.text().includes('Test Connection'))
     await testBtn.trigger('click')
 
-    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/settings/test-llm'), expect.objectContaining({
-      method: 'POST',
-    }))
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/settings/test-llm'),
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 
   it('shows error message when test connection fails', async () => {

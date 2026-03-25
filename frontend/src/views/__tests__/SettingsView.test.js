@@ -127,10 +127,9 @@ describe('SettingsView', () => {
 
   it('renders duration buttons', () => {
     const wrapper = mountSettings()
-    const text = wrapper.text()
-    expect(text).toContain('24 hours')
-    expect(text).toContain('48 hours')
-    expect(text).toContain('72 hours (recommended)')
+    const durationButtons = wrapper.findAll('button').filter(b => /^\d+ hours/.test(b.text()))
+    expect(durationButtons).toHaveLength(3)
+    expect(durationButtons.map(b => b.text())).toEqual(['24 hours', '48 hours', '72 hours (recommended)'])
   })
 
   it('defaults duration to 72 hours (active state)', () => {
@@ -216,11 +215,10 @@ describe('SettingsView', () => {
   it('shows Testing… state when test connection is clicked', async () => {
     global.fetch = vi.fn().mockReturnValue(new Promise(() => {}))
     const wrapper = mountSettings()
-    wrapper.find('input[type="password"]').setValue('test-key')
-    await nextTick()
+    const apiKeyInput = wrapper.findAll('input[type="password"]')[0]
+    await apiKeyInput.setValue('sk-test-key')
     const testButtons = wrapper.findAll('button').filter(b => b.text() === 'Test Connection')
     await testButtons[0].trigger('click')
-    await nextTick()
     expect(wrapper.text()).toContain('Testing')
   })
 

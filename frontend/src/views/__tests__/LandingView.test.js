@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import LandingView from '../LandingView.vue'
 
@@ -7,14 +7,34 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
 }))
 
+vi.mock('../../components/landing/HeroSwarm.vue', () => ({
+  default: { template: '<div class="hero-swarm-stub" />' },
+}))
+
+vi.mock('../../composables/useDemoMode', () => ({
+  useDemoMode: () => ({ isDemoMode: false }),
+}))
+
 beforeEach(() => {
   vi.clearAllMocks()
-  // Mock fetch to reject so the fallback scenario data is used
   vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('No server')))
+  vi.stubGlobal('IntersectionObserver', class {
+    observe() {}
+    disconnect() {}
+    unobserve() {}
+  })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 async function mountLanding() {
-  const wrapper = mount(LandingView)
+  const wrapper = mount(LandingView, {
+    global: {
+      stubs: { 'router-link': { template: '<a><slot /></a>' } },
+    },
+  })
   await flushPromises()
   return wrapper
 }
@@ -36,10 +56,10 @@ describe('LandingView', () => {
     expect(wrapper.text()).toContain('Predict campaign outcomes before they happen')
   })
 
-  it('renders exactly 4 scenario cards', async () => {
+  it('renders scenario cards plus the custom simulation card', async () => {
     const wrapper = await mountLanding()
-    const buttons = wrapper.findAll('button')
-    expect(buttons.length).toBe(4)
+    const scenarioButtons = wrapper.findAll('button[data-index]')
+    expect(scenarioButtons.length).toBe(5)
   })
 
   it('renders all 4 scenario names', async () => {
@@ -53,37 +73,33 @@ describe('LandingView', () => {
 
   it('highlights the outbound campaign card as hero with blue accent', async () => {
     const wrapper = await mountLanding()
-    const buttons = wrapper.findAll('button')
+    const buttons = wrapper.findAll('button[data-index]')
     const heroButton = buttons[0]
-    expect(heroButton.classes()).toContain('border-[rgba(32,104,255,0.3)]')
     expect(heroButton.classes()).toContain('bg-[rgba(32,104,255,0.15)]')
+    expect(heroButton.classes()).toContain('border-[rgba(32,104,255,0.3)]')
   })
 
-  it('shows a Hero badge on the outbound campaign card', async () => {
+  it('hero card spans two columns on md+', async () => {
     const wrapper = await mountLanding()
-    const heroBadge = wrapper.findAll('span').find(s => s.text() === 'Hero')
-    expect(heroBadge).toBeTruthy()
-    expect(heroBadge.classes()).toContain('bg-[#2068FF]')
-  })
-
-  it('does not show Hero badge on non-hero cards', async () => {
-    const wrapper = await mountLanding()
-    const buttons = wrapper.findAll('button')
-    const nonHeroButtons = buttons.slice(1)
-    for (const btn of nonHeroButtons) {
-      expect(btn.text()).not.toContain('Hero')
-    }
+    const buttons = wrapper.findAll('button[data-index]')
+    const heroButton = buttons[0]
+    expect(heroButton.classes()).toContain('md:col-span-2')
   })
 
   it('non-hero cards use default subtle styling', async () => {
     const wrapper = await mountLanding()
-    const buttons = wrapper.findAll('button')
+    const buttons = wrapper.findAll('button[data-index]')
     const nonHeroCard = buttons.find((b) => b.text().includes('Sales Signal'))
     expect(nonHeroCard.classes()).toContain('bg-white/5')
     expect(nonHeroCard.classes()).toContain('border-white/10')
   })
 
-  it('uses a 2-column grid for cards on md+ screens', async () => {
+  it('renders the custom simulation card', async () => {
+    const wrapper = await mountLanding()
+    expect(wrapper.text()).toContain('Custom Simulation')
+  })
+
+  it('uses a 2-column grid for scenario cards', async () => {
     const wrapper = await mountLanding()
     const grid = wrapper.find('.grid.grid-cols-1.md\\:grid-cols-2')
     expect(grid.exists()).toBe(true)
@@ -91,19 +107,20 @@ describe('LandingView', () => {
 
   it('navigates to scenario builder when a card is clicked', async () => {
     const wrapper = await mountLanding()
-    const firstButton = wrapper.findAll('button')[0]
+    const firstButton = wrapper.findAll('button[data-index]')[0]
     await firstButton.trigger('click')
     expect(mockPush).toHaveBeenCalledWith('/scenarios/outbound_campaign')
   })
 
   it('navigates to correct scenario for each card', async () => {
     const wrapper = await mountLanding()
-    const buttons = wrapper.findAll('button')
+    const buttons = wrapper.findAll('button[data-index]')
     const expectedIds = [
       'outbound_campaign',
       'signal_validation',
       'pricing_simulation',
       'personalization',
+      'custom',
     ]
     for (let i = 0; i < buttons.length; i++) {
       mockPush.mockClear()
@@ -122,16 +139,25 @@ describe('LandingView', () => {
 
   it('shows loading skeleton while fetching scenarios', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
-    const wrapper = mount(LandingView)
+    const wrapper = mount(LandingView, {
+      global: {
+        stubs: { 'router-link': { template: '<a><slot /></a>' } },
+      },
+    })
     expect(wrapper.findAll('.animate-pulse').length).toBeGreaterThan(0)
-    expect(wrapper.findAll('button').length).toBe(0)
+    expect(wrapper.findAll('button[data-index]').length).toBe(0)
   })
 
   it('falls back to hardcoded scenarios on fetch error', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('Network error'))))
-    const wrapper = mount(LandingView)
+    const wrapper = mount(LandingView, {
+      global: {
+        stubs: { 'router-link': { template: '<a><slot /></a>' } },
+      },
+    })
     await flushPromises()
-    expect(wrapper.findAll('button').length).toBe(4)
+    const scenarioButtons = wrapper.findAll('button[data-index]')
+    expect(scenarioButtons.length).toBe(5)
     expect(wrapper.text()).toContain('Outbound Campaign Pre-Testing')
   })
 
@@ -144,7 +170,11 @@ describe('LandingView', () => {
         ],
       }),
     }))
-    const wrapper = mount(LandingView)
+    const wrapper = mount(LandingView, {
+      global: {
+        stubs: { 'router-link': { template: '<a><slot /></a>' } },
+      },
+    })
     await flushPromises()
     expect(wrapper.text()).toContain('Test')
   })

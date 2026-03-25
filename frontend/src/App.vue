@@ -8,6 +8,7 @@ import OfflineBanner from './components/common/OfflineBanner.vue'
 import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndicator.vue'
 import OnboardingTour from './components/ui/OnboardingTour.vue'
 import PwaUpdateBanner from './components/ui/PwaUpdateBanner.vue'
+import PwaInstallPrompt from './components/ui/PwaInstallPrompt.vue'
 import D3PerfOverlay from './components/ui/D3PerfOverlay.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import CommandPalette from './components/common/CommandPalette.vue'
@@ -124,6 +125,7 @@ onUnmounted(() => {
   <OfflineBanner />
   <ToastContainer />
   <PwaUpdateBanner />
+  <PwaInstallPrompt />
   <NavigationShortcutIndicator />
   <OnboardingTour />
   <CommandPalette />

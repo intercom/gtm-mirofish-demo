@@ -565,22 +565,23 @@ def list_tasks():
 def get_graph_data(graph_id: str):
     """
     获取图谱数据（节点和边）
+    Falls back to demo data when ZEP_API_KEY is not configured.
     """
     try:
         if not Config.ZEP_API_KEY:
             return jsonify({
-                "success": False,
-                "error": "ZEP_API_KEY未配置"
-            }), 500
-        
+                "success": True,
+                "data": _demo_graph_data()
+            })
+
         builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
         graph_data = builder.get_graph_data(graph_id)
-        
+
         return jsonify({
             "success": True,
             "data": graph_data
         })
-        
+
     except Exception as e:
         return jsonify({
             "success": False,
@@ -600,18 +601,189 @@ def delete_graph(graph_id: str):
                 "success": False,
                 "error": "ZEP_API_KEY未配置"
             }), 500
-        
+
         builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
         builder.delete_graph(graph_id)
-        
+
         return jsonify({
             "success": True,
             "message": f"图谱已删除: {graph_id}"
         })
-        
+
     except Exception as e:
         return jsonify({
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Knowledge Graph: Entities ==============
+
+@graph_bp.route('/entities/<graph_id>', methods=['GET'])
+def get_graph_entities(graph_id: str):
+    """
+    Get entities from a knowledge graph with optional type filtering.
+
+    Query params:
+        type: filter by entity type label (e.g. "Persona", "Topic")
+        q: search entity names (case-insensitive substring)
+    """
+    try:
+        entity_type = request.args.get('type', '')
+        query = request.args.get('q', '').strip().lower()
+
+        if not Config.ZEP_API_KEY:
+            data = _demo_graph_data()
+        else:
+            builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+            data = builder.get_graph_data(graph_id)
+
+        nodes = data.get('nodes', [])
+        edges = data.get('edges', [])
+
+        if entity_type:
+            nodes = [n for n in nodes if entity_type in (n.get('labels') or [])]
+
+        if query:
+            nodes = [n for n in nodes if query in (n.get('name') or '').lower()]
+
+        node_uuids = {n['uuid'] for n in nodes}
+        filtered_edges = [
+            e for e in edges
+            if e.get('source_node_uuid') in node_uuids
+            and e.get('target_node_uuid') in node_uuids
+        ]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": nodes,
+                "edges": filtered_edges,
+                "node_count": len(nodes),
+                "edge_count": len(filtered_edges),
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Knowledge Graph: Search ==============
+
+@graph_bp.route('/search/<graph_id>', methods=['GET'])
+def search_graph(graph_id: str):
+    """
+    Search entities and facts in the knowledge graph.
+
+    Query params:
+        q: search query (required)
+    """
+    try:
+        query = request.args.get('q', '').strip().lower()
+        if not query:
+            return jsonify({
+                "success": False,
+                "error": "Search query 'q' is required"
+            }), 400
+
+        if not Config.ZEP_API_KEY:
+            data = _demo_graph_data()
+        else:
+            builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+            data = builder.get_graph_data(graph_id)
+
+        nodes = data.get('nodes', [])
+        edges = data.get('edges', [])
+
+        matched_nodes = [
+            n for n in nodes
+            if query in (n.get('name') or '').lower()
+            or query in (n.get('summary') or '').lower()
+        ]
+
+        matched_edges = [
+            e for e in edges
+            if query in (e.get('fact') or '').lower()
+            or query in (e.get('name') or '').lower()
+        ]
+
+        matched_node_uuids = {n['uuid'] for n in matched_nodes}
+        for e in matched_edges:
+            matched_node_uuids.add(e['source_node_uuid'])
+            matched_node_uuids.add(e['target_node_uuid'])
+
+        context_nodes = [n for n in nodes if n['uuid'] in matched_node_uuids]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": context_nodes,
+                "edges": matched_edges,
+                "matched_node_ids": [n['uuid'] for n in matched_nodes],
+                "matched_edge_ids": [e['uuid'] for e in matched_edges],
+                "node_count": len(context_nodes),
+                "edge_count": len(matched_edges),
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Demo/Mock Data ==============
+
+def _demo_graph_data():
+    """Return mock knowledge graph data when no Zep API key is configured."""
+    nodes = [
+        {"uuid": "p1", "name": "Enterprise Buyer", "labels": ["Entity", "Persona"], "summary": "Decision-maker at large organizations evaluating platform purchases.", "attributes": {}, "created_at": None},
+        {"uuid": "p2", "name": "SMB Founder", "labels": ["Entity", "Persona"], "summary": "Small business owner seeking affordable customer support tools.", "attributes": {}, "created_at": None},
+        {"uuid": "p3", "name": "Developer Advocate", "labels": ["Entity", "Persona"], "summary": "Technical influencer evaluating APIs and integrations.", "attributes": {}, "created_at": None},
+        {"uuid": "p4", "name": "VP of Support", "labels": ["Entity", "Persona"], "summary": "Senior leader responsible for support team performance.", "attributes": {}, "created_at": None},
+        {"uuid": "p5", "name": "CX Director", "labels": ["Entity", "Persona"], "summary": "Owns end-to-end customer experience strategy.", "attributes": {}, "created_at": None},
+        {"uuid": "p6", "name": "Product Manager", "labels": ["Entity", "Persona"], "summary": "Defines product roadmap based on customer insights.", "attributes": {}, "created_at": None},
+        {"uuid": "t1", "name": "Customer Support", "labels": ["Entity", "Topic"], "summary": "Core product area for ticket management and live chat.", "attributes": {}, "created_at": None},
+        {"uuid": "t2", "name": "AI Automation", "labels": ["Entity", "Topic"], "summary": "Machine learning-powered features like Fin AI agent.", "attributes": {}, "created_at": None},
+        {"uuid": "t3", "name": "Pricing Strategy", "labels": ["Entity", "Topic"], "summary": "Seat-based vs usage-based pricing models.", "attributes": {}, "created_at": None},
+        {"uuid": "t4", "name": "Competitor Analysis", "labels": ["Entity", "Topic"], "summary": "Comparative positioning against Zendesk, Freshdesk.", "attributes": {}, "created_at": None},
+        {"uuid": "t5", "name": "Fin AI Agent", "labels": ["Entity", "Topic"], "summary": "AI-powered resolution engine for frontline support.", "attributes": {}, "created_at": None},
+        {"uuid": "t6", "name": "Knowledge Base", "labels": ["Entity", "Topic"], "summary": "Self-service article library powering AI agents.", "attributes": {}, "created_at": None},
+        {"uuid": "e1", "name": "Product-Led Growth", "labels": ["Entity", "Process"], "summary": "GTM motion focusing on self-serve onboarding.", "attributes": {}, "created_at": None},
+        {"uuid": "e2", "name": "Sales-Led Motion", "labels": ["Entity", "Process"], "summary": "Enterprise sales cycle with demos and pilots.", "attributes": {}, "created_at": None},
+        {"uuid": "e3", "name": "Churn Risk", "labels": ["Entity", "Event"], "summary": "Signals indicating potential customer attrition.", "attributes": {}, "created_at": None},
+        {"uuid": "f1", "name": "Messenger Widget", "labels": ["Entity", "Feature"], "summary": "Embeddable chat widget for web and mobile apps.", "attributes": {}, "created_at": None},
+        {"uuid": "f2", "name": "Team Inbox", "labels": ["Entity", "Feature"], "summary": "Shared workspace for collaborative conversation handling.", "attributes": {}, "created_at": None},
+        {"uuid": "f3", "name": "Help Center", "labels": ["Entity", "Feature"], "summary": "Public-facing knowledge base and article search.", "attributes": {}, "created_at": None},
+    ]
+    edges = [
+        {"uuid": "ed1", "source_node_uuid": "p1", "target_node_uuid": "t1", "name": "evaluates", "fact": "Enterprise buyers evaluate customer support platforms.", "fact_type": "evaluates", "source_node_name": "Enterprise Buyer", "target_node_name": "Customer Support", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed2", "source_node_uuid": "p1", "target_node_uuid": "e2", "name": "engages_via", "fact": "Enterprise buyers engage through sales-led motions.", "fact_type": "engages_via", "source_node_name": "Enterprise Buyer", "target_node_name": "Sales-Led Motion", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed3", "source_node_uuid": "p2", "target_node_uuid": "e1", "name": "converts_through", "fact": "SMB founders convert through product-led flows.", "fact_type": "converts_through", "source_node_name": "SMB Founder", "target_node_name": "Product-Led Growth", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed4", "source_node_uuid": "p2", "target_node_uuid": "t3", "name": "influenced_by", "fact": "SMB founders are highly price-sensitive.", "fact_type": "influenced_by", "source_node_name": "SMB Founder", "target_node_name": "Pricing Strategy", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed5", "source_node_uuid": "p3", "target_node_uuid": "f1", "name": "integrates", "fact": "Developer advocates embed the Messenger widget.", "fact_type": "integrates", "source_node_name": "Developer Advocate", "target_node_name": "Messenger Widget", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed6", "source_node_uuid": "p4", "target_node_uuid": "f2", "name": "depends_on", "fact": "VP of Support depends on Team Inbox for management.", "fact_type": "depends_on", "source_node_name": "VP of Support", "target_node_name": "Team Inbox", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed7", "source_node_uuid": "p4", "target_node_uuid": "t1", "name": "owns", "fact": "VP of Support owns the customer support function.", "fact_type": "owns", "source_node_name": "VP of Support", "target_node_name": "Customer Support", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed8", "source_node_uuid": "p5", "target_node_uuid": "e3", "name": "monitors", "fact": "CX Director monitors churn risk signals.", "fact_type": "monitors", "source_node_name": "CX Director", "target_node_name": "Churn Risk", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed9", "source_node_uuid": "p6", "target_node_uuid": "t5", "name": "drives", "fact": "Product Manager drives Fin AI Agent roadmap.", "fact_type": "drives", "source_node_name": "Product Manager", "target_node_name": "Fin AI Agent", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed10", "source_node_uuid": "t1", "target_node_uuid": "t2", "name": "enhanced_by", "fact": "Customer support is enhanced by AI automation.", "fact_type": "enhanced_by", "source_node_name": "Customer Support", "target_node_name": "AI Automation", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed11", "source_node_uuid": "t2", "target_node_uuid": "t5", "name": "enables", "fact": "AI automation powers the Fin AI Agent.", "fact_type": "enables", "source_node_name": "AI Automation", "target_node_name": "Fin AI Agent", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed12", "source_node_uuid": "t6", "target_node_uuid": "t5", "name": "supports", "fact": "Knowledge base articles power Fin AI responses.", "fact_type": "supports", "source_node_name": "Knowledge Base", "target_node_name": "Fin AI Agent", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed13", "source_node_uuid": "t6", "target_node_uuid": "f3", "name": "enables", "fact": "Knowledge base content enables Help Center.", "fact_type": "enables", "source_node_name": "Knowledge Base", "target_node_name": "Help Center", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed14", "source_node_uuid": "t4", "target_node_uuid": "t3", "name": "informs", "fact": "Competitor analysis informs pricing strategy.", "fact_type": "informs", "source_node_name": "Competitor Analysis", "target_node_name": "Pricing Strategy", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed15", "source_node_uuid": "e3", "target_node_uuid": "e1", "name": "blocks", "fact": "Churn risk threatens product-led growth.", "fact_type": "blocks", "source_node_name": "Churn Risk", "target_node_name": "Product-Led Growth", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+    ]
+    return {
+        "graph_id": "demo",
+        "nodes": nodes,
+        "edges": edges,
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+    }

@@ -23,4 +23,8 @@ export const graphApi = {
   // --- Graph data ---
   getData: (graphId) => client.get(`/graph/data/${graphId}`),
   deleteGraph: (graphId) => client.delete(`/graph/delete/${graphId}`),
+
+  // --- Knowledge graph entities & search ---
+  getEntities: (graphId, params) => client.get(`/graph/entities/${graphId}`, { params }),
+  search: (graphId, query) => client.get(`/graph/search/${graphId}`, { params: { q: query } }),
 }

@@ -36,6 +36,14 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .agent_prompts import (
+    AgentContext,
+    Memory,
+    build_augmented_prompt,
+    build_memory_section,
+    build_demo_prompt,
+    rank_memories,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +77,11 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'AgentContext',
+    'Memory',
+    'build_augmented_prompt',
+    'build_memory_section',
+    'build_demo_prompt',
+    'rank_memories',
 ]
 

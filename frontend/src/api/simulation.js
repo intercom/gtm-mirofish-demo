@@ -48,6 +48,8 @@ export const simulationApi = {
     client.get(`/simulation/${simulationId}/timeline`, { params }),
   getAgentStats: (simulationId) =>
     client.get(`/simulation/${simulationId}/agent-stats`),
+  getAgentNetwork: (simulationId) =>
+    client.get(`/simulation/${simulationId}/agent-network`),
   getPosts: (simulationId, params) =>
     client.get(`/simulation/${simulationId}/posts`, { params }),
   getComments: (simulationId, params) =>

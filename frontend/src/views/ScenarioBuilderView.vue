@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
+import RichTextEditor from '../components/common/RichTextEditor.vue'
 import { useToast } from '../composables/useToast'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
@@ -20,6 +21,7 @@ const isRerun = computed(() => route.query.rerun === 'true')
 const scenario = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const description = ref('')
 const seedText = ref('')
 const statusMessage = ref('')
 const agentCount = ref(200)
@@ -199,6 +201,7 @@ async function loadScenario() {
           platform_mode: 'parallel',
         },
       }
+      description.value = scenario.value.description
       seedText.value = ''
       agentCount.value = 200
       duration.value = 72
@@ -210,6 +213,7 @@ async function loadScenario() {
       if (!data) throw new Error('Scenario not found')
       scenario.value = data
 
+      description.value = data.description || ''
       seedText.value = data.seed_text || ''
       agentCount.value = data.agent_config?.count || 200
       duration.value = data.simulation_config?.total_hours || 72
@@ -280,6 +284,7 @@ async function runSimulation() {
     simulationStore.setScenarioConfig({
       scenarioId: props.id,
       scenarioName: scenario.value?.name || (props.id === 'custom' ? 'Custom Simulation' : 'Untitled Scenario'),
+      scenarioDescription: description.value,
       seedText: seedText.value,
       agentCount: agentCount.value,
       personas: selectedPersonas.value,
@@ -336,7 +341,13 @@ async function runSimulation() {
       </div>
 
       <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)] mb-2">{{ scenario.name }}</h1>
-      <p class="text-sm text-[var(--color-text-secondary)] mb-6 md:mb-8">{{ scenario.description }}</p>
+      <div class="mb-6 md:mb-8">
+        <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Scenario Description</label>
+        <RichTextEditor
+          v-model="description"
+          placeholder="Describe your scenario — goals, target audience, expected outcomes..."
+        />
+      </div>
 
       <!-- Mobile: tab switcher -->
       <div class="md:hidden flex gap-2 mb-4">

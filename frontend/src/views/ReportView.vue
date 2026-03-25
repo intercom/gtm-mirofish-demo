@@ -10,6 +10,10 @@ import ReportCharts from '../components/report/ReportCharts.vue'
 import ToolCallLog from '../components/report/ToolCallLog.vue'
 import ReportSummaryCards from '../components/report/ReportSummaryCards.vue'
 import DataTable from '../components/report/DataTable.vue'
+import ThemeConfigurator from '../components/report-builder/ThemeConfigurator.vue'
+import { useReportTheme } from '../composables/useReportTheme'
+
+const { resolvedTheme, themeStyles } = useReportTheme()
 
 const props = defineProps({ taskId: String })
 
@@ -22,6 +26,7 @@ const progressMessage = ref('')
 const error = ref(null)
 const isComplete = ref(false)
 const showAgentLog = ref(false)
+const showThemePanel = ref(false)
 
 const agentTableRows = ref([])
 const agentTableColumns = [
@@ -234,6 +239,17 @@ onUnmounted(stopPolling)
       <div class="flex gap-2">
         <button
           v-if="!generating && sections.length > 0"
+          @click="showThemePanel = !showThemePanel"
+          class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          :class="showThemePanel ? 'bg-[var(--color-primary-light)] border-[var(--color-primary-border)]' : ''"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+          </svg>
+          Theme
+        </button>
+        <button
+          v-if="!generating && sections.length > 0"
           @click="exportMarkdown"
           class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
         >
@@ -319,6 +335,14 @@ onUnmounted(stopPolling)
       </div>
     </div>
 
+    <!-- Theme Configurator Panel (collapsible) -->
+    <div
+      v-if="showThemePanel && !generating"
+      class="mb-6 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4"
+    >
+      <ThemeConfigurator />
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
       <!-- Chapter Nav Sidebar -->
       <nav class="hidden md:block space-y-1">
@@ -372,7 +396,16 @@ onUnmounted(stopPolling)
       <!-- Main Content Area -->
       <div class="md:col-span-3 space-y-6">
         <!-- Chapter Content -->
-        <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-8">
+        <div
+          class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-8"
+          :style="themeStyles"
+        >
+          <!-- Theme Header -->
+          <div v-if="resolvedTheme.headerText || resolvedTheme.logo" class="flex items-center gap-3 mb-6 pb-4 border-b" :style="{ borderColor: 'var(--report-primary, var(--color-border))', opacity: 0.6 }">
+            <img v-if="resolvedTheme.logo" :src="resolvedTheme.logo" alt="Logo" class="h-6 max-w-[100px] object-contain" @error="$event.target.style.display = 'none'" />
+            <span v-if="resolvedTheme.headerText" class="text-xs font-medium" :style="{ color: 'var(--report-primary)', fontFamily: 'var(--report-font-family)' }">{{ resolvedTheme.headerText }}</span>
+          </div>
+
           <!-- Loading state with shimmer -->
           <div v-if="generating && !activeContent" class="space-y-6 py-4">
             <ShimmerCard :lines="2" height="48px" />
@@ -394,6 +427,11 @@ onUnmounted(stopPolling)
           <!-- Empty state -->
           <div v-else class="text-center py-16 text-[var(--color-text-muted)]">
             <p>No report content available.</p>
+          </div>
+
+          <!-- Theme Footer -->
+          <div v-if="resolvedTheme.footerText" class="mt-6 pt-4 border-t" :style="{ borderColor: 'var(--report-primary, var(--color-border))', opacity: 0.6 }">
+            <span class="text-xs" :style="{ color: 'var(--color-text-muted)', fontFamily: 'var(--report-font-family)' }">{{ resolvedTheme.footerText }}</span>
           </div>
         </div>
 
@@ -468,22 +506,23 @@ onUnmounted(stopPolling)
 </template>
 
 <style scoped>
-.report-content :deep(h1) { font-size: 1.5rem; font-weight: 600; margin-bottom: 1rem; color: var(--color-text); }
-.report-content :deep(h2) { font-size: 1.25rem; font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--color-text); }
-.report-content :deep(h3) { font-size: 1.125rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--color-text); }
-.report-content :deep(p) { margin-bottom: 0.75rem; line-height: 1.625; color: var(--color-text-secondary); font-size: 0.875rem; }
+.report-content :deep(h1) { font-size: var(--report-heading-size, 1.5rem); font-weight: 600; margin-bottom: 1rem; color: var(--color-text); font-family: var(--report-font-family, inherit); }
+.report-content :deep(h2) { font-size: calc(var(--report-heading-size, 1.5rem) - 0.25rem); font-weight: 600; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--color-text); font-family: var(--report-font-family, inherit); }
+.report-content :deep(h3) { font-size: calc(var(--report-heading-size, 1.5rem) - 0.375rem); font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.5rem; color: var(--color-text); font-family: var(--report-font-family, inherit); }
+.report-content :deep(p) { margin-bottom: 0.75rem; line-height: 1.625; color: var(--color-text-secondary); font-size: var(--report-body-size, 0.875rem); font-family: var(--report-font-family, inherit); }
 .report-content :deep(ul),
 .report-content :deep(ol) { margin-bottom: 0.75rem; padding-left: 1.5rem; }
-.report-content :deep(li) { margin-bottom: 0.25rem; line-height: 1.625; color: var(--color-text-secondary); font-size: 0.875rem; }
+.report-content :deep(li) { margin-bottom: 0.25rem; line-height: 1.625; color: var(--color-text-secondary); font-size: var(--report-body-size, 0.875rem); font-family: var(--report-font-family, inherit); }
 .report-content :deep(ul) { list-style-type: disc; }
 .report-content :deep(ol) { list-style-type: decimal; }
 .report-content :deep(strong) { font-weight: 600; color: var(--color-text); }
 .report-content :deep(blockquote) {
-  border-left: 3px solid var(--color-primary);
+  border-left: 3px solid var(--report-primary, var(--color-primary));
   padding-left: 1rem;
   margin: 1rem 0;
   color: var(--color-text-secondary);
   font-style: italic;
+  font-family: var(--report-font-family, inherit);
 }
 .report-content :deep(code) {
   background: var(--color-tint);
@@ -500,11 +539,11 @@ onUnmounted(stopPolling)
   margin: 1rem 0;
 }
 .report-content :deep(pre code) { background: none; padding: 0; }
-.report-content :deep(table) { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
+.report-content :deep(table) { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: var(--report-body-size, 0.875rem); font-family: var(--report-font-family, inherit); }
 .report-content :deep(th) {
   text-align: left;
   padding: 0.5rem;
-  border-bottom: 2px solid var(--color-border-strong);
+  border-bottom: 2px solid var(--report-primary, var(--color-border-strong));
   font-weight: 600;
   color: var(--color-text);
 }

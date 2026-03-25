@@ -2,12 +2,14 @@
 import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSimulationPolling } from '../composables/useSimulationPolling'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { useToast } from '../composables/useToast'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -33,6 +35,14 @@ const scenarioName = computed(() =>
   simulationStore.scenarioConfig?.scenarioName || 'Simulation',
 )
 
+const workspaceShortcuts = [
+  { key: '1', label: 'Graph tab', action: () => { activeTab.value = 'graph' } },
+  { key: '2', label: 'Simulation tab', action: () => { activeTab.value = 'simulation' } },
+  { key: 'r', label: 'View report', action: () => router.push(`/report/${props.taskId}`) },
+  { key: 'Escape', label: 'Go back', display: 'Esc', action: () => router.push('/') },
+]
+const { showHelp, modLabel } = useKeyboardShortcuts(workspaceShortcuts)
+
 watch(() => route.query.tab, (tab) => {
   if (tab === 'graph' || tab === 'simulation') {
     activeTab.value = tab
@@ -44,13 +54,6 @@ watch(activeTab, (tab) => {
     router.replace({ query: { ...route.query, tab } })
   }
 })
-
-function handleKeydown(e) {
-  const tag = document.activeElement?.tagName?.toLowerCase()
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return
-  if (e.key === '1') activeTab.value = 'graph'
-  else if (e.key === '2') activeTab.value = 'simulation'
-}
 
 watch(() => polling.simStatus.value, (status, oldStatus) => {
   if (status === 'completed' && oldStatus !== 'completed') {
@@ -79,12 +82,10 @@ watch(() => polling.graphStatus.value, (status) => {
 
 onMounted(() => {
   polling.start()
-  window.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   polling.stop()
-  window.removeEventListener('keydown', handleKeydown)
   if (bannerTimer) clearTimeout(bannerTimer)
 })
 </script>
@@ -138,6 +139,22 @@ onUnmounted(() => {
         <SimulationPanel :taskId="taskId" />
       </div>
     </div>
+
+    <!-- Shortcuts hint -->
+    <button
+      @click="showHelp = true"
+      class="fixed bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors z-10"
+    >
+      <kbd class="inline-flex items-center justify-center w-5 h-5 text-[10px] font-medium bg-[var(--color-tint)] border border-[var(--color-border)] rounded">?</kbd>
+      Shortcuts
+    </button>
+
+    <KeyboardShortcutsHelp
+      :open="showHelp"
+      :shortcuts="workspaceShortcuts"
+      :modLabel="modLabel"
+      @close="showHelp = false"
+    />
   </div>
 </template>
 

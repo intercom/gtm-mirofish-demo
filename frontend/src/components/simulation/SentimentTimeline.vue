@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useChartEntrance } from '../../composables/useChartEntrance'
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },
@@ -8,8 +9,11 @@ const props = defineProps({
 })
 
 const chartRef = ref(null)
+const wrapperRef = ref(null)
 let resizeObserver = null
 let resizeTimer = null
+
+const { isVisible } = useChartEntrance(wrapperRef)
 
 // --- Sentiment scoring ---
 
@@ -151,6 +155,11 @@ function renderTrend(container, data, containerWidth) {
     .attr('y2', d => y(d))
     .attr('stroke', d => d === 0 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.06)')
     .attr('stroke-dasharray', d => d === 0 ? 'none' : '2,3')
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => i * 30)
+    .style('opacity', 1)
 
   // Y-axis labels
   g.selectAll('.y-label')
@@ -170,6 +179,11 @@ function renderTrend(container, data, containerWidth) {
       if (d === 0) return '0'
       return d > 0 ? `+${d.toFixed(1)}` : d.toFixed(1)
     })
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 50 + i * 25)
+    .style('opacity', 1)
 
   // X-axis labels
   const step = Math.max(1, Math.floor(data.length / 8))
@@ -182,6 +196,11 @@ function renderTrend(container, data, containerWidth) {
     .attr('font-size', '10px')
     .attr('fill', '#888')
     .text(d => `R${d.round}`)
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 80 + i * 20)
+    .style('opacity', 1)
 
   // Positive area (above 0)
   const positiveArea = d3.area()
@@ -194,6 +213,11 @@ function renderTrend(container, data, containerWidth) {
     .datum(data)
     .attr('d', positiveArea)
     .attr('fill', 'rgba(0, 153, 0, 0.08)')
+    .style('opacity', 0)
+    .transition()
+    .duration(400)
+    .delay(100)
+    .style('opacity', 1)
 
   // Negative area (below 0)
   const negativeArea = d3.area()
@@ -206,6 +230,11 @@ function renderTrend(container, data, containerWidth) {
     .datum(data)
     .attr('d', negativeArea)
     .attr('fill', 'rgba(255, 86, 0, 0.08)')
+    .style('opacity', 0)
+    .transition()
+    .duration(400)
+    .delay(100)
+    .style('opacity', 1)
 
   // Sentiment line
   const line = d3.line()
@@ -381,17 +410,30 @@ function renderDistribution(container, data, containerWidth) {
     .y1(d => y(d[1]))
     .curve(d3.curveMonotoneX)
 
-  // Stacked areas with animation
-  g.selectAll('.area')
+  // Clip-path for left-to-right reveal animation
+  const clipId = `dist-reveal-${Date.now()}`
+  svg.append('defs')
+    .append('clipPath')
+    .attr('id', clipId)
+    .append('rect')
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('width', 0)
+    .attr('height', totalHeight)
+    .transition()
+    .duration(800)
+    .delay(100)
+    .ease(d3.easeCubicOut)
+    .attr('width', width)
+
+  // Stacked areas with clip reveal
+  g.append('g')
+    .attr('clip-path', `url(#${clipId})`)
+    .selectAll('.area')
     .data(series)
     .join('path')
     .attr('d', area)
     .attr('fill', d => colors[d.key])
-    .style('opacity', 0)
-    .transition()
-    .duration(600)
-    .delay((_, i) => i * 100)
-    .style('opacity', 1)
 
   // Grid lines
   const gridValues = [0, 0.25, 0.5, 0.75, 1.0]
@@ -404,6 +446,11 @@ function renderDistribution(container, data, containerWidth) {
     .attr('y2', d => y(d))
     .attr('stroke', 'rgba(255,255,255,0.4)')
     .attr('stroke-dasharray', '2,3')
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => i * 30)
+    .style('opacity', 1)
 
   // Y-axis labels
   g.selectAll('.y-label')
@@ -416,6 +463,11 @@ function renderDistribution(container, data, containerWidth) {
     .attr('font-size', '10px')
     .attr('fill', '#888')
     .text(d => `${Math.round(d * 100)}%`)
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 50 + i * 25)
+    .style('opacity', 1)
 
   // X-axis labels
   const step = Math.max(1, Math.floor(data.length / 8))
@@ -428,16 +480,23 @@ function renderDistribution(container, data, containerWidth) {
     .attr('font-size', '10px')
     .attr('fill', '#888')
     .text(d => `R${d.round}`)
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 80 + i * 20)
+    .style('opacity', 1)
 }
 
 // --- Lifecycle ---
 
-watch([() => props.actions.length, () => props.timeline.length, viewMode], () => {
-  nextTick(() => renderChart())
+watch([() => props.actions.length, () => props.timeline.length, viewMode, isVisible], () => {
+  if (isVisible.value) {
+    nextTick(() => renderChart())
+  }
 })
 
 onMounted(() => {
-  renderChart()
+  if (isVisible.value) renderChart()
   if (chartRef.value) {
     resizeObserver = new ResizeObserver(() => {
       clearTimeout(resizeTimer)
@@ -454,7 +513,11 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
+  <div
+    ref="wrapperRef"
+    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5 transition-all duration-500 ease-out"
+    :class="isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'"
+  >
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-sm font-semibold text-[var(--color-text)]">Sentiment Timeline</h3>
       <div v-if="sentimentData.length" class="flex gap-1 bg-[var(--color-tint)] rounded-md p-0.5">

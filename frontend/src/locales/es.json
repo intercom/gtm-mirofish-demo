@@ -1,0 +1,107 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "simulations": "Simulaciones",
+    "settings": "Configuracion",
+    "connected": "Conectado",
+    "local": "Local"
+  },
+  "landing": {
+    "tagline": "Intercom GTM Systems",
+    "title": "Inteligencia de Enjambre MiroFish",
+    "subtitle": "Predice los resultados de tus campanas antes de que ocurran. Simula como reaccionan los prospectos a tus correos, senales y cambios de precios.",
+    "demoNote": "Demo interactiva con inteligencia de enjambre simulada",
+    "failedToLoad": "Error al cargar escenarios",
+    "tryAgain": "Reintentar",
+    "noScenarios": "No hay escenarios disponibles",
+    "noScenariosHint": "Vuelve pronto — los escenarios se estan configurando.",
+    "customSimulation": "Simulacion Personalizada",
+    "customSimulationDesc": "Trae tu propio documento semilla y configura una simulacion desde cero.",
+    "builtFor": "Hecho para equipos GTM que ejecutan",
+    "howItWorks": "Como Funciona",
+    "steps": {
+      "seed": "1. Configura tu Escenario",
+      "seedDesc": "Sube textos de campana, definiciones de senales o escenarios de precios como informacion semilla.",
+      "simulate": "2. Simula el Enjambre",
+      "simulateDesc": "Cientos de agentes IA con personas unicas interactuan, debaten y reaccionan en plataformas sociales simuladas.",
+      "report": "3. Obtén Reportes Predictivos",
+      "reportDesc": "Analisis multi-capitulo revela patrones de engagement, objeciones e insights por segmento."
+    },
+    "stats": {
+      "maxAgents": "Agentes Max",
+      "actionTypes": "Tipos de Accion",
+      "analysisTools": "Herramientas de Analisis",
+      "platforms": "Plataformas"
+    },
+    "meetTheSwarm": "Conoce el Enjambre",
+    "meetTheSwarmDesc": "Cada agente es un perfil de comprador unico con datos demograficos, motivaciones y patrones de objecion realistas extraidos de tu ICP.",
+    "plusThousands": "+ miles mas generados a partir de tu distribucion ICP",
+    "whatYouCanSimulate": "Que Puedes Simular",
+    "capabilities": {
+      "outbound": "Prueba de Email Outbound",
+      "outboundDesc": "Prueba lineas de asunto, angulos de mensaje y secuencias contra cientos de personas IA antes de enviar un solo correo real.",
+      "signal": "Validacion de Senales",
+      "signalDesc": "Verifica si tus senales de ventas realmente predicen comportamiento de compra. Identifica falsos positivos antes de enviarlos a los reps.",
+      "pricing": "Impacto en Precios",
+      "pricingDesc": "Predice el riesgo de churn, cambio a competidores y sentimiento antes de implementar cambios de precios con clientes reales.",
+      "personalization": "Ranking de Personalizacion",
+      "personalizationDesc": "Clasifica variantes de mensaje por engagement simulado, no por auto-evaluacion del LLM. Encuentra el mejor tono, longitud y CTA para cada segmento."
+    },
+    "useCases": "Casos de Uso por Equipo",
+    "pipeline": "Pipeline de Extremo a Extremo",
+    "faq": "Preguntas Frecuentes",
+    "cta": {
+      "title": "Listo para simular tu proximo movimiento GTM?",
+      "subtitle": "Elige un escenario arriba o crea una simulacion personalizada.",
+      "button": "Comenzar"
+    }
+  },
+  "settings": {
+    "title": "Configuracion",
+    "saved": "Guardado",
+    "demoMode": "Modo Demo",
+    "demoModeDesc": "Usando datos simulados. No se requieren claves API.",
+    "theme": "Tema",
+    "themeSystem": "Sistema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "language": "Idioma",
+    "llmProvider": "Proveedor LLM",
+    "apiKey": "Clave API",
+    "apiKeyPlaceholder": "Ingresa tu clave API",
+    "apiKeyDemoPlaceholder": "No requerido en modo demo",
+    "simulated": "Simulado",
+    "testConnection": "Probar Conexion",
+    "testing": "Probando…",
+    "connected": "Conectado",
+    "failed": "Fallido",
+    "zepCloud": "Zep Cloud (Grafo de Conocimiento)",
+    "zepPlaceholder": "Ingresa la clave API de Zep",
+    "zepDemoPlaceholder": "No requerido en modo demo",
+    "zepSignup": "Registrate en",
+    "zepFree": "— el nivel gratuito es suficiente para PoC.",
+    "simulationDefaults": "Valores por Defecto de Simulacion",
+    "agentCount": "Cantidad de Agentes",
+    "duration": "Duracion",
+    "platform": "Plataforma",
+    "defaultsHint": "Estos valores pre-llenan el Constructor de Escenarios. Puedes modificarlos por simulacion.",
+    "demoInfo": "Ejecutando en modo demo con datos de simulacion pre-generados. Cambia a modo produccion configurando",
+    "demoInfoEnd": "y configurando claves API.",
+    "storageInfo": "La configuracion se almacena localmente en tu navegador. Para despliegues Docker, configura via",
+    "storageInfoEnd": "en su lugar."
+  },
+  "footer": {
+    "poweredBy": "Potenciado por",
+    "swarmEngine": "Motor de Inteligencia de Enjambre",
+    "intercomGtm": "Intercom GTM Systems"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "error": "Error",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "hours": "horas",
+    "recommended": "recomendado"
+  }
+}

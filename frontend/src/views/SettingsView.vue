@@ -1,11 +1,15 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTheme } from '../composables/useTheme'
+import { useLanguage } from '../composables/useLanguage'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
 
+const { t } = useI18n()
 const { preference: themePreference, setTheme } = useTheme()
+const { locale, languages, setLanguage } = useLanguage()
 const toast = useToast()
 const { isDemoMode } = useDemoMode()
 
@@ -117,10 +121,10 @@ async function testConnection(service) {
 
 function testButtonLabel(service) {
   const status = connectionStatus.value[service]
-  if (status === 'testing') return 'Testing…'
-  if (status === 'success') return '✓ Connected'
-  if (status === 'error') return '✗ Failed'
-  return 'Test Connection'
+  if (status === 'testing') return t('settings.testing')
+  if (status === 'success') return `✓ ${t('settings.connected')}`
+  if (status === 'error') return `✗ ${t('settings.failed')}`
+  return t('settings.testConnection')
 }
 
 function testButtonClass(service) {
@@ -138,10 +142,10 @@ onMounted(() => {
 <template>
   <div class="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-10">
     <div class="flex items-center justify-between mb-6 md:mb-8">
-      <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">Settings</h1>
+      <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">{{ t('settings.title') }}</h1>
       <transition name="fade">
         <span v-if="saved" class="text-xs font-medium text-[#090] bg-[rgba(0,153,0,0.08)] px-3 py-1 rounded-full">
-          ✓ Saved
+          ✓ {{ t('settings.saved') }}
         </span>
       </transition>
     </div>
@@ -152,13 +156,13 @@ onMounted(() => {
         <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <p class="text-sm text-[var(--color-text-secondary)]">
-        <span class="font-semibold text-[var(--color-text)]">Demo Mode</span> — Using simulated data. API keys are not required.
+        <span class="font-semibold text-[var(--color-text)]">{{ t('settings.demoMode') }}</span> — {{ t('settings.demoModeDesc') }}
       </p>
     </section>
 
     <!-- Theme -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Theme</h2>
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.theme') }}</h2>
       <div class="flex gap-2">
         <button
           v-for="opt in themeOptions"
@@ -175,9 +179,28 @@ onMounted(() => {
       </div>
     </section>
 
+    <!-- Language -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.language') }}</h2>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="lang in languages"
+          :key="lang.code"
+          @click="setLanguage(lang.code)"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors cursor-pointer"
+          :class="locale === lang.code
+            ? 'border-[#2068FF] bg-[rgba(32,104,255,0.08)] text-[var(--color-text)]'
+            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#2068FF]/50'"
+        >
+          <span>{{ lang.flag }}</span>
+          <span>{{ lang.label }}</span>
+        </button>
+      </div>
+    </section>
+
     <!-- LLM Provider -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">LLM Provider</h2>
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.llmProvider') }}</h2>
       <div class="space-y-3">
         <label
           v-for="p in providers"
@@ -196,12 +219,12 @@ onMounted(() => {
       </div>
 
       <div class="mt-4">
-        <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">API Key</label>
+        <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.apiKey') }}</label>
         <div class="flex flex-col sm:flex-row gap-2">
           <input
             type="password"
             v-model="apiKey"
-            :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter your API key'"
+            :placeholder="isDemoMode ? t('settings.apiKeyDemoPlaceholder') : t('settings.apiKeyPlaceholder')"
             :disabled="isDemoMode"
             class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
             :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
@@ -209,7 +232,7 @@ onMounted(() => {
           <span
             v-if="isDemoMode"
             class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
-          >Simulated</span>
+          >{{ t('settings.simulated') }}</span>
           <button
             v-else
             @click="testConnection('llm')"
@@ -226,12 +249,12 @@ onMounted(() => {
 
     <!-- Zep Cloud -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Zep Cloud (Knowledge Graph)</h2>
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.zepCloud') }}</h2>
       <div class="flex flex-col sm:flex-row gap-2">
         <input
           type="password"
           v-model="zepKey"
-          :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter Zep API key'"
+          :placeholder="isDemoMode ? t('settings.zepDemoPlaceholder') : t('settings.zepPlaceholder')"
           :disabled="isDemoMode"
           class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
           :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
@@ -239,7 +262,7 @@ onMounted(() => {
         <span
           v-if="isDemoMode"
           class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
-        >Simulated</span>
+        >{{ t('settings.simulated') }}</span>
         <button
           v-else
           @click="testConnection('zep')"
@@ -252,19 +275,19 @@ onMounted(() => {
       </div>
       <p v-if="connectionError.zep" class="text-xs text-red-500 mt-1">{{ connectionError.zep }}</p>
       <p v-else-if="!isDemoMode" class="text-xs text-[var(--color-text-muted)] mt-2">
-        Sign up at
+        {{ t('settings.zepSignup') }}
         <a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[#2068FF] hover:underline">app.getzep.com</a>
-        — free tier is sufficient for PoC.
+        {{ t('settings.zepFree') }}
       </p>
     </section>
 
     <!-- Simulation Defaults -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Simulation Defaults</h2>
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.simulationDefaults') }}</h2>
       <div class="space-y-6">
         <!-- Agent Count -->
         <div>
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Agent Count</label>
+          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.agentCount') }}</label>
           <input
             type="range"
             v-model.number="agentCount"
@@ -278,7 +301,7 @@ onMounted(() => {
 
         <!-- Duration -->
         <div>
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Duration</label>
+          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.duration') }}</label>
           <div class="flex gap-2">
             <button
               v-for="d in durations"
@@ -296,7 +319,7 @@ onMounted(() => {
 
         <!-- Platform -->
         <div>
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Platform</label>
+          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.platform') }}</label>
           <div class="flex gap-2">
             <button
               v-for="p in platforms"
@@ -314,19 +337,19 @@ onMounted(() => {
       </div>
 
       <p class="text-xs text-[var(--color-text-muted)] mt-4">
-        These defaults pre-fill the Scenario Builder. You can override them per-simulation.
+        {{ t('settings.defaultsHint') }}
       </p>
     </section>
 
     <!-- Info -->
     <section class="bg-[var(--color-primary-light)] border border-[#2068FF]/20 rounded-lg p-3 md:p-4">
       <p v-if="isDemoMode" class="text-xs text-[var(--color-text-secondary)]">
-        Running in demo mode with pre-generated simulation data. Switch to production mode by setting
-        <code class="bg-[var(--color-border)] px-1 rounded">DEMO_MODE=false</code> and configuring API keys.
+        {{ t('settings.demoInfo') }}
+        <code class="bg-[var(--color-border)] px-1 rounded">DEMO_MODE=false</code> {{ t('settings.demoInfoEnd') }}
       </p>
       <p v-else class="text-xs text-[var(--color-text-secondary)]">
-        Settings are stored locally in your browser. For Docker deployments, configure via
-        <code class="bg-[var(--color-border)] px-1 rounded">.env</code> file instead.
+        {{ t('settings.storageInfo') }}
+        <code class="bg-[var(--color-border)] px-1 rounded">.env</code> {{ t('settings.storageInfoEnd') }}
       </p>
     </section>
   </div>

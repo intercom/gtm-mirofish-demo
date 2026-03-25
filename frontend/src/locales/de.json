@@ -1,0 +1,107 @@
+{
+  "nav": {
+    "home": "Startseite",
+    "simulations": "Simulationen",
+    "settings": "Einstellungen",
+    "connected": "Verbunden",
+    "local": "Lokal"
+  },
+  "landing": {
+    "tagline": "Intercom GTM Systems",
+    "title": "MiroFish Schwarmintelligenz",
+    "subtitle": "Sagen Sie Kampagnenergebnisse vorher, bevor sie eintreten. Simulieren Sie, wie Prospects auf Ihre Outbound-Mails, Signale und Preisanderungen reagieren.",
+    "demoNote": "Interaktive Demo mit simulierter Schwarmintelligenz",
+    "failedToLoad": "Szenarien konnten nicht geladen werden",
+    "tryAgain": "Erneut versuchen",
+    "noScenarios": "Keine Szenarien verfugbar",
+    "noScenariosHint": "Schauen Sie bald wieder vorbei — Szenarien werden konfiguriert.",
+    "customSimulation": "Benutzerdefinierte Simulation",
+    "customSimulationDesc": "Bringen Sie Ihr eigenes Seed-Dokument mit und konfigurieren Sie eine Simulation von Grund auf.",
+    "builtFor": "Entwickelt fur GTM-Teams die liefern",
+    "howItWorks": "So Funktioniert's",
+    "steps": {
+      "seed": "1. Szenario einrichten",
+      "seedDesc": "Laden Sie Kampagnentexte, Signaldefinitionen oder Preisszenarien als Seed-Informationen hoch.",
+      "simulate": "2. Schwarm simulieren",
+      "simulateDesc": "Hunderte KI-Agenten mit einzigartigen Personas interagieren, debattieren und reagieren auf simulierten sozialen Plattformen.",
+      "report": "3. Prognoseberichte erhalten",
+      "reportDesc": "Multi-Kapitel-Analysen enthullen Engagement-Muster, Einwande und segmentspezifische Erkenntnisse."
+    },
+    "stats": {
+      "maxAgents": "Max Agenten",
+      "actionTypes": "Aktionstypen",
+      "analysisTools": "Analysetools",
+      "platforms": "Plattformen"
+    },
+    "meetTheSwarm": "Der Schwarm",
+    "meetTheSwarmDesc": "Jeder Agent ist ein einzigartiges Kauferprofil mit realistischen demografischen Daten, Motivationen und Einwandmustern aus Ihrem ICP.",
+    "plusThousands": "+ Tausende weitere aus Ihrer ICP-Verteilung generiert",
+    "whatYouCanSimulate": "Was Sie Simulieren Konnen",
+    "capabilities": {
+      "outbound": "Outbound-E-Mail-Tests",
+      "outboundDesc": "Testen Sie Betreffzeilen, Messaging-Ansatze und Sequenzen gegen Hunderte von KI-Personas, bevor Sie eine einzige echte E-Mail versenden.",
+      "signal": "Signalvalidierung",
+      "signalDesc": "Prufen Sie, ob Ihre Vertriebssignale tatsachlich Kaufverhalten vorhersagen. Identifizieren Sie Fehlalarme, bevor Sie sie an Vertriebsmitarbeiter weiterleiten.",
+      "pricing": "Preisauswirkungen",
+      "pricingDesc": "Prognostizieren Sie Churn-Risiko, Wettbewerbswechsel und Stimmung, bevor Sie Preisanderungen bei echten Kunden einfuhren.",
+      "personalization": "Personalisierungs-Ranking",
+      "personalizationDesc": "Ranken Sie Nachrichtenvarianten nach simuliertem Engagement, nicht nach LLM-Selbsteinschatzung. Finden Sie den besten Ton, Lange und CTA fur jedes Segment."
+    },
+    "useCases": "Anwendungsfalle nach Team",
+    "pipeline": "End-to-End Pipeline",
+    "faq": "Haufig Gestellte Fragen",
+    "cta": {
+      "title": "Bereit Ihren nachsten GTM-Zug zu simulieren?",
+      "subtitle": "Wahlen Sie oben ein Szenario oder erstellen Sie eine benutzerdefinierte Simulation.",
+      "button": "Loslegen"
+    }
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "saved": "Gespeichert",
+    "demoMode": "Demo-Modus",
+    "demoModeDesc": "Verwendung simulierter Daten. API-Schlussel sind nicht erforderlich.",
+    "theme": "Design",
+    "themeSystem": "System",
+    "themeLight": "Hell",
+    "themeDark": "Dunkel",
+    "language": "Sprache",
+    "llmProvider": "LLM-Anbieter",
+    "apiKey": "API-Schlussel",
+    "apiKeyPlaceholder": "API-Schlussel eingeben",
+    "apiKeyDemoPlaceholder": "Im Demo-Modus nicht erforderlich",
+    "simulated": "Simuliert",
+    "testConnection": "Verbindung testen",
+    "testing": "Teste…",
+    "connected": "Verbunden",
+    "failed": "Fehlgeschlagen",
+    "zepCloud": "Zep Cloud (Wissensgraph)",
+    "zepPlaceholder": "Zep API-Schlussel eingeben",
+    "zepDemoPlaceholder": "Im Demo-Modus nicht erforderlich",
+    "zepSignup": "Registrieren bei",
+    "zepFree": "— kostenlose Stufe reicht fur PoC.",
+    "simulationDefaults": "Simulationsstandards",
+    "agentCount": "Agentenzahl",
+    "duration": "Dauer",
+    "platform": "Plattform",
+    "defaultsHint": "Diese Standards fullen den Szenario-Builder vor. Sie konnen sie pro Simulation anpassen.",
+    "demoInfo": "Im Demo-Modus mit vorgenerierten Simulationsdaten. Wechseln Sie zum Produktionsmodus durch Konfiguration von",
+    "demoInfoEnd": "und Konfiguration der API-Schlussel.",
+    "storageInfo": "Einstellungen werden lokal in Ihrem Browser gespeichert. Fur Docker-Deployments konfigurieren Sie uber die",
+    "storageInfoEnd": "Datei."
+  },
+  "footer": {
+    "poweredBy": "Betrieben von",
+    "swarmEngine": "Schwarmintelligenz-Engine",
+    "intercomGtm": "Intercom GTM Systems"
+  },
+  "common": {
+    "loading": "Laden…",
+    "error": "Fehler",
+    "retry": "Erneut versuchen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "hours": "Stunden",
+    "recommended": "empfohlen"
+  }
+}

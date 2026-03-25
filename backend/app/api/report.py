@@ -576,40 +576,67 @@ def list_reports():
 @report_bp.route('/<report_id>/download', methods=['GET'])
 def download_report(report_id: str):
     """
-    下载报告（Markdown格式）
-    
-    返回Markdown文件
+    下载报告（支持多种格式）
+
+    Query参数：
+        format: md | html | pdf | json （默认 md）
+
+    返回对应格式的文件
     """
     try:
+        fmt = request.args.get('format', 'md').lower()
+        if fmt not in ('md', 'html', 'pdf', 'json'):
+            return jsonify({
+                "success": False,
+                "error": f"Unsupported format: {fmt}. Use md, html, pdf, or json."
+            }), 400
+
         report = ReportManager.get_report(report_id)
-        
+
         if not report:
             return jsonify({
                 "success": False,
                 "error": f"报告不存在: {report_id}"
             }), 404
-        
+
+        from ..services.report_exporter import export_html, export_pdf, export_json
+
+        if fmt == 'html':
+            import tempfile
+            html_content = export_html(report)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                f.write(html_content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.html", mimetype='text/html')
+
+        if fmt == 'pdf':
+            import tempfile
+            pdf_bytes = export_pdf(report)
+            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
+                f.write(pdf_bytes)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.pdf", mimetype='application/pdf')
+
+        if fmt == 'json':
+            import tempfile
+            json_content = export_json(report)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
+                f.write(json_content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.json", mimetype='application/json')
+
+        # Default: markdown
         md_path = ReportManager._get_report_markdown_path(report_id)
-        
+
         if not os.path.exists(md_path):
-            # 如果MD文件不存在，生成一个临时文件
             import tempfile
             with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
                 f.write(report.markdown_content)
                 temp_path = f.name
-            
-            return send_file(
-                temp_path,
-                as_attachment=True,
-                download_name=f"{report_id}.md"
-            )
-        
-        return send_file(
-            md_path,
-            as_attachment=True,
-            download_name=f"{report_id}.md"
-        )
-        
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.md")
+
+        return send_file(md_path, as_attachment=True, download_name=f"{report_id}.md")
+
     except Exception as e:
         logger.error(f"下载报告失败: {str(e)}")
         return jsonify({

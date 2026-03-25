@@ -12,8 +12,8 @@ export const reportApi = {
     client.get(`/report/by-simulation/${simulationId}`),
   list: (params) => client.get('/report/list', { params }),
   delete: (reportId) => client.delete(`/report/${reportId}`),
-  download: (reportId) =>
-    client.get(`/report/${reportId}/download`, { responseType: 'blob' }),
+  download: (reportId, format = 'md') =>
+    client.get(`/report/${reportId}/download`, { params: { format }, responseType: 'blob' }),
 
   // --- Status & progress ---
   getStatus: (reportId) => client.get(`/report/${reportId}/status`),

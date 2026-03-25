@@ -1,76 +1,201 @@
 """
-Report export service — converts reports to Markdown, HTML, and CSV formats.
+Report export service — converts reports to Markdown, HTML, CSV, PDF, and JSON formats.
+
+Provides two interfaces:
+- ReportExporter class: works with section lists (used by internal report builder)
+- Standalone functions (export_html, export_pdf, export_json): work with Report model objects
+  (used by the download endpoint)
+
+HTML and PDF share a single branded template; PDF is rendered via xhtml2pdf.
 """
 
 import csv
 import io
+import json
 import re
+from io import BytesIO
+
+import markdown
+from xhtml2pdf import pisa
 
 from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.services.report_exporter')
 
-# Self-contained HTML template with Intercom branding (inline CSS)
-HTML_TEMPLATE = """<!DOCTYPE html>
+# Intercom-branded HTML template shared by HTML and PDF exports.
+# PDF renderer (xhtml2pdf) requires inline styles — external CSS/Tailwind won't work.
+_HTML_TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ title }}</title>
+<title>{title}</title>
 <style>
-  body {
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  @page {{
+    size: A4;
+    margin: 2cm;
+    @frame footer {{
+      -pdf-frame-content: page-footer;
+      bottom: 0;
+      height: 1cm;
+      margin-left: 2cm;
+      margin-right: 2cm;
+    }}
+  }}
+  body {{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #1a1a1a;
     line-height: 1.6;
+    font-size: 14px;
     max-width: 800px;
     margin: 0 auto;
-    padding: 40px 24px;
-    background: #fff;
-  }
-  h1 { font-size: 1.75rem; font-weight: 700; color: #050505; margin-bottom: 0.5rem; }
-  h2 { font-size: 1.35rem; font-weight: 600; color: #050505; margin-top: 2rem; margin-bottom: 0.75rem; border-bottom: 2px solid #2068FF; padding-bottom: 0.25rem; }
-  h3 { font-size: 1.125rem; font-weight: 600; color: #050505; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-  p { margin-bottom: 0.75rem; color: #444; font-size: 0.9375rem; }
-  ul, ol { margin-bottom: 0.75rem; padding-left: 1.5rem; }
-  li { margin-bottom: 0.25rem; color: #444; font-size: 0.9375rem; }
-  ul { list-style-type: disc; }
-  ol { list-style-type: decimal; }
-  strong { font-weight: 600; color: #1a1a1a; }
-  blockquote { border-left: 3px solid #2068FF; padding-left: 1rem; margin: 1rem 0; color: #555; font-style: italic; }
-  code { background: #f4f5f7; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; }
-  pre { background: #1a1a2e; color: #e0e0e0; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1rem 0; }
-  pre code { background: none; padding: 0; }
-  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.875rem; }
-  th { text-align: left; padding: 0.5rem; border-bottom: 2px solid #2068FF; font-weight: 600; color: #050505; }
-  td { padding: 0.5rem; border-bottom: 1px solid #e5e5e5; color: #444; }
-  tr:nth-child(even) { background: #f9fafb; }
-  hr { border: none; border-top: 1px solid #e5e5e5; margin: 2rem 0; }
-  .header { border-bottom: 3px solid #2068FF; padding-bottom: 1rem; margin-bottom: 2rem; }
-  .header .brand { color: #2068FF; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; }
-  .footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e5e5e5; font-size: 0.75rem; color: #888; text-align: center; }
-  @media print {
-    body { padding: 0; max-width: none; }
-    h2 { page-break-before: always; }
-    h2:first-of-type { page-break-before: avoid; }
-    pre, table, blockquote { page-break-inside: avoid; }
-  }
+    padding: 2rem;
+  }}
+  h1 {{
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #050505;
+    border-bottom: 3px solid #2068FF;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+  }}
+  h2 {{
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #050505;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+  }}
+  h3 {{
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+  }}
+  p {{ margin-bottom: 0.75rem; }}
+  ul, ol {{ margin-bottom: 0.75rem; padding-left: 1.5rem; }}
+  li {{ margin-bottom: 0.25rem; }}
+  blockquote {{
+    border-left: 3px solid #2068FF;
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: #555;
+    font-style: italic;
+  }}
+  table {{
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.875rem;
+  }}
+  th {{
+    text-align: left;
+    padding: 0.5rem;
+    border-bottom: 2px solid #2068FF;
+    font-weight: 600;
+  }}
+  td {{
+    padding: 0.5rem;
+    border-bottom: 1px solid #e0e0e0;
+  }}
+  code {{
+    background: #f4f4f8;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }}
+  pre {{
+    background: #1a1a2e;
+    color: #e0e0e0;
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1rem 0;
+  }}
+  pre code {{ background: none; padding: 0; }}
+  hr {{ border: none; border-top: 1px solid #e0e0e0; margin: 1.5rem 0; }}
+  .report-header {{
+    background: #f8faff;
+    border: 1px solid #d4e3ff;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }}
+  .report-header .meta {{
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.5rem;
+  }}
+  .report-header .meta span {{
+    margin-right: 1.5rem;
+  }}
+  strong {{ font-weight: 600; color: #050505; }}
+  #page-footer {{
+    font-size: 0.7rem;
+    color: #999;
+    text-align: center;
+  }}
+  @media print {{
+    body {{ padding: 0; max-width: none; }}
+    h2 {{ page-break-before: always; }}
+    h2:first-of-type {{ page-break-before: avoid; }}
+    pre, table, blockquote {{ page-break-inside: avoid; }}
+  }}
 </style>
 </head>
 <body>
-<div class="header">
-  <div class="brand">MiroFish Report</div>
-  <h1>{{ title }}</h1>
+<div class="report-header">
+  <div style="font-size:0.75rem;font-weight:600;color:#2068FF;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem;">
+    MiroFish GTM Report
+  </div>
+  <div class="meta">
+    <span>Report: {report_id}</span>
+    <span>Generated: {completed_at}</span>
+  </div>
 </div>
-{{ content }}
-<div class="footer">
-  Generated by MiroFish &mdash; GTM Simulation Engine
+{body}
+<div id="page-footer">
+  MiroFish GTM &mdash; Predictive Report &mdash; {report_id}
 </div>
 </body>
 </html>"""
 
+# Markdown extensions for richer HTML output
+_MD_EXTENSIONS = ['tables', 'fenced_code', 'toc', 'smarty']
+
+
+def export_html(report) -> str:
+    """Convert a Report to a standalone branded HTML document."""
+    body_html = markdown.markdown(
+        report.markdown_content or '',
+        extensions=_MD_EXTENSIONS,
+    )
+    return _HTML_TEMPLATE.format(
+        title=report.outline.title if report.outline else 'GTM Report',
+        report_id=report.report_id,
+        completed_at=report.completed_at or report.created_at or '',
+        body=body_html,
+    )
+
+
+def export_pdf(report) -> bytes:
+    """Convert a Report to PDF bytes via HTML intermediate."""
+    html = export_html(report)
+    buf = BytesIO()
+    status = pisa.CreatePDF(html, dest=buf, encoding='utf-8')
+    if status.err:
+        logger.error(f"PDF generation errors for {report.report_id}: {status.err}")
+    buf.seek(0)
+    return buf.read()
+
+
+def export_json(report) -> str:
+    """Return structured JSON of the full report data."""
+    return json.dumps(report.to_dict(), ensure_ascii=False, indent=2)
+
 
 class ReportExporter:
-    """Exports report content to multiple formats."""
+    """Exports report content to multiple formats from section lists."""
 
     @staticmethod
     def to_markdown(sections):
@@ -84,25 +209,14 @@ class ReportExporter:
     @staticmethod
     def to_html(sections, title='Simulation Report'):
         """Render report as self-contained HTML with Intercom branding."""
-        try:
-            from markupsafe import Markup
-            from jinja2 import Template
-        except ImportError:
-            from jinja2 import Template, Markup
-
-        try:
-            from marked import parse as md_parse
-        except ImportError:
-            pass
-
-        # Convert markdown sections to HTML
         markdown_text = ReportExporter.to_markdown(sections)
-
-        # Use Python markdown conversion
-        html_body = ReportExporter._markdown_to_html(markdown_text)
-
-        template = Template(HTML_TEMPLATE)
-        return template.render(title=title, content=Markup(html_body))
+        html_body = markdown.markdown(markdown_text, extensions=_MD_EXTENSIONS)
+        return _HTML_TEMPLATE.format(
+            title=title,
+            report_id='',
+            completed_at='',
+            body=html_body,
+        )
 
     @staticmethod
     def to_csv(sections):
@@ -111,7 +225,6 @@ class ReportExporter:
         tables = ReportExporter._extract_tables(markdown_text)
 
         if not tables:
-            # Return a simple CSV with section titles if no tables found
             output = io.StringIO()
             writer = csv.writer(output)
             writer.writerow(['Section', 'Content Summary'])
@@ -119,7 +232,6 @@ class ReportExporter:
                 content = s.get('content', '') if isinstance(s, dict) else s
                 title_match = re.search(r'^##\s+(.+)', content, re.MULTILINE)
                 title = title_match.group(1) if title_match else 'Untitled'
-                # First non-empty paragraph as summary
                 paragraphs = [
                     l.strip() for l in content.split('\n')
                     if l.strip() and not l.strip().startswith('#')
@@ -128,88 +240,14 @@ class ReportExporter:
                 writer.writerow([title, summary])
             return output.getvalue()
 
-        # Write all tables into a single CSV with blank-line separators
         output = io.StringIO()
         writer = csv.writer(output)
         for i, table in enumerate(tables):
             if i > 0:
-                writer.writerow([])  # blank separator
+                writer.writerow([])
             for row in table:
                 writer.writerow(row)
         return output.getvalue()
-
-    @staticmethod
-    def _markdown_to_html(text):
-        """Convert markdown to HTML using available libraries."""
-        # Try markdown library first
-        try:
-            import markdown
-            return markdown.markdown(text, extensions=['tables', 'fenced_code'])
-        except ImportError:
-            pass
-
-        # Minimal fallback: basic markdown-to-HTML conversion
-        lines = text.split('\n')
-        html_parts = []
-        in_list = False
-        in_code = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            # Fenced code blocks
-            if stripped.startswith('```'):
-                if in_code:
-                    html_parts.append('</code></pre>')
-                    in_code = False
-                else:
-                    html_parts.append('<pre><code>')
-                    in_code = True
-                continue
-
-            if in_code:
-                html_parts.append(stripped)
-                continue
-
-            # Headings
-            if stripped.startswith('### '):
-                html_parts.append(f'<h3>{ReportExporter._inline_md(stripped[4:])}</h3>')
-            elif stripped.startswith('## '):
-                html_parts.append(f'<h2>{ReportExporter._inline_md(stripped[3:])}</h2>')
-            elif stripped.startswith('# '):
-                html_parts.append(f'<h1>{ReportExporter._inline_md(stripped[2:])}</h1>')
-            elif stripped.startswith('---'):
-                html_parts.append('<hr>')
-            elif stripped.startswith('> '):
-                html_parts.append(f'<blockquote><p>{ReportExporter._inline_md(stripped[2:])}</p></blockquote>')
-            elif stripped.startswith('- ') or stripped.startswith('* '):
-                if not in_list:
-                    html_parts.append('<ul>')
-                    in_list = True
-                html_parts.append(f'<li>{ReportExporter._inline_md(stripped[2:])}</li>')
-            elif stripped == '':
-                if in_list:
-                    html_parts.append('</ul>')
-                    in_list = False
-                html_parts.append('')
-            else:
-                if in_list:
-                    html_parts.append('</ul>')
-                    in_list = False
-                html_parts.append(f'<p>{ReportExporter._inline_md(stripped)}</p>')
-
-        if in_list:
-            html_parts.append('</ul>')
-
-        return '\n'.join(html_parts)
-
-    @staticmethod
-    def _inline_md(text):
-        """Convert inline markdown (bold, italic, code) to HTML."""
-        text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
-        text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
-        text = re.sub(r'`(.+?)`', r'<code>\1</code>', text)
-        return text
 
     @staticmethod
     def _extract_tables(markdown_text):
@@ -220,7 +258,6 @@ class ReportExporter:
         for line in markdown_text.split('\n'):
             stripped = line.strip()
             if stripped.startswith('|') and stripped.endswith('|'):
-                # Skip separator rows (|---|---|)
                 if re.match(r'^\|[\s\-:]+\|$', stripped.replace('|', '|').strip()):
                     continue
                 cells = [c.strip() for c in stripped.split('|')[1:-1]]

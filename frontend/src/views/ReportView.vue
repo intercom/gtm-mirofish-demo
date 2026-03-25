@@ -35,6 +35,7 @@ const isComplete = ref(false)
 const showAgentLog = ref(false)
 const showThemePanel = ref(false)
 const builderMode = ref(false)
+const showExportMenu = ref(false)
 
 const agentTableRows = ref([])
 const agentTableColumns = [
@@ -43,6 +44,13 @@ const agentTableColumns = [
   { key: 'posts', label: 'Posts', sortable: true, align: 'right' },
   { key: 'replies', label: 'Replies', sortable: true, align: 'right' },
   { key: 'likes', label: 'Likes', sortable: true, align: 'right' },
+]
+
+const exportFormats = [
+  { key: 'md', label: 'Markdown (.md)', icon: 'M↓' },
+  { key: 'html', label: 'HTML (.html)', icon: '</>' },
+  { key: 'pdf', label: 'PDF (.pdf)', icon: 'PDF' },
+  { key: 'json', label: 'JSON (.json)', icon: '{ }' },
 ]
 
 async function fetchAgentStats() {
@@ -223,9 +231,16 @@ function stopPolling() {
   }
 }
 
-function exportMarkdown() {
+function exportReport(format) {
   if (reportId.value) {
-    window.open(`${API_BASE}/report/${reportId.value}/download`, '_blank')
+    window.open(`${API_BASE}/report/${reportId.value}/download?format=${format}`, '_blank')
+  }
+  showExportMenu.value = false
+}
+
+function onClickOutsideExport(e) {
+  if (!e.target.closest('.export-menu-wrapper')) {
+    showExportMenu.value = false
   }
 }
 
@@ -233,7 +248,7 @@ const toast = useToast()
 
 const { showHelp, shortcuts } = useReportShortcuts({
   onPreview: () => window.print(),
-  onExport: () => exportMarkdown(),
+  onExport: () => exportReport('md'),
   onSaveTemplate: () => toast.info('Save as template — coming soon'),
   onDeleteSection: () => toast.info('Section removal — coming soon'),
   onMoveUp: () => {
@@ -255,10 +270,12 @@ function handleReorder(from, to) {
 onMounted(() => {
   checkAndLoad()
   fetchAgentStats()
+  document.addEventListener('click', onClickOutsideExport)
 })
 onUnmounted(() => {
   stopPolling()
   reportStore.reset()
+  document.removeEventListener('click', onClickOutsideExport)
 })
 </script>
 
@@ -312,16 +329,34 @@ onUnmounted(() => {
           </svg>
           Share
         </button>
-        <button
-          v-if="!generating && sections.length > 0"
-          @click="exportMarkdown"
-          class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Export
-        </button>
+        <div v-if="!generating && sections.length > 0" class="relative export-menu-wrapper">
+          <button
+            @click.stop="showExportMenu = !showExportMenu"
+            class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
+            <svg class="w-3 h-3 transition-transform" :class="{ 'rotate-180': showExportMenu }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <div
+            v-if="showExportMenu"
+            class="absolute right-0 top-full mt-1 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg z-20 py-1"
+          >
+            <button
+              v-for="fmt in exportFormats"
+              :key="fmt.key"
+              @click="exportReport(fmt.key)"
+              class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-tint)] flex items-center gap-3 transition-colors"
+            >
+              <span class="w-7 text-center text-xs font-mono text-[var(--color-text-muted)]">{{ fmt.icon }}</span>
+              {{ fmt.label }}
+            </button>
+          </div>
+        </div>
         <button
           @click="showHelp = !showHelp"
           class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text-secondary)] px-2.5 py-2 rounded-lg text-sm transition-colors"

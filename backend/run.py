@@ -20,17 +20,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app
 from app.config import Config
+from app.services.diagnostics import run_diagnostics
 
 
 def main():
     """主函数"""
-    # 验证配置
-    errors = Config.validate()
-    if errors:
-        print("配置错误:")
-        for err in errors:
+    # Run startup diagnostics (replaces hard-fail Config.validate)
+    diag = run_diagnostics()
+    if not diag.ok:
+        print("\nStartup aborted — critical diagnostics failed:")
+        for err in diag.errors:
             print(f"  - {err}")
-        print("\n请检查 .env 文件中的配置")
         sys.exit(1)
 
     # 创建应用

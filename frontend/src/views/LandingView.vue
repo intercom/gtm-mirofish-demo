@@ -10,6 +10,7 @@ import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGal
 import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
 import GtmScenarioLauncher from '../components/scenarios/GtmScenarioLauncher.vue'
 import LazyComponent from '../components/ui/LazyComponent.vue'
+import SkeletonScenarioCard from '../components/ui/SkeletonScenarioCard.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -332,7 +333,14 @@ const year = new Date().getFullYear()
           Interactive demo with simulated swarm intelligence
         </p>
 
-        <div class="max-w-2xl mx-auto">
+        <!-- Loading State -->
+        <div v-if="loading" class="max-w-2xl mx-auto">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SkeletonScenarioCard v-for="n in 4" :key="n" dark />
+          </div>
+        </div>
+
+        <div v-else class="max-w-2xl mx-auto">
           <ScenarioTemplateGallery
             ref="scenarioSection"
             variant="dark"

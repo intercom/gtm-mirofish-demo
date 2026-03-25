@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import SkeletonFormLayout from '../components/ui/SkeletonFormLayout.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import TeamComposer from '../components/simulation/TeamComposer.vue'
 import MarkdownEditor from '../components/common/MarkdownEditor.vue'
@@ -423,7 +423,7 @@ async function runSimulation() {
 
 <template>
   <div class="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
-    <LoadingSpinner v-if="loading" label="Loading scenario..." />
+    <SkeletonFormLayout v-if="loading" />
 
     <ErrorState
       v-else-if="error"

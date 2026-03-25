@@ -54,14 +54,14 @@ cd frontend && npm install && npm run dev
 
 ## API Endpoints
 
-### MiroFish Core (unchanged)
-- `POST /api/graph/build` — Build knowledge graph from seed text
-- `POST /api/simulation/start` — Start OASIS simulation
-- `GET /api/simulation/status` — Check simulation progress
-- `POST /api/report/generate` — Generate predictive report
-- `POST /api/chat` — Chat with simulated world
+### MiroFish Core
+- `POST /api/v1/graph/build` — Build knowledge graph from seed text
+- `POST /api/v1/simulation/start` — Start OASIS simulation
+- `GET /api/v1/simulation/status` — Check simulation progress
+- `POST /api/v1/report/generate` — Generate predictive report
+- `POST /api/v1/report/chat` — Chat with simulated world
 
-### GTM Extensions (new)
-- `GET /api/gtm/scenarios` — List GTM scenario templates
-- `GET /api/gtm/scenarios/:id` — Get scenario with seed data
-- `GET /api/gtm/seed-data/:type` — Get seed data by type
+### GTM Extensions
+- `GET /api/v1/gtm/scenarios` — List GTM scenario templates
+- `GET /api/v1/gtm/scenarios/:id` — Get scenario with seed data
+- `GET /api/v1/gtm/seed-data/:type` — Get seed data by type

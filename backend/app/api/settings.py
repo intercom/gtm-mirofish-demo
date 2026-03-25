@@ -6,7 +6,7 @@ Test connections and retrieve auth status for the Settings page.
 from flask import Blueprint, jsonify, request, current_app
 from openai import OpenAI
 
-settings_bp = Blueprint('settings', __name__, url_prefix='/api/settings')
+settings_bp = Blueprint('settings', __name__, url_prefix='/api/v1/settings')
 
 
 @settings_bp.route('/test-llm', methods=['POST'])

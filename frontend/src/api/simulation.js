@@ -1,4 +1,5 @@
 import client from './client'
+import { API_BASE } from './client'
 
 export const simulationApi = {
   // --- Entities ---
@@ -62,4 +63,8 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- SSE stream ---
+  getProgressStreamUrl: (simulationId, interval = 2) =>
+    `${API_BASE}/simulation/${simulationId}/progress/stream?interval=${interval}`,
 }

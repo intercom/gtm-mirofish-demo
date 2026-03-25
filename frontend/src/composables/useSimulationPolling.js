@@ -2,9 +2,11 @@ import { ref, computed, watch, toValue, onUnmounted } from 'vue'
 import client, { API_BASE } from '../api/client'
 import { graphApi } from '../api/graph'
 import { useSimulationStore } from '../stores/simulation'
+import { useSimulationSSE } from './useSimulationSSE'
 
 export function useSimulationPolling(taskIdSource) {
   const simStore = useSimulationStore()
+  const sse = useSimulationSSE()
 
   // --- Graph state ---
   const graphTask = ref(null)
@@ -194,8 +196,47 @@ export function useSimulationPolling(taskIdSource) {
     }
   }
 
+  // --- SSE bridge ---
+  // When SSE connects, sync its data into our refs and pause redundant polling.
+  // When SSE drops, resume polling automatically.
+  watch(sse.connected, (connected) => {
+    if (connected) {
+      runStatusTimer = clearTimer(runStatusTimer)
+      detailTimer = clearTimer(detailTimer)
+    } else if (simStatus.value === 'running') {
+      if (!runStatusTimer) {
+        runStatusTimer = setInterval(fetchRunStatus, 3000)
+      }
+      ensureDetailPolling()
+    }
+  })
+
+  watch(sse.runStatus, (data) => {
+    if (!data) return
+    runStatus.value = data
+    const rs = data.runner_status
+    if (rs === 'completed' || rs === 'stopped') {
+      simStatus.value = 'completed'
+    } else if (rs === 'failed') {
+      simStatus.value = 'failed'
+      errorMsg.value = data.error || 'Simulation failed'
+    } else if (rs === 'running' || rs === 'starting' || rs === 'paused') {
+      simStatus.value = 'running'
+    }
+  })
+
+  watch(sse.recentActions, (actions) => {
+    if (actions.length > 0) recentActions.value = actions
+  })
+
+  function trySSE() {
+    const taskId = resolveTaskId()
+    if (taskId) sse.connect(taskId)
+  }
+
   // --- Timer management ---
   function ensureDetailPolling() {
+    if (sse.connected.value) return
     if (!detailTimer) {
       fetchDetail()
       detailTimer = setInterval(fetchDetail, 5000)
@@ -210,6 +251,7 @@ export function useSimulationPolling(taskIdSource) {
     runStatusTimer = clearTimer(runStatusTimer)
     detailTimer = clearTimer(detailTimer)
     timelineTimer = clearTimer(timelineTimer)
+    sse.disconnect()
   }
 
   // --- Public methods ---
@@ -219,6 +261,7 @@ export function useSimulationPolling(taskIdSource) {
     fetchGraphTask()
     graphTimer = setInterval(fetchGraphTask, 2000)
 
+    trySSE()
     fetchRunStatus()
     runStatusTimer = setInterval(fetchRunStatus, 3000)
   }
@@ -370,6 +413,9 @@ export function useSimulationPolling(taskIdSource) {
     overallPhase,
     errorMsg,
     isDemoFallback,
+
+    // SSE state
+    sseConnected: sse.connected,
 
     // Methods
     start,

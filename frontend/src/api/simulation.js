@@ -62,4 +62,16 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- Branching ---
+  createBranch: (simulationId, data) =>
+    client.post(`/simulation/${simulationId}/branch`, data),
+  getBranches: (simulationId) =>
+    client.get(`/simulation/${simulationId}/branches`),
+  getBranchTree: (simulationId) =>
+    client.get(`/simulation/${simulationId}/branch-tree`),
+  compareBranches: (ids) =>
+    client.get('/simulation/compare-branches', { params: { ids: ids.join(',') } }),
+  deleteBranch: (simulationId, params) =>
+    client.delete(`/simulation/${simulationId}/branch`, { params }),
 }

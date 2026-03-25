@@ -4,7 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import SkeletonFormLayout from '../components/ui/SkeletonFormLayout.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import TeamComposer from '../components/simulation/TeamComposer.vue'
-import MarkdownEditor from '../components/common/MarkdownEditor.vue'
+import { RichTextEditor } from '../components/common'
 import { useToast } from '../composables/useToast'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useScenariosStore } from '../stores/scenarios'
@@ -552,10 +552,8 @@ async function runSimulation() {
           </div>
 
           <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Seed Document</label>
-          <MarkdownEditor
+          <RichTextEditor
             v-model="seedText"
-            :rows="16"
-            filename="seed-document"
             placeholder="Describe your scenario: What campaign are you testing? What messaging will prospects see? Include email copy, target audience details, and any competitive context. The more realistic the seed document, the more useful the simulation results will be."
           />
 

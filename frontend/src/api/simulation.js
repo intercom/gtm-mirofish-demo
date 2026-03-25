@@ -82,4 +82,10 @@ export const simulationApi = {
     client.get('/simulation/compare-branches', { params: { ids: ids.join(',') } }),
   deleteBranch: (simulationId, params) =>
     client.delete(`/simulation/${simulationId}/branch`, { params }),
+
+  // --- Predictions ---
+  getPredictions: (simulationId) =>
+    client.get(`/simulation/${simulationId}/predictions`),
+  getPredictionAccuracy: (simulationId) =>
+    client.get(`/simulation/${simulationId}/predictions/accuracy`),
 }

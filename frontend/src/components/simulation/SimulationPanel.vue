@@ -9,6 +9,7 @@ import BehaviorPatterns from './BehaviorPatterns.vue'
 import CollaborationIndicator from './CollaborationIndicator.vue'
 import LiveMetrics from './LiveMetrics.vue'
 import TimelineAnnotations from '../timeline/TimelineAnnotations.vue'
+import PredictionDashboard from './PredictionDashboard.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -605,6 +606,14 @@ onUnmounted(() => {
         <!-- Live Metrics Dashboard -->
         <LiveMetrics class="mb-8" />
 
+        <!-- Prediction Dashboard -->
+        <PredictionDashboard
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          :currentRound="currentRound"
+          :totalRounds="totalRounds"
+          class="mb-8"
+        />
         <!-- Platform breakdown -->
         <div v-if="polling.runStatus.value" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center gap-4">

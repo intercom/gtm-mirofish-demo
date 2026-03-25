@@ -4,6 +4,7 @@ import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
+import ApiKeyManagement from '../components/settings/ApiKeyManagement.vue'
 
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
@@ -256,6 +257,15 @@ onMounted(() => {
         <a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[#2068FF] hover:underline">app.getzep.com</a>
         — free tier is sufficient for PoC.
       </p>
+    </section>
+
+    <!-- API Keys -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">API Keys</h2>
+      <p class="text-xs text-[var(--color-text-muted)] mb-4">
+        Create keys for programmatic access to the MiroFish API. Keys use the <code class="bg-[var(--color-border)] px-1 rounded">mf_</code> prefix.
+      </p>
+      <ApiKeyManagement />
     </section>
 
     <!-- Simulation Defaults -->

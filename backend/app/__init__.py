@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # API Key management
+    from .api.api_keys import api_keys_bp
+    app.register_blueprint(api_keys_bp)
     
     # 健康检查
     @app.route('/health')

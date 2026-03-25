@@ -8,6 +8,8 @@ import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
 import ToolCallLog from '../components/report/ToolCallLog.vue'
+import ReportSummaryCards from '../components/report/ReportSummaryCards.vue'
+import DataTable from '../components/report/DataTable.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -20,6 +22,34 @@ const progressMessage = ref('')
 const error = ref(null)
 const isComplete = ref(false)
 const showAgentLog = ref(false)
+
+const agentTableRows = ref([])
+const agentTableColumns = [
+  { key: 'name', label: 'Agent', sortable: true },
+  { key: 'total_actions', label: 'Actions', sortable: true, align: 'right' },
+  { key: 'posts', label: 'Posts', sortable: true, align: 'right' },
+  { key: 'replies', label: 'Replies', sortable: true, align: 'right' },
+  { key: 'likes', label: 'Likes', sortable: true, align: 'right' },
+]
+
+async function fetchAgentStats() {
+  try {
+    const res = await fetch(`${API_BASE}/simulation/${props.taskId}/agent-stats`)
+    if (!res.ok) return
+    const json = await res.json()
+    if (json.success && json.data?.stats) {
+      agentTableRows.value = json.data.stats.map((a) => ({
+        name: a.agent_name || a.name || `Agent ${a.agent_id}`,
+        total_actions: a.total_actions || 0,
+        posts: a.posts || a.create_post || 0,
+        replies: a.replies || a.reply || 0,
+        likes: a.likes || a.like || 0,
+      }))
+    }
+  } catch {
+    // Agent stats are supplementary
+  }
+}
 
 let pollTimer = null
 
@@ -180,7 +210,10 @@ const { showHelp, shortcuts } = useReportShortcuts({
   },
 })
 
-onMounted(checkAndLoad)
+onMounted(() => {
+  checkAndLoad()
+  fetchAgentStats()
+})
 onUnmounted(stopPolling)
 </script>
 
@@ -246,6 +279,14 @@ onUnmounted(stopPolling)
         </div>
       </div>
     </Transition>
+
+    <!-- Summary Cards -->
+    <ReportSummaryCards
+      v-if="!generating || sections.length > 0"
+      :taskId="taskId"
+      :sectionsCount="sections.length"
+      class="mb-6"
+    />
 
     <!-- Error State -->
     <div v-if="error" class="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-4 mb-6 text-sm text-red-700 dark:text-red-400">
@@ -413,6 +454,14 @@ onUnmounted(stopPolling)
             Next Chapter →
           </button>
         </div>
+
+        <!-- Agent Data Table -->
+        <DataTable
+          v-if="agentTableRows.length > 0 && !generating"
+          :columns="agentTableColumns"
+          :rows="agentTableRows"
+          title="Agent Activity Breakdown"
+        />
       </div>
     </div>
   </div>

@@ -669,6 +669,87 @@ def get_graph_data(graph_id: str):
         }), 500
 
 
+@graph_bp.route('/search', methods=['POST'])
+def search_graph():
+    """
+    Graph semantic search endpoint
+
+    Request (JSON):
+        {
+            "graph_id": "mirofish_xxxx",
+            "query": "search query",
+            "limit": 10,
+            "scope": "edges"
+        }
+
+    Returns:
+        {
+            "success": true,
+            "data": {
+                "facts": [...],
+                "edges": [...],
+                "nodes": [...],
+                "query": "...",
+                "total_count": N
+            }
+        }
+    """
+    try:
+        data = request.get_json() or {}
+
+        graph_id = data.get('graph_id')
+        query = data.get('query', '').strip()
+        limit = data.get('limit', 10)
+        scope = data.get('scope', 'edges')
+
+        if not query:
+            return jsonify({
+                "success": False,
+                "error": "Please provide a search query"
+            }), 400
+
+        if not graph_id:
+            return jsonify({
+                "success": False,
+                "error": "Please provide graph_id"
+            }), 400
+
+        if not Config.ZEP_API_KEY:
+            return jsonify({
+                "success": True,
+                "data": {
+                    "facts": [],
+                    "edges": [],
+                    "nodes": [],
+                    "query": query,
+                    "total_count": 0,
+                    "demo": True
+                }
+            })
+
+        from ..services.zep_tools import ZepToolsService
+
+        tools = ZepToolsService()
+        result = tools.search_graph(
+            graph_id=graph_id,
+            query=query,
+            limit=limit,
+            scope=scope
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result.to_dict()
+        })
+
+    except Exception as e:
+        logger.error(f"Graph search failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
 @graph_bp.route('/delete/<graph_id>', methods=['DELETE'])
 def delete_graph(graph_id: str):
     """

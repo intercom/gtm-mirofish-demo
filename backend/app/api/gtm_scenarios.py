@@ -5,12 +5,13 @@ and provides a unified simulation endpoint that bridges the frontend
 ScenarioBuilder with the backend ontology/graph pipeline.
 """
 
+import hashlib
 import json
 import os
 import traceback
 import threading
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, make_response
 
 from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
@@ -36,9 +37,52 @@ def _load_json(filepath):
     return None
 
 
+def _file_etag(filepath):
+    """Generate an ETag from a file's mtime and size."""
+    stat = os.stat(filepath)
+    raw = f"{filepath}:{stat.st_mtime_ns}:{stat.st_size}"
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _dir_etag(dirpath, ext='.json'):
+    """Generate an ETag from all matching files' mtimes in a directory."""
+    parts = []
+    if os.path.isdir(dirpath):
+        for name in sorted(os.listdir(dirpath)):
+            if name.endswith(ext):
+                fp = os.path.join(dirpath, name)
+                stat = os.stat(fp)
+                parts.append(f"{name}:{stat.st_mtime_ns}:{stat.st_size}")
+    raw = "|".join(parts)
+    return hashlib.md5(raw.encode()).hexdigest()
+
+
+def _check_etag(etag):
+    """Check If-None-Match header; return a 304 response if it matches."""
+    if_none_match = request.headers.get('If-None-Match', '').strip()
+    if if_none_match and if_none_match == f'"{etag}"':
+        resp = make_response('', 304)
+        resp.headers['ETag'] = f'"{etag}"'
+        return resp
+    return None
+
+
+def _json_response(data, etag, max_age=300):
+    """Build a JSON response with ETag and Cache-Control headers."""
+    resp = jsonify(data)
+    resp.headers['ETag'] = f'"{etag}"'
+    resp.headers['Cache-Control'] = f'public, max-age={max_age}'
+    return resp
+
+
 @gtm_bp.route('/scenarios', methods=['GET'])
 def list_scenarios():
     """List all available GTM scenario templates."""
+    etag = _dir_etag(SCENARIOS_DIR)
+    cached = _check_etag(etag)
+    if cached:
+        return cached
+
     scenarios = []
     if os.path.exists(SCENARIOS_DIR):
         for filename in sorted(os.listdir(SCENARIOS_DIR)):
@@ -52,36 +96,56 @@ def list_scenarios():
                         'category': data.get('category', 'general'),
                         'icon': data.get('icon', ''),
                     })
-    return jsonify({'scenarios': scenarios})
+    return _json_response({'scenarios': scenarios}, etag)
 
 
 @gtm_bp.route('/scenarios/<scenario_id>', methods=['GET'])
 def get_scenario(scenario_id):
     """Get a specific scenario template with full configuration."""
     filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
+    if not os.path.exists(filepath):
+        return jsonify({'error': f'Scenario {scenario_id} not found'}), 404
+
+    etag = _file_etag(filepath)
+    cached = _check_etag(etag)
+    if cached:
+        return cached
+
     data = _load_json(filepath)
-    if data:
-        return jsonify(data)
-    return jsonify({'error': f'Scenario {scenario_id} not found'}), 404
+    return _json_response(data, etag)
 
 
 @gtm_bp.route('/seed-data/<data_type>', methods=['GET'])
 def get_seed_data(data_type):
     """Get GTM seed data by type (account_profiles, signal_definitions, etc.)."""
     filepath = os.path.join(SEED_DATA_DIR, f'{data_type}.json')
+    if not os.path.exists(filepath):
+        return jsonify({'error': f'Seed data {data_type} not found'}), 404
+
+    etag = _file_etag(filepath)
+    cached = _check_etag(etag)
+    if cached:
+        return cached
+
     data = _load_json(filepath)
-    if data:
-        return jsonify(data)
-    return jsonify({'error': f'Seed data {data_type} not found'}), 404
+    return _json_response(data, etag)
 
 
 @gtm_bp.route('/scenarios/<scenario_id>/seed-text', methods=['GET'])
 def get_scenario_seed_text(scenario_id):
     """Get the seed text for a scenario, ready to paste into graph building."""
     filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Seed text not found'}), 404
+
+    etag = _file_etag(filepath)
+    cached = _check_etag(etag)
+    if cached:
+        return cached
+
     data = _load_json(filepath)
     if data and 'seed_text' in data:
-        return jsonify({'seed_text': data['seed_text']})
+        return _json_response({'seed_text': data['seed_text']}, etag)
     return jsonify({'error': 'Seed text not found'}), 404
 
 

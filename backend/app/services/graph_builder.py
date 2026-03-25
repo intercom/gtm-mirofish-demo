@@ -17,6 +17,7 @@ from ..config import Config
 from ..models.task import TaskManager, TaskStatus
 from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 from .text_processor import TextProcessor
+from .zep_client import require_zep_client
 
 
 @dataclass
@@ -43,11 +44,7 @@ class GraphBuilderService:
     """
     
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or Config.ZEP_API_KEY
-        if not self.api_key:
-            raise ValueError("ZEP_API_KEY 未配置")
-        
-        self.client = Zep(api_key=self.api_key)
+        self.client = Zep(api_key=api_key) if api_key else require_zep_client()
         self.task_manager = TaskManager()
     
     def build_graph_async(

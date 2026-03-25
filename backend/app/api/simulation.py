@@ -13,6 +13,8 @@ from ..services.zep_entity_reader import ZepEntityReader
 from ..services.oasis_profile_generator import OasisProfileGenerator
 from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
+from ..services.whatif_engine import WhatIfEngine
+from ..services.sensitivity_analyzer import SensitivityAnalyzer
 from ..utils.logger import get_logger
 from ..models.project import ProjectManager
 
@@ -2704,6 +2706,242 @@ def close_simulation_env():
         
     except Exception as e:
         logger.error(f"关闭环境失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== What-If Analysis Endpoints ==============
+
+@simulation_bp.route('/whatif', methods=['POST'])
+def create_whatif_scenario():
+    """Create and run a what-if scenario variant.
+
+    Body:
+        {
+            "base_simulation_id": "sim_xxxx",
+            "modifications": [
+                {"parameter": "agent_count", "value": 12},
+                {"parameter": "temperature", "value": 0.9}
+            ]
+        }
+    """
+    try:
+        data = request.get_json() or {}
+
+        base_simulation_id = data.get('base_simulation_id')
+        if not base_simulation_id:
+            return jsonify({
+                "success": False,
+                "error": "base_simulation_id is required"
+            }), 400
+
+        modifications = data.get('modifications', [])
+        if not modifications or not isinstance(modifications, list):
+            return jsonify({
+                "success": False,
+                "error": "modifications must be a non-empty list of {parameter, value} objects"
+            }), 400
+
+        supported = WhatIfEngine.get_supported_parameters()
+        for mod in modifications:
+            param = mod.get('parameter')
+            if not param or param not in supported:
+                return jsonify({
+                    "success": False,
+                    "error": f"Unsupported parameter: '{param}'. Supported: {list(supported.keys())}"
+                }), 400
+            if 'value' not in mod:
+                return jsonify({
+                    "success": False,
+                    "error": f"Missing 'value' for parameter '{param}'"
+                }), 400
+
+        result = WhatIfEngine.create_scenario(base_simulation_id, modifications)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to create what-if scenario: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/whatif/variants', methods=['GET'])
+def get_whatif_variants(simulation_id: str):
+    """List all what-if variants of a base simulation."""
+    try:
+        variants = WhatIfEngine.get_variants(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "base_simulation_id": simulation_id,
+                "variants": variants,
+                "count": len(variants),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get what-if variants: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/sensitivity', methods=['POST'])
+def run_sensitivity_analysis():
+    """Run parameter sensitivity analysis.
+
+    Body:
+        {
+            "base_simulation_id": "sim_xxxx",
+            "parameter": "agent_count",
+            "min_value": 2,
+            "max_value": 15,
+            "steps": 7
+        }
+    """
+    try:
+        data = request.get_json() or {}
+
+        base_simulation_id = data.get('base_simulation_id')
+        if not base_simulation_id:
+            return jsonify({
+                "success": False,
+                "error": "base_simulation_id is required"
+            }), 400
+
+        parameter = data.get('parameter')
+        if not parameter:
+            return jsonify({
+                "success": False,
+                "error": "parameter is required"
+            }), 400
+
+        min_value = data.get('min_value')
+        max_value = data.get('max_value')
+        if min_value is None or max_value is None:
+            return jsonify({
+                "success": False,
+                "error": "min_value and max_value are required"
+            }), 400
+
+        try:
+            min_value = float(min_value)
+            max_value = float(max_value)
+        except (TypeError, ValueError):
+            return jsonify({
+                "success": False,
+                "error": "min_value and max_value must be numeric"
+            }), 400
+
+        if min_value >= max_value:
+            return jsonify({
+                "success": False,
+                "error": "min_value must be less than max_value"
+            }), 400
+
+        steps = data.get('steps', 5)
+
+        result = SensitivityAnalyzer.run_sensitivity(
+            base_simulation_id=base_simulation_id,
+            parameter=parameter,
+            min_value=min_value,
+            max_value=max_value,
+            steps=steps,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+    except Exception as e:
+        logger.error(f"Failed to run sensitivity analysis: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/sensitivity', methods=['GET'])
+def get_sensitivity_results(simulation_id: str):
+    """Get all sensitivity analysis results for a simulation."""
+    try:
+        results = SensitivityAnalyzer.get_sensitivity(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "base_simulation_id": simulation_id,
+                "analyses": results,
+                "count": len(results),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get sensitivity results: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/tornado', methods=['GET'])
+def get_tornado_data(simulation_id: str):
+    """Get tornado chart data for a simulation.
+
+    Query params:
+        metric: target outcome metric (default: consensus_score)
+        parameters: comma-separated list of parameters to analyze (optional)
+    """
+    try:
+        target_metric = request.args.get('metric', 'consensus_score')
+
+        parameters_str = request.args.get('parameters', '')
+        parameters = (
+            [p.strip() for p in parameters_str.split(',') if p.strip()]
+            if parameters_str else None
+        )
+
+        result = SensitivityAnalyzer.generate_tornado_data(
+            base_simulation_id=simulation_id,
+            parameters=parameters,
+            target_metric=target_metric,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+    except Exception as e:
+        logger.error(f"Failed to get tornado data: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),

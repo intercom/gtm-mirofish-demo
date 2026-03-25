@@ -36,6 +36,8 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .whatif_engine import WhatIfEngine
+from .sensitivity_analyzer import SensitivityAnalyzer
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +71,7 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'WhatIfEngine',
+    'SensitivityAnalyzer',
 ]
 

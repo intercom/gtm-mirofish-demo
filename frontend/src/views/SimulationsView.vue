@@ -1,9 +1,12 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import draggable from 'vuedraggable'
 import { useSimulationStore } from '../stores/simulation'
+import { useDashboardLayout } from '../composables/useDashboardLayout'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 
 const store = useSimulationStore()
+const { customOrder, saveOrder, clearOrder, applyOrder } = useDashboardLayout()
 
 const showDeleteDialog = ref(false)
 const showClearDialog = ref(false)
@@ -15,12 +18,18 @@ const sortBy = ref('newest')
 const statusOptions = ['all', 'completed', 'in_progress', 'failed']
 const filterStatus = ref('all')
 
-const sortOptions = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
-  { value: 'most_actions', label: 'Most actions' },
-  { value: 'most_rounds', label: 'Most rounds' },
-]
+const sortOptions = computed(() => {
+  const options = [
+    { value: 'newest', label: 'Newest first' },
+    { value: 'oldest', label: 'Oldest first' },
+    { value: 'most_actions', label: 'Most actions' },
+    { value: 'most_rounds', label: 'Most rounds' },
+  ]
+  if (customOrder.value.length > 0) {
+    options.push({ value: 'custom', label: 'Custom order' })
+  }
+  return options
+})
 
 const totalActions = computed(() =>
   store.sessionRuns.reduce((sum, r) => sum + (r.totalActions || 0), 0),
@@ -67,22 +76,42 @@ const filteredRuns = computed(() => {
     result = result.filter(r => normalizeStatus(r.status) === filterStatus.value)
   }
 
-  switch (sortBy.value) {
-    case 'oldest':
-      result.sort((a, b) => a.timestamp - b.timestamp)
-      break
-    case 'most_actions':
-      result.sort((a, b) => (b.totalActions || 0) - (a.totalActions || 0))
-      break
-    case 'most_rounds':
-      result.sort((a, b) => (b.totalRounds || 0) - (a.totalRounds || 0))
-      break
-    default:
-      result.sort((a, b) => b.timestamp - a.timestamp)
+  if (sortBy.value === 'custom') {
+    result = applyOrder(result)
+  } else {
+    switch (sortBy.value) {
+      case 'oldest':
+        result.sort((a, b) => a.timestamp - b.timestamp)
+        break
+      case 'most_actions':
+        result.sort((a, b) => (b.totalActions || 0) - (a.totalActions || 0))
+        break
+      case 'most_rounds':
+        result.sort((a, b) => (b.totalRounds || 0) - (a.totalRounds || 0))
+        break
+      default:
+        result.sort((a, b) => b.timestamp - a.timestamp)
+    }
   }
 
   return result
 })
+
+const displayRuns = ref([])
+
+watch(filteredRuns, (runs) => {
+  displayRuns.value = [...runs]
+}, { immediate: true })
+
+function onDragEnd() {
+  saveOrder(displayRuns.value.map(r => r.id))
+  sortBy.value = 'custom'
+}
+
+function clearCustomOrder() {
+  clearOrder()
+  sortBy.value = 'newest'
+}
 
 function relativeTime(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000)
@@ -307,18 +336,47 @@ function exportRun(run) {
       </button>
     </div>
 
-    <!-- Run cards -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div
-        v-for="run in filteredRuns"
-        :key="run.id"
-        class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)]"
+    <!-- Reset custom order -->
+    <div v-if="store.hasRuns && sortBy === 'custom'" class="flex items-center gap-2 mb-3">
+      <span class="text-xs text-[var(--color-text-muted)]">Drag cards to reorder</span>
+      <button
+        @click="clearCustomOrder"
+        class="text-xs text-[#2068FF] hover:underline"
       >
-        <!-- Card header -->
-        <div class="flex items-start justify-between mb-3">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <h3 class="text-sm font-semibold text-[var(--color-text)] leading-snug truncate">{{ run.scenarioName }}</h3>
+        Reset order
+      </button>
+    </div>
+
+    <!-- Run cards -->
+    <draggable
+      v-if="store.hasRuns && filteredRuns.length > 0"
+      v-model="displayRuns"
+      item-key="id"
+      handle=".drag-handle"
+      ghost-class="drag-ghost"
+      :animation="150"
+      class="grid grid-cols-1 md:grid-cols-2 gap-4"
+      @end="onDragEnd"
+    >
+      <template #item="{ element: run }">
+        <div
+          class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)] group/card"
+        >
+          <!-- Card header -->
+          <div class="flex items-start justify-between mb-3">
+            <div class="drag-handle shrink-0 mr-2 mt-0.5 cursor-grab active:cursor-grabbing text-[var(--color-text-muted)] opacity-0 group-hover/card:opacity-100 transition-opacity hover:text-[#2068FF]">
+              <svg class="w-4 h-5" viewBox="0 0 16 20" fill="currentColor">
+                <circle cx="5" cy="4" r="1.5"/>
+                <circle cx="11" cy="4" r="1.5"/>
+                <circle cx="5" cy="10" r="1.5"/>
+                <circle cx="11" cy="10" r="1.5"/>
+                <circle cx="5" cy="16" r="1.5"/>
+                <circle cx="11" cy="16" r="1.5"/>
+              </svg>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <h3 class="text-sm font-semibold text-[var(--color-text)] leading-snug truncate">{{ run.scenarioName }}</h3>
               <span
                 class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0"
                 :class="statusClasses(run.status)"
@@ -405,8 +463,9 @@ function exportRun(run) {
           </svg>
           Re-run
         </router-link>
-      </div>
-    </div>
+        </div>
+      </template>
+    </draggable>
 
     <!-- Confirmation Dialogs -->
     <ConfirmDialog
@@ -427,3 +486,10 @@ function exportRun(run) {
     />
   </div>
 </template>
+
+<style scoped>
+.drag-ghost {
+  opacity: 0.3;
+  border-style: dashed;
+}
+</style>

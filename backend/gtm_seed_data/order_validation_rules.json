@@ -1,0 +1,106 @@
+{
+  "description": "Order validation rules and deal archetypes for simulation. Based on typical B2B SaaS deal desk workflows.",
+  "validation_stages": [
+    {
+      "stage": "automated_precheck",
+      "name": "Automated Pre-Check",
+      "avg_duration_hours": 0.5,
+      "triggers": ["all deals"],
+      "checks": ["pricing within published bands", "standard terms selected", "credit check passed", "billing info complete"],
+      "auto_pass_rate": 0.72,
+      "escalation_reasons": ["non-standard pricing", "failed credit check", "missing billing fields"]
+    },
+    {
+      "stage": "deal_desk_review",
+      "name": "Deal Desk Review",
+      "avg_duration_hours": 18,
+      "triggers": ["discount > 10%", "ARR > $10K", "custom bundle"],
+      "checks": ["discount governance compliance", "competitive pricing justification", "bundle validation", "margin threshold"],
+      "auto_pass_rate": 0.0,
+      "escalation_reasons": ["discount exceeds authority", "non-standard bundle", "margin below floor"]
+    },
+    {
+      "stage": "legal_review",
+      "name": "Legal Review",
+      "avg_duration_hours": 72,
+      "triggers": ["custom DPA", "SLA modification", "multi-year > $100K", "contract redlines"],
+      "checks": ["DPA addendum review", "SLA term validation", "liability cap assessment", "indemnification clause review"],
+      "auto_pass_rate": 0.0,
+      "escalation_reasons": ["unlimited liability request", "custom data deletion terms", "non-standard governing law"]
+    },
+    {
+      "stage": "security_review",
+      "name": "Security Review",
+      "avg_duration_hours": 48,
+      "triggers": ["data residency requirement", "HIPAA BAA", "FedRAMP", "pen test request"],
+      "checks": ["data residency feasibility", "compliance certification match", "pen test report currency", "SSO/SCIM requirements"],
+      "auto_pass_rate": 0.0,
+      "escalation_reasons": ["unsupported region", "expired certification", "custom audit requirement"]
+    },
+    {
+      "stage": "finance_approval",
+      "name": "Finance Approval",
+      "avg_duration_hours": 24,
+      "triggers": ["payment terms > net-30", "multi-year recognition", "co-term alignment"],
+      "checks": ["revenue recognition compliance", "payment term risk assessment", "co-term calculation", "currency and tax validation"],
+      "auto_pass_rate": 0.0,
+      "escalation_reasons": ["net-90 request", "quarterly payment on annual contract", "complex co-term overlap"]
+    },
+    {
+      "stage": "final_booking",
+      "name": "Final Booking",
+      "avg_duration_hours": 4,
+      "triggers": ["all prior stages approved"],
+      "checks": ["CPQ quote generation", "Salesforce opportunity update", "DocuSign envelope creation", "billing system sync"],
+      "auto_pass_rate": 0.88,
+      "escalation_reasons": ["CPQ configuration error", "Salesforce validation rule failure", "billing system mismatch"]
+    }
+  ],
+  "deal_archetypes": [
+    {
+      "archetype": "standard_smb",
+      "name": "Standard SMB",
+      "arr_range": "$5K-$20K",
+      "typical_discount": "0-10%",
+      "required_stages": ["automated_precheck", "final_booking"],
+      "avg_cycle_days": 1,
+      "share_of_volume": 0.45
+    },
+    {
+      "archetype": "midmarket_discount",
+      "name": "Mid-Market with Discount",
+      "arr_range": "$20K-$100K",
+      "typical_discount": "15-30%",
+      "required_stages": ["automated_precheck", "deal_desk_review", "finance_approval", "final_booking"],
+      "avg_cycle_days": 5,
+      "share_of_volume": 0.30
+    },
+    {
+      "archetype": "enterprise_custom",
+      "name": "Enterprise Custom",
+      "arr_range": "$100K-$500K",
+      "typical_discount": "20-40%",
+      "required_stages": ["automated_precheck", "deal_desk_review", "legal_review", "security_review", "finance_approval", "final_booking"],
+      "avg_cycle_days": 14,
+      "share_of_volume": 0.15
+    },
+    {
+      "archetype": "strategic_multiyear",
+      "name": "Strategic Multi-Year",
+      "arr_range": "$500K+",
+      "typical_discount": "25-45%",
+      "required_stages": ["automated_precheck", "deal_desk_review", "legal_review", "security_review", "finance_approval", "final_booking"],
+      "avg_cycle_days": 23,
+      "share_of_volume": 0.05
+    },
+    {
+      "archetype": "expansion_upsell",
+      "name": "Expansion / Upsell",
+      "arr_range": "varies",
+      "typical_discount": "5-15%",
+      "required_stages": ["automated_precheck", "deal_desk_review", "finance_approval", "final_booking"],
+      "avg_cycle_days": 3,
+      "share_of_volume": 0.05
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "id": "order_validation",
+  "name": "Order Validation Simulation",
+  "description": "Simulate the end-to-end deal desk and order validation process across 500 deals to identify bottlenecks, rejection patterns, and approval chain delays by segment and deal complexity.",
+  "category": "operations",
+  "icon": "clipboard-check",
+  "seed_text": "Intercom's order validation pipeline processes every new deal and expansion through a multi-stage approval workflow before booking. Current state:\n\n1. Deal desk reviews all deals above $10K ARR for pricing compliance, discount governance, and non-standard term approval\n2. Legal review is triggered for custom DPA requests, SLA modifications, and multi-year commitments over $100K\n3. Finance sign-off required for payment terms beyond net-30 or any deal with revenue recognition complexity\n4. Security review triggered when prospects require custom data residency, HIPAA BAA, or FedRAMP documentation\n\nCurrent pain points identified by RevOps:\n- Average order validation cycle is 8.3 days, but P90 is 23 days — long-tail deals stall in legal/security\n- 34% of deals require at least one revision loop back to the AE, adding 3-5 days each\n- Discount approval thresholds are misaligned — 60% of escalations are for discounts between 15-25%, which are routinely approved\n- Non-standard terms (custom SLAs, DPA addendums) account for 18% of deals but consume 52% of legal review capacity\n- No visibility into which validation stage a deal is in — reps ping Slack channels for status updates\n- Quarter-end surge: 40% of deals enter validation in the last 2 weeks of quarter, overwhelming the 3-person deal desk\n\nValidation stages to simulate:\n1. Automated pre-check: Pricing within published bands, standard terms, credit check\n2. Deal desk review: Discount governance, competitive pricing, bundle validation\n3. Legal review: Contract redlines, DPA/BAA, custom SLA terms\n4. Security review: Data residency, compliance certifications, penetration test results\n5. Finance approval: Payment terms, multi-year recognition, co-term alignment\n6. Final booking: CPQ quote generation, Salesforce opportunity update, DocuSign trigger\n\nDeal archetypes to test:\n- Standard SMB ($5K-$20K ARR): Should auto-approve in <1 day\n- Mid-Market with discount ($20K-$100K ARR, 15-30% discount): Deal desk + finance\n- Enterprise custom ($100K-$500K ARR, non-standard terms): Full validation chain\n- Strategic multi-year ($500K+ TCV, custom everything): All stages + executive sponsor\n- Expansion/upsell (existing customer, co-term): Reduced validation but co-term complexity\n\nThe simulation should model 500 deals entering the pipeline simultaneously — varying by segment, deal complexity, discount depth, and term customization — and predict: cycle time distribution by archetype, stage-level bottleneck identification, revision loop frequency and root causes, quarter-end capacity modeling, and the revenue impact of validation delays on bookings targets.",
+  "agent_config": {
+    "count": 500,
+    "persona_types": ["Account Executive", "Deal Desk Analyst", "Legal Counsel", "Finance Controller", "Security Reviewer", "VP Sales", "Procurement Manager", "IT Compliance Officer"],
+    "firmographic_mix": {
+      "segments": ["SMB", "Mid-Market", "Enterprise", "Strategic"],
+      "industries": ["SaaS", "Fintech", "Healthcare", "E-commerce", "Manufacturing"],
+      "company_sizes": ["50-200", "200-500", "500-2000", "2000-10000"],
+      "deal_values": ["$5K-20K ARR", "$20K-100K ARR", "$100K-500K ARR", "$500K+ TCV"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Cycle time distribution by deal archetype and validation stage",
+    "Bottleneck identification with stage-level dwell time analysis",
+    "Revision loop frequency and root cause categorization",
+    "Quarter-end capacity model with deal desk throughput limits",
+    "Revenue impact forecast from validation delays on bookings",
+    "Recommended discount threshold adjustments to reduce escalations",
+    "Auto-approval eligibility criteria for low-risk deal patterns"
+  ]
+}

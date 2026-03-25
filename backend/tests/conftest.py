@@ -6,6 +6,12 @@ plus common mock helpers for service-layer dependencies.
 """
 
 import os
+
+# Ensure env vars are set before any app code imports Config at module level
+os.environ.setdefault("LLM_API_KEY", "test-key")
+os.environ.setdefault("ZEP_API_KEY", "test-zep-key")
+os.environ.setdefault("LLM_PROVIDER", "openai")
+
 import json
 import shutil
 import tempfile

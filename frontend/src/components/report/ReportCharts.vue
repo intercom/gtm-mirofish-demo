@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { getChartColors, useChartColors } from '../../lib/chartUtils'
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
@@ -9,19 +10,12 @@ const props = defineProps({
 const chartRef = ref(null)
 let resizeObserver = null
 let resizeTimer = null
+const { isDark } = useChartColors()
 
 const CHART_MAP = {
   1: renderPersonaEngagement,
   2: renderSubjectLinePerformance,
   3: renderBehavioralClusters,
-}
-
-const COLORS = {
-  primary: '#2068FF',
-  orange: '#ff5600',
-  purple: '#AA00FF',
-  green: '#009900',
-  text: '#050505',
 }
 
 function hasChart(index) {
@@ -47,6 +41,7 @@ function renderPersonaEngagement() {
   const container = chartRef.value
   if (!container) return
 
+  const c = getChartColors()
   const data = [
     { label: 'VP Support', value: 38.4 },
     { label: 'Head of Ops', value: 35.6 },
@@ -70,21 +65,19 @@ function renderPersonaEngagement() {
     .attr('viewBox', `0 0 ${containerWidth} ${totalHeight}`)
     .style('overflow', 'visible')
 
-  // Title
   svg.append('text')
     .attr('x', margin.left)
     .attr('y', 22)
     .attr('font-size', '14px')
     .attr('font-weight', '600')
-    .attr('fill', COLORS.text)
+    .attr('fill', c.text)
     .text('Persona Engagement Rates')
 
-  // Subtitle
   svg.append('text')
     .attr('x', margin.left)
     .attr('y', 40)
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', c.textMuted)
     .text('Average email open rate by target persona')
 
   const g = svg.append('g')
@@ -99,7 +92,6 @@ function renderPersonaEngagement() {
     .range([0, height])
     .padding(barGap / (barHeight + barGap))
 
-  // Grid lines
   const gridTicks = [0, 10, 20, 30, 40, 50]
   g.selectAll('.grid-line')
     .data(gridTicks)
@@ -108,10 +100,9 @@ function renderPersonaEngagement() {
     .attr('x2', d => x(d))
     .attr('y1', 0)
     .attr('y2', height)
-    .attr('stroke', 'rgba(0,0,0,0.06)')
+    .attr('stroke', c.gridLine)
     .attr('stroke-dasharray', '2,3')
 
-  // X-axis labels
   g.selectAll('.x-label')
     .data(gridTicks)
     .join('text')
@@ -119,10 +110,9 @@ function renderPersonaEngagement() {
     .attr('y', height + 16)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#aaa')
+    .attr('fill', c.textMuted)
     .text(d => `${d}%`)
 
-  // Labels
   g.selectAll('.bar-label')
     .data(data)
     .join('text')
@@ -131,10 +121,9 @@ function renderPersonaEngagement() {
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
     .attr('font-size', '12px')
-    .attr('fill', '#555')
+    .attr('fill', c.textSecondary)
     .text(d => d.label)
 
-  // Bar background
   g.selectAll('.bar-bg')
     .data(data)
     .join('rect')
@@ -143,10 +132,9 @@ function renderPersonaEngagement() {
     .attr('width', width)
     .attr('height', y.bandwidth())
     .attr('rx', 4)
-    .attr('fill', 'rgba(0,0,0,0.03)')
+    .attr('fill', c.barBg)
 
-  // Bars with animation
-  const barColors = [COLORS.primary, COLORS.primary, COLORS.orange, COLORS.purple, '#888']
+  const barColors = [c.primary, c.primary, c.orange, c.purple, c.textMuted]
 
   g.selectAll('.bar')
     .data(data)
@@ -164,7 +152,6 @@ function renderPersonaEngagement() {
     .ease(d3.easeCubicOut)
     .attr('width', d => x(d.value))
 
-  // Value labels
   g.selectAll('.bar-value')
     .data(data)
     .join('text')
@@ -173,7 +160,7 @@ function renderPersonaEngagement() {
     .attr('dy', '0.35em')
     .attr('font-size', '12px')
     .attr('font-weight', '600')
-    .attr('fill', COLORS.text)
+    .attr('fill', c.text)
     .style('opacity', 0)
     .text(d => `${d.value}%`)
     .transition()
@@ -188,6 +175,7 @@ function renderSubjectLinePerformance() {
   const container = chartRef.value
   if (!container) return
 
+  const c = getChartColors()
   const data = [
     { label: '"Your Zendesk bill is 3x..."', open: 34.7, spam: 8.2 },
     { label: '"How [Company] cut costs 40%..."', open: 31.2, spam: 3.1 },
@@ -208,21 +196,19 @@ function renderSubjectLinePerformance() {
     .attr('viewBox', `0 0 ${containerWidth} ${totalHeight}`)
     .style('overflow', 'visible')
 
-  // Title
   svg.append('text')
     .attr('x', margin.left)
     .attr('y', 22)
     .attr('font-size', '14px')
     .attr('font-weight', '600')
-    .attr('fill', COLORS.text)
+    .attr('fill', c.text)
     .text('Subject Line Performance')
 
-  // Subtitle
   svg.append('text')
     .attr('x', margin.left)
     .attr('y', 40)
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', c.textMuted)
     .text('Open rate vs. spam flag rate by subject variant')
 
   const g = svg.append('g')
@@ -243,7 +229,6 @@ function renderSubjectLinePerformance() {
     .domain([0, 40])
     .range([height, 0])
 
-  // Grid lines
   const yTicks = [0, 10, 20, 30, 40]
   g.selectAll('.grid-line')
     .data(yTicks)
@@ -252,10 +237,9 @@ function renderSubjectLinePerformance() {
     .attr('x2', width)
     .attr('y1', d => y(d))
     .attr('y2', d => y(d))
-    .attr('stroke', 'rgba(0,0,0,0.06)')
+    .attr('stroke', c.gridLine)
     .attr('stroke-dasharray', '2,3')
 
-  // Y-axis labels
   g.selectAll('.y-label')
     .data(yTicks)
     .join('text')
@@ -264,23 +248,21 @@ function renderSubjectLinePerformance() {
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
     .attr('font-size', '10px')
-    .attr('fill', '#aaa')
+    .attr('fill', c.textMuted)
     .text(d => `${d}%`)
 
-  // Grouped bars
   const groups = g.selectAll('.group')
     .data(data)
     .join('g')
     .attr('transform', d => `translate(${x0(d.label)},0)`)
 
-  // Open rate bars
   groups.append('rect')
     .attr('x', x1('open'))
     .attr('y', height)
     .attr('width', x1.bandwidth())
     .attr('height', 0)
     .attr('rx', 3)
-    .attr('fill', COLORS.primary)
+    .attr('fill', c.primary)
     .attr('opacity', 0.85)
     .transition()
     .duration(600)
@@ -289,14 +271,13 @@ function renderSubjectLinePerformance() {
     .attr('y', d => y(d.open))
     .attr('height', d => height - y(d.open))
 
-  // Spam rate bars
   groups.append('rect')
     .attr('x', x1('spam'))
     .attr('y', height)
     .attr('width', x1.bandwidth())
     .attr('height', 0)
     .attr('rx', 3)
-    .attr('fill', COLORS.orange)
+    .attr('fill', c.orange)
     .attr('opacity', 0.85)
     .transition()
     .duration(600)
@@ -305,14 +286,13 @@ function renderSubjectLinePerformance() {
     .attr('y', d => y(d.spam))
     .attr('height', d => height - y(d.spam))
 
-  // Value labels for open rate
   groups.append('text')
     .attr('x', x1('open') + x1.bandwidth() / 2)
     .attr('y', d => y(d.open) - 6)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
     .attr('font-weight', '600')
-    .attr('fill', COLORS.primary)
+    .attr('fill', c.primary)
     .style('opacity', 0)
     .text(d => `${d.open}%`)
     .transition()
@@ -320,14 +300,13 @@ function renderSubjectLinePerformance() {
     .delay((d, i) => 600 + i * 100)
     .style('opacity', 1)
 
-  // Value labels for spam rate
   groups.append('text')
     .attr('x', x1('spam') + x1.bandwidth() / 2)
     .attr('y', d => y(d.spam) - 6)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
     .attr('font-weight', '600')
-    .attr('fill', COLORS.orange)
+    .attr('fill', c.orange)
     .style('opacity', 0)
     .text(d => `${d.spam}%`)
     .transition()
@@ -335,7 +314,6 @@ function renderSubjectLinePerformance() {
     .delay((d, i) => 650 + i * 100)
     .style('opacity', 1)
 
-  // X-axis labels (wrapped)
   const labelY = height + 14
   g.selectAll('.x-label')
     .data(data)
@@ -344,7 +322,7 @@ function renderSubjectLinePerformance() {
     .attr('y', labelY)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
+    .attr('fill', c.textMuted)
     .each(function (d) {
       const el = d3.select(this)
       const maxWidth = x0.bandwidth() + 10
@@ -373,36 +351,33 @@ function renderSubjectLinePerformance() {
       }
     })
 
-  // Legend
   const legend = svg.append('g')
     .attr('transform', `translate(${containerWidth - margin.right - 180}, 14)`)
 
-  // Open rate legend
   legend.append('rect')
     .attr('x', 0).attr('y', 0)
     .attr('width', 10).attr('height', 10)
     .attr('rx', 2)
-    .attr('fill', COLORS.primary)
+    .attr('fill', c.primary)
     .attr('opacity', 0.85)
 
   legend.append('text')
     .attr('x', 16).attr('y', 9)
     .attr('font-size', '11px')
-    .attr('fill', '#555')
+    .attr('fill', c.textSecondary)
     .text('Open Rate')
 
-  // Spam rate legend
   legend.append('rect')
     .attr('x', 90).attr('y', 0)
     .attr('width', 10).attr('height', 10)
     .attr('rx', 2)
-    .attr('fill', COLORS.orange)
+    .attr('fill', c.orange)
     .attr('opacity', 0.85)
 
   legend.append('text')
     .attr('x', 106).attr('y', 9)
     .attr('font-size', '11px')
-    .attr('fill', '#555')
+    .attr('fill', c.textSecondary)
     .text('Spam Flag')
 }
 
@@ -412,6 +387,7 @@ function renderBehavioralClusters() {
   const container = chartRef.value
   if (!container) return
 
+  const c = getChartColors()
   const data = [
     { label: 'Active Evaluators', value: 31 },
     { label: 'Passive Observers', value: 24 },
@@ -420,7 +396,7 @@ function renderBehavioralClusters() {
     { label: 'Budget Blockers', value: 8 },
   ]
 
-  const colors = [COLORS.primary, COLORS.orange, COLORS.green, COLORS.purple, '#888']
+  const segmentColors = [c.primary, c.orange, c.green, c.purple, c.textMuted]
 
   const containerWidth = container.clientWidth
   const size = Math.min(containerWidth, 400)
@@ -435,23 +411,21 @@ function renderBehavioralClusters() {
     .attr('viewBox', `0 0 ${containerWidth} ${totalHeight}`)
     .style('overflow', 'visible')
 
-  // Title
   svg.append('text')
     .attr('x', containerWidth / 2)
     .attr('y', 22)
     .attr('text-anchor', 'middle')
     .attr('font-size', '14px')
     .attr('font-weight', '600')
-    .attr('fill', COLORS.text)
+    .attr('fill', c.text)
     .text('Behavioral Cluster Distribution')
 
-  // Subtitle
   svg.append('text')
     .attr('x', containerWidth / 2)
     .attr('y', 40)
     .attr('text-anchor', 'middle')
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', c.textMuted)
     .text('Prospect segmentation by observed engagement pattern')
 
   const g = svg.append('g')
@@ -473,13 +447,12 @@ function renderBehavioralClusters() {
 
   const arcs = pie(data)
 
-  // Animate arcs
   const paths = g.selectAll('.arc')
     .data(arcs)
     .join('path')
-    .attr('fill', (d, i) => colors[i])
+    .attr('fill', (d, i) => segmentColors[i])
     .attr('opacity', 0.85)
-    .attr('stroke', '#fff')
+    .attr('stroke', c.surface)
     .attr('stroke-width', 2)
 
   paths.transition()
@@ -491,13 +464,12 @@ function renderBehavioralClusters() {
       return t => arc(interpolate(t))
     })
 
-  // Center text
   g.append('text')
     .attr('text-anchor', 'middle')
     .attr('dy', '-0.2em')
     .attr('font-size', '24px')
     .attr('font-weight', '700')
-    .attr('fill', COLORS.text)
+    .attr('fill', c.text)
     .style('opacity', 0)
     .text('100%')
     .transition()
@@ -509,7 +481,7 @@ function renderBehavioralClusters() {
     .attr('text-anchor', 'middle')
     .attr('dy', '1.2em')
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', c.textMuted)
     .style('opacity', 0)
     .text('of prospects')
     .transition()
@@ -517,7 +489,6 @@ function renderBehavioralClusters() {
     .delay(650)
     .style('opacity', 1)
 
-  // Labels with lines
   const labelGroups = g.selectAll('.label-group')
     .data(arcs)
     .join('g')
@@ -530,27 +501,24 @@ function renderBehavioralClusters() {
     const isRight = midAngle < Math.PI
     const xOffset = isRight ? 12 : -12
 
-    // Connector line
     const arcMid = arc.centroid(d)
     group.append('line')
       .attr('x1', arcMid[0] * 1.15)
       .attr('y1', arcMid[1] * 1.15)
       .attr('x2', pos[0] + xOffset)
       .attr('y2', pos[1])
-      .attr('stroke', 'rgba(0,0,0,0.15)')
+      .attr('stroke', c.connectorLine)
       .attr('stroke-width', 1)
 
-    // Label text
     group.append('text')
       .attr('x', pos[0] + xOffset * 2)
       .attr('y', pos[1])
       .attr('dy', '-0.3em')
       .attr('text-anchor', isRight ? 'start' : 'end')
       .attr('font-size', '11px')
-      .attr('fill', '#555')
+      .attr('fill', c.textSecondary)
       .text(data[i].label)
 
-    // Value text
     group.append('text')
       .attr('x', pos[0] + xOffset * 2)
       .attr('y', pos[1])
@@ -558,7 +526,7 @@ function renderBehavioralClusters() {
       .attr('text-anchor', isRight ? 'start' : 'end')
       .attr('font-size', '12px')
       .attr('font-weight', '600')
-      .attr('fill', colors[i])
+      .attr('fill', segmentColors[i])
       .text(`${data[i].value}%`)
   })
 
@@ -571,6 +539,12 @@ function renderBehavioralClusters() {
 // --- Lifecycle ---
 
 watch(() => props.chapterIndex, () => {
+  if (hasChart(props.chapterIndex)) {
+    nextTick(() => renderActiveChart())
+  }
+})
+
+watch(isDark, () => {
   if (hasChart(props.chapterIndex)) {
     nextTick(() => renderActiveChart())
   }
@@ -601,7 +575,7 @@ onUnmounted(() => {
 <template>
   <div
     v-if="hasChart(chapterIndex)"
-    class="bg-white border border-black/10 rounded-lg p-4 md:p-6"
+    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-6"
   >
     <div ref="chartRef" class="w-full" />
   </div>

@@ -149,6 +149,128 @@ def get_scenario_seed_text(scenario_id):
     return jsonify({'error': 'Seed text not found'}), 404
 
 
+# ============== Leaderboard Endpoint ==============
+
+# Score weights for composite ranking
+SCORE_WEIGHTS = {
+    'sentiment': 0.35,
+    'consensus': 0.30,
+    'decision_quality': 0.35,
+}
+
+MOCK_SCENARIO_NAMES = [
+    'Enterprise Onboarding Flow',
+    'Competitive Win/Loss Analysis',
+    'Pipeline Acceleration Sprint',
+    'Churn Risk Triage',
+    'Expansion Revenue Strategy',
+    'Product-Led Growth Review',
+    'Support Escalation Workflow',
+    'Quarterly Business Review',
+]
+
+
+def _deterministic_hash(value):
+    """Return a stable integer hash from any string."""
+    return int(hashlib.md5(value.encode('utf-8')).hexdigest()[:8], 16)
+
+
+def _compute_run_scores(run):
+    """Compute sentiment, consensus, and decision quality scores for a run.
+
+    Uses deterministic seeding from the run ID so scores are stable across
+    calls.  Observable metrics (totalActions, totalRounds, agentCount) nudge
+    the scores so runs with more activity genuinely score differently.
+    """
+    seed = _deterministic_hash(run.get('id', str(run.get('timestamp', 0))))
+    actions = run.get('totalActions', 0) or 0
+    rounds = run.get('totalRounds', 0) or 0
+    agents = run.get('agentCount', 0) or 0
+
+    # Sentiment: 0-100
+    sentiment_base = ((seed % 40) + 50) / 100
+    sentiment_boost = min(actions / 2000, 0.10)
+    sentiment = min(round((sentiment_base + sentiment_boost) * 100), 100)
+
+    # Consensus: 0-100
+    consensus_base = (((seed * 7) % 35) + 45) / 100
+    round_boost = min(rounds / 200, 0.15)
+    agent_boost = min(agents / 30, 0.05)
+    consensus = min(round((consensus_base + round_boost + agent_boost) * 100), 100)
+
+    # Decision quality: 0-100
+    quality_base = (((seed * 13) % 30) + 55) / 100
+    density = min((actions / max(rounds, 1)) / 20, 0.10) if actions and rounds else 0
+    decision_quality = min(round((quality_base + density) * 100), 100)
+
+    composite = round(
+        sentiment * SCORE_WEIGHTS['sentiment']
+        + consensus * SCORE_WEIGHTS['consensus']
+        + decision_quality * SCORE_WEIGHTS['decision_quality']
+    )
+
+    return {
+        'sentiment': sentiment,
+        'consensus': consensus,
+        'decisionQuality': decision_quality,
+        'composite': composite,
+    }
+
+
+def _build_mock_leaderboard():
+    """Generate a demo leaderboard when no run data is provided."""
+    import time
+    entries = []
+    now = int(time.time() * 1000)
+    for i, name in enumerate(MOCK_SCENARIO_NAMES):
+        mock_id = f'mock-{i:04d}'
+        run = {
+            'id': mock_id,
+            'scenarioName': name,
+            'totalActions': 400 + (i * 137) % 600,
+            'totalRounds': 80 + (i * 23) % 64,
+            'agentCount': 8 + i % 8,
+            'twitterActions': 200 + (i * 71) % 300,
+            'redditActions': 100 + (i * 53) % 200,
+            'timestamp': now - (i * 86400000),
+            'status': 'completed',
+            'scenarioId': f'scenario-{i}',
+        }
+        scores = _compute_run_scores(run)
+        entries.append({**run, 'scores': scores})
+    entries.sort(key=lambda e: e['scores']['composite'], reverse=True)
+    for rank, entry in enumerate(entries, 1):
+        entry['rank'] = rank
+    return entries
+
+
+@gtm_bp.route('/scenarios/leaderboard', methods=['POST'])
+def scenarios_leaderboard():
+    """Score and rank simulation runs.
+
+    Accepts a JSON body with a ``runs`` array of simulation run objects.
+    Returns the same runs augmented with ``scores`` and ``rank``.
+
+    When called with an empty or missing ``runs`` array, returns demo data.
+    """
+    data = request.get_json(silent=True) or {}
+    runs = data.get('runs')
+
+    if not runs:
+        return jsonify({'success': True, 'data': _build_mock_leaderboard()})
+
+    entries = []
+    for run in runs:
+        scores = _compute_run_scores(run)
+        entries.append({**run, 'scores': scores})
+
+    entries.sort(key=lambda e: e['scores']['composite'], reverse=True)
+    for rank, entry in enumerate(entries, 1):
+        entry['rank'] = rank
+
+    return jsonify({'success': True, 'data': entries})
+
+
 # ============== Unified Simulation Endpoint ==============
 
 @gtm_bp.route('/simulate', methods=['POST'])

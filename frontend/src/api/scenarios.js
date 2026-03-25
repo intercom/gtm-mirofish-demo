@@ -6,4 +6,6 @@ export const scenariosApi = {
   getSeedData: (dataType) => client.get(`/gtm/seed-data/${dataType}`),
   getSeedText: (scenarioId) =>
     client.get(`/gtm/scenarios/${scenarioId}/seed-text`),
+  getLeaderboard: (runs = []) =>
+    client.post('/gtm/scenarios/leaderboard', { runs }),
 }

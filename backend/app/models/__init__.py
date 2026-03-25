@@ -41,6 +41,11 @@ from .reconciliation import (
     RuleAction,
     RuleCheckType,
 )
+from .campaign import (
+    Campaign, CampaignType, CampaignStatus,
+    CampaignCostBreakdown, CostType,
+    CampaignAttribution, AttributionModel,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -62,4 +67,7 @@ __all__ = [
     'ValidationResult', 'ValidationStatus',
     'ReconciliationRecord', 'ReconciliationRun', 'ReconciliationRule',
     'ReconciliationStatus', 'DiscrepancyType', 'RuleAction', 'RuleCheckType',
+    'Campaign', 'CampaignType', 'CampaignStatus',
+    'CampaignCostBreakdown', 'CostType',
+    'CampaignAttribution', 'AttributionModel',
 ]

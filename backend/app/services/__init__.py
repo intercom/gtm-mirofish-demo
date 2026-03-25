@@ -36,6 +36,11 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .memory_consolidation import (
+    MemoryConsolidator,
+    Memory,
+    MemoryType,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +74,8 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'MemoryConsolidator',
+    'Memory',
+    'MemoryType',
 ]
 

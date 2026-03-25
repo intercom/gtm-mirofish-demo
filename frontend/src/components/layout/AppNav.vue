@@ -1,19 +1,32 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import { useTutorialStore } from '../../stores/tutorial'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
+const tutorial = useTutorialStore()
 const mobileMenuOpen = ref(false)
+const helpMenuOpen = ref(false)
+const helpMenuRef = ref(null)
+
+function onClickOutsideHelp(e) {
+  if (helpMenuRef.value && !helpMenuRef.value.contains(e.target)) {
+    helpMenuOpen.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('click', onClickOutsideHelp))
+onUnmounted(() => document.removeEventListener('click', onClickOutsideHelp))
 
 const navLinks = computed(() => {
   return [
-    { to: '/', label: 'Home', exact: true },
-    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
-    { to: '/settings', label: 'Settings', exact: false },
+    { to: '/', label: 'Home', exact: true, tutorial: 'scenarios' },
+    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, tutorial: 'simulations' },
+    { to: '/settings', label: 'Settings', exact: false, tutorial: 'settings' },
   ]
 })
 
@@ -23,7 +36,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <nav class="bg-[var(--color-navy)] border-b border-white/10 px-4 md:px-6 py-3 relative">
+  <nav data-tutorial="nav" class="bg-[var(--color-navy)] border-b border-white/10 px-4 md:px-6 py-3 relative">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-6">
         <router-link to="/" class="flex items-center gap-2 text-white no-underline">
@@ -49,6 +62,7 @@ watch(() => route.path, () => {
             :key="link.to"
             :to="link.to"
             :exact="link.exact"
+            :data-tutorial="link.tutorial"
             class="nav-link"
             :class="{ 'nav-link--exact': link.exact }"
           >
@@ -64,6 +78,53 @@ watch(() => route.path, () => {
       </div>
 
       <div class="flex items-center gap-3">
+        <!-- Help menu -->
+        <div ref="helpMenuRef" class="relative" data-tutorial="reports">
+          <button
+            class="hidden sm:flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors cursor-pointer"
+            @click.stop="helpMenuOpen = !helpMenuOpen"
+            aria-label="Help menu"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Help</span>
+          </button>
+
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 -translate-y-1"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition duration-100 ease-in"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 -translate-y-1"
+          >
+            <div v-if="helpMenuOpen" class="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 z-50">
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
+                @click="tutorial.startWelcomeTour(); helpMenuOpen = false"
+              >
+                Welcome Tour
+              </button>
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
+                @click="tutorial.startWalkthrough(); helpMenuOpen = false"
+              >
+                Guided Walkthrough
+              </button>
+              <button
+                class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
+                @click="tutorial.toggleShortcutRef(); helpMenuOpen = false"
+              >
+                Keyboard Shortcuts
+                <span class="text-xs text-[var(--color-text-muted)] ml-1">Ctrl+/</span>
+              </button>
+            </div>
+          </Transition>
+        </div>
+
         <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
           <span>Local</span>

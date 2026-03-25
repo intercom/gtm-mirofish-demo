@@ -4,11 +4,15 @@ import { useRoute } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
+import TutorialSystem from './components/tutorial/TutorialSystem.vue'
+import ScenarioWalkthrough from './components/tutorial/ScenarioWalkthrough.vue'
+import ShortcutQuickRef from './components/common/ShortcutQuickRef.vue'
 import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
+import { useTutorialStore } from './stores/tutorial'
 
 const route = useRoute()
 const { setRouteDefault } = useTheme()
@@ -16,6 +20,7 @@ const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
+const tutorial = useTutorialStore()
 
 watch(() => route.name, (name) => {
   setRouteDefault(name === 'landing' ? 'dark' : 'light')
@@ -24,6 +29,7 @@ watch(() => route.name, (name) => {
 onMounted(() => {
   intercom.install()
   intercom.boot()
+  tutorial.checkFirstVisit()
 })
 
 watch(
@@ -58,4 +64,7 @@ onUnmounted(() => {
   </AppLayout>
   <ToastContainer />
   <PresenterToolbar v-if="isDemoMode" />
+  <TutorialSystem />
+  <ScenarioWalkthrough />
+  <ShortcutQuickRef />
 </template>

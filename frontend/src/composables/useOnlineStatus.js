@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const isOnline = ref(navigator.onLine)
 let listenerCount = 0
@@ -29,6 +29,12 @@ function stopListening() {
 
 export function useOnlineStatus() {
   startListening()
+
+  onMounted(() => {
+    isOnline.value = navigator.onLine
+  })
+
   onUnmounted(stopListening)
+
   return { isOnline }
 }

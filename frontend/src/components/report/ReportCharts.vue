@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { select, scaleLinear, scaleBand, easeCubicOut, pie as d3Pie, arc as d3Arc, interpolate, hierarchy, treemap, scaleOrdinal } from 'd3'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 import { useMobileChart } from '../../composables/useMobileChart'
@@ -8,6 +8,14 @@ const { isMobile } = useMobileChart()
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
+  offlineCachedAt: { type: Number, default: null },
+})
+
+const offlineDateLabel = computed(() => {
+  if (!props.offlineCachedAt) return ''
+  return new Date(props.offlineCachedAt).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
 })
 
 const chartRef = ref(null)
@@ -1048,8 +1056,17 @@ onUnmounted(() => {
 <template>
   <div
     v-if="hasChart(chapterIndex)"
-    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-6"
+    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-6 relative"
   >
     <div ref="chartRef" class="w-full" />
+    <div
+      v-if="offlineCachedAt"
+      class="absolute bottom-3 right-3 flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded px-2.5 py-1 text-[11px] text-amber-600 font-medium"
+    >
+      <svg class="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      Offline — data from {{ offlineDateLabel }}
+    </div>
   </div>
 </template>

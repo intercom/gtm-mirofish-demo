@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSimulationStore } from '../stores/simulation'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useStaggerAnimation } from '../composables/useStaggerAnimation'
+import { getAllCachedTaskIds } from '../composables/useReportCache'
 import DashboardMiniChart from '../components/dashboard/DashboardMiniChart.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
@@ -12,6 +13,13 @@ const store = useSimulationStore()
 const router = useRouter()
 
 const viewMode = ref('list')
+
+const cachedReportIds = ref(new Set())
+
+onMounted(async () => {
+  const ids = await getAllCachedTaskIds().catch(() => [])
+  cachedReportIds.value = new Set(ids)
+})
 
 const showDeleteDialog = ref(false)
 const showClearDialog = ref(false)
@@ -564,9 +572,18 @@ function exportRun(run) {
               </router-link>
               <router-link
                 :to="`/report/${run.id}`"
-                class="flex-1 text-center text-[11px] md:text-xs font-medium px-2 md:px-3 min-h-[44px] md:min-h-0 py-2 rounded-md bg-[#2068FF] text-white hover:bg-[#1a5ae0] active:bg-[#1550cc] transition-colors no-underline flex items-center justify-center"
+                class="flex-1 text-center text-[11px] md:text-xs font-medium px-2 md:px-3 min-h-[44px] md:min-h-0 py-2 rounded-md bg-[#2068FF] text-white hover:bg-[#1a5ae0] active:bg-[#1550cc] transition-colors no-underline flex items-center justify-center relative"
               >
                 Report
+                <span
+                  v-if="cachedReportIds.has(run.id)"
+                  class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center"
+                  title="Available offline"
+                >
+                  <svg class="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </span>
               </router-link>
               <router-link
                 v-if="canRerun(run)"

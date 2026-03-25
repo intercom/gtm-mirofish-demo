@@ -4,6 +4,8 @@ import { marked } from 'marked'
 import { API_BASE } from '../api/client'
 import { useReportShortcuts } from '../composables/useReportShortcuts'
 import { useToast } from '../composables/useToast'
+import { useOnlineStatus } from '../composables/useOnlineStatus'
+import { cacheReport, getCachedReport } from '../composables/useReportCache'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
@@ -24,6 +26,7 @@ const showShareModal = ref(false)
 
 const props = defineProps({ taskId: String })
 const reportStore = useReportStore()
+const { isOnline } = useOnlineStatus()
 
 const reportId = ref(null)
 const sections = ref([])
@@ -40,6 +43,8 @@ const showExportMenu = ref(false)
 const editingChapter = ref(null)
 const editedHtml = ref({})
 const editBuffer = ref('')
+const servingFromCache = ref(false)
+const cachedAt = ref(null)
 
 const { success: toastSuccess } = useToast()
 
@@ -119,6 +124,10 @@ const keyFindings = computed(() => {
   return findings
 })
 
+const fullMarkdown = computed(() =>
+  sections.value.map((s) => s.content).join('\n\n---\n\n')
+)
+
 const templateLabel = computed(() => {
   if (selectedTemplate.value) return selectedTemplate.value.name
   if (reportStore.selectedTemplate) return reportStore.selectedTemplate.name
@@ -126,7 +135,33 @@ const templateLabel = computed(() => {
 })
 
 
+async function loadFromCache() {
+  const cached = await getCachedReport(props.taskId).catch(() => null)
+  if (!cached) return false
+  reportId.value = cached.reportId
+  sections.value = cached.sections
+  isComplete.value = cached.isComplete
+  generating.value = false
+  servingFromCache.value = true
+  cachedAt.value = cached.cachedAt
+  return true
+}
+
+async function saveToCache() {
+  if (!reportId.value || sections.value.length === 0) return
+  await cacheReport(props.taskId, {
+    reportId: reportId.value,
+    sections: sections.value,
+    isComplete: isComplete.value,
+  }).catch(() => {})
+}
+
 async function checkAndLoad() {
+  if (!isOnline.value) {
+    const loaded = await loadFromCache()
+    if (!loaded) error.value = 'You are offline and no cached report is available.'
+    return
+  }
   try {
     const res = await fetch(`${API_BASE}/report/check/${props.taskId}`)
     if (!res.ok) {
@@ -139,6 +174,7 @@ async function checkAndLoad() {
       if (json.data.report_status === 'completed') {
         await loadSections()
         isComplete.value = true
+        await saveToCache()
       } else {
         generating.value = true
         startPolling()
@@ -147,7 +183,8 @@ async function checkAndLoad() {
       showTemplateSelector.value = true
     }
   } catch {
-    error.value = 'Failed to check report status'
+    const loaded = await loadFromCache()
+    if (!loaded) error.value = 'Failed to check report status'
   }
 }
 
@@ -199,6 +236,7 @@ async function loadSections() {
     if (json.success) {
       sections.value = json.data.sections
       isComplete.value = json.data.is_complete
+      if (json.data.is_complete) await saveToCache()
     }
   } catch {
     // Silently retry on next poll
@@ -268,6 +306,17 @@ function revertEdits() {
 }
 
 function exportReport(format) {
+  if ((servingFromCache.value || !isOnline.value) && format === 'md') {
+    const blob = new Blob([fullMarkdown.value], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `report-${props.taskId}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+    showExportMenu.value = false
+    return
+  }
   if (reportId.value) {
     window.open(`${API_BASE}/report/${reportId.value}/download?format=${format}`, '_blank')
   }
@@ -303,8 +352,23 @@ function handleReorder(from, to) {
   sections.value = arr
 }
 
+function formatCachedDate() {
+  if (!cachedAt.value) return ''
+  return new Date(cachedAt.value).toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  })
+}
+
 watch(activeChapter, () => {
   if (editingChapter.value !== null) cancelEditing()
+})
+
+watch(isOnline, (online) => {
+  if (online && servingFromCache.value) {
+    servingFromCache.value = false
+    cachedAt.value = null
+    checkAndLoad()
+  }
 })
 
 onMounted(() => {
@@ -434,6 +498,20 @@ onUnmounted(() => {
         </div>
       </div>
     </Transition>
+
+    <!-- Offline / Cached Banner -->
+    <div
+      v-if="servingFromCache"
+      class="flex items-center gap-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg px-4 py-3 mb-6 text-sm text-amber-700 dark:text-amber-400"
+    >
+      <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M20.893 13.393l-1.135-1.135a2.252 2.252 0 01-.421-.585l-1.08-2.16a.414.414 0 00-.663-.107.827.827 0 01-.812.21l-1.273-.363a.89.89 0 00-.738 1.595l.587.39c.59.395.674 1.23.172 1.732l-.2.2c-.212.212-.33.498-.33.796v.41c0 .409-.11.809-.32 1.158l-1.315 2.191a2.11 2.11 0 01-1.81 1.025 1.055 1.055 0 01-1.055-1.055v-1.172c0-.92-.56-1.747-1.414-2.089l-.655-.261a2.25 2.25 0 01-1.383-2.46l.007-.042a2.25 2.25 0 01.29-.787l.09-.15a2.25 2.25 0 012.37-1.048l1.178.236a1.125 1.125 0 001.302-.795l.208-.73a1.125 1.125 0 00-.578-1.315l-.665-.332-.091.091a2.25 2.25 0 01-1.591.659h-.18a.94.94 0 00-.662.274.931.931 0 01-1.458-1.137l1.411-2.353a2.25 2.25 0 00.286-.76m11.928 9.869A9 9 0 008.965 3.525m11.928 9.868A9 9 0 118.965 3.525" />
+      </svg>
+      <span>
+        <strong>Offline</strong> — viewing cached report from {{ formatCachedDate() }}.
+        Data will sync when you reconnect.
+      </span>
+    </div>
 
     <!-- Summary Cards -->
     <ReportSummaryCards
@@ -648,6 +726,7 @@ onUnmounted(() => {
         <ReportCharts
           v-if="activeContent && !generating"
           :chapterIndex="activeChapter"
+          :offlineCachedAt="servingFromCache ? cachedAt : null"
         />
 
         <!-- Agent Reasoning Log -->

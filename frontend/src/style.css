@@ -172,3 +172,47 @@ button, [role="button"], a[href], summary, select, input[type="checkbox"], input
 .prose blockquote { border-left: 3px solid var(--color-primary); padding-left: 0.75em; margin: 0.5em 0; opacity: 0.85; }
 .prose code { background: rgba(0,0,0,0.06); padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.85em; }
 .dark .prose code { background: rgba(255,255,255,0.1); }
+
+/* ── Print Styles ────────────────────────────────────────────────────────── */
+@media print {
+  /* Hide navigation, sidebars, and interactive elements */
+  nav, .print\\:hidden, [class*="print:hidden"],
+  footer, .toast-container, button:not(.print-keep) {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: #1a1a1a !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  /* Remove shadows and borders for clean print */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Page breaks between report sections */
+  .report-preview-content h2 {
+    page-break-before: always;
+  }
+
+  .report-preview-content h2:first-of-type {
+    page-break-before: avoid;
+  }
+
+  /* Prevent breaks inside blocks */
+  .report-preview-content pre,
+  .report-preview-content table,
+  .report-preview-content blockquote,
+  .report-preview-content img {
+    page-break-inside: avoid;
+  }
+
+  /* Reset fullscreen overlay for print */
+  .fixed { position: static !important; }
+  .overflow-auto, .overflow-y-auto { overflow: visible !important; }
+  .max-h-\[500px\] { max-height: none !important; }
+}

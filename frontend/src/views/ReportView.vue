@@ -5,6 +5,7 @@ import { API_BASE } from '../api/client'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
+import ReportPreview from '../components/report-builder/ReportPreview.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -51,10 +52,6 @@ const keyFindings = computed(() => {
   }
   return findings
 })
-
-const fullMarkdown = computed(() =>
-  sections.value.map((s) => s.content).join('\n\n---\n\n')
-)
 
 async function checkAndLoad() {
   try {
@@ -155,12 +152,6 @@ function stopPolling() {
   }
 }
 
-function exportMarkdown() {
-  if (reportId.value) {
-    window.open(`${API_BASE}/report/${reportId.value}/download`, '_blank')
-  }
-}
-
 onMounted(checkAndLoad)
 onUnmounted(stopPolling)
 </script>
@@ -180,16 +171,6 @@ onUnmounted(stopPolling)
         </p>
       </div>
       <div class="flex gap-2">
-        <button
-          v-if="!generating && sections.length > 0"
-          @click="exportMarkdown"
-          class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          Export Markdown
-        </button>
         <router-link
           :to="`/chat/${taskId}`"
           class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors no-underline"
@@ -349,6 +330,13 @@ onUnmounted(stopPolling)
             Next Chapter →
           </button>
         </div>
+
+        <!-- Report Preview & Export -->
+        <ReportPreview
+          v-if="!generating && sections.length > 0"
+          :sections="sections"
+          :reportId="reportId"
+        />
       </div>
     </div>
   </div>

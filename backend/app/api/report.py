@@ -436,6 +436,80 @@ def download_report(report_id: str):
         }), 500
 
 
+@report_bp.route('/<report_id>/export', methods=['GET'])
+def export_report(report_id: str):
+    """
+    Export report in multiple formats.
+
+    Query params:
+        format: markdown | html | csv  (default: markdown)
+
+    Returns file download in the requested format.
+    """
+    try:
+        export_format = request.args.get('format', 'markdown').lower()
+        if export_format not in ('markdown', 'html', 'csv'):
+            return jsonify({
+                "success": False,
+                "error": f"Unsupported format: {export_format}. Use markdown, html, or csv."
+            }), 400
+
+        # Get report sections
+        sections = ReportManager.get_generated_sections(report_id)
+        if not sections:
+            report = ReportManager.get_report(report_id)
+            if not report:
+                return jsonify({
+                    "success": False,
+                    "error": f"Report not found: {report_id}"
+                }), 404
+            # Fallback: wrap full markdown as single section
+            sections = [{'content': report.markdown_content}]
+
+        import re
+        import tempfile
+        from ..services.report_exporter import ReportExporter
+
+        # Extract a title from the first section
+        title = 'Simulation Report'
+        first = sections[0].get('content', '') if isinstance(sections[0], dict) else sections[0]
+        title_match = re.search(r'^#\s+(.+)', first, re.MULTILINE)
+        if title_match:
+            title = title_match.group(1)
+
+        if export_format == 'markdown':
+            content = ReportExporter.to_markdown(sections)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.md",
+                             mimetype='text/markdown; charset=utf-8')
+
+        elif export_format == 'html':
+            content = ReportExporter.to_html(sections, title=title)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.html",
+                             mimetype='text/html; charset=utf-8')
+
+        else:  # csv
+            content = ReportExporter.to_csv(sections)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.csv",
+                             mimetype='text/csv; charset=utf-8')
+
+    except Exception as e:
+        logger.error(f"Export report failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 @report_bp.route('/<report_id>', methods=['DELETE'])
 def delete_report(report_id: str):
     """删除报告"""

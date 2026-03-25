@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Data pipeline monitoring API
+    from .api.data_pipeline import pipeline_bp
+    app.register_blueprint(pipeline_bp)
     
     # 健康检查
     @app.route('/health')

@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import { useCountUp } from '../../composables/useCountUp'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -55,6 +56,13 @@ const totalActions = computed(() => polling.runStatus.value?.total_actions_count
 const twitterActions = computed(() => polling.runStatus.value?.twitter_actions_count ?? 0)
 const redditActions = computed(() => polling.runStatus.value?.reddit_actions_count ?? 0)
 
+// Animated metric displays
+const animatedTotalActions = useCountUp(totalActions, { duration: 600 })
+const animatedCurrentRound = useCountUp(currentRound, { duration: 400 })
+const animatedProgress = useCountUp(progressPercent, { duration: 400 })
+const animatedTwitterActions = useCountUp(twitterActions, { duration: 600 })
+const animatedRedditActions = useCountUp(redditActions, { duration: 600 })
+
 const metrics = computed(() => {
   const actions = polling.recentActions.value
   const filtered = activePlatform.value === 'all'
@@ -71,6 +79,15 @@ const metrics = computed(() => {
 
   return { replies, likes, reposts }
 })
+
+const animatedReplies = useCountUp(() => metrics.value.replies, { duration: 600 })
+const animatedLikes = useCountUp(() => metrics.value.likes, { duration: 600 })
+const animatedReposts = useCountUp(() => metrics.value.reposts, { duration: 600 })
+
+// Agent panel animated stats
+const animatedAgentTotal = useCountUp(() => selectedAgent.value?.totalActions ?? 0, { duration: 500 })
+const animatedAgentTwitter = useCountUp(() => selectedAgent.value?.twitterActions ?? 0, { duration: 500 })
+const animatedAgentReddit = useCountUp(() => selectedAgent.value?.redditActions ?? 0, { duration: 500 })
 
 const filteredActions = computed(() => {
   if (activePlatform.value === 'all') return polling.recentActions.value
@@ -410,8 +427,8 @@ onUnmounted(() => {
         <!-- Progress Bar -->
         <div class="mb-6 md:mb-8">
           <div class="flex items-center justify-between text-xs text-[var(--color-text-muted)] mb-1.5">
-            <span>Round {{ currentRound }} / {{ totalRounds }}</span>
-            <span>{{ progressPercent }}%</span>
+            <span>Round {{ animatedCurrentRound }} / {{ totalRounds }}</span>
+            <span>{{ animatedProgress }}%</span>
           </div>
           <div class="h-2 bg-[var(--color-tint)] rounded-full overflow-hidden">
             <div
@@ -430,23 +447,23 @@ onUnmounted(() => {
         <!-- Metrics Cards -->
         <div v-else class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-primary)]">{{ totalActions }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-primary)]">{{ animatedTotalActions }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Total Actions</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-fin-orange)]">{{ metrics.replies }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-fin-orange)]">{{ animatedReplies }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Replies</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-accent)]">{{ metrics.likes }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-accent)]">{{ animatedLikes }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Likes</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ metrics.reposts }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ animatedReposts }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Reposts</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-success)]">{{ currentRound }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-success)]">{{ animatedCurrentRound }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Current Round</div>
           </div>
         </div>
@@ -550,22 +567,22 @@ onUnmounted(() => {
             <div class="flex-1">
               <div class="text-sm font-medium text-[var(--color-text)]">Twitter</div>
               <div class="text-xs text-[var(--color-text-muted)]">
-                {{ twitterActions }} actions &middot; Round {{ polling.runStatus.value.twitter_current_round || 0 }}
+                {{ animatedTwitterActions }} actions &middot; Round {{ polling.runStatus.value.twitter_current_round || 0 }}
                 <span v-if="polling.runStatus.value.twitter_completed" class="text-[var(--color-success)]"> &middot; Done</span>
               </div>
             </div>
-            <div class="text-2xl font-semibold text-[var(--color-primary)]">{{ twitterActions }}</div>
+            <div class="text-2xl font-semibold text-[var(--color-primary)]">{{ animatedTwitterActions }}</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center gap-4">
             <div class="w-10 h-10 rounded-lg bg-[var(--color-fin-orange-tint)] flex items-center justify-center text-lg">&#x1F4E2;</div>
             <div class="flex-1">
               <div class="text-sm font-medium text-[var(--color-text)]">Reddit</div>
               <div class="text-xs text-[var(--color-text-muted)]">
-                {{ redditActions }} actions &middot; Round {{ polling.runStatus.value.reddit_current_round || 0 }}
+                {{ animatedRedditActions }} actions &middot; Round {{ polling.runStatus.value.reddit_current_round || 0 }}
                 <span v-if="polling.runStatus.value.reddit_completed" class="text-[var(--color-success)]"> &middot; Done</span>
               </div>
             </div>
-            <div class="text-2xl font-semibold text-[var(--color-fin-orange)]">{{ redditActions }}</div>
+            <div class="text-2xl font-semibold text-[var(--color-fin-orange)]">{{ animatedRedditActions }}</div>
           </div>
         </div>
 
@@ -623,15 +640,15 @@ onUnmounted(() => {
           <!-- Stats -->
           <div class="grid grid-cols-3 gap-3 mb-5">
             <div class="bg-[var(--color-tint)] rounded-lg p-3 text-center">
-              <div class="text-lg font-semibold text-[var(--color-text)]">{{ selectedAgent.totalActions }}</div>
+              <div class="text-lg font-semibold text-[var(--color-text)]">{{ animatedAgentTotal }}</div>
               <div class="text-[10px] text-[var(--color-text-muted)]">Actions</div>
             </div>
             <div class="bg-[rgba(32,104,255,0.06)] rounded-lg p-3 text-center">
-              <div class="text-lg font-semibold text-[var(--color-primary)]">{{ selectedAgent.twitterActions }}</div>
+              <div class="text-lg font-semibold text-[var(--color-primary)]">{{ animatedAgentTwitter }}</div>
               <div class="text-[10px] text-[var(--color-primary)]">Twitter</div>
             </div>
             <div class="bg-[rgba(255,86,0,0.06)] rounded-lg p-3 text-center">
-              <div class="text-lg font-semibold text-[#ff5600]">{{ selectedAgent.redditActions }}</div>
+              <div class="text-lg font-semibold text-[#ff5600]">{{ animatedAgentReddit }}</div>
               <div class="text-[10px] text-[#ff5600]">Reddit</div>
             </div>
           </div>

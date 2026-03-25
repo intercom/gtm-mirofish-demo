@@ -90,6 +90,7 @@ from .whatif_engine import (
     ModificationType,
     ScenarioStatus,
 )
+from .cpq_data_generator import CpqDataGenerator
 
 __all__ = [
     'OntologyGenerator', 
@@ -164,5 +165,6 @@ __all__ = [
     'Modification',
     'ModificationType',
     'ScenarioStatus',
+    'CpqDataGenerator',
 ]
 

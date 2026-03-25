@@ -31,6 +31,11 @@ export const routes = [
     props: true,
   },
   {
+    path: '/knowledge-graph',
+    name: 'knowledge-graph',
+    component: () => import('../views/KnowledgeGraphView.vue'),
+  },
+  {
     path: '/graph/:taskId',
     redirect: (to) => `/workspace/${to.params.taskId}?tab=graph`,
   },

@@ -30,11 +30,19 @@ class TestConfig(Config):
     """Test configuration — no real API keys, isolated upload dir."""
     TESTING = True
     DEBUG = False
+    SECRET_KEY = 'test-secret'
     LLM_API_KEY = "test-key"
     ZEP_API_KEY = "test-zep-key"
     LLM_BASE_URL = "https://api.openai.com/v1/"
     LLM_MODEL_NAME = "gpt-4o-mini"
     AUTH_ENABLED = False
+    AUTH_PROVIDER = 'google'
+    AUTH_ALLOWED_DOMAIN = 'intercom.io'
+
+
+class AuthEnabledConfig(TestConfig):
+    """Test configuration with auth enabled."""
+    AUTH_ENABLED = True
 
 
 @pytest.fixture
@@ -95,6 +103,21 @@ def _reset_task_manager():
     tm._tasks.clear()
     yield
     tm._tasks.clear()
+
+
+# --------------- auth-enabled fixtures ---------------
+
+@pytest.fixture()
+def auth_app():
+    """Flask app with auth enabled."""
+    app = create_app(AuthEnabledConfig)
+    yield app
+
+
+@pytest.fixture()
+def auth_client(auth_app):
+    """Test client with auth enabled."""
+    return auth_app.test_client()
 
 
 # --------------- demo app client ---------------

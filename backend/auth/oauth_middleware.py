@@ -4,15 +4,14 @@ Enable via AUTH_ENABLED=true in .env
 """
 
 import functools
-from flask import redirect, request, session, jsonify
-from app.config import Config
+from flask import current_app, redirect, request, session, jsonify
 
 
 def require_auth(f):
     """Decorator to require authentication when AUTH_ENABLED is true."""
     @functools.wraps(f)
     def decorated(*args, **kwargs):
-        if not Config.AUTH_ENABLED:
+        if not current_app.config.get('AUTH_ENABLED', False):
             return f(*args, **kwargs)
 
         if 'user' not in session:
@@ -28,5 +27,6 @@ def validate_email_domain(email):
     """Check if email belongs to allowed domain."""
     if not email:
         return False
+    allowed = current_app.config.get('AUTH_ALLOWED_DOMAIN', '')
     domain = email.split('@')[-1] if '@' in email else ''
-    return domain == Config.AUTH_ALLOWED_DOMAIN
+    return domain == allowed

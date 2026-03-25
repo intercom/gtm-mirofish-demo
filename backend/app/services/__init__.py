@@ -36,6 +36,13 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .debate_scorer import (
+    DebateScorer,
+    DebateScorecard,
+    AgentPerformance,
+    ArgumentScore,
+    DebateFormat,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +76,10 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'DebateScorer',
+    'DebateScorecard',
+    'AgentPerformance',
+    'ArgumentScore',
+    'DebateFormat',
 ]
 

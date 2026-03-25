@@ -39,6 +39,10 @@ export const routes = [
     redirect: (to) => `/workspace/${to.params.taskId}?tab=simulation`,
   },
   {
+    path: '/network/:taskId',
+    redirect: (to) => `/workspace/${to.params.taskId}?tab=network`,
+  },
+  {
     path: '/report/:taskId',
     name: 'report',
     component: () => import('../views/ReportView.vue'),

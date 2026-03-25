@@ -8,6 +8,7 @@ import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+import NetworkAnalysisView from './NetworkAnalysisView.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -22,7 +23,9 @@ const simulationStore = useSimulationStore()
 const polling = useSimulationPolling(() => props.taskId)
 provide('polling', polling)
 
-const activeTab = ref(route.query.tab === 'simulation' ? 'simulation' : 'graph')
+const validTabs = ['graph', 'simulation', 'network']
+const initialTab = validTabs.includes(route.query.tab) ? route.query.tab : 'graph'
+const activeTab = ref(initialTab)
 const demoMode = ref(false)
 provide('demoMode', demoMode)
 
@@ -34,7 +37,7 @@ const scenarioName = computed(() =>
 )
 
 watch(() => route.query.tab, (tab) => {
-  if (tab === 'graph' || tab === 'simulation') {
+  if (validTabs.includes(tab)) {
     activeTab.value = tab
   }
 })
@@ -50,6 +53,7 @@ function handleKeydown(e) {
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return
   if (e.key === '1') activeTab.value = 'graph'
   else if (e.key === '2') activeTab.value = 'simulation'
+  else if (e.key === '3') activeTab.value = 'network'
 }
 
 watch(() => polling.simStatus.value, (status, oldStatus) => {
@@ -136,6 +140,9 @@ onUnmounted(() => {
       </div>
       <div v-show="activeTab === 'simulation'" class="absolute inset-0">
         <SimulationPanel :taskId="taskId" />
+      </div>
+      <div v-show="activeTab === 'network'" class="absolute inset-0 overflow-y-auto">
+        <NetworkAnalysisView :taskId="taskId" />
       </div>
     </div>
   </div>

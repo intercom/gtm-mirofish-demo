@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Batch API (multi-request batching)
+    from .api.batch import batch_bp
+    app.register_blueprint(batch_bp)
     
     # 健康检查
     @app.route('/health')

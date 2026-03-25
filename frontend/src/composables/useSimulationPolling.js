@@ -1,5 +1,5 @@
 import { ref, computed, watch, toValue, onUnmounted } from 'vue'
-import client, { API_BASE } from '../api/client'
+import { batchGet } from '../api/batch'
 import { graphApi } from '../api/graph'
 import { useSimulationStore } from '../stores/simulation'
 
@@ -55,7 +55,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await graphApi.getTask(taskId)
+      const res = await batchGet(`/graph/task/${taskId}`)
       const json = res.data
       if (!json.success) {
         errorMsg.value = json.error || 'Unknown error'
@@ -115,7 +115,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await client.get(`/simulation/${taskId}/run-status`)
+      const res = await batchGet(`/simulation/${taskId}/run-status`)
       const json = res.data
       if (!json.success) return
 
@@ -168,7 +168,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await client.get(`/simulation/${taskId}/run-status/detail`)
+      const res = await batchGet(`/simulation/${taskId}/run-status/detail`)
       const json = res.data
       if (json.success) {
         recentActions.value = json.data.recent_actions || json.data.all_actions || []
@@ -184,7 +184,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await client.get(`/simulation/${taskId}/timeline`)
+      const res = await batchGet(`/simulation/${taskId}/timeline`)
       const json = res.data
       if (json.success) {
         timeline.value = json.data.timeline || []

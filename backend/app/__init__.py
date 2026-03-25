@@ -72,6 +72,10 @@ def create_app(config_class=Config):
     from .api.gtm_scenarios import gtm_bp
     app.register_blueprint(gtm_bp)
 
+    # Persona generation API
+    from .api.personas import personas_bp
+    app.register_blueprint(personas_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

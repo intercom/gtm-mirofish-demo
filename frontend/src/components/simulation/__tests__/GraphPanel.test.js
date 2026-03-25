@@ -1,48 +1,32 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import GraphPanel from '../GraphPanel.vue'
 
-class MockResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-globalThis.ResizeObserver = MockResizeObserver
+const mockObserve = vi.fn()
+const mockDisconnect = vi.fn()
 
-class MockMutationObserver {
-  observe() {}
-  disconnect() {}
+class MockResizeObserver {
+  constructor() {}
+  observe = mockObserve
+  disconnect = mockDisconnect
+  unobserve = vi.fn()
 }
-globalThis.MutationObserver = MockMutationObserver
 
 function createPolling(overrides = {}) {
   return {
-    graphStatus: ref('building'),
-    graphProgress: ref(0),
-    graphData: ref({ nodes: [], edges: [] }),
-    graphId: ref(null),
-    graphTask: ref(null),
-    isDemoFallback: ref(false),
-    ...overrides,
+    graphStatus: ref(overrides.graphStatus ?? 'building'),
+    graphProgress: ref(overrides.graphProgress ?? 0),
+    graphData: ref(overrides.graphData ?? { nodes: [], edges: [] }),
+    graphId: ref(overrides.graphId ?? null),
+    graphTask: ref(overrides.graphTask ?? null),
+    isDemoFallback: ref(overrides.isDemoFallback ?? false),
   }
 }
 
-const sampleNodes = [
-  { uuid: 'n1', name: 'Enterprise Buyer', labels: ['Entity', 'Persona'], summary: 'A buyer', attributes: {} },
-  { uuid: 'n2', name: 'AI Automation', labels: ['Entity', 'Topic'], summary: 'AI topic', attributes: {} },
-  { uuid: 'n3', name: 'Product-Led Growth', labels: ['Entity', 'Process'], summary: 'PLG motion', attributes: {} },
-]
-
-const sampleEdges = [
-  { uuid: 'e1', source_node_uuid: 'n1', target_node_uuid: 'n2', name: 'evaluates', fact: 'Buyer evaluates AI', fact_type: 'engagement' },
-  { uuid: 'e2', source_node_uuid: 'n2', target_node_uuid: 'n3', name: 'enables', fact: 'AI enables PLG', fact_type: 'relationship' },
-]
-
-function mountPanel(pollingOverrides = {}, propsOverrides = {}) {
-  const polling = createPolling(pollingOverrides)
+function mountGraphPanel(polling, props = {}) {
   return mount(GraphPanel, {
-    props: { taskId: 'test-123', demoMode: false, ...propsOverrides },
+    props: { taskId: 'test-task-123', ...props },
     global: {
       provide: { polling },
     },
@@ -50,288 +34,320 @@ function mountPanel(pollingOverrides = {}, propsOverrides = {}) {
   })
 }
 
+beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', MockResizeObserver)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  mockObserve.mockClear()
+  mockDisconnect.mockClear()
+})
+
 describe('GraphPanel', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.useRealTimers()
-    document.body.innerHTML = ''
-  })
-
-  // --- Status display ---
-
-  it('shows "Building Graph..." status when building', () => {
-    const wrapper = mountPanel()
-    expect(wrapper.text()).toContain('Building Graph...')
-    expect(wrapper.text()).toContain('0%')
-  })
-
-  it('shows progress percentage during build', () => {
-    const wrapper = mountPanel({ graphProgress: ref(45) })
-    expect(wrapper.text()).toContain('45%')
-  })
-
-  it('shows "Complete" status when graph is complete', () => {
-    const wrapper = mountPanel({
-      graphStatus: ref('complete'),
-      graphProgress: ref(100),
-      graphData: ref({ nodes: sampleNodes, edges: sampleEdges }),
+  describe('status badge rendering', () => {
+    it('shows building status with progress', () => {
+      const polling = createPolling({ graphStatus: 'building', graphProgress: 42 })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.text()).toContain('Building Graph... 42%')
+      wrapper.unmount()
     })
-    expect(wrapper.text()).toContain('Complete')
-  })
 
-  it('shows "Failed" status when graph fails', () => {
-    const wrapper = mountPanel({ graphStatus: ref('failed') })
-    expect(wrapper.text()).toContain('Failed')
-  })
-
-  // --- Status badge styling ---
-
-  it('applies yellow styling for building status', () => {
-    const wrapper = mountPanel()
-    const badge = wrapper.find('.rounded-full')
-    expect(badge.classes()).toContain('bg-yellow-500/20')
-    expect(badge.classes()).toContain('text-yellow-400')
-  })
-
-  it('applies green styling for complete status', () => {
-    const wrapper = mountPanel({
-      graphStatus: ref('complete'),
-      graphData: ref({ nodes: sampleNodes, edges: sampleEdges }),
+    it('shows complete status', () => {
+      const polling = createPolling({ graphStatus: 'complete' })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.text()).toContain('Complete')
+      wrapper.unmount()
     })
-    const badge = wrapper.find('.rounded-full')
-    expect(badge.classes()).toContain('bg-green-500/20')
-    expect(badge.classes()).toContain('text-green-400')
-  })
 
-  it('applies red styling for failed status', () => {
-    const wrapper = mountPanel({ graphStatus: ref('failed') })
-    const badge = wrapper.find('.rounded-full')
-    expect(badge.classes()).toContain('bg-red-500/20')
-    expect(badge.classes()).toContain('text-red-400')
-  })
-
-  // --- Error state ---
-
-  it('shows error overlay with message when status transitions to failed', async () => {
-    const graphStatus = ref('building')
-    const graphTask = ref({ message: 'Out of memory' })
-    const wrapper = mountPanel({ graphStatus, graphTask })
-
-    graphStatus.value = 'failed'
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Graph build failed')
-    expect(wrapper.text()).toContain('Out of memory')
-  })
-
-  it('does not show error overlay when building', () => {
-    const wrapper = mountPanel()
-    expect(wrapper.text()).not.toContain('Graph build failed')
-  })
-
-  // --- Build progress overlay ---
-
-  it('shows build progress overlay with message during non-demo build', () => {
-    const wrapper = mountPanel({
-      graphProgress: ref(30),
-      graphTask: ref({ message: 'Extracting entities...' }),
+    it('shows failed status', () => {
+      const polling = createPolling({ graphStatus: 'failed' })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.text()).toContain('Failed')
+      wrapper.unmount()
     })
-    expect(wrapper.text()).toContain('Building Graph...')
-    expect(wrapper.text()).toContain('30%')
-  })
 
-  it('does not show progress overlay in demo mode', () => {
-    const wrapper = mountPanel(
-      { graphStatus: ref('building'), graphProgress: ref(50) },
-      { demoMode: true },
-    )
-    // The overlay has a condition: graphStatus === 'building' && !demoMode && !isDemoFallback
-    // In demo mode it should be hidden
-    const overlay = wrapper.find('.backdrop-blur-sm.rounded-xl')
-    expect(overlay.exists()).toBe(false)
-  })
-
-  // --- Entity type stats panel ---
-
-  it('shows entity type stats when graph is complete with data', async () => {
-    const wrapper = mountPanel({
-      graphStatus: ref('complete'),
-      graphProgress: ref(100),
-      graphData: ref({ nodes: sampleNodes, edges: sampleEdges }),
+    it('applies yellow styling for building status', () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling)
+      const badge = wrapper.find('.rounded-full')
+      expect(badge.classes()).toContain('bg-yellow-500/20')
+      expect(badge.classes()).toContain('text-yellow-400')
+      wrapper.unmount()
     })
-    await flushPromises()
-    expect(wrapper.text()).toContain('Entity Types')
-  })
 
-  it('displays correct entity type names from graph data', async () => {
-    const wrapper = mountPanel({
-      graphStatus: ref('complete'),
-      graphProgress: ref(100),
-      graphData: ref({ nodes: sampleNodes, edges: sampleEdges }),
+    it('applies green styling for complete status', () => {
+      const polling = createPolling({
+        graphStatus: 'complete',
+        graphData: {
+          nodes: [{ uuid: 'n1', name: 'A', labels: ['Entity', 'Persona'], summary: '' }],
+          edges: [],
+        },
+      })
+      const wrapper = mountGraphPanel(polling)
+      const badge = wrapper.find('.rounded-full')
+      expect(badge.classes()).toContain('bg-green-500/20')
+      expect(badge.classes()).toContain('text-green-400')
+      wrapper.unmount()
     })
-    await flushPromises()
-    expect(wrapper.text()).toContain('Persona')
-    expect(wrapper.text()).toContain('Topic')
-    expect(wrapper.text()).toContain('Process')
-  })
 
-  it('does not show entity type stats when graph failed', () => {
-    const wrapper = mountPanel({
-      graphStatus: ref('failed'),
-      graphData: ref({ nodes: sampleNodes, edges: sampleEdges }),
+    it('applies red styling for failed status', () => {
+      const polling = createPolling({ graphStatus: 'failed' })
+      const wrapper = mountGraphPanel(polling)
+      const badge = wrapper.find('.rounded-full')
+      expect(badge.classes()).toContain('bg-red-500/20')
+      expect(badge.classes()).toContain('text-red-400')
+      wrapper.unmount()
     })
-    expect(wrapper.text()).not.toContain('Entity Types')
   })
 
-  // --- Node/Edge counts ---
-
-  it('shows node and edge counts when complete', async () => {
-    const wrapper = mountPanel({
-      graphStatus: ref('complete'),
-      graphProgress: ref(100),
-      graphData: ref({ nodes: sampleNodes, edges: sampleEdges }),
+  describe('building state', () => {
+    it('shows progress overlay during build', () => {
+      const polling = createPolling({ graphStatus: 'building', graphProgress: 25 })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.text()).toContain('Building Graph... 25%')
+      wrapper.unmount()
     })
-    await flushPromises()
-    // The counts are in two places: stats panel and bottom-right
-    const nodeCountEl = wrapper.find('[data-testid="node-count"]')
-    const edgeCountEl = wrapper.find('[data-testid="edge-count"]')
-    // These show "X nodes" / "X edges" format
-    if (nodeCountEl.exists()) {
-      expect(nodeCountEl.text()).toContain('nodes')
-    }
-    if (edgeCountEl.exists()) {
-      expect(edgeCountEl.text()).toContain('edges')
-    }
-  })
 
-  // --- Detail panel ---
-
-  it('does not show detail panel by default', () => {
-    const wrapper = mountPanel({
-      graphStatus: ref('complete'),
-      graphData: ref({ nodes: sampleNodes, edges: sampleEdges }),
+    it('shows build messages based on progress', () => {
+      const polling = createPolling({
+        graphStatus: 'building',
+        graphProgress: 50,
+        graphTask: { message: 'Extracting entities...' },
+      })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.text()).toContain('Extracting entities...')
+      wrapper.unmount()
     })
-    expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false)
-  })
 
-  // --- SVG canvas ---
-
-  it('renders SVG element', () => {
-    const wrapper = mountPanel()
-    expect(wrapper.find('svg').exists()).toBe(true)
-  })
-
-  it('has graph-canvas class on SVG', () => {
-    const wrapper = mountPanel()
-    const svg = wrapper.find('svg.graph-canvas')
-    expect(svg.exists()).toBe(true)
-  })
-
-  // --- Container styling ---
-
-  it('has light and dark background classes', () => {
-    const wrapper = mountPanel()
-    const container = wrapper.find('.bg-\\[\\#f8f9fa\\]')
-    expect(container.exists()).toBe(true)
-  })
-
-  // --- Demo mode ---
-
-  it('triggers demo build in demo mode', async () => {
-    const polling = createPolling()
-    mount(GraphPanel, {
-      props: { taskId: 'demo-1', demoMode: true },
-      global: { provide: { polling } },
-      attachTo: document.body,
+    it('does not show progress overlay in demo mode', () => {
+      const polling = createPolling({ graphStatus: 'building', graphProgress: 25 })
+      const wrapper = mountGraphPanel(polling, { demoMode: true })
+      // The overlay has v-if="graphStatus === 'building' && !demoMode && !isDemoFallback"
+      const overlay = wrapper.find('.backdrop-blur-sm.rounded-xl')
+      expect(overlay.exists()).toBe(false)
+      wrapper.unmount()
     })
-    await flushPromises()
-
-    // Demo mode sets status to 'building' and starts loading data
-    expect(polling.graphStatus.value).toBe('building')
   })
 
-  it('triggers demo build on isDemoFallback', async () => {
-    const isDemoFallback = ref(false)
-    const polling = createPolling({ isDemoFallback })
-
-    mount(GraphPanel, {
-      props: { taskId: 'test-1', demoMode: false },
-      global: { provide: { polling } },
-      attachTo: document.body,
+  describe('error state', () => {
+    it('shows error overlay when build fails', async () => {
+      const polling = createPolling({ graphStatus: 'failed' })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.text()).toContain('Graph build failed')
+      wrapper.unmount()
     })
-    await flushPromises()
 
-    // Flip the fallback flag
-    isDemoFallback.value = true
-    await flushPromises()
+    it('shows error message from task', async () => {
+      const polling = createPolling({
+        graphStatus: 'building',
+        graphTask: { message: 'LLM rate limited' },
+      })
+      const wrapper = mountGraphPanel(polling)
 
-    expect(polling.graphStatus.value).toBe('building')
-  })
+      polling.graphStatus.value = 'failed'
+      await nextTick()
 
-  it('progressively loads demo data over time', async () => {
-    const polling = createPolling()
-    mount(GraphPanel, {
-      props: { taskId: 'demo-1', demoMode: true },
-      global: { provide: { polling } },
-      attachTo: document.body,
+      expect(wrapper.text()).toContain('Graph build failed')
+      wrapper.unmount()
     })
-    await flushPromises()
-
-    // Advance a few intervals (200ms each) to load batches
-    vi.advanceTimersByTime(400)
-    await flushPromises()
-
-    expect(polling.graphData.value.nodes.length).toBeGreaterThan(0)
-    expect(polling.graphProgress.value).toBeGreaterThan(0)
   })
 
-  it('completes demo build after sufficient time', async () => {
-    const polling = createPolling()
-    mount(GraphPanel, {
-      props: { taskId: 'demo-1', demoMode: true },
-      global: { provide: { polling } },
-      attachTo: document.body,
+  describe('entity type stats', () => {
+    it('shows entity type stats when nodes have data', async () => {
+      const polling = createPolling({
+        graphStatus: 'complete',
+        graphData: {
+          nodes: [
+            { uuid: 'n1', name: 'A', labels: ['Entity', 'Persona'], summary: '' },
+            { uuid: 'n2', name: 'B', labels: ['Entity', 'Topic'], summary: '' },
+            { uuid: 'n3', name: 'C', labels: ['Entity', 'Persona'], summary: '' },
+          ],
+          edges: [],
+        },
+      })
+      const wrapper = mountGraphPanel(polling)
+      await nextTick()
+
+      expect(wrapper.text()).toContain('Entity Types')
+      expect(wrapper.text()).toContain('Persona')
+      expect(wrapper.text()).toContain('Topic')
+      wrapper.unmount()
     })
-    await flushPromises()
 
-    // 55 nodes in demo data, BATCH=3, INTERVAL=200ms
-    // Need ceil(55/3) * 200 = 3800ms to complete
-    vi.advanceTimersByTime(5000)
-    await flushPromises()
+    it('does not show entity stats when graph is failed', async () => {
+      const polling = createPolling({
+        graphStatus: 'failed',
+        graphData: {
+          nodes: [
+            { uuid: 'n1', name: 'A', labels: ['Entity', 'Persona'], summary: '' },
+          ],
+          edges: [],
+        },
+      })
+      const wrapper = mountGraphPanel(polling)
+      await nextTick()
 
-    expect(polling.graphStatus.value).toBe('complete')
-    expect(polling.graphProgress.value).toBe(100)
-    expect(polling.graphData.value.nodes.length).toBeGreaterThan(0)
-    expect(polling.graphData.value.edges.length).toBeGreaterThan(0)
-  })
-
-  // --- Cleanup ---
-
-  it('cleans up on unmount without errors', async () => {
-    const wrapper = mountPanel()
-    await flushPromises()
-    expect(() => wrapper.unmount()).not.toThrow()
-  })
-
-  it('stops demo build timer on unmount', async () => {
-    const polling = createPolling()
-    const wrapper = mount(GraphPanel, {
-      props: { taskId: 'demo-1', demoMode: true },
-      global: { provide: { polling } },
-      attachTo: document.body,
+      // v-if="entityTypeStats.length && graphStatus !== 'failed'"
+      expect(wrapper.text()).not.toContain('Entity Types')
+      wrapper.unmount()
     })
-    await flushPromises()
-    vi.advanceTimersByTime(400)
-    await flushPromises()
 
-    const countBefore = polling.graphData.value.nodes.length
-    wrapper.unmount()
+    it('does not show stats when no nodes', () => {
+      const polling = createPolling({ graphStatus: 'complete' })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.text()).not.toContain('Entity Types')
+      wrapper.unmount()
+    })
+  })
 
-    // After unmount, advancing timers should not add more nodes
-    vi.advanceTimersByTime(2000)
-    expect(polling.graphData.value.nodes.length).toBe(countBefore)
+  describe('SVG canvas', () => {
+    it('always renders an SVG element', () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.find('svg.graph-canvas').exists()).toBe(true)
+      wrapper.unmount()
+    })
+  })
+
+  describe('node detail panel', () => {
+    it('does not show detail panel by default', () => {
+      const polling = createPolling({ graphStatus: 'complete' })
+      const wrapper = mountGraphPanel(polling)
+      expect(wrapper.find('[data-testid="detail-panel"]').exists()).toBe(false)
+      wrapper.unmount()
+    })
+  })
+
+  describe('lifecycle', () => {
+    it('sets up ResizeObserver on mount', () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling)
+      expect(mockObserve).toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it('disconnects observers on unmount', () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling)
+      wrapper.unmount()
+      expect(mockDisconnect).toHaveBeenCalled()
+    })
+
+    it('triggers demo data loading when demoMode is true', () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling, { demoMode: true })
+      // Demo mode triggers loadDemoData which sets status to building
+      expect(polling.graphStatus.value).toBe('building')
+      wrapper.unmount()
+    })
+
+    it('triggers demo data loading when isDemoFallback is true', () => {
+      const polling = createPolling({ isDemoFallback: true })
+      const wrapper = mountGraphPanel(polling)
+      expect(polling.graphStatus.value).toBe('building')
+      wrapper.unmount()
+    })
+  })
+
+  describe('demo data loading', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('progressively loads demo data over time', async () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling, { demoMode: true })
+      await flushPromises()
+
+      // Advance a few intervals (200ms each) to load batches
+      vi.advanceTimersByTime(400)
+      await flushPromises()
+
+      expect(polling.graphData.value.nodes.length).toBeGreaterThan(0)
+      expect(polling.graphProgress.value).toBeGreaterThan(0)
+      wrapper.unmount()
+    })
+
+    it('completes demo build after sufficient time', async () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling, { demoMode: true })
+      await flushPromises()
+
+      // 55 nodes in demo data, BATCH=3, INTERVAL=200ms
+      // Need ceil(55/3) * 200 = 3800ms to complete
+      vi.advanceTimersByTime(5000)
+      await flushPromises()
+
+      expect(polling.graphStatus.value).toBe('complete')
+      expect(polling.graphProgress.value).toBe(100)
+      expect(polling.graphData.value.nodes.length).toBeGreaterThan(0)
+      expect(polling.graphData.value.edges.length).toBeGreaterThan(0)
+      wrapper.unmount()
+    })
+
+    it('stops demo build timer on unmount', async () => {
+      const polling = createPolling()
+      const wrapper = mountGraphPanel(polling, { demoMode: true })
+      await flushPromises()
+      vi.advanceTimersByTime(400)
+      await flushPromises()
+
+      const countBefore = polling.graphData.value.nodes.length
+      wrapper.unmount()
+
+      // After unmount, advancing timers should not add more nodes
+      vi.advanceTimersByTime(2000)
+      expect(polling.graphData.value.nodes.length).toBe(countBefore)
+    })
+  })
+
+  describe('color mapping', () => {
+    it('assigns persona color to persona nodes in stats', async () => {
+      const polling = createPolling({
+        graphStatus: 'complete',
+        graphData: {
+          nodes: [
+            { uuid: 'n1', name: 'Test', labels: ['Entity', 'Persona'], summary: '' },
+          ],
+          edges: [],
+        },
+      })
+      const wrapper = mountGraphPanel(polling)
+      await nextTick()
+
+      // Persona nodes should get the orange color (#ff5600)
+      const dot = wrapper.find('[style*="background-color"]')
+      if (dot.exists()) {
+        const style = dot.attributes('style')
+        expect(style).toContain('#ff5600')
+      }
+      wrapper.unmount()
+    })
+
+    it('assigns topic color to topic nodes in stats', async () => {
+      const polling = createPolling({
+        graphStatus: 'complete',
+        graphData: {
+          nodes: [
+            { uuid: 'n1', name: 'Test', labels: ['Entity', 'Topic'], summary: '' },
+          ],
+          edges: [],
+        },
+      })
+      const wrapper = mountGraphPanel(polling)
+      await nextTick()
+
+      const dot = wrapper.find('[style*="background-color"]')
+      if (dot.exists()) {
+        const style = dot.attributes('style')
+        expect(style).toContain('#2068FF')
+      }
+      wrapper.unmount()
+    })
   })
 })

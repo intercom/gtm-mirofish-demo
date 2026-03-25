@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { createPinia } from 'pinia'
 import AppNav from '../AppNav.vue'
 
 const localStorageMock = (() => {
@@ -20,15 +21,15 @@ function createTestRouter() {
     history: createMemoryHistory(),
     routes: [
       { path: '/', component: { template: '<div>Home</div>' } },
+      { path: '/simulations', component: { template: '<div>Simulations</div>' } },
       { path: '/settings', component: { template: '<div>Settings</div>' } },
-      { path: '/login', component: { template: '<div>Login</div>' } },
     ],
   })
 }
 
 function mountNav(options = {}) {
   const router = createTestRouter()
-  return { wrapper: mount(AppNav, { global: { plugins: [router] }, ...options }), router }
+  return { wrapper: mount(AppNav, { global: { plugins: [createPinia(), router] }, ...options }), router }
 }
 
 describe('AppNav', () => {
@@ -49,37 +50,29 @@ describe('AppNav', () => {
     expect(wrapper.text()).toContain('GTM Demo')
   })
 
-  it('renders navigation links for Home and Settings', () => {
+  it('renders navigation links for Home, Simulations, and Settings', () => {
     const { wrapper } = mountNav()
     const links = wrapper.findAll('a')
     const hrefs = links.map(l => l.attributes('href'))
     expect(hrefs).toContain('/')
+    expect(hrefs).toContain('/simulations')
     expect(hrefs).toContain('/settings')
   })
 
-  it('shows "Connected" status when no auth user', () => {
+  it('shows "Local" connection status', () => {
     const { wrapper } = mountNav()
-    expect(wrapper.text()).toContain('Connected')
+    expect(wrapper.text()).toContain('Local')
   })
 
-  it('shows user initial and email when auth_user is in localStorage', () => {
-    localStorageMock.setItem('auth_user', JSON.stringify({ email: 'alice@intercom.io' }))
+  it('has three desktop nav links', () => {
     const { wrapper } = mountNav()
-    expect(wrapper.text()).toContain('A')
-    expect(wrapper.text()).toContain('alice@intercom.io')
-    expect(wrapper.text()).toContain('Sign out')
-  })
-
-  it('does not show "Connected" when auth user is present', () => {
-    localStorageMock.setItem('auth_user', JSON.stringify({ email: 'bob@intercom.io' }))
-    const { wrapper } = mountNav()
-    expect(wrapper.text()).not.toContain('Connected')
+    expect(wrapper.findAll('.nav-link').length).toBe(3)
   })
 
   it('mobile menu is hidden by default', () => {
     const { wrapper } = mountNav()
-    const mobileMenuLinks = wrapper.findAll('.border-t')
-    expect(mobileMenuLinks.length).toBe(0)
+    const mobileDropdown = wrapper.find('.md\\:hidden.absolute')
+    expect(mobileDropdown.exists()).toBe(false)
   })
 
   it('toggles mobile menu on hamburger click', async () => {
@@ -88,27 +81,27 @@ describe('AppNav', () => {
     expect(hamburger.exists()).toBe(true)
 
     await hamburger.trigger('click')
-    expect(wrapper.findAll('.nav-link').length).toBeGreaterThan(2)
+    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(true)
 
     await hamburger.trigger('click')
-    expect(wrapper.findAll('.nav-link').length).toBe(2)
+    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(false)
   })
 
-  it('closes mobile menu when a nav link is clicked', async () => {
+  it('mobile menu shows Connected text', async () => {
     const { wrapper } = mountNav()
     const hamburger = wrapper.find('button[aria-label="Toggle navigation menu"]')
     await hamburger.trigger('click')
-
-    const allLinks = wrapper.findAll('.nav-link')
-    const mobileLink = allLinks[allLinks.length - 1]
-    await mobileLink.trigger('click')
-
-    expect(wrapper.findAll('.nav-link').length).toBe(2)
+    expect(wrapper.text()).toContain('Connected')
   })
 
-  it('handles malformed JSON in localStorage gracefully', () => {
-    localStorageMock.setItem('auth_user', 'not-json')
-    const { wrapper } = mountNav()
-    expect(wrapper.text()).toContain('Connected')
+  it('closes mobile menu on route change', async () => {
+    const { wrapper, router } = mountNav()
+    const hamburger = wrapper.find('button[aria-label="Toggle navigation menu"]')
+    await hamburger.trigger('click')
+    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(true)
+
+    await router.push('/settings')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.md\\:hidden.absolute').exists()).toBe(false)
   })
 })

@@ -507,6 +507,326 @@ def sim_snapshot_compare(sim_id):
 
 
 # ---------------------------------------------------------------------------
+# Reasoning Transparency API
+# ---------------------------------------------------------------------------
+
+AGENTS = [
+    ("Sarah Chen", "VP Support @ Acme SaaS"),
+    ("Marcus Johnson", "CX Director @ MedFirst"),
+    ("Priya Patel", "Head of Ops @ PayStream"),
+    ("David Kim", "IT Leader @ ShopNova"),
+    ("Rachel Torres", "VP Support @ CloudOps"),
+    ("James Wright", "CX Director @ Retail Plus"),
+    ("Anika Sharma", "Support Eng Lead @ DevStack"),
+    ("Tom O'Brien", "VP CS @ GrowthLoop"),
+    ("Elena Vasquez", "Dir Digital @ HealthBridge"),
+    ("Michael Chang", "Head of Ops @ FinEdge"),
+    ("Lisa Park", "VP CX @ TravelNow"),
+    ("Sofia Martinez", "Support Mgr @ QuickShip"),
+    ("Nathan Lee", "CTO @ DataPulse"),
+    ("Catherine Hayes", "CFO @ ScaleUp Corp"),
+    ("Robert Williams", "IT Director @ EduSpark"),
+]
+
+_REASONING_TEMPLATES = [
+    "Evaluating whether to share our Q1 support metrics publicly. Fin AI resolution rate of {pct}% is significantly above industry average — sharing could attract attention from prospects and validate our positioning.",
+    "Weighing competitive response to Zendesk's latest announcement. Our data shows {pct}% improvement in CSAT since switching — direct comparison could be effective but risks appearing combative.",
+    "Considering whether cost-per-resolution framing resonates better than speed-to-value. Internal surveys suggest {pct}% of VPs respond more strongly to ROI messaging.",
+    "Analyzing the trade-off between AI automation depth and customer satisfaction. Our pilot data shows diminishing returns above {pct}% automation — human escalation paths are critical.",
+    "Assessing multi-threading strategy: reaching multiple stakeholders increases conversion {pct}% but risks appearing spammy if not coordinated.",
+    "Reviewing whether compliance-first messaging for Healthcare is worth the extra personalization cost. Data shows {pct}% higher engagement when HIPAA is mentioned upfront.",
+]
+
+_GOAL_TEMPLATES = [
+    "Maximize support team efficiency",
+    "Reduce cost per resolution",
+    "Improve customer satisfaction scores",
+    "Drive AI adoption in support workflows",
+    "Build thought leadership in CX space",
+    "Evaluate competitive alternatives objectively",
+    "Optimize multi-channel support strategy",
+    "Scale support operations without proportional headcount",
+]
+
+_FACTOR_TEMPLATES = [
+    {"name": "ROI impact", "weight": 0.35, "assessment": "High — strong cost savings narrative"},
+    {"name": "audience relevance", "weight": 0.25, "assessment": "Medium — resonates with VP-level personas"},
+    {"name": "competitive risk", "weight": 0.15, "assessment": "Low — factual, data-driven framing"},
+    {"name": "credibility", "weight": 0.15, "assessment": "High — backed by pilot data"},
+    {"name": "timing", "weight": 0.10, "assessment": "Good — aligns with Q1 budget planning"},
+]
+
+
+def _agent_id_from_name(name):
+    return abs(hash(name)) % 10000
+
+
+def _generate_round_reasoning(sim_id, round_num):
+    rng = random.Random(hash(f"{sim_id}-reasoning-{round_num}"))
+    traces = []
+    num_agents = rng.randint(3, 8)
+    chosen = rng.sample(AGENTS, num_agents)
+    for name, title in chosen:
+        agent_id = _agent_id_from_name(name)
+        tpl = rng.choice(_REASONING_TEMPLATES)
+        pct = rng.randint(20, 72)
+        goal = rng.choice(_GOAL_TEMPLATES)
+        confidence = round(rng.uniform(0.55, 0.95), 2)
+        action = rng.choice(["CREATE_POST", "REPLY", "LIKE", "REPOST"])
+        traces.append({
+            "agent_id": agent_id,
+            "agent_name": f"{name} ({title})",
+            "round": round_num,
+            "reasoning": tpl.format(pct=pct),
+            "goal": goal,
+            "action_chosen": action,
+            "confidence": confidence,
+            "factors_considered": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in rng.sample(_FACTOR_TEMPLATES, rng.randint(2, 4))
+            ],
+            "alternatives_rejected": rng.sample(
+                ["LIKE", "REPOST", "CREATE_POST", "REPLY", "IGNORE"],
+                rng.randint(1, 3),
+            ),
+        })
+    return traces
+
+
+def _generate_decisions(sim_id):
+    rng = random.Random(hash(f"{sim_id}-decisions"))
+    decisions = []
+    topics = [
+        "AI automation vs human touch",
+        "Competitive displacement messaging",
+        "ROI-first vs feature-first positioning",
+        "Multi-threading outreach strategy",
+        "Compliance-first messaging for Healthcare",
+        "Optimal email cadence timing",
+        "Zendesk migration narrative",
+        "Fin AI resolution rate claims",
+    ]
+    for i, topic in enumerate(topics):
+        agent_name, agent_title = rng.choice(AGENTS)
+        agent_id = _agent_id_from_name(agent_name)
+        confidence = round(rng.uniform(0.6, 0.95), 2)
+        round_num = rng.randint(1, TOTAL_ROUNDS)
+        decisions.append({
+            "decision_id": f"dec-{sim_id[:8]}-{i:04d}",
+            "agent_id": agent_id,
+            "agent_name": f"{agent_name} ({agent_title})",
+            "round": round_num,
+            "topic": topic,
+            "action": rng.choice(["CREATE_POST", "REPLY", "REPOST"]),
+            "confidence": confidence,
+            "reasoning_summary": rng.choice(_REASONING_TEMPLATES).format(pct=rng.randint(20, 72)),
+        })
+    return decisions
+
+
+@app.route("/api/simulation/<sim_id>/round/<int:round_num>/reasoning")
+def sim_round_reasoning(sim_id, round_num):
+    if round_num < 1 or round_num > TOTAL_ROUNDS:
+        return _err(f"Round must be between 1 and {TOTAL_ROUNDS}", 400)
+    traces = _generate_round_reasoning(sim_id, round_num)
+    return _ok({"simulation_id": sim_id, "round": round_num, "traces": traces})
+
+
+@app.route("/api/simulation/<sim_id>/agents/<int:agent_id>/reasoning")
+def sim_agent_reasoning(sim_id, agent_id):
+    rng = random.Random(hash(f"{sim_id}-agent-{agent_id}"))
+    agent_match = None
+    for name, title in AGENTS:
+        if _agent_id_from_name(name) == agent_id:
+            agent_match = (name, title)
+            break
+    if not agent_match:
+        return _err("Agent not found", 404)
+    name, title = agent_match
+    traces = []
+    num_rounds = rng.randint(5, 12)
+    rounds = sorted(rng.sample(range(1, TOTAL_ROUNDS + 1), num_rounds))
+    for r in rounds:
+        tpl = rng.choice(_REASONING_TEMPLATES)
+        pct = rng.randint(20, 72)
+        traces.append({
+            "round": r,
+            "reasoning": tpl.format(pct=pct),
+            "goal": rng.choice(_GOAL_TEMPLATES),
+            "action_chosen": rng.choice(["CREATE_POST", "REPLY", "LIKE", "REPOST"]),
+            "confidence": round(rng.uniform(0.55, 0.95), 2),
+            "factors_considered": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in rng.sample(_FACTOR_TEMPLATES, rng.randint(2, 4))
+            ],
+        })
+    return _ok({
+        "simulation_id": sim_id,
+        "agent_id": agent_id,
+        "agent_name": f"{name} ({title})",
+        "traces": traces,
+    })
+
+
+@app.route("/api/simulation/<sim_id>/decisions")
+def sim_decisions(sim_id):
+    decisions = _generate_decisions(sim_id)
+    return _ok({"simulation_id": sim_id, "decisions": decisions})
+
+
+@app.route("/api/simulation/<sim_id>/decisions/<decision_id>/explain")
+def sim_decision_explain(sim_id, decision_id):
+    decisions = _generate_decisions(sim_id)
+    match = next((d for d in decisions if d["decision_id"] == decision_id), None)
+    if not match:
+        return _err("Decision not found", 404)
+    rng = random.Random(hash(f"{sim_id}-explain-{decision_id}"))
+    return _ok({
+        "decision_id": decision_id,
+        "agent_name": match["agent_name"],
+        "round": match["round"],
+        "topic": match["topic"],
+        "action": match["action"],
+        "reasoning": match["reasoning_summary"],
+        "explanation": {
+            "goal": rng.choice(_GOAL_TEMPLATES),
+            "factors": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in _FACTOR_TEMPLATES
+            ],
+            "decision_process": (
+                f"Agent evaluated {len(_FACTOR_TEMPLATES)} factors against the goal "
+                f"of '{rng.choice(_GOAL_TEMPLATES).lower()}'. "
+                f"The {match['action']} action scored highest with {match['confidence']:.0%} "
+                f"confidence based on weighted factor analysis."
+            ),
+            "alternatives": [
+                {
+                    "action": alt,
+                    "score": round(rng.uniform(0.2, match["confidence"] - 0.05), 2),
+                    "rejection_reason": rng.choice([
+                        "Lower expected engagement",
+                        "Insufficient data support",
+                        "Misaligned with current goal",
+                        "Higher competitive risk",
+                        "Audience mismatch",
+                    ]),
+                }
+                for alt in rng.sample(["CREATE_POST", "REPLY", "LIKE", "REPOST", "IGNORE"], 2)
+                if alt != match["action"]
+            ],
+        },
+    })
+
+
+@app.route("/api/simulation/<sim_id>/decisions/<decision_id>/counterfactual")
+def sim_decision_counterfactual(sim_id, decision_id):
+    decisions = _generate_decisions(sim_id)
+    match = next((d for d in decisions if d["decision_id"] == decision_id), None)
+    if not match:
+        return _err("Decision not found", 404)
+    rng = random.Random(hash(f"{sim_id}-cf-{decision_id}"))
+    alt_actions = [a for a in ["CREATE_POST", "REPLY", "LIKE", "REPOST", "IGNORE"] if a != match["action"]]
+    scenarios = []
+    for alt in rng.sample(alt_actions, min(3, len(alt_actions))):
+        engagement_delta = round(rng.uniform(-30, 15), 1)
+        sentiment_delta = round(rng.uniform(-0.3, 0.2), 2)
+        scenarios.append({
+            "alternative_action": alt,
+            "predicted_engagement_delta_pct": engagement_delta,
+            "predicted_sentiment_delta": sentiment_delta,
+            "cascade_effect": rng.choice([
+                "Minimal — isolated impact on immediate thread",
+                "Moderate — 2-3 connected agents would shift stance",
+                "Significant — could trigger topic-wide sentiment reversal",
+            ]),
+            "risk_assessment": rng.choice(["low", "medium", "high"]),
+            "narrative": (
+                f"If the agent had chosen {alt} instead of {match['action']}, "
+                f"engagement would have shifted by {engagement_delta:+.1f}% "
+                f"with a sentiment change of {sentiment_delta:+.2f}."
+            ),
+        })
+    return _ok({
+        "decision_id": decision_id,
+        "original_action": match["action"],
+        "original_confidence": match["confidence"],
+        "counterfactual_scenarios": scenarios,
+    })
+
+
+@app.route("/api/simulation/<sim_id>/argument-map/<topic>")
+def sim_argument_map(sim_id, topic):
+    rng = random.Random(hash(f"{sim_id}-argmap-{topic}"))
+    nodes = []
+    edges = []
+    positions = [
+        {"label": "central_claim", "type": "claim"},
+        {"label": "supporting_evidence_1", "type": "evidence"},
+        {"label": "supporting_evidence_2", "type": "evidence"},
+        {"label": "counterargument_1", "type": "counterargument"},
+        {"label": "counterargument_2", "type": "counterargument"},
+        {"label": "rebuttal_1", "type": "rebuttal"},
+        {"label": "synthesis", "type": "synthesis"},
+    ]
+    claim_templates = {
+        "claim": [
+            f"AI-driven support automation delivers measurable ROI for {topic}",
+            f"The market is shifting toward {topic} as a competitive differentiator",
+            f"Organizations that adopt {topic} early will capture disproportionate market share",
+        ],
+        "evidence": [
+            "Pilot data shows 47% AI resolution rate with Fin agent",
+            "CSAT improved 8 points after Intercom deployment",
+            "Cost per resolution dropped 40% in first quarter",
+            "3-week deployment time vs 6-month legacy migration",
+            "Multi-threading outreach increases conversion 4.7x",
+        ],
+        "counterargument": [
+            "AI chatbots still struggle with nuanced product feedback",
+            "Migration costs and team disruption offset short-term savings",
+            "Customer trust decreases when they know they're talking to a bot",
+            "Regulatory requirements in Healthcare limit AI automation scope",
+        ],
+        "rebuttal": [
+            "Human escalation paths preserve quality for complex cases",
+            "3-week deployment minimizes disruption window",
+            "Transparency about AI involvement actually increases trust per recent studies",
+        ],
+        "synthesis": [
+            f"Balanced approach to {topic}: automate high-volume low-complexity, elevate humans for high-value interactions",
+        ],
+    }
+    for i, pos in enumerate(positions):
+        node_type = pos["type"]
+        agent_name, agent_title = rng.choice(AGENTS)
+        nodes.append({
+            "id": f"arg-{i}",
+            "type": node_type,
+            "content": rng.choice(claim_templates[node_type]),
+            "agent_name": f"{agent_name} ({agent_title})",
+            "agent_id": _agent_id_from_name(agent_name),
+            "confidence": round(rng.uniform(0.5, 0.95), 2),
+            "round_introduced": rng.randint(1, TOTAL_ROUNDS),
+        })
+    edge_defs = [
+        ("arg-1", "arg-0", "supports"), ("arg-2", "arg-0", "supports"),
+        ("arg-3", "arg-0", "opposes"), ("arg-4", "arg-0", "opposes"),
+        ("arg-5", "arg-3", "rebuts"), ("arg-6", "arg-0", "synthesizes"),
+    ]
+    for src, tgt, rel in edge_defs:
+        edges.append({
+            "source": src, "target": tgt, "relationship": rel,
+            "strength": round(rng.uniform(0.4, 0.95), 2),
+        })
+    return _ok({
+        "simulation_id": sim_id,
+        "topic": topic,
+        "argument_map": {"nodes": nodes, "edges": edges},
+    })
+
+
+# ---------------------------------------------------------------------------
 # Report API
 # ---------------------------------------------------------------------------
 

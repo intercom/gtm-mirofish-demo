@@ -41,7 +41,11 @@ def create_app(config_class=Config):
     
     # 启用CORS
     CORS(app, resources={r"/api/*": {"origins": "*"}})
-    
+
+    # Graceful degradation middleware (service health + error handlers)
+    from .utils.degradation import register_degradation_middleware
+    register_degradation_middleware(app)
+
     # 注册模拟进程清理函数（确保服务器关闭时终止所有模拟进程）
     from .services.simulation_runner import SimulationRunner
     SimulationRunner.register_cleanup()
@@ -75,6 +79,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Service health API (degradation status for frontend)
+    from .api.health import health_bp
+    app.register_blueprint(health_bp)
     
     # 健康检查
     @app.route('/health')

@@ -4,6 +4,7 @@ import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
+import ThemeEditor from '../components/settings/ThemeEditor.vue'
 
 const { preference: themePreference, systemPreference, setTheme } = useTheme()
 const toast = useToast()
@@ -176,6 +177,12 @@ onMounted(() => {
       <p v-if="themePreference === 'system'" class="text-xs text-[var(--color-text-muted)] mt-2">
         Theme follows your system preference — currently <span class="font-medium text-[var(--color-text-secondary)]">{{ systemPreference }}</span> mode.
       </p>
+    </section>
+
+    <!-- Custom Theme Editor -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Custom Themes</h2>
+      <ThemeEditor />
     </section>
 
     <!-- LLM Provider -->

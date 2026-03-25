@@ -27,7 +27,7 @@ from .revenue import (
     ExpansionType, ChurnReason, PlanTier,
 )
 from .order_to_cash import (
-    Order, OrderStatus,
+    Order, OrderStatus, LineItem,
     ProvisioningStep, ProvisioningStatus,
     BillingRecord, BillingStatus,
     ValidationResult, ValidationStatus,
@@ -77,7 +77,7 @@ __all__ = [
     'generate_demo_quotes',
     'RevenueMetric', 'CustomerRevenue', 'ChurnEvent', 'ExpansionEvent',
     'ExpansionType', 'ChurnReason', 'PlanTier',
-    'Order', 'OrderStatus',
+    'Order', 'OrderStatus', 'LineItem',
     'ProvisioningStep', 'ProvisioningStatus',
     'BillingRecord', 'BillingStatus',
     'ValidationResult', 'ValidationStatus',

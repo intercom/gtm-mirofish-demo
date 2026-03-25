@@ -40,6 +40,22 @@ class ValidationStatus(str, Enum):
 
 
 @dataclass
+class LineItem:
+    product: str
+    quantity: int
+    unit_price: float
+    total: float
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "product": self.product,
+            "quantity": self.quantity,
+            "unit_price": self.unit_price,
+            "total": self.total,
+        }
+
+
+@dataclass
 class ValidationResult:
     """Result of a single validation check on an order."""
     order_id: str

@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Beliefs API (agent belief system tracking)
+    from .api.beliefs import beliefs_bp
+    app.register_blueprint(beliefs_bp)
     
     # 健康检查
     @app.route('/health')

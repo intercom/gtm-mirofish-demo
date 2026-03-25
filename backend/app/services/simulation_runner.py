@@ -1091,9 +1091,120 @@ class SimulationRunner:
         
         # 按总动作数排序
         result = sorted(agent_stats.values(), key=lambda x: x["total_actions"], reverse=True)
-        
+
         return result
-    
+
+    # --- Knowledge categories for temporal analysis ---
+    KNOWLEDGE_CATEGORIES = {
+        "product": [
+            "product", "feature", "platform", "tool", "software", "integration",
+            "api", "sdk", "dashboard", "widget", "inbox", "bot", "ai",
+            "automation", "workflow", "intercom", "zendesk", "freshdesk",
+        ],
+        "market": [
+            "market", "competitor", "industry", "segment", "vertical",
+            "enterprise", "smb", "startup", "saas", "b2b", "b2c",
+        ],
+        "customer": [
+            "customer", "user", "client", "account", "churn", "retention",
+            "onboarding", "adoption", "satisfaction", "nps", "csat",
+        ],
+        "strategy": [
+            "strategy", "pricing", "roi", "cost", "budget", "invest",
+            "migration", "switch", "consolidat", "roadmap", "plan",
+        ],
+        "support": [
+            "support", "ticket", "resolution", "sla", "response time",
+            "helpdesk", "self-service", "knowledge base", "faq", "agent",
+        ],
+        "sentiment": [
+            "impressive", "compelling", "concern", "skeptic", "risk",
+            "love", "hate", "frustrated", "excited", "recommend",
+        ],
+    }
+
+    @classmethod
+    def get_knowledge_timeline(
+        cls,
+        simulation_id: str,
+        start_round: int = 0,
+        end_round: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """
+        Build a temporal knowledge timeline from simulation actions.
+
+        Categorises action content into knowledge domains per round, tracking
+        cumulative concept emergence and category density over time.
+        """
+        actions = cls.get_actions(simulation_id, limit=10000)
+
+        rounds: Dict[int, Dict[str, Any]] = {}
+        seen_keywords: Dict[str, set] = {cat: set() for cat in cls.KNOWLEDGE_CATEGORIES}
+        events: list = []
+
+        for action in actions:
+            rn = action.round_num
+            if rn < start_round:
+                continue
+            if end_round is not None and rn > end_round:
+                continue
+
+            content = (action.action_args.get("content") or "").lower()
+            if not content:
+                continue
+
+            if rn not in rounds:
+                rounds[rn] = {
+                    "round_num": rn,
+                    "categories": {cat: 0 for cat in cls.KNOWLEDGE_CATEGORIES},
+                    "new_concepts": [],
+                    "agents": set(),
+                    "total_mentions": 0,
+                }
+
+            r = rounds[rn]
+            r["agents"].add(action.agent_name or str(action.agent_id))
+
+            for cat, keywords in cls.KNOWLEDGE_CATEGORIES.items():
+                for kw in keywords:
+                    if kw in content:
+                        r["categories"][cat] += 1
+                        r["total_mentions"] += 1
+                        if kw not in seen_keywords[cat]:
+                            seen_keywords[cat].add(kw)
+                            r["new_concepts"].append({"category": cat, "keyword": kw})
+                            events.append({
+                                "round_num": rn,
+                                "type": "new_concept",
+                                "category": cat,
+                                "keyword": kw,
+                                "agent": action.agent_name or str(action.agent_id),
+                            })
+                        break  # one match per category per action
+
+        # Build sorted result with cumulative totals
+        cumulative = {cat: 0 for cat in cls.KNOWLEDGE_CATEGORIES}
+        result = []
+        for rn in sorted(rounds.keys()):
+            r = rounds[rn]
+            for cat in cls.KNOWLEDGE_CATEGORIES:
+                cumulative[cat] += r["categories"][cat]
+            result.append({
+                "round_num": rn,
+                "categories": dict(r["categories"]),
+                "cumulative": dict(cumulative),
+                "new_concepts": r["new_concepts"],
+                "active_agents": len(r["agents"]),
+                "total_mentions": r["total_mentions"],
+            })
+
+        return {
+            "rounds_count": len(result),
+            "timeline": result,
+            "events": sorted(events, key=lambda e: e["round_num"]),
+            "category_totals": {cat: cumulative[cat] for cat in cls.KNOWLEDGE_CATEGORIES},
+        }
+
     @classmethod
     def cleanup_simulation_logs(cls, simulation_id: str) -> Dict[str, Any]:
         """

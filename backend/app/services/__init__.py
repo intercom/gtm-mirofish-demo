@@ -36,6 +36,12 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .oasis_environment import (
+    EnvironmentManager,
+    EnvironmentState,
+    EnvironmentType,
+    EnvironmentStatus,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +75,9 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'EnvironmentManager',
+    'EnvironmentState',
+    'EnvironmentType',
+    'EnvironmentStatus',
 ]
 

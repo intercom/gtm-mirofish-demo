@@ -2936,6 +2936,7 @@ def close_simulation_env():
         }), 500
 
 
+<<<<<<< HEAD
 # ============== Orchestrator endpoints ==============
 
 # In-memory registry of orchestrator instances (keyed by simulation_id).
@@ -3504,3 +3505,156 @@ def argument_map(sim_id, topic):
         "topic": topic,
         "argument_map": {"nodes": nodes, "edges": edges},
     }})
+
+
+# ============== Agent Intelligence Endpoints ==============
+
+from ..services.agent_intelligence import AgentIntelligence
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/beliefs', methods=['GET'])
+def get_agent_beliefs(simulation_id: str, agent_id: int):
+    """
+    Get current beliefs for an agent with confidence scores.
+
+    Returns structured JSON with each belief's topic, stance,
+    confidence (0-1), and evidence count.
+    """
+    try:
+        data = AgentIntelligence.get_agent_beliefs(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent beliefs: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/beliefs/history', methods=['GET'])
+def get_agent_belief_history(simulation_id: str, agent_id: int):
+    """
+    Get belief evolution timeline for an agent.
+
+    Returns per-topic confidence snapshots across simulation rounds,
+    suitable for line-chart visualization.
+    """
+    try:
+        data = AgentIntelligence.get_belief_history(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get belief history: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/relationships', methods=['GET'])
+def get_agent_relationships(simulation_id: str, agent_id: int):
+    """
+    Get all relationships for a specific agent.
+
+    Returns relationship type, strength, and interaction count
+    for each connected agent.
+    """
+    try:
+        data = AgentIntelligence.get_agent_relationships(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent relationships: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/relationships', methods=['GET'])
+def get_all_relationships(simulation_id: str):
+    """
+    Get the complete relationship graph for the simulation.
+
+    Returns nodes (agents) and edges (relationships) suitable
+    for force-directed graph visualization.
+    """
+    try:
+        data = AgentIntelligence.get_all_relationships(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get relationships: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/alliances', methods=['GET'])
+def get_alliances(simulation_id: str):
+    """
+    Detect alliances and coalitions among agents.
+
+    Returns groups of agents with shared beliefs, cohesion scores,
+    and member roles (leader/supporter/observer).
+    """
+    try:
+        data = AgentIntelligence.get_alliances(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get alliances: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/conflicts', methods=['GET'])
+def get_conflicts(simulation_id: str):
+    """
+    Detect conflicts and disagreements among agents.
+
+    Returns conflict topics with opposing sides, intensity scores,
+    and resolution status.
+    """
+    try:
+        data = AgentIntelligence.get_conflicts(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get conflicts: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/memory/consolidated', methods=['GET'])
+def get_agent_memory(simulation_id: str, agent_id: int):
+    """
+    Get consolidated memories for an agent.
+
+    Returns key memories formed during simulation, including
+    importance level, related agents, and emotional valence.
+    """
+    try:
+        data = AgentIntelligence.get_consolidated_memory(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent memory: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

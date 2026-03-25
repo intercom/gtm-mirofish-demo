@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { API_BASE } from '../api/client'
 import { useReportShortcuts } from '../composables/useReportShortcuts'
@@ -17,6 +17,7 @@ import { useReportStore } from '../stores/report'
 import ReportTemplateSelector from '../components/report/ReportTemplateSelector.vue'
 import ReportShareModal from '../components/report/ReportShareModal.vue'
 import ReportPreview from '../components/report-builder/ReportPreview.vue'
+import RichTextEditor from '../components/report/RichTextEditor.vue'
 
 const { resolvedTheme, themeStyles } = useReportTheme()
 const showShareModal = ref(false)
@@ -36,6 +37,11 @@ const showAgentLog = ref(false)
 const showThemePanel = ref(false)
 const builderMode = ref(false)
 const showExportMenu = ref(false)
+const editingChapter = ref(null)
+const editedHtml = ref({})
+const editBuffer = ref('')
+
+const { success: toastSuccess } = useToast()
 
 const agentTableRows = ref([])
 const agentTableColumns = [
@@ -81,11 +87,13 @@ let pollTimer = null
 const chapters = computed(() =>
   sections.value.map((s) => {
     const titleMatch = s.content.match(/^##\s+(.+)/m)
+    const baseHtml = marked.parse(s.content)
     return {
       title: titleMatch ? titleMatch[1] : `Section ${s.section_index}`,
-      html: marked.parse(s.content),
+      html: editedHtml.value[s.section_index] ?? baseHtml,
       markdown: s.content,
       index: s.section_index,
+      edited: s.section_index in editedHtml.value,
     }
   })
 )
@@ -231,6 +239,34 @@ function stopPolling() {
   }
 }
 
+function startEditing() {
+  const ch = activeContent.value
+  if (!ch) return
+  editBuffer.value = ch.html
+  editingChapter.value = activeChapter.value
+}
+
+function saveEditing() {
+  const ch = chapters.value[editingChapter.value]
+  if (ch) {
+    editedHtml.value[ch.index] = editBuffer.value
+  }
+  editingChapter.value = null
+  toastSuccess('Section updated')
+}
+
+function cancelEditing() {
+  editingChapter.value = null
+  editBuffer.value = ''
+}
+
+function revertEdits() {
+  const ch = activeContent.value
+  if (!ch) return
+  delete editedHtml.value[ch.index]
+  toastSuccess('Reverted to original')
+}
+
 function exportReport(format) {
   if (reportId.value) {
     window.open(`${API_BASE}/report/${reportId.value}/download?format=${format}`, '_blank')
@@ -266,6 +302,10 @@ function handleReorder(from, to) {
   arr.forEach((s, i) => { s.section_index = i + 1 })
   sections.value = arr
 }
+
+watch(activeChapter, () => {
+  if (editingChapter.value !== null) cancelEditing()
+})
 
 onMounted(() => {
   checkAndLoad()
@@ -533,6 +573,29 @@ onUnmounted(() => {
             <span v-if="resolvedTheme.headerText" class="text-xs font-medium" :style="{ color: 'var(--report-primary)', fontFamily: 'var(--report-font-family)' }">{{ resolvedTheme.headerText }}</span>
           </div>
 
+          <!-- Edit controls -->
+          <div v-if="activeContent && !generating && editingChapter !== activeChapter" class="flex items-center justify-end gap-2 mb-4">
+            <button
+              v-if="activeContent.edited"
+              @click="revertEdits"
+              class="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors flex items-center gap-1"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+              </svg>
+              Revert
+            </button>
+            <button
+              @click="startEditing"
+              class="text-xs border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text-secondary)] px-2.5 py-1 rounded-md transition-colors flex items-center gap-1.5"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </button>
+          </div>
+
           <!-- Loading state with shimmer -->
           <div v-if="generating && !activeContent" class="space-y-6 py-4">
             <ShimmerCard :lines="2" height="48px" />
@@ -544,10 +607,29 @@ onUnmounted(() => {
             </p>
           </div>
 
-          <!-- Rendered markdown chapter -->
+          <!-- Edit mode -->
+          <div v-else-if="activeContent && editingChapter === activeChapter" class="space-y-3">
+            <RichTextEditor v-model="editBuffer" />
+            <div class="flex items-center gap-2 justify-end">
+              <button
+                @click="cancelEditing"
+                class="border border-[var(--color-border)] hover:bg-[var(--color-tint)] text-[var(--color-text-secondary)] px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                @click="saveEditing"
+                class="bg-[#2068FF] hover:bg-[#1a5ae0] text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+
+          <!-- Rendered markdown chapter (view mode) -->
           <div
             v-else-if="activeContent"
-            class="report-content"
+            class="report-content group relative"
             v-html="activeContent.html"
           />
 

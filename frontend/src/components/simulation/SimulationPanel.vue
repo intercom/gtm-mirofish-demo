@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import AgentMoodIndicator from './AgentMoodIndicator.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -310,7 +311,6 @@ function selectAgent(action) {
     twitterActions: twitterCount,
     redditActions: redditCount,
     actions: agentActions.slice(0, 20),
-    sentiment: twitterCount + redditCount > 5 ? 'Engaged' : 'Moderate',
   }
 }
 
@@ -511,6 +511,11 @@ onUnmounted(() => {
                     <button class="text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] hover:underline transition-colors text-left" @click.stop="selectAgent(action)">
                       {{ action.agent_name || `Agent #${action.agent_id}` }}
                     </button>
+                    <AgentMoodIndicator
+                      :actions="polling.recentActions.value"
+                      :agent-name="action.agent_name"
+                      size="compact"
+                    />
                     <span class="text-xs px-1.5 py-0.5 rounded-full" :class="platformBadge(action.platform).class">
                       {{ platformBadge(action.platform).label }}
                     </span>
@@ -636,13 +641,13 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Engagement badge -->
+          <!-- Agent Mood -->
           <div class="mb-5">
-            <span class="text-xs font-medium px-2.5 py-1 rounded-full"
-              :class="selectedAgent.sentiment === 'Engaged'
-                ? 'bg-emerald-500/10 text-emerald-600'
-                : 'bg-yellow-500/10 text-yellow-600'"
-            >{{ selectedAgent.sentiment }}</span>
+            <AgentMoodIndicator
+              :actions="polling.recentActions.value"
+              :agent-name="selectedAgent.fullName"
+              size="large"
+            />
           </div>
 
           <!-- Action history -->

@@ -36,6 +36,7 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .coalition_detector import CoalitionDetector
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +70,6 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'CoalitionDetector',
 ]
 

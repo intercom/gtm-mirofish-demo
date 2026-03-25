@@ -2709,3 +2709,166 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Coalition & Consensus API ==============
+
+@simulation_bp.route('/<simulation_id>/coalitions', methods=['GET'])
+def get_coalitions(simulation_id: str):
+    """
+    Detected coalitions with labels and membership.
+
+    Returns coalition list with members, shared positions,
+    strength scores, and summary statistics.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        detector = CoalitionDetector(simulation_id)
+        data = detector.detect_coalitions()
+
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to detect coalitions: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/evolution', methods=['GET'])
+def get_coalition_evolution(simulation_id: str):
+    """
+    Coalition changes over simulation rounds.
+
+    Returns per-round coalition states and events
+    (formations, splits, agent switches).
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        detector = CoalitionDetector(simulation_id)
+        data = detector.get_evolution()
+
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get coalition evolution: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/polarization', methods=['GET'])
+def get_coalition_polarization(simulation_id: str):
+    """
+    Polarization index (0-1) timeline across rounds.
+
+    Includes summary with average, peak, and trend direction.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        detector = CoalitionDetector(simulation_id)
+        data = detector.get_polarization()
+
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get polarization data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/swing-agents', methods=['GET'])
+def get_swing_agents(simulation_id: str):
+    """
+    Agents who changed coalitions during the simulation.
+
+    Returns list of swing agents with their switch history,
+    sorted by number of switches descending.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        detector = CoalitionDetector(simulation_id)
+        data = detector.get_swing_agents()
+
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get swing agents: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/consensus', methods=['GET'])
+def get_consensus(simulation_id: str):
+    """
+    Consensus tracking per discussion topic.
+
+    Returns per-topic consensus levels, position breakdowns,
+    and round-by-round progression data.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        detector = CoalitionDetector(simulation_id)
+        data = detector.get_consensus()
+
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get consensus data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/consensus/resolved', methods=['GET'])
+def get_consensus_resolved(simulation_id: str):
+    """
+    Topics where consensus was reached.
+
+    Returns resolved topics with resolution direction,
+    the round it was reached, and key influencers.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        detector = CoalitionDetector(simulation_id)
+        data = detector.get_consensus_resolved()
+
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get resolved consensus: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

@@ -1,9 +1,14 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSimulationStore } from '../stores/simulation'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
+import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
 
 const store = useSimulationStore()
+const router = useRouter()
+
+const viewMode = ref('list')
 
 const showDeleteDialog = ref(false)
 const showClearDialog = ref(false)
@@ -162,6 +167,10 @@ function confirmClearAll() {
   showClearDialog.value = false
 }
 
+function navigateToRun(run) {
+  router.push(`/workspace/${run.id}?tab=simulation`)
+}
+
 function exportRun(run) {
   const data = {
     id: run.id,
@@ -209,6 +218,29 @@ function exportRun(run) {
         </span>
       </div>
       <div class="flex items-center gap-2">
+        <!-- View mode toggle -->
+        <div v-if="store.hasRuns" class="flex items-center border border-[var(--color-border)] rounded-lg overflow-hidden">
+          <button
+            @click="viewMode = 'list'"
+            class="p-2 transition-colors"
+            :class="viewMode === 'list' ? 'bg-[#2068FF] text-white' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-tint)]'"
+            title="List view"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+            </svg>
+          </button>
+          <button
+            @click="viewMode = 'calendar'"
+            class="p-2 transition-colors"
+            :class="viewMode === 'calendar' ? 'bg-[#2068FF] text-white' : 'text-[var(--color-text-muted)] hover:bg-[var(--color-tint)]'"
+            title="Calendar view"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+            </svg>
+          </button>
+        </div>
         <button
           v-if="store.hasRuns"
           @click="clearAll"
@@ -244,8 +276,15 @@ function exportRun(run) {
       </div>
     </div>
 
-    <!-- Search / Filter / Sort Bar -->
-    <div v-if="store.hasRuns" class="flex flex-col sm:flex-row gap-3 mb-6">
+    <!-- Calendar view -->
+    <ScenarioCalendar
+      v-if="store.hasRuns && viewMode === 'calendar'"
+      :runs="store.sessionRuns"
+      @select-run="navigateToRun"
+    />
+
+    <!-- Search / Filter / Sort Bar (list mode only) -->
+    <div v-if="store.hasRuns && viewMode === 'list'" class="flex flex-col sm:flex-row gap-3 mb-6">
       <div class="flex-1 relative">
         <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -296,8 +335,8 @@ function exportRun(run) {
       </router-link>
     </div>
 
-    <!-- No results from filter -->
-    <div v-else-if="filteredRuns.length === 0" class="text-center py-12">
+    <!-- No results from filter (list mode) -->
+    <div v-else-if="viewMode === 'list' && filteredRuns.length === 0" class="text-center py-12">
       <p class="text-sm text-[var(--color-text-muted)]">No simulations match your filters.</p>
       <button
         @click="searchQuery = ''; filterStatus = 'all'"
@@ -307,8 +346,8 @@ function exportRun(run) {
       </button>
     </div>
 
-    <!-- Run cards -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Run cards (list mode) -->
+    <div v-else-if="viewMode === 'list'" class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div
         v-for="run in filteredRuns"
         :key="run.id"

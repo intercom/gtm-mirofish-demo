@@ -9,6 +9,8 @@ import os
 import json
 import shutil
 import tempfile
+import sys
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 from datetime import datetime
 
@@ -17,6 +19,11 @@ import pytest
 from app import create_app
 from app.config import Config
 from app.models.task import TaskManager
+
+# Ensure the backend directory is importable for demo_app
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from demo_app import app as demo_flask_app  # noqa: E402
 
 
 class TestConfig(Config):
@@ -77,7 +84,7 @@ def app(tmp_uploads):
 
 @pytest.fixture
 def client(app):
-    """Flask test client."""
+    """Flask test client for the main app."""
     return app.test_client()
 
 
@@ -88,6 +95,19 @@ def _reset_task_manager():
     tm._tasks.clear()
     yield
     tm._tasks.clear()
+
+
+# --------------- demo app client ---------------
+
+@pytest.fixture()
+def demo_client():
+    """Flask test client for demo_app with fresh state for each test."""
+    demo_flask_app.config["TESTING"] = True
+    with demo_flask_app.test_client() as c:
+        # Reset all in-memory state before each test
+        c.post("/api/demo/reset")
+        yield c
+        c.post("/api/demo/reset")
 
 
 # --------------- helper factories ---------------

@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import SentimentArc from './SentimentArc.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -538,6 +539,13 @@ onUnmounted(() => {
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
           :timeline="polling.timeline.value"
+          class="mb-8"
+        />
+
+        <!-- Sentiment Arc (per-agent narrative) -->
+        <SentimentArc
+          :simulation-id="props.taskId"
+          :actions="filteredActions"
           class="mb-8"
         />
 

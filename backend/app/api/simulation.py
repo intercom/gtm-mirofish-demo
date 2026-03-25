@@ -2709,3 +2709,41 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Sentiment Analysis ==============
+
+@simulation_bp.route('/<simulation_id>/sentiment', methods=['GET'])
+def get_simulation_sentiment(simulation_id: str):
+    """
+    Get per-agent sentiment arc data for a simulation.
+
+    Returns sentiment scores per agent per round, group average,
+    detected events (consensus/conflict/swings), and story arc reference.
+
+    Falls back to demo data when no real actions are available.
+    """
+    try:
+        from ..services.sentiment_analyzer import analyze_sentiment, generate_demo_sentiment
+
+        actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+        action_dicts = [a.to_dict() for a in actions] if actions else []
+
+        if action_dicts:
+            result = analyze_sentiment(action_dicts)
+        else:
+            result = generate_demo_sentiment()
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"获取情感分析失败: {str(e)}")
+        # Fall back to demo data on any error
+        from ..services.sentiment_analyzer import generate_demo_sentiment
+        return jsonify({
+            "success": True,
+            "data": generate_demo_sentiment()
+        })

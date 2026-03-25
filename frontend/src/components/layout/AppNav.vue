@@ -3,10 +3,13 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import { useAuthStore } from '../../stores/auth'
+import RoleBadge from '../common/RoleBadge.vue'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
+const auth = useAuthStore()
 const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => {
@@ -41,6 +44,10 @@ watch(() => route.path, () => {
             v-if="isDemoMode"
             class="ml-2 text-xs font-semibold text-white bg-[#2068FF] px-2 py-0.5 rounded-full"
           >DEMO</span>
+          <span
+            v-if="auth.isAdmin"
+            class="ml-2 text-[10px] font-semibold text-white/80 bg-white/15 px-1.5 py-px rounded-full"
+          >Admin</span>
         </router-link>
 
         <div class="hidden md:flex items-center gap-1">
@@ -64,6 +71,7 @@ watch(() => route.path, () => {
       </div>
 
       <div class="flex items-center gap-3">
+        <RoleBadge v-if="auth.isAuthenticated" :role="auth.userRole" size="xs" class="hidden sm:inline-flex !bg-white/10 !text-white/70" />
         <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
           <span>Local</span>

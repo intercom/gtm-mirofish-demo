@@ -64,6 +64,11 @@ export const routes = [
     path: '/dashboard',
     redirect: '/simulations',
   },
+  {
+    path: '/permission-denied',
+    name: 'permission-denied',
+    component: () => import('../views/PermissionDeniedView.vue'),
+  },
 ]
 
 export function createAppRouter() {

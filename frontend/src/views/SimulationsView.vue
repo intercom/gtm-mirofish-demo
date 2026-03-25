@@ -1,18 +1,21 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import draggable from 'vuedraggable'
 import { useSimulationStore } from '../stores/simulation'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useStaggerAnimation } from '../composables/useStaggerAnimation'
 import { getAllCachedTaskIds } from '../composables/useReportCache'
 import DashboardMiniChart from '../components/dashboard/DashboardMiniChart.vue'
 import { useLocale } from '../composables/useLocale'
+import { useDashboardLayout } from '../composables/useDashboardLayout'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
 
 const store = useSimulationStore()
 const router = useRouter()
 const { formatRelativeTime, formatShortDateTime, formatNumber } = useLocale()
+const { customOrder, saveOrder, clearOrder, applyOrder } = useDashboardLayout()
 
 const viewMode = ref('list')
 
@@ -39,12 +42,18 @@ const { onBeforeEnter, onEnter, onLeave, reset: resetStagger } = useStaggerAnima
 })
 watch([searchQuery, filterStatus, sortBy], () => resetStagger())
 
-const sortOptions = [
-  { value: 'newest', label: 'Newest first' },
-  { value: 'oldest', label: 'Oldest first' },
-  { value: 'most_actions', label: 'Most actions' },
-  { value: 'most_rounds', label: 'Most rounds' },
-]
+const sortOptions = computed(() => {
+  const options = [
+    { value: 'newest', label: 'Newest first' },
+    { value: 'oldest', label: 'Oldest first' },
+    { value: 'most_actions', label: 'Most actions' },
+    { value: 'most_rounds', label: 'Most rounds' },
+  ]
+  if (customOrder.value.length > 0) {
+    options.push({ value: 'custom', label: 'Custom order' })
+  }
+  return options
+})
 
 // --- KPI computations (prioritized: most important first) ---
 
@@ -142,23 +151,42 @@ const filteredRuns = computed(() => {
     result = result.filter(r => normalizeStatus(r.status) === filterStatus.value)
   }
 
-  switch (sortBy.value) {
-    case 'oldest':
-      result.sort((a, b) => a.timestamp - b.timestamp)
-      break
-    case 'most_actions':
-      result.sort((a, b) => (b.totalActions || 0) - (a.totalActions || 0))
-      break
-    case 'most_rounds':
-      result.sort((a, b) => (b.totalRounds || 0) - (a.totalRounds || 0))
-      break
-    default:
-      result.sort((a, b) => b.timestamp - a.timestamp)
+  if (sortBy.value === 'custom') {
+    result = applyOrder(result)
+  } else {
+    switch (sortBy.value) {
+      case 'oldest':
+        result.sort((a, b) => a.timestamp - b.timestamp)
+        break
+      case 'most_actions':
+        result.sort((a, b) => (b.totalActions || 0) - (a.totalActions || 0))
+        break
+      case 'most_rounds':
+        result.sort((a, b) => (b.totalRounds || 0) - (a.totalRounds || 0))
+        break
+      default:
+        result.sort((a, b) => b.timestamp - a.timestamp)
+    }
   }
 
   return result
 })
 
+const displayRuns = ref([])
+
+watch(filteredRuns, (runs) => {
+  displayRuns.value = [...runs]
+}, { immediate: true })
+
+function onDragEnd() {
+  saveOrder(displayRuns.value.map(r => r.id))
+  sortBy.value = 'custom'
+}
+
+function clearCustomOrder() {
+  clearOrder()
+  sortBy.value = 'newest'
+}
 
 function statusLabel(status) {
   const s = normalizeStatus(status)
@@ -457,26 +485,47 @@ function exportRun(run) {
 
       <!-- Activity feed — card-based run list (list mode) -->
       <div v-else-if="viewMode === 'list'">
-        <div class="text-[11px] md:text-xs font-medium text-[var(--color-text-muted)] mb-2">
-          Recent Activity
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-[11px] md:text-xs font-medium text-[var(--color-text-muted)]">
+            Recent Activity
+          </div>
+          <div v-if="sortBy === 'custom'" class="flex items-center gap-2">
+            <span class="text-[10px] md:text-xs text-[var(--color-text-muted)]">Drag to reorder</span>
+            <button
+              @click="clearCustomOrder"
+              class="text-[10px] md:text-xs text-[#2068FF] hover:underline"
+            >
+              Reset order
+            </button>
+          </div>
         </div>
-        <TransitionGroup
+        <draggable
+          v-model="displayRuns"
+          item-key="id"
+          handle=".drag-handle"
+          ghost-class="drag-ghost"
+          :animation="150"
           tag="div"
           class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4"
-          :css="false"
-          appear
-          @before-enter="onBeforeEnter"
-          @enter="onEnter"
-          @leave="onLeave"
+          @end="onDragEnd"
         >
+          <template #item="{ element: run, index }">
           <div
-            v-for="(run, index) in filteredRuns"
-            :key="run.id"
             :data-index="index"
-            class="run-card"
+            class="run-card group/card"
           >
             <!-- Card header -->
             <div class="flex items-start justify-between mb-2 md:mb-3">
+              <div class="drag-handle shrink-0 mr-2 mt-0.5 cursor-grab active:cursor-grabbing text-[var(--color-text-muted)] opacity-0 group-hover/card:opacity-100 transition-opacity hover:text-[#2068FF]">
+                <svg class="w-4 h-5" viewBox="0 0 16 20" fill="currentColor">
+                  <circle cx="5" cy="4" r="1.5"/>
+                  <circle cx="11" cy="4" r="1.5"/>
+                  <circle cx="5" cy="10" r="1.5"/>
+                  <circle cx="11" cy="10" r="1.5"/>
+                  <circle cx="5" cy="16" r="1.5"/>
+                  <circle cx="11" cy="16" r="1.5"/>
+                </svg>
+              </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-1.5 md:gap-2 mb-0.5 md:mb-1">
                   <h3 class="text-[13px] md:text-sm font-semibold text-[var(--color-text)] leading-snug truncate">{{ run.scenarioName }}</h3>
@@ -574,7 +623,8 @@ function exportRun(run) {
               </router-link>
             </div>
           </div>
-        </TransitionGroup>
+          </template>
+        </draggable>
       </div>
     </div>
 
@@ -680,5 +730,10 @@ function exportRun(run) {
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+.drag-ghost {
+  opacity: 0.3;
+  border-style: dashed;
 }
 </style>

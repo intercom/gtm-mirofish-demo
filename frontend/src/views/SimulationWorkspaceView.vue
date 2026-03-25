@@ -8,6 +8,7 @@ import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+import GtmContextPanel from '../components/scenarios/GtmContextPanel.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -31,6 +32,10 @@ let bannerTimer = null
 
 const scenarioName = computed(() =>
   simulationStore.scenarioConfig?.scenarioName || 'Simulation',
+)
+
+const currentScenarioId = computed(() =>
+  simulationStore.scenarioConfig?.scenarioId || '',
 )
 
 watch(() => route.query.tab, (tab) => {
@@ -129,14 +134,24 @@ onUnmounted(() => {
       />
     </div>
 
-    <!-- Panels -->
-    <div class="flex-1 relative overflow-hidden">
-      <div v-show="activeTab === 'graph'" class="absolute inset-0">
-        <GraphPanel :taskId="taskId" :demoMode="demoMode" />
+    <!-- Panels + Context sidebar -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Main panels -->
+      <div class="flex-1 relative overflow-hidden">
+        <div v-show="activeTab === 'graph'" class="absolute inset-0">
+          <GraphPanel :taskId="taskId" :demoMode="demoMode" />
+        </div>
+        <div v-show="activeTab === 'simulation'" class="absolute inset-0">
+          <SimulationPanel :taskId="taskId" />
+        </div>
       </div>
-      <div v-show="activeTab === 'simulation'" class="absolute inset-0">
-        <SimulationPanel :taskId="taskId" />
-      </div>
+
+      <!-- GTM context sidebar (hidden on mobile, visible on lg+) -->
+      <GtmContextPanel
+        v-if="currentScenarioId"
+        :scenarioId="currentScenarioId"
+        class="hidden lg:flex"
+      />
     </div>
   </div>
 </template>

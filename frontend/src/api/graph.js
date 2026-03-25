@@ -22,5 +22,6 @@ export const graphApi = {
 
   // --- Graph data ---
   getData: (graphId) => client.get(`/graph/data/${graphId}`),
+  getTopicDistribution: (graphId) => client.get(`/graph/topic-distribution/${graphId}`),
   deleteGraph: (graphId) => client.delete(`/graph/delete/${graphId}`),
 }

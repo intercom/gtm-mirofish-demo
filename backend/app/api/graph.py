@@ -603,15 +603,131 @@ def delete_graph(graph_id: str):
         
         builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
         builder.delete_graph(graph_id)
-        
+
         return jsonify({
             "success": True,
             "message": f"图谱已删除: {graph_id}"
         })
-        
+
     except Exception as e:
         return jsonify({
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Topic Distribution (Treemap) ==============
+
+TOPIC_DISTRIBUTION_DEMO = {
+    "name": "Topics",
+    "children": [
+        {
+            "name": "Product",
+            "children": [
+                {"name": "AI Agent Capabilities", "value": 28},
+                {"name": "Pricing & Packaging", "value": 19},
+                {"name": "Platform Integration", "value": 14},
+                {"name": "Self-Serve Onboarding", "value": 8},
+            ],
+        },
+        {
+            "name": "Market",
+            "children": [
+                {"name": "Competitive Displacement", "value": 22},
+                {"name": "Enterprise Expansion", "value": 16},
+                {"name": "SMB Acquisition", "value": 11},
+            ],
+        },
+        {
+            "name": "Customer",
+            "children": [
+                {"name": "Support Automation ROI", "value": 25},
+                {"name": "Churn Risk Signals", "value": 13},
+                {"name": "NPS & Satisfaction", "value": 9},
+            ],
+        },
+        {
+            "name": "Operations",
+            "children": [
+                {"name": "Sales Cycle Length", "value": 17},
+                {"name": "Pipeline Velocity", "value": 12},
+                {"name": "Rep Enablement", "value": 6},
+            ],
+        },
+    ],
+}
+
+GENERIC_LABELS = {"Entity", "Node"}
+
+
+def _compute_topic_distribution(graph_data):
+    """Build treemap hierarchy from graph nodes grouped by label with degree-based weights."""
+    nodes = graph_data.get("nodes", [])
+    edges = graph_data.get("edges", [])
+
+    # Compute degree centrality per node
+    degree = {}
+    for n in nodes:
+        degree[n["uuid"]] = 0
+    for e in edges:
+        src = e.get("source_node_uuid")
+        tgt = e.get("target_node_uuid")
+        if src in degree:
+            degree[src] += 1
+        if tgt in degree:
+            degree[tgt] += 1
+
+    # Group nodes by their primary label
+    groups = {}
+    for n in nodes:
+        meaningful = [l for l in (n.get("labels") or []) if l not in GENERIC_LABELS]
+        label = meaningful[0] if meaningful else "Other"
+        if label not in groups:
+            groups[label] = []
+        weight = 1 + degree.get(n["uuid"], 0)
+        groups[label].append({
+            "name": n.get("name") or n["uuid"][:8],
+            "value": weight,
+        })
+
+    # Sort children within each group by value descending
+    children = []
+    for label, items in sorted(groups.items(), key=lambda x: -sum(i["value"] for i in x[1])):
+        items.sort(key=lambda x: -x["value"])
+        children.append({"name": label, "children": items})
+
+    return {"name": "Topics", "children": children}
+
+
+@graph_bp.route('/topic-distribution/<graph_id>', methods=['GET'])
+def get_topic_distribution(graph_id: str):
+    """
+    Get topic distribution data for treemap visualization.
+    Falls back to demo data when ZEP_API_KEY is not configured.
+    """
+    try:
+        if not Config.ZEP_API_KEY:
+            return jsonify({
+                "success": True,
+                "data": TOPIC_DISTRIBUTION_DEMO,
+                "demo": True,
+            })
+
+        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+        graph_data = builder.get_graph_data(graph_id)
+        distribution = _compute_topic_distribution(graph_data)
+
+        return jsonify({
+            "success": True,
+            "data": distribution,
+            "demo": False,
+        })
+
+    except Exception as e:
+        logger.warning(f"Failed to compute topic distribution, falling back to demo: {e}")
+        return jsonify({
+            "success": True,
+            "data": TOPIC_DISTRIBUTION_DEMO,
+            "demo": True,
+        })

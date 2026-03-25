@@ -62,4 +62,14 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- Relationships ---
+  getRelationships: (simulationId) =>
+    client.get(`/simulation/${simulationId}/relationships`),
+  getAgentRelationships: (simulationId, agentId) =>
+    client.get(`/simulation/${simulationId}/agents/${agentId}/relationships`),
+  getAlliances: (simulationId) =>
+    client.get(`/simulation/${simulationId}/alliances`),
+  getConflicts: (simulationId) =>
+    client.get(`/simulation/${simulationId}/conflicts`),
 }

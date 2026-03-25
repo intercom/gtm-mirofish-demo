@@ -2709,3 +2709,167 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Relationship Tracker 接口 ==============
+
+@simulation_bp.route('/<simulation_id>/relationships', methods=['GET'])
+def get_relationships(simulation_id: str):
+    """
+    Get the complete relationship graph for a simulation.
+
+    Returns all agent-to-agent relationships with affinity scores,
+    plus detected alliances and conflicts.
+    """
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        # Check if we have real action data
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            # Return demo data when no real data exists
+            demo = RelationshipTracker.get_demo_data()
+            return jsonify({
+                "success": True,
+                "data": {
+                    "demo": True,
+                    **demo,
+                }
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "agents": [
+                    {"id": aid, "name": name}
+                    for aid, name in tracker._agent_names.items()
+                ],
+                "relationships": tracker.get_all_relationships(),
+                "alliances": tracker.get_alliances(),
+                "conflicts": tracker.get_conflicts(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取关系图谱失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/relationships', methods=['GET'])
+def get_agent_relationships(simulation_id: str, agent_id: int):
+    """Get all relationships for a specific agent."""
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            demo = RelationshipTracker.get_demo_data()
+            agent_rels = [
+                r for r in demo['relationships']
+                if r['agent_a_id'] == agent_id or r['agent_b_id'] == agent_id
+            ]
+            return jsonify({
+                "success": True,
+                "data": {
+                    "demo": True,
+                    "agent_id": agent_id,
+                    "relationships": agent_rels,
+                }
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "agent_id": agent_id,
+                "relationships": tracker.get_agent_relationships(agent_id),
+                "prompt_context": tracker.get_prompt_context(agent_id),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取Agent关系失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/alliances', methods=['GET'])
+def get_alliances(simulation_id: str):
+    """Get detected alliances/coalitions."""
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            demo = RelationshipTracker.get_demo_data()
+            return jsonify({
+                "success": True,
+                "data": {"demo": True, "alliances": demo['alliances']}
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "alliances": tracker.get_alliances(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取联盟失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/conflicts', methods=['GET'])
+def get_conflicts(simulation_id: str):
+    """Get detected conflict pairs."""
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            demo = RelationshipTracker.get_demo_data()
+            return jsonify({
+                "success": True,
+                "data": {"demo": True, "conflicts": demo['conflicts']}
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "conflicts": tracker.get_conflicts(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取冲突失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

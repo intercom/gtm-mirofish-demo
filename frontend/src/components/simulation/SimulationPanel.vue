@@ -2,12 +2,15 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import RelationshipNetwork from './RelationshipNetwork.vue'
+import { useRelationshipsStore } from '../../stores/relationships'
 
 const props = defineProps({
   taskId: { type: String, required: true },
 })
 
 const polling = inject('polling')
+const relationshipsStore = useRelationshipsStore()
 
 const activePlatform = ref('all')
 const chartCanvas = ref(null)
@@ -329,6 +332,22 @@ watch(() => polling.recentActions.value.length, () => {
   }
 })
 
+// Fetch relationship data when actions accumulate or simulation completes
+let relFetchTimer = null
+watch(() => polling.recentActions.value.length, (len) => {
+  if (len > 0 && len % 20 === 0) {
+    clearTimeout(relFetchTimer)
+    relFetchTimer = setTimeout(() => {
+      relationshipsStore.fetchRelationships(props.taskId)
+    }, 500)
+  }
+})
+watch(() => polling.simStatus.value, (val) => {
+  if (val === 'completed') {
+    relationshipsStore.fetchRelationships(props.taskId)
+  }
+})
+
 // Redraw chart when timeline updates
 watch(() => polling.timeline.value, () => {
   nextTick(() => drawChart())
@@ -348,6 +367,10 @@ onMounted(() => {
   if (polling.graphStatus.value === 'building') {
     nextTick(() => startHeartbeat())
   }
+  // Fetch relationships for existing/completed simulations
+  if (props.taskId) {
+    relationshipsStore.fetchRelationships(props.taskId)
+  }
 })
 
 onUnmounted(() => {
@@ -356,6 +379,7 @@ onUnmounted(() => {
     resizeObserver = null
   }
   if (chartRetryTimer) clearTimeout(chartRetryTimer)
+  if (relFetchTimer) clearTimeout(relFetchTimer)
   stopHeartbeat()
 })
 </script>
@@ -538,6 +562,18 @@ onUnmounted(() => {
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
           :timeline="polling.timeline.value"
+          class="mb-8"
+        />
+
+        <!-- Agent Relationships -->
+        <RelationshipNetwork
+          v-if="relationshipsStore.hasData || filteredActions.length > 0"
+          :agents="relationshipsStore.agents"
+          :relationships="relationshipsStore.relationships"
+          :alliances="relationshipsStore.alliances"
+          :conflicts="relationshipsStore.conflicts"
+          :isDemo="relationshipsStore.isDemo"
+          :loading="relationshipsStore.loading"
           class="mb-8"
         />
 

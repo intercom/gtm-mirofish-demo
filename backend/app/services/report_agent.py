@@ -438,6 +438,14 @@ class ReportOutline:
         return md
 
 
+REPORT_TYPES = {
+    "executive_summary": "Executive Summary — concise overview with key findings and recommendations",
+    "detailed_analysis": "Detailed Analysis — comprehensive per-round breakdown with agent analysis",
+    "agent_comparison": "Agent Comparison — side-by-side agent stats and influence ranking",
+    "decision_audit": "Decision Audit — chronological decision list with rationale and outcomes",
+}
+
+
 @dataclass
 class Report:
     """完整报告"""
@@ -451,7 +459,11 @@ class Report:
     created_at: str = ""
     completed_at: str = ""
     error: Optional[str] = None
-    
+    report_type: str = "executive_summary"
+    custom_prompt: Optional[str] = None
+    include_charts: bool = True
+    chart_data: Optional[Dict[str, Any]] = None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "report_id": self.report_id,
@@ -463,7 +475,11 @@ class Report:
             "markdown_content": self.markdown_content,
             "created_at": self.created_at,
             "completed_at": self.completed_at,
-            "error": self.error
+            "error": self.error,
+            "report_type": self.report_type,
+            "custom_prompt": self.custom_prompt,
+            "include_charts": self.include_charts,
+            "chart_data": self.chart_data,
         }
 
 
@@ -2934,7 +2950,11 @@ class ReportManager:
             markdown_content=markdown_content,
             created_at=data.get('created_at', ''),
             completed_at=data.get('completed_at', ''),
-            error=data.get('error')
+            error=data.get('error'),
+            report_type=data.get('report_type', 'executive_summary'),
+            custom_prompt=data.get('custom_prompt'),
+            include_charts=data.get('include_charts', True),
+            chart_data=data.get('chart_data'),
         )
     
     @classmethod

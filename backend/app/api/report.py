@@ -10,7 +10,10 @@ from flask import request, jsonify, send_file
 
 from . import report_bp
 from ..config import Config
-from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
+from ..services.report_agent import (
+    ReportAgent, ReportManager, ReportStatus, REPORT_TYPES,
+)
+from ..services.report_templates import generate_demo_report, CHART_DATA_DEMO
 from ..services.simulation_manager import SimulationManager
 from ..services.data_sources import DataSourceService
 from ..models.project import ProjectManager
@@ -20,55 +23,75 @@ from ..utils.logger import get_logger
 logger = get_logger('mirofish.api.report')
 
 
+def _is_demo_mode() -> bool:
+    """Check if we should operate in demo mode (no LLM key configured)."""
+    return not Config.LLM_API_KEY
+
+
 # ============== 报告生成接口 ==============
+
+@report_bp.route('/types', methods=['GET'])
+def list_report_types():
+    """List available report types."""
+    return jsonify({
+        "success": True,
+        "data": {
+            "types": [
+                {"id": k, "description": v}
+                for k, v in REPORT_TYPES.items()
+            ],
+            "default": "executive_summary",
+        }
+    })
+
 
 @report_bp.route('/generate', methods=['POST'])
 def generate_report():
     """
     生成模拟分析报告（异步任务）
-    
-    这是一个耗时操作，接口会立即返回task_id，
-    使用 GET /api/report/generate/status 查询进度
-    
+
     请求（JSON）：
         {
-            "simulation_id": "sim_xxxx",    // 必填，模拟ID
-            "force_regenerate": false        // 可选，强制重新生成
+            "simulation_id": "sim_xxxx",          // 必填，模拟ID
+            "report_type": "executive_summary",   // 可选，报告类型
+            "custom_prompt": "Focus on ...",      // 可选，自定义生成指令
+            "include_charts": true,               // 可选，是否包含图表数据
+            "force_regenerate": false              // 可选，强制重新生成
         }
-    
+
     返回：
         {
             "success": true,
             "data": {
                 "simulation_id": "sim_xxxx",
+                "report_id": "report_xxxx",
                 "task_id": "task_xxxx",
                 "status": "generating",
-                "message": "报告生成任务已启动"
+                "demo_mode": false
             }
         }
     """
     try:
         data = request.get_json() or {}
-        
+
         simulation_id = data.get('simulation_id')
         if not simulation_id:
             return jsonify({
                 "success": False,
                 "error": "请提供 simulation_id"
             }), 400
-        
-        force_regenerate = data.get('force_regenerate', False)
-        
-        # 获取模拟信息
-        manager = SimulationManager()
-        state = manager.get_simulation(simulation_id)
-        
-        if not state:
+
+        report_type = data.get('report_type', 'executive_summary')
+        if report_type not in REPORT_TYPES:
             return jsonify({
                 "success": False,
-                "error": f"模拟不存在: {simulation_id}"
-            }), 404
-        
+                "error": f"不支持的报告类型: {report_type}. 可选: {list(REPORT_TYPES.keys())}"
+            }), 400
+
+        custom_prompt = data.get('custom_prompt')
+        include_charts = data.get('include_charts', True)
+        force_regenerate = data.get('force_regenerate', False)
+
         # 检查是否已有报告
         if not force_regenerate:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
@@ -83,33 +106,63 @@ def generate_report():
                         "already_generated": True
                     }
                 })
-        
-        # 获取项目信息
+
+        import uuid
+        report_id = f"report_{uuid.uuid4().hex[:12]}"
+
+        # Demo mode: generate instantly from templates
+        if _is_demo_mode():
+            report = generate_demo_report(
+                report_id=report_id,
+                simulation_id=simulation_id,
+                report_type=report_type,
+                custom_prompt=custom_prompt,
+                include_charts=include_charts,
+            )
+            return jsonify({
+                "success": True,
+                "data": {
+                    "simulation_id": simulation_id,
+                    "report_id": report.report_id,
+                    "task_id": None,
+                    "status": "completed",
+                    "message": "Demo report generated from template",
+                    "demo_mode": True,
+                    "already_generated": False,
+                }
+            })
+
+        # Live mode: requires simulation + graph
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": f"模拟不存在: {simulation_id}"
+            }), 404
+
         project = ProjectManager.get_project(state.project_id)
         if not project:
             return jsonify({
                 "success": False,
                 "error": f"项目不存在: {state.project_id}"
             }), 404
-        
+
         graph_id = state.graph_id or project.graph_id
         if not graph_id:
             return jsonify({
                 "success": False,
                 "error": "缺少图谱ID，请确保已构建图谱"
             }), 400
-        
+
         simulation_requirement = project.simulation_requirement
         if not simulation_requirement:
             return jsonify({
                 "success": False,
                 "error": "缺少模拟需求描述"
             }), 400
-        
-        # 提前生成 report_id，以便立即返回给前端
-        import uuid
-        report_id = f"report_{uuid.uuid4().hex[:12]}"
-        
+
         # 创建异步任务
         task_manager = TaskManager()
         task_id = task_manager.create_task(
@@ -117,11 +170,13 @@ def generate_report():
             metadata={
                 "simulation_id": simulation_id,
                 "graph_id": graph_id,
-                "report_id": report_id
+                "report_id": report_id,
+                "report_type": report_type,
+                "custom_prompt": custom_prompt,
+                "include_charts": include_charts,
             }
         )
-        
-        # 定义后台任务
+
         def run_generate():
             try:
                 task_manager.update_task(
@@ -130,31 +185,34 @@ def generate_report():
                     progress=0,
                     message="初始化Report Agent..."
                 )
-                
-                # 创建Report Agent
+
                 agent = ReportAgent(
                     graph_id=graph_id,
                     simulation_id=simulation_id,
                     simulation_requirement=simulation_requirement
                 )
-                
-                # 进度回调
+
                 def progress_callback(stage, progress, message):
                     task_manager.update_task(
                         task_id,
                         progress=progress,
                         message=f"[{stage}] {message}"
                     )
-                
-                # 生成报告（传入预先生成的 report_id）
+
                 report = agent.generate_report(
                     progress_callback=progress_callback,
                     report_id=report_id
                 )
-                
-                # 保存报告
+
+                # Attach generation metadata
+                report.report_type = report_type
+                report.custom_prompt = custom_prompt
+                report.include_charts = include_charts
+                if include_charts:
+                    report.chart_data = CHART_DATA_DEMO
+
                 ReportManager.save_report(report)
-                
+
                 if report.status == ReportStatus.COMPLETED:
                     task_manager.complete_task(
                         task_id,
@@ -166,15 +224,14 @@ def generate_report():
                     )
                 else:
                     task_manager.fail_task(task_id, report.error or "报告生成失败")
-                
+
             except Exception as e:
                 logger.error(f"报告生成失败: {str(e)}")
                 task_manager.fail_task(task_id, str(e))
-        
-        # 启动后台线程
+
         thread = threading.Thread(target=run_generate, daemon=True)
         thread.start()
-        
+
         return jsonify({
             "success": True,
             "data": {
@@ -182,11 +239,12 @@ def generate_report():
                 "report_id": report_id,
                 "task_id": task_id,
                 "status": "generating",
-                "message": "报告生成任务已启动，请通过 /api/report/generate/status 查询进度",
-                "already_generated": False
+                "message": "报告生成任务已启动",
+                "demo_mode": False,
+                "already_generated": False,
             }
         })
-        
+
     except Exception as e:
         logger.error(f"启动报告生成任务失败: {str(e)}")
         return jsonify({
@@ -265,6 +323,119 @@ def get_generate_status():
         return jsonify({
             "success": False,
             "error": str(e)
+        }), 500
+
+
+@report_bp.route('/<report_id>/status', methods=['GET'])
+def get_report_status(report_id: str):
+    """
+    GET-based report generation status.
+
+    Returns the report's current status plus progress info if still generating.
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"报告不存在: {report_id}"
+            }), 404
+
+        result = {
+            "report_id": report_id,
+            "status": report.status.value,
+            "report_type": report.report_type,
+        }
+
+        if report.status == ReportStatus.COMPLETED:
+            result["progress"] = 100
+            result["message"] = "Report generation complete"
+            result["completed_at"] = report.completed_at
+        elif report.status == ReportStatus.FAILED:
+            result["progress"] = 0
+            result["message"] = report.error or "Generation failed"
+        else:
+            progress = ReportManager.get_progress(report_id)
+            if progress:
+                result["progress"] = progress.get("progress", 0)
+                result["message"] = progress.get("message", "")
+                result["current_section"] = progress.get("current_section")
+                result["completed_sections"] = progress.get("completed_sections", [])
+            else:
+                result["progress"] = 0
+                result["message"] = "Pending"
+
+        return jsonify({"success": True, "data": result})
+
+    except Exception as e:
+        logger.error(f"获取报告状态失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@report_bp.route('/<report_id>/tool-calls', methods=['GET'])
+def get_tool_calls(report_id: str):
+    """
+    Transparency log of tool calls the report agent made.
+
+    Filters the agent log to show only ReACT Thought/Action/Observation entries.
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"报告不存在: {report_id}"
+            }), 404
+
+        log_data = ReportManager.get_agent_log(report_id, from_line=0)
+        all_logs = log_data.get("logs", [])
+
+        tool_actions = ("react_thought", "tool_call", "tool_result", "llm_response")
+        tool_calls = [
+            entry for entry in all_logs
+            if entry.get("action") in tool_actions
+        ]
+
+        # Compute summary stats
+        thoughts = [e for e in tool_calls if e.get("action") == "react_thought"]
+        calls = [e for e in tool_calls if e.get("action") == "tool_call"]
+        results = [e for e in tool_calls if e.get("action") == "tool_result"]
+
+        summary = {
+            "total_thoughts": len(thoughts),
+            "total_tool_calls": len(calls),
+            "total_results": len(results),
+            "tools_used": list({
+                e.get("details", {}).get("tool_name", "unknown")
+                for e in calls
+            }),
+        }
+        if all_logs:
+            first_ts = all_logs[0].get("timestamp", "")
+            last_ts = all_logs[-1].get("timestamp", "")
+            summary["started_at"] = first_ts
+            summary["ended_at"] = last_ts
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "report_id": report_id,
+                "summary": summary,
+                "tool_calls": tool_calls,
+                "count": len(tool_calls),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取工具调用日志失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
         }), 500
 
 

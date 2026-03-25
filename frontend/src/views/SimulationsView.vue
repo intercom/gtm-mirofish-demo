@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useSimulationStore } from '../stores/simulation'
+import { useStaggerAnimation } from '../composables/useStaggerAnimation'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 
 const store = useSimulationStore()
@@ -14,6 +15,12 @@ const sortBy = ref('newest')
 
 const statusOptions = ['all', 'completed', 'in_progress', 'failed']
 const filterStatus = ref('all')
+
+const { onBeforeEnter, onEnter, onLeave, reset: resetStagger } = useStaggerAnimation({
+  delay: 60,
+  duration: 350,
+})
+watch([searchQuery, filterStatus, sortBy], () => resetStagger())
 
 const sortOptions = [
   { value: 'newest', label: 'Newest first' },
@@ -308,10 +315,20 @@ function exportRun(run) {
     </div>
 
     <!-- Run cards -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <TransitionGroup
+      v-else
+      tag="div"
+      class="grid grid-cols-1 md:grid-cols-2 gap-4"
+      :css="false"
+      appear
+      @before-enter="onBeforeEnter"
+      @enter="onEnter"
+      @leave="onLeave"
+    >
       <div
-        v-for="run in filteredRuns"
+        v-for="(run, index) in filteredRuns"
         :key="run.id"
+        :data-index="index"
         class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)]"
       >
         <!-- Card header -->
@@ -406,7 +423,7 @@ function exportRun(run) {
           Re-run
         </router-link>
       </div>
-    </div>
+    </TransitionGroup>
 
     <!-- Confirmation Dialogs -->
     <ConfirmDialog

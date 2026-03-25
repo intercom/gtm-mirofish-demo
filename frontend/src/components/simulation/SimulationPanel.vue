@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import { useStaggerAnimation } from '../../composables/useStaggerAnimation'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -15,6 +16,14 @@ const heartbeatCanvas = ref(null)
 const feedContainer = ref(null)
 const autoScroll = ref(true)
 const selectedAgent = ref(null)
+
+const {
+  onBeforeEnter: agentBeforeEnter,
+  onEnter: agentEnter,
+  onLeave: agentLeave,
+  reset: resetAgentStagger,
+} = useStaggerAnimation({ delay: 40, duration: 250, distance: 8 })
+watch(selectedAgent, () => resetAgentStagger())
 
 let resizeObserver = null
 let heartbeatAnimId = null
@@ -648,10 +657,19 @@ onUnmounted(() => {
           <!-- Action history -->
           <div>
             <h4 class="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Recent Activity</h4>
-            <div class="space-y-2">
+            <TransitionGroup
+              tag="div"
+              class="space-y-2"
+              :css="false"
+              appear
+              @before-enter="agentBeforeEnter"
+              @enter="agentEnter"
+              @leave="agentLeave"
+            >
               <div
                 v-for="(action, idx) in selectedAgent.actions"
-                :key="idx"
+                :key="`${selectedAgent.id}-${idx}`"
+                :data-index="idx"
                 class="flex items-start gap-2 py-2 border-b border-[var(--color-border)] last:border-0"
               >
                 <span class="text-sm mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
@@ -670,7 +688,7 @@ onUnmounted(() => {
                   </p>
                 </div>
               </div>
-            </div>
+            </TransitionGroup>
           </div>
 
           <!-- View Full Profile link -->

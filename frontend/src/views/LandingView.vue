@@ -335,26 +335,39 @@ const year = new Date().getFullYear()
           @before-enter="onStaggerBeforeEnter"
           @enter="onStaggerEnter"
         >
-          <button
+          <div
             v-for="(scenario, i) in showCards ? scenarios : []"
             :key="scenario.id"
             :data-index="i"
-            @click="launchScenario(scenario.id)"
-            class="text-left rounded-lg transition-all duration-300 cursor-pointer border"
+            class="text-left rounded-lg transition-all duration-300 border"
             :class="[
               scenario.hero
                 ? 'md:col-span-2 p-6 bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
                 : 'p-5 bg-white/5 border-white/10 hover:bg-white/10',
             ]"
           >
-            <div class="flex items-start gap-3">
+            <div class="flex items-start gap-3 cursor-pointer" @click="launchScenario(scenario.id)">
               <span :class="scenario.hero ? 'text-3xl' : 'text-2xl'">{{ resolveIcon(scenario.icon) }}</span>
               <div>
                 <h3 :class="scenario.hero ? 'text-base font-semibold text-white' : 'text-sm font-semibold text-white'">{{ scenario.name }}</h3>
                 <p :class="scenario.hero ? 'text-sm text-white/50 mt-1.5' : 'text-xs text-white/50 mt-1'">{{ scenario.description }}</p>
               </div>
             </div>
-          </button>
+            <div class="flex items-center gap-3 mt-3" :class="scenario.hero ? 'ml-12' : 'ml-10'">
+              <button
+                @click="launchScenario(scenario.id)"
+                class="text-xs font-medium text-white/70 hover:text-white transition-colors cursor-pointer"
+              >
+                Launch &rarr;
+              </button>
+              <router-link
+                :to="`/scenarios/${scenario.id}/walkthrough`"
+                class="text-xs font-medium text-[#2068FF]/70 hover:text-[#2068FF] transition-colors no-underline"
+              >
+                Guided Tour
+              </router-link>
+            </div>
+          </div>
 
           <!-- Custom simulation card -->
           <button

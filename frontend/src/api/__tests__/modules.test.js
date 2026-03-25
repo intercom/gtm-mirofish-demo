@@ -33,7 +33,7 @@ describe('graphApi', () => {
     })
 
     graphApi.build({ project_id: 'p1' })
-    expect(mockClient.post).toHaveBeenCalledWith('/graph/build', { project_id: 'p1' })
+    expect(mockClient.post).toHaveBeenCalledWith('/gtm/simulate', { project_id: 'p1' })
 
     graphApi.getTask('t1')
     expect(mockClient.get).toHaveBeenCalledWith('/graph/task/t1')

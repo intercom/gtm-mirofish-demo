@@ -12,6 +12,7 @@
     "lint": "vite build --mode production 2>&1 | head -50"
   },
   "dependencies": {
+    "3d-force-graph": "1.79.1",
     "axios": "^1.13.6",
     "d3": "^7.9.0",
     "marked": "^17.0.5",

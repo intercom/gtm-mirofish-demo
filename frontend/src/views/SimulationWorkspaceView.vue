@@ -7,6 +7,7 @@ import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
+import Graph3DPanel from '../components/simulation/Graph3DPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
 
 const props = defineProps({
@@ -25,6 +26,8 @@ provide('polling', polling)
 const activeTab = ref(route.query.tab === 'simulation' ? 'simulation' : 'graph')
 const demoMode = ref(false)
 provide('demoMode', demoMode)
+
+const graphMode = ref('2d') // '2d' | '3d'
 
 const showCompleteBanner = ref(false)
 let bannerTimer = null
@@ -132,7 +135,32 @@ onUnmounted(() => {
     <!-- Panels -->
     <div class="flex-1 relative overflow-hidden">
       <div v-show="activeTab === 'graph'" class="absolute inset-0">
-        <GraphPanel :taskId="taskId" :demoMode="demoMode" />
+        <!-- 2D/3D toggle -->
+        <div class="absolute top-4 right-4 z-20 flex items-center bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-black/10 dark:border-white/10 rounded-lg p-0.5">
+          <button
+            @click="graphMode = '2d'"
+            class="px-3 py-1 text-xs font-medium rounded-md transition-all duration-200"
+            :class="graphMode === '2d'
+              ? 'bg-[#2068FF] text-white shadow-sm'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+          >2D</button>
+          <button
+            @click="graphMode = '3d'"
+            class="px-3 py-1 text-xs font-medium rounded-md transition-all duration-200"
+            :class="graphMode === '3d'
+              ? 'bg-[#2068FF] text-white shadow-sm'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+          >3D</button>
+        </div>
+
+        <div v-show="graphMode === '2d'" class="w-full h-full">
+          <GraphPanel :taskId="taskId" :demoMode="demoMode" />
+        </div>
+        <Graph3DPanel
+          v-if="graphMode === '3d'"
+          :taskId="taskId"
+          :demoMode="demoMode"
+        />
       </div>
       <div v-show="activeTab === 'simulation'" class="absolute inset-0">
         <SimulationPanel :taskId="taskId" />

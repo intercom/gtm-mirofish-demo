@@ -150,7 +150,7 @@ function formatToolName(name) {
   <div v-if="isIntercomEnabled" class="flex flex-col h-[calc(100vh-120px)] items-center justify-center px-4">
     <div class="max-w-lg w-full text-center">
       <div class="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#2068FF] to-[#1a5ae0] flex items-center justify-center shadow-lg">
-        <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
+        <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <path d="M12 2C6.48 2 2 6.48 2 12c0 1.74.46 3.37 1.26 4.78L2 22l5.22-1.26C8.63 21.54 10.26 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-2h2v2zm2.07-7.75-.9.92C11.45 10.9 11 11.5 11 13h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H6c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
         </svg>
       </div>
@@ -203,7 +203,7 @@ function formatToolName(name) {
     </div>
 
     <!-- Messages -->
-    <div class="flex-1 overflow-y-auto px-4 md:px-6 py-6">
+    <div class="flex-1 overflow-y-auto px-4 md:px-6 py-6" role="log" aria-live="polite">
       <div class="max-w-2xl mx-auto space-y-4">
         <EmptyState
           v-if="messages.length === 0 && !sending"
@@ -323,7 +323,9 @@ function formatToolName(name) {
     <!-- Input -->
     <div class="border-t border-[var(--color-border)] bg-[var(--color-surface)] px-4 md:px-6 py-4">
       <div class="max-w-2xl mx-auto flex gap-3">
+        <label for="chat-input" class="sr-only">Chat message</label>
         <input
+          id="chat-input"
           v-model="input"
           @keydown.enter.exact="send"
           :disabled="sending"
@@ -333,6 +335,7 @@ function formatToolName(name) {
         <button
           @click="send"
           :disabled="sending || !input.trim()"
+          :aria-busy="sending || undefined"
           class="bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-bg-hover)] active:bg-[var(--btn-primary-bg-active)] disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
         >
           {{ sending ? 'Sending...' : 'Send' }}

@@ -1,4 +1,6 @@
 <script setup>
+import { useId } from 'vue'
+
 defineProps({
   open: {
     type: Boolean,
@@ -8,6 +10,7 @@ defineProps({
 })
 
 const emit = defineEmits(['close'])
+const titleId = `modal-title-${useId()}`
 
 function onOverlayClick(e) {
   if (e.target === e.currentTarget) {
@@ -22,12 +25,16 @@ function onOverlayClick(e) {
       <div
         v-if="open"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+        role="dialog"
+        aria-modal="true"
+        :aria-labelledby="title ? titleId : undefined"
         @click="onOverlayClick"
+        @keydown.escape="emit('close')"
       >
         <div class="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col">
           <div v-if="title || $slots.header" class="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
             <slot name="header">
-              <h2 class="text-lg font-semibold text-[var(--color-text)]">{{ title }}</h2>
+              <h2 :id="titleId" class="text-lg font-semibold text-[var(--color-text)]">{{ title }}</h2>
             </slot>
             <button
               @click="emit('close')"
@@ -35,7 +42,7 @@ function onOverlayClick(e) {
               style="transition: var(--transition-fast)"
               aria-label="Close"
             >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
                 <path d="M15 5L5 15M5 5l10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
               </svg>
             </button>

@@ -1,4 +1,6 @@
 <script setup>
+import { useId } from 'vue'
+
 const props = defineProps({
   modelValue: {
     type: [String, Number],
@@ -24,18 +26,21 @@ const props = defineProps({
 
 defineEmits(['update:modelValue'])
 
+const inputId = `input-${useId()}`
+
 const inputClasses =
   'w-full border border-[var(--input-border)] rounded-[var(--input-radius)] px-4 py-2 text-sm bg-[var(--input-bg)] text-[var(--input-text)] placeholder-[var(--input-placeholder)] focus:ring-2 focus:ring-[var(--input-ring)] focus:border-transparent outline-none disabled:opacity-50 disabled:cursor-not-allowed'
 </script>
 
 <template>
   <div>
-    <label v-if="label" class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+    <label v-if="label" :for="inputId" class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
       {{ label }}
     </label>
 
     <select
       v-if="type === 'select'"
+      :id="inputId"
       :value="modelValue"
       :disabled="disabled"
       :class="inputClasses"
@@ -50,6 +55,7 @@ const inputClasses =
 
     <textarea
       v-else-if="type === 'textarea'"
+      :id="inputId"
       :value="modelValue"
       :placeholder="placeholder"
       :disabled="disabled"
@@ -61,6 +67,7 @@ const inputClasses =
 
     <input
       v-else
+      :id="inputId"
       :type="type"
       :value="modelValue"
       :placeholder="placeholder"

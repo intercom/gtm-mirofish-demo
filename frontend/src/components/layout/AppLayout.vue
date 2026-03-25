@@ -10,8 +10,9 @@ const showFooter = computed(() => route.name !== 'landing')
 
 <template>
   <div class="min-h-screen flex flex-col bg-[var(--color-bg)]">
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
     <AppNav />
-    <main class="flex-1">
+    <main id="main-content" class="flex-1">
       <slot />
     </main>
     <AppFooter v-if="showFooter" />

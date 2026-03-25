@@ -57,15 +57,17 @@ watch(() => route.path, () => {
               <span
                 v-if="link.showActiveDot && simulationStore.isActive"
                 class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+                aria-hidden="true"
               ></span>
+              <span v-if="link.showActiveDot && simulationStore.isActive" class="sr-only">(active)</span>
             </span>
           </router-link>
         </div>
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+        <div class="hidden sm:flex items-center gap-2 text-xs text-white/40" role="status">
+          <span class="w-2 h-2 rounded-full bg-green-500" aria-hidden="true"></span>
           <span>Local</span>
         </div>
 
@@ -75,10 +77,10 @@ watch(() => route.path, () => {
           :aria-expanded="mobileMenuOpen"
           aria-label="Toggle navigation menu"
         >
-          <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
           </svg>
-          <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>
         </button>
@@ -106,11 +108,13 @@ watch(() => route.path, () => {
             <span
               v-if="link.showActiveDot && simulationStore.isActive"
               class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+              aria-hidden="true"
             ></span>
+            <span v-if="link.showActiveDot && simulationStore.isActive" class="sr-only">(active)</span>
           </router-link>
         </div>
-        <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+        <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40" role="status">
+          <span class="w-2 h-2 rounded-full bg-green-500" aria-hidden="true"></span>
           Connected
         </div>
       </div>

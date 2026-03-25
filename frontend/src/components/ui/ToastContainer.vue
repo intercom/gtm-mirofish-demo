@@ -18,7 +18,7 @@ const colorMap = {
 
 <template>
   <Teleport to="body">
-    <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none">
+    <div class="fixed top-4 right-4 z-[9999] flex flex-col gap-2 pointer-events-none" aria-live="polite" role="status">
       <TransitionGroup
         enter-active-class="transition-all duration-300 ease-out"
         leave-active-class="transition-all duration-200 ease-in"
@@ -38,6 +38,7 @@ const colorMap = {
           <button
             @click="removeToast(toast.id)"
             class="shrink-0 opacity-70 hover:opacity-100 text-base leading-none cursor-pointer"
+            aria-label="Dismiss notification"
           >
             &times;
           </button>

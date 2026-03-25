@@ -65,6 +65,9 @@ class Config:
     # Zep Configuration
     ZEP_API_KEY = os.environ.get('ZEP_API_KEY')
 
+    # CORS
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*')
+
     # File upload
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '../uploads')

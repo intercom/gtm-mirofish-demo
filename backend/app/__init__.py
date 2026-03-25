@@ -14,6 +14,7 @@ from flask_cors import CORS
 
 from .config import Config
 from .utils.logger import setup_logger, get_logger
+from .middleware.error_handler import register_error_handlers
 
 
 def create_app(config_class=Config):
@@ -39,8 +40,10 @@ def create_app(config_class=Config):
         logger.info("MiroFish Backend 启动中...")
         logger.info("=" * 50)
     
-    # 启用CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # CORS — parse comma-separated origins from config, or allow all with "*"
+    raw_origins = app.config.get('CORS_ORIGINS', '*')
+    origins = [o.strip() for o in raw_origins.split(',')] if raw_origins != '*' else '*'
+    CORS(app, resources={r"/api/*": {"origins": origins}})
     
     # 注册模拟进程清理函数（确保服务器关闭时终止所有模拟进程）
     from .services.simulation_runner import SimulationRunner
@@ -76,6 +79,9 @@ def create_app(config_class=Config):
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
     
+    # Error handling middleware
+    register_error_handlers(app)
+
     # 健康检查
     @app.route('/health')
     def health():

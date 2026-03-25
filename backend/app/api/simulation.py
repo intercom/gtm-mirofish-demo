@@ -1977,6 +1977,33 @@ def get_agent_stats(simulation_id: str):
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>/agent-sentiment-timeline', methods=['GET'])
+def get_agent_sentiment_timeline(simulation_id: str):
+    """
+    Per-agent sentiment scores broken down by simulation round.
+
+    Returns:
+        {
+            "success": true,
+            "data": {
+                "agents": [{"agent_id": int, "agent_name": str}, ...],
+                "rounds": [int, ...],
+                "series": { "<agent_id>": [{"round": int, "sentiment": float, "actions": int}, ...] }
+            }
+        }
+    """
+    try:
+        data = SimulationRunner.get_agent_sentiment_timeline(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent sentiment timeline: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== 数据库查询接口 ==============
 
 @simulation_bp.route('/<simulation_id>/posts', methods=['GET'])

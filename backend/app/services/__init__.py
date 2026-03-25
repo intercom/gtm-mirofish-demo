@@ -36,6 +36,11 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .scenario_templates import (
+    ScenarioTemplateService,
+    ScenarioTemplate,
+    AgentConfig as ScenarioAgentConfig,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +74,8 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'ScenarioTemplateService',
+    'ScenarioTemplate',
+    'ScenarioAgentConfig',
 ]
 

@@ -16,6 +16,7 @@ from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
+from ..services.scenario_templates import ScenarioTemplateService
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
@@ -83,6 +84,23 @@ def get_scenario_seed_text(scenario_id):
     if data and 'seed_text' in data:
         return jsonify({'seed_text': data['seed_text']})
     return jsonify({'error': 'Seed text not found'}), 404
+
+
+# ============== Simulation Scenario Templates ==============
+
+@gtm_bp.route('/templates', methods=['GET'])
+def list_templates():
+    """List all pre-built simulation scenario templates."""
+    return jsonify({'templates': ScenarioTemplateService.list_templates()})
+
+
+@gtm_bp.route('/templates/<template_id>', methods=['GET'])
+def get_template(template_id):
+    """Get a specific simulation scenario template with full configuration."""
+    template = ScenarioTemplateService.get_template(template_id)
+    if template:
+        return jsonify(template.to_dict())
+    return jsonify({'error': f'Template {template_id} not found'}), 404
 
 
 # ============== Unified Simulation Endpoint ==============

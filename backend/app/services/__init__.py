@@ -36,6 +36,7 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .cpq_data_generator import CpqDataGenerator
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +70,6 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'CpqDataGenerator',
 ]
 

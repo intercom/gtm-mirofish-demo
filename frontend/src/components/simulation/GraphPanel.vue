@@ -717,7 +717,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Node detail panel right side -->
-    <Transition name="slide">
+    <Transition name="panel-right">
       <div
         v-if="selectedNode"
         class="absolute top-0 right-0 z-20 h-full w-80 bg-white/95 dark:bg-[#0f0f24]/95 backdrop-blur-md border-l border-black/10 dark:border-white/10 overflow-y-auto"
@@ -816,23 +816,4 @@ onUnmounted(() => {
   transition: opacity 0.4s ease;
 }
 
-.slide-enter-active,
-.slide-leave-active {
-  transition: transform 0.25s ease;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-  transform: translateX(100%);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
 </style>

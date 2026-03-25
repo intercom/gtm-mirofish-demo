@@ -39,6 +39,27 @@ describe('Transition CSS classes', () => {
     expect(styleCss).toContain('var(--transition-base)')
     expect(styleCss).toContain('var(--transition-slow)')
   })
+
+  it('defines modal-overlay transition classes', () => {
+    expect(styleCss).toContain('.modal-overlay-enter-active')
+    expect(styleCss).toContain('.modal-overlay-leave-active')
+    expect(styleCss).toContain('.modal-overlay-enter-from')
+    expect(styleCss).toContain('.modal-overlay-leave-to')
+  })
+
+  it('defines modal-content transition with scale transform', () => {
+    expect(styleCss).toContain('.modal-content-enter-active')
+    expect(styleCss).toContain('.modal-content-leave-active')
+    expect(styleCss).toMatch(/\.modal-content-enter-from[\s\S]*?scale/)
+    expect(styleCss).toMatch(/\.modal-content-leave-to[\s\S]*?scale/)
+  })
+
+  it('defines panel-right transition classes', () => {
+    expect(styleCss).toContain('.panel-right-enter-active')
+    expect(styleCss).toContain('.panel-right-leave-active')
+    expect(styleCss).toMatch(/\.panel-right-enter-from[\s\S]*?translateX/)
+    expect(styleCss).toMatch(/\.panel-right-leave-to[\s\S]*?translateX/)
+  })
 })
 
 describe('App.vue page transition', () => {

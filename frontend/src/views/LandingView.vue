@@ -57,6 +57,7 @@ const ICON_MAP = {
   signal: '📡',
   dollar: '💰',
   sparkle: '✨',
+  'trending-up': '📈',
 }
 
 function resolveIcon(icon) {
@@ -107,6 +108,12 @@ async function loadScenarios() {
         name: 'Personalization Optimization',
         description: 'Rank email variants by simulated engagement.',
         icon: '✨',
+      },
+      {
+        id: 'expansion_revenue',
+        name: 'Expansion Revenue Simulation',
+        description: 'Simulate upsell and cross-sell motions across existing customer segments.',
+        icon: '📈',
       },
     ]
     error.value = null

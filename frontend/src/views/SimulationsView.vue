@@ -229,7 +229,7 @@ function exportRun(run) {
     </div>
 
     <!-- Summary Stats -->
-    <div v-if="store.hasRuns" class="grid grid-cols-3 gap-3 mb-6">
+    <div v-if="store.hasRuns" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
       <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-4 py-3">
         <div class="text-xs text-[var(--color-text-muted)]">Total Runs</div>
         <div class="text-lg font-semibold text-[var(--color-text)]">{{ store.sessionRuns.length }}</div>

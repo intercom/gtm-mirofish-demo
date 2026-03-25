@@ -13,6 +13,7 @@ const navLinks = computed(() => {
   return [
     { to: '/', label: 'Home', exact: true },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
+    { to: '/agents', label: 'Agents', exact: false },
     { to: '/settings', label: 'Settings', exact: false },
   ]
 })

@@ -99,6 +99,9 @@ class Config:
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
 
+    # RBAC — role assigned to authenticated users with no explicit role
+    RBAC_DEFAULT_ROLE = os.environ.get('RBAC_DEFAULT_ROLE', 'viewer')
+
     @classmethod
     def validate(cls):
         """Validate required configuration"""

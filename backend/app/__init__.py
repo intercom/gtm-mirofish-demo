@@ -9,7 +9,7 @@ import warnings
 # 需要在所有其他导入之前设置
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
-from flask import Flask, request
+from flask import Flask, g, request, session
 from flask_cors import CORS
 
 from .config import Config
@@ -61,7 +61,12 @@ def create_app(config_class=Config):
         logger = get_logger('mirofish.request')
         logger.debug(f"响应: {response.status_code}")
         return response
-    
+
+    # Populate g.user from session for permission checking
+    @app.before_request
+    def load_user_context():
+        g.user = session.get('user')
+
     # Register blueprints
     from .api import graph_bp, simulation_bp, report_bp
     app.register_blueprint(graph_bp, url_prefix='/api/graph')

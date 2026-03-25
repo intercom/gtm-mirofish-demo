@@ -3,8 +3,33 @@ import { ref, getCurrentInstance, onUnmounted } from 'vue'
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 const registry = new Map()
 const gModeActive = ref(false)
+const showHelp = ref(false)
 let gModeTimer = null
 let listenerAttached = false
+
+const shortcuts = [
+  {
+    group: 'General',
+    items: [
+      { keys: ['?'], description: 'Show keyboard shortcuts' },
+      { keys: ['Esc'], description: 'Close modal / dialog' },
+    ],
+  },
+  {
+    group: 'Workspace',
+    items: [
+      { keys: ['1'], description: 'Switch to Knowledge Graph tab' },
+      { keys: ['2'], description: 'Switch to Simulation tab' },
+    ],
+  },
+  {
+    group: 'Chat',
+    items: [
+      { keys: ['Enter'], description: 'Send message' },
+      { keys: ['Shift', 'Enter'], description: 'New line in message' },
+    ],
+  },
+]
 
 function isInputFocused() {
   const el = document.activeElement
@@ -28,6 +53,7 @@ function handleKeydown(e) {
 
   if (e.key === 'Escape') {
     gModeActive.value = false
+    showHelp.value = false
     clearTimeout(gModeTimer)
     const entry = registry.get('escape')
     if (entry) {
@@ -150,5 +176,5 @@ export function useKeyboardShortcuts() {
     onUnmounted(unregisterAll)
   }
 
-  return { register, unregister, unregisterAll, getAll, formatKey, isMac, gModeActive, registry }
+  return { register, unregister, unregisterAll, getAll, formatKey, isMac, gModeActive, registry, showHelp, shortcuts }
 }

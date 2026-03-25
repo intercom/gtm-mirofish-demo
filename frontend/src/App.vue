@@ -9,12 +9,13 @@ import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndic
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import CommandPalette from './components/common/CommandPalette.vue'
 import SystemStatusBar from './components/common/SystemStatusBar.vue'
+import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal.vue'
 import { useTheme } from './composables/useTheme'
+import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
 import { useCommandPalette } from './composables/useCommandPalette'
 import { useResourcePreload } from './composables/useResourcePreload'
-import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 import { useSettingsStore } from './stores/settings'
@@ -26,7 +27,7 @@ const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
 useCommandPalette()
 useResourcePreload()
-const { register } = useKeyboardShortcuts()
+const { register, showHelp } = useKeyboardShortcuts()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 const settings = useSettingsStore()
@@ -57,7 +58,7 @@ register('/', () => {
 }, { description: 'Focus search' })
 
 register('?', () => {
-  window.dispatchEvent(new CustomEvent('shortcut:shortcuts-help'))
+  showHelp.value = !showHelp.value
 }, { description: 'Show keyboard shortcuts' })
 
 register('g+d', () => {
@@ -117,6 +118,7 @@ onUnmounted(() => {
   <ToastContainer />
   <NavigationShortcutIndicator />
   <CommandPalette />
+  <KeyboardShortcutsModal />
   <PresenterToolbar v-if="isDemoMode" />
   <SystemStatusBar v-if="showStatusBar" />
 </template>

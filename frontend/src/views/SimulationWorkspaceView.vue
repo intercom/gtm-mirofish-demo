@@ -7,6 +7,7 @@ import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
+import Graph3DPanel from '../components/simulation/Graph3DPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
 
 const props = defineProps({
@@ -23,6 +24,7 @@ const polling = useSimulationPolling(() => props.taskId)
 provide('polling', polling)
 
 const activeTab = ref(route.query.tab === 'simulation' ? 'simulation' : 'graph')
+const graphMode = ref('2d') // '2d' | '3d'
 const demoMode = ref(false)
 provide('demoMode', demoMode)
 
@@ -132,7 +134,25 @@ onUnmounted(() => {
     <!-- Panels -->
     <div class="flex-1 relative overflow-hidden">
       <div v-show="activeTab === 'graph'" class="absolute inset-0">
-        <GraphPanel :taskId="taskId" :demoMode="demoMode" />
+        <Graph3DPanel v-if="graphMode === '3d'" :taskId="taskId" :demoMode="demoMode" />
+        <GraphPanel v-else :taskId="taskId" :demoMode="demoMode" />
+
+        <!-- 2D/3D toggle -->
+        <button
+          @click="graphMode = graphMode === '2d' ? '3d' : '2d'"
+          class="absolute top-4 right-6 z-30 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 text-[var(--color-text)] backdrop-blur-sm transition-colors border border-black/5 dark:border-white/5"
+          :title="graphMode === '2d' ? 'Switch to 3D view' : 'Switch to 2D view'"
+        >
+          <svg v-if="graphMode === '2d'" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" />
+            <path d="M12 12l8-4.5" /><path d="M12 12v9" /><path d="M12 12L4 7.5" />
+          </svg>
+          <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <circle cx="12" cy="12" r="4" />
+          </svg>
+          {{ graphMode === '2d' ? '3D' : '2D' }}
+        </button>
       </div>
       <div v-show="activeTab === 'simulation'" class="absolute inset-0">
         <SimulationPanel :taskId="taskId" />

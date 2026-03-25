@@ -179,6 +179,88 @@ def get_seed_data(data_type):
     return _ok(samples.get(data_type, []))
 
 
+@app.route("/api/gtm/scenarios/trends")
+def scenario_trends():
+    """Cross-scenario trend data for the trend chart component.
+
+    Returns simulated run history across all scenario categories with
+    per-run metrics, suitable for scatter plot + regression trend line.
+    Query params:
+        metric  – which metric to return (default: engagement_rate)
+    """
+    scenarios = _load_scenarios()
+    category_map = {s["id"]: s.get("category", "general") for s in scenarios}
+    category_names = {s["id"]: s.get("name", s["id"]) for s in scenarios}
+
+    metrics = [
+        "engagement_rate",
+        "sentiment_score",
+        "action_density",
+        "agent_participation",
+        "topic_diversity",
+    ]
+
+    rng = random.Random(42)
+    runs = []
+    run_index = 0
+
+    for scenario in scenarios:
+        sid = scenario["id"]
+        cat = category_map.get(sid, "general")
+        num_runs = rng.randint(6, 12)
+
+        base_values = {
+            "engagement_rate": rng.uniform(25, 45),
+            "sentiment_score": rng.uniform(0.15, 0.45),
+            "action_density": rng.uniform(3.0, 8.0),
+            "agent_participation": rng.uniform(55, 80),
+            "topic_diversity": rng.uniform(0.4, 0.7),
+        }
+        # Small positive drift per run to show improvement over time
+        drift = {
+            "engagement_rate": rng.uniform(0.3, 1.2),
+            "sentiment_score": rng.uniform(0.005, 0.02),
+            "action_density": rng.uniform(0.05, 0.2),
+            "agent_participation": rng.uniform(0.5, 1.5),
+            "topic_diversity": rng.uniform(0.005, 0.015),
+        }
+
+        for i in range(num_runs):
+            day_offset = i * rng.randint(1, 4)
+            run_metrics = {}
+            for m in metrics:
+                noise = rng.gauss(0, 1) * {
+                    "engagement_rate": 3.0,
+                    "sentiment_score": 0.06,
+                    "action_density": 0.5,
+                    "agent_participation": 4.0,
+                    "topic_diversity": 0.04,
+                }[m]
+                run_metrics[m] = round(base_values[m] + drift[m] * i + noise, 3)
+
+            runs.append({
+                "run_index": run_index,
+                "scenario_id": sid,
+                "scenario_name": category_names.get(sid, sid),
+                "category": cat,
+                "day_offset": day_offset,
+                "metrics": run_metrics,
+            })
+            run_index += 1
+
+    return _ok({
+        "runs": runs,
+        "available_metrics": metrics,
+        "metric_labels": {
+            "engagement_rate": "Engagement Rate (%)",
+            "sentiment_score": "Sentiment Score",
+            "action_density": "Actions / Agent / Hour",
+            "agent_participation": "Agent Participation (%)",
+            "topic_diversity": "Topic Diversity Index",
+        },
+    })
+
+
 # ---------------------------------------------------------------------------
 # Graph API
 # ---------------------------------------------------------------------------

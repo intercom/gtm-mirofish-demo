@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import RichTextEditor from '../common/RichTextEditor.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -15,6 +16,8 @@ const heartbeatCanvas = ref(null)
 const feedContainer = ref(null)
 const autoScroll = ref(true)
 const selectedAgent = ref(null)
+const agentBackstories = ref({})
+const editingBackstory = ref(false)
 
 let resizeObserver = null
 let heartbeatAnimId = null
@@ -300,6 +303,7 @@ function selectAgent(action) {
   const role = roleParts[0] || ''
   const company = roleParts[1] || ''
 
+  editingBackstory.value = false
   selectedAgent.value = {
     id: action.agent_id,
     name,
@@ -311,7 +315,14 @@ function selectAgent(action) {
     redditActions: redditCount,
     actions: agentActions.slice(0, 20),
     sentiment: twitterCount + redditCount > 5 ? 'Engaged' : 'Moderate',
+    backstory: agentBackstories.value[action.agent_id] || '',
   }
+}
+
+function updateBackstory(html) {
+  if (!selectedAgent.value) return
+  selectedAgent.value.backstory = html
+  agentBackstories.value[selectedAgent.value.id] = html
 }
 
 // --- Auto-scroll for activity feed ---
@@ -643,6 +654,34 @@ onUnmounted(() => {
                 ? 'bg-emerald-500/10 text-emerald-600'
                 : 'bg-yellow-500/10 text-yellow-600'"
             >{{ selectedAgent.sentiment }}</span>
+          </div>
+
+          <!-- Backstory -->
+          <div class="mb-5">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Backstory</h4>
+              <button
+                @click="editingBackstory = !editingBackstory"
+                class="text-[11px] font-medium text-[var(--color-primary)] hover:underline"
+              >
+                {{ editingBackstory ? 'Done' : (selectedAgent.backstory ? 'Edit' : 'Add') }}
+              </button>
+            </div>
+            <RichTextEditor
+              v-if="editingBackstory"
+              :model-value="selectedAgent.backstory"
+              @update:model-value="updateBackstory"
+              placeholder="Describe this agent's background, experience, and perspective..."
+              :char-limit="500"
+            />
+            <div
+              v-else-if="selectedAgent.backstory"
+              class="text-xs text-[var(--color-text-secondary)] leading-relaxed"
+              v-html="selectedAgent.backstory"
+            />
+            <p v-else class="text-xs text-[var(--color-text-muted)] italic">
+              No backstory yet
+            </p>
           </div>
 
           <!-- Action history -->

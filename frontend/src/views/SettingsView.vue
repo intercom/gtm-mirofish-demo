@@ -4,6 +4,7 @@ import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
+import ThemeEditor from '../components/settings/ThemeEditor.vue'
 
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
@@ -173,6 +174,12 @@ onMounted(() => {
           <span>{{ opt.label }}</span>
         </button>
       </div>
+    </section>
+
+    <!-- Custom Theme Editor -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Custom Themes</h2>
+      <ThemeEditor />
     </section>
 
     <!-- LLM Provider -->

@@ -2,6 +2,7 @@
 import { watch, onBeforeUnmount } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 
 const props = defineProps({
@@ -23,7 +24,13 @@ const emit = defineEmits(['update:modelValue'])
 
 const editor = useEditor({
   extensions: [
-    StarterKit,
+    StarterKit.configure({
+      heading: { levels: [2, 3] },
+    }),
+    Link.configure({
+      openOnClick: false,
+      HTMLAttributes: { class: 'editor-link' },
+    }),
     Placeholder.configure({ placeholder: props.placeholder }),
   ],
   content: props.modelValue,
@@ -66,13 +73,25 @@ function toggleNode(type, attrs) {
   }
 }
 
+function toggleLink() {
+  if (!editor.value) return
+  if (editor.value.isActive('link')) {
+    editor.value.chain().focus().unsetLink().run()
+    return
+  }
+  const url = window.prompt('Enter URL')
+  if (url) {
+    editor.value.chain().focus().setLink({ href: url }).run()
+  }
+}
+
 function isActive(type, attrs) {
   return editor.value?.isActive(type, attrs) ?? false
 }
 </script>
 
 <template>
-  <div class="rich-text-editor">
+  <div class="rich-text-editor" :class="{ 'is-readonly': !editable }">
     <div v-if="editable && editor" class="toolbar">
       <div class="toolbar-group">
         <button
@@ -166,6 +185,19 @@ function isActive(type, attrs) {
           { }
         </button>
       </div>
+
+      <div class="toolbar-divider" />
+
+      <div class="toolbar-group">
+        <button
+          type="button"
+          :class="['toolbar-btn', { active: isActive('link') }]"
+          title="Link"
+          @click="toggleLink"
+        >
+          &#x1F517;
+        </button>
+      </div>
     </div>
 
     <EditorContent :editor="editor" class="editor-content" />
@@ -184,6 +216,16 @@ function isActive(type, attrs) {
 .rich-text-editor:focus-within {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 2px var(--input-ring);
+}
+
+.is-readonly {
+  border-color: transparent;
+  background: transparent;
+}
+
+.is-readonly:focus-within {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .toolbar {
@@ -235,7 +277,7 @@ function isActive(type, attrs) {
 
 .editor-content {
   padding: 12px 16px;
-  min-height: 200px;
+  min-height: 120px;
   font-size: var(--text-sm);
   line-height: var(--leading-relaxed);
   color: var(--color-text);
@@ -243,7 +285,7 @@ function isActive(type, attrs) {
 
 .editor-content :deep(.tiptap) {
   outline: none;
-  min-height: 200px;
+  min-height: 96px;
 }
 
 .editor-content :deep(.tiptap p.is-editor-empty:first-child::before) {
@@ -258,6 +300,10 @@ function isActive(type, attrs) {
   margin: 0 0 0.5em;
 }
 
+.editor-content :deep(.tiptap p:last-child) {
+  margin-bottom: 0;
+}
+
 .editor-content :deep(.tiptap h2) {
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
@@ -270,6 +316,11 @@ function isActive(type, attrs) {
   font-weight: var(--font-semibold);
   margin: 0.75em 0 0.4em;
   line-height: var(--leading-tight);
+}
+
+.editor-content :deep(.tiptap h2:first-child),
+.editor-content :deep(.tiptap h3:first-child) {
+  margin-top: 0;
 }
 
 .editor-content :deep(.tiptap ul),
@@ -325,5 +376,11 @@ function isActive(type, attrs) {
   border: none;
   border-top: 1px solid var(--color-border);
   margin: 1em 0;
+}
+
+.editor-content :deep(.editor-link) {
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
 }
 </style>

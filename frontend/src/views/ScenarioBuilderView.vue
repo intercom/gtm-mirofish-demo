@@ -23,6 +23,7 @@ const isRerun = computed(() => route.query.rerun === 'true')
 const scenario = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const description = ref('')
 const seedText = ref('')
 const statusMessage = ref('')
 const agentCount = ref(200)
@@ -317,6 +318,7 @@ async function loadScenario() {
           platform_mode: 'parallel',
         },
       }
+      description.value = scenario.value.description
       seedText.value = ''
       agentCount.value = 200
       duration.value = 72
@@ -328,6 +330,7 @@ async function loadScenario() {
       if (!data) throw new Error('Scenario not found')
       scenario.value = data
 
+      description.value = data.description || ''
       seedText.value = data.seed_text || ''
       agentCount.value = data.agent_config?.count || 200
       duration.value = data.simulation_config?.total_hours || 72
@@ -391,6 +394,7 @@ async function runSimulation() {
     simulationStore.setScenarioConfig({
       scenarioId: props.id,
       scenarioName: scenario.value?.name || (props.id === 'custom' ? 'Custom Simulation' : 'Untitled Scenario'),
+      scenarioDescription: description.value,
       seedText: seedText.value,
       agentCount: agentCount.value,
       personas: selectedPersonas.value,
@@ -457,7 +461,12 @@ async function runSimulation() {
               </span>
             </transition>
           </div>
-          <p class="text-sm text-[var(--color-text-secondary)]">{{ scenario.description }}</p>
+          <div class="mt-1">
+            <RichTextEditor
+              v-model="description"
+              placeholder="Describe your scenario — goals, target audience, expected outcomes..."
+            />
+          </div>
         </div>
         <div class="flex gap-2 shrink-0">
           <button

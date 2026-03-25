@@ -12,6 +12,7 @@ import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
 import { useCommandPalette } from './composables/useCommandPalette'
+import { useResourcePreload } from './composables/useResourcePreload'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 
@@ -20,6 +21,7 @@ const { setRouteDefault } = useTheme()
 const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
 useCommandPalette()
+useResourcePreload()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 

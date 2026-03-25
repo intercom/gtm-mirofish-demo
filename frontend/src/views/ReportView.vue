@@ -1,10 +1,15 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { API_BASE } from '../api/client'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
-import ReportCharts from '../components/report/ReportCharts.vue'
+
+const ReportCharts = defineAsyncComponent({
+  loader: () => import('../components/report/ReportCharts.vue'),
+  loadingComponent: ShimmerCard,
+  delay: 200,
+})
 
 const props = defineProps({ taskId: String })
 

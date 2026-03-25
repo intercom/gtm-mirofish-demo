@@ -1,10 +1,16 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, defineAsyncComponent, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
 import { API_BASE } from '../api/client'
-import HeroSwarm from '../components/landing/HeroSwarm.vue'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+
+const HeroSwarm = defineAsyncComponent({
+  loader: () => import('../components/landing/HeroSwarm.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 200,
+})
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()

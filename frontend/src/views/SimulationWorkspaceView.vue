@@ -1,13 +1,24 @@
 <script setup>
-import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, defineAsyncComponent, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSimulationPolling } from '../composables/useSimulationPolling'
 import { useToast } from '../composables/useToast'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
-import GraphPanel from '../components/simulation/GraphPanel.vue'
-import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+
+const GraphPanel = defineAsyncComponent({
+  loader: () => import('../components/simulation/GraphPanel.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 200,
+})
+
+const SimulationPanel = defineAsyncComponent({
+  loader: () => import('../components/simulation/SimulationPanel.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 200,
+})
 
 const props = defineProps({
   taskId: { type: String, required: true },

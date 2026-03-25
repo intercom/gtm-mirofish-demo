@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDemoMode } from '../composables/useDemoMode'
+import { useDemoPreset } from '../composables/useDemoPreset'
 import { useCountUp } from '../composables/useCountUp'
 import { useParallax } from '../composables/useParallax'
 import { useOnboardingTour } from '../composables/useOnboardingTour'
@@ -16,6 +17,8 @@ import SkeletonScenarioCard from '../components/ui/SkeletonScenarioCard.vue'
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
 const { autoStart: autoStartTour } = useOnboardingTour()
+const { available: presetAvailable, loaded: presetLoaded, loading: presetLoading, loadPreset, checkStatus: checkPresetStatus } = useDemoPreset()
+const showCards = ref(false)
 const showSteps = ref(false)
 
 const heroSection = ref(null)
@@ -157,7 +160,10 @@ async function loadScenarios() {
   }
 }
 
-onMounted(loadScenarios)
+onMounted(() => {
+  loadScenarios()
+  checkPresetStatus()
+})
 
 const scenarioSection = ref(null)
 
@@ -165,6 +171,15 @@ const selectedScenarioId = ref(null)
 
 function openScenarioDetail(id) {
   selectedScenarioId.value = id
+}
+
+async function launchPreset() {
+  try {
+    const ids = await loadPreset()
+    router.push(`/workspace/${ids.graphTaskId}`)
+  } catch {
+    // error is already set in the composable
+  }
 }
 
 function launchScenario(id) {
@@ -337,6 +352,34 @@ const year = new Date().getFullYear()
         <p v-if="isDemoMode" class="text-sm text-white/35 mb-8 md:mb-12">
           Interactive demo with simulated swarm intelligence
         </p>
+
+        <!-- Demo Preset CTA -->
+        <div v-if="presetAvailable" class="max-w-2xl mx-auto mb-6">
+          <button
+            @click="launchPreset"
+            :disabled="presetLoading"
+            class="w-full text-left rounded-lg p-5 border-2 border-[#ff5600]/40 bg-[rgba(255,86,0,0.1)] hover:bg-[rgba(255,86,0,0.2)] hover:border-[#ff5600]/60 transition-all duration-300 cursor-pointer group"
+          >
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🎬</span>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-white group-hover:text-[#ff5600] transition-colors">
+                  {{ presetLoading ? 'Loading Demo...' : presetLoaded ? 'Re-open Demo Presentation' : 'Launch Demo Presentation' }}
+                </h3>
+                <p class="text-xs text-white/50 mt-0.5">
+                  Pre-built simulation: coalitions debate pipeline strategy, form beliefs, and reach consensus.
+                </p>
+              </div>
+              <svg v-if="!presetLoading" class="w-5 h-5 text-white/40 group-hover:text-[#ff5600] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+              <svg v-else class="w-5 h-5 text-[#ff5600] animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          </button>
+        </div>
 
         <!-- Loading State -->
         <div v-if="loading" class="max-w-2xl mx-auto">

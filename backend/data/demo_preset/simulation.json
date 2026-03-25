@@ -1,0 +1,374 @@
+{
+  "simulation_id": "demo-preset-sim-001",
+  "status": "completed",
+  "config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel",
+    "total_rounds": 144,
+    "scenario_name": "Outbound Campaign Strategy: Growth vs. Conservation",
+    "scenario_description": "15 GTM stakeholders debate aggressive pipeline expansion against account conservation strategy. Coalitions form, beliefs shift, and consensus emerges."
+  },
+  "metrics": {
+    "total_actions_count": 1224,
+    "twitter_actions_count": 673,
+    "reddit_actions_count": 551,
+    "simulated_hours": 72,
+    "total_simulation_hours": 72,
+    "unique_agents": 15,
+    "unique_threads": 847,
+    "convergence_score": 0.89
+  },
+  "summary": {
+    "total_posts": 1224,
+    "unique_agents": 15,
+    "avg_engagement_score": 0.73,
+    "top_topics": [
+      "Pipeline Growth Strategy",
+      "Account Conservation",
+      "AI-First Resolution ROI",
+      "Competitive Displacement",
+      "Coalition Consensus"
+    ],
+    "sentiment_distribution": {
+      "positive": 487,
+      "neutral": 412,
+      "negative": 325
+    },
+    "activity_over_time": [
+      {"bucket": "Rounds 1-12", "count": 68},
+      {"bucket": "Rounds 13-24", "count": 89},
+      {"bucket": "Rounds 25-36", "count": 112},
+      {"bucket": "Rounds 37-48", "count": 134},
+      {"bucket": "Rounds 49-60", "count": 148},
+      {"bucket": "Rounds 61-72", "count": 142},
+      {"bucket": "Rounds 73-84", "count": 139},
+      {"bucket": "Rounds 85-96", "count": 127},
+      {"bucket": "Rounds 97-108", "count": 108},
+      {"bucket": "Rounds 109-120", "count": 96},
+      {"bucket": "Rounds 121-132", "count": 84},
+      {"bucket": "Rounds 133-144", "count": 77}
+    ]
+  },
+  "coalitions": [
+    {
+      "name": "Growth Coalition",
+      "description": "Advocates for aggressive pipeline expansion through outbound campaigns and competitive displacement.",
+      "peak_round": 48,
+      "members": ["Sarah Chen", "Priya Patel", "Michael Chang", "Tom O'Brien", "Catherine Hayes"],
+      "key_arguments": [
+        "ROI data supports 40% cost reduction through AI-first resolution",
+        "Speed-to-value: 3-week deployment vs 6-month Zendesk migration",
+        "Fin AI resolves 50% of Tier 1 tickets — proven in pilots"
+      ]
+    },
+    {
+      "name": "Conservation Coalition",
+      "description": "Advocates for protecting existing accounts and measured, compliance-first expansion.",
+      "peak_round": 36,
+      "members": ["Marcus Johnson", "Rachel Torres", "Anika Sharma", "Elena Vasquez", "Nathan Lee"],
+      "key_arguments": [
+        "Aggressive displacement messaging risks brand damage (14.8% spam flag in Healthcare)",
+        "Compliance requirements (HIPAA/SOC2) must lead, not follow",
+        "AI accuracy concerns from past failures demand cautious rollout"
+      ]
+    },
+    {
+      "name": "Consensus Bridge",
+      "description": "Formed around Round 72 — synthesized both positions into segment-specific strategy.",
+      "peak_round": 108,
+      "members": ["David Kim", "James Wright", "Lisa Park", "Sofia Martinez", "Robert Williams"],
+      "key_arguments": [
+        "Segment-specific messaging resolves growth vs. conservation tension",
+        "Lead with compliance for Healthcare/Fintech, lead with ROI for SaaS/E-commerce",
+        "Multi-threading (3+ contacts per company) increases conversion 4.7x without aggressive single-contact tactics"
+      ]
+    }
+  ],
+  "belief_changes": [
+    {
+      "agent": "Anika Sharma",
+      "role": "Support Eng Lead @ DevStack",
+      "initial_belief": "AI chatbots are unreliable — our Zendesk AI deployment failed spectacularly",
+      "final_belief": "Fin's accuracy benchmarks are credible, but deployment must follow a structured pilot program",
+      "turning_point_round": 64,
+      "trigger": "Sarah Chen shared specific Fin pilot data: 48% resolution rate in 30 days with controlled traffic"
+    },
+    {
+      "agent": "Catherine Hayes",
+      "role": "CFO @ ScaleUp Corp",
+      "initial_belief": "Support tool migration is a cost center with uncertain ROI",
+      "final_belief": "The data supports a 90-day payback period; the risk is in NOT switching",
+      "turning_point_round": 84,
+      "trigger": "Priya Patel's cost-per-resolution analysis showing $6 true cost on Zendesk vs $2.10 with Fin"
+    },
+    {
+      "agent": "Marcus Johnson",
+      "role": "CX Director @ MedFirst Health",
+      "initial_belief": "Compliance requirements make aggressive outbound campaigns too risky for Healthcare",
+      "final_belief": "Compliance-first messaging can coexist with growth goals — 31% engagement when HIPAA leads",
+      "turning_point_round": 96,
+      "trigger": "Elena Vasquez demonstrated that compliance-first framing actually INCREASES healthcare engagement 2.6x"
+    },
+    {
+      "agent": "Nathan Lee",
+      "role": "CTO @ DataPulse",
+      "initial_belief": "Vendor lock-in with Intercom is unacceptable — we build internal tooling",
+      "final_belief": "Intercom's API ecosystem is extensible enough; the build-vs-buy math favors buying at our scale",
+      "turning_point_round": 72,
+      "trigger": "David Kim's detailed API integration analysis showing native Salesforce/HubSpot/Slack connectors"
+    }
+  ],
+  "key_decisions": [
+    {
+      "round": 48,
+      "decision": "Growth Coalition proposes 'one-size-fits-all' aggressive Zendesk displacement campaign",
+      "outcome": "Rejected by Conservation Coalition — spam perception risk too high for regulated industries"
+    },
+    {
+      "round": 72,
+      "decision": "Consensus Bridge proposes segment-specific variant matrix with 4 industry tracks",
+      "outcome": "Adopted by majority — resolves tension between growth ambition and compliance safety"
+    },
+    {
+      "round": 96,
+      "decision": "Group agrees on Day 1-3-8-15 cadence replacing Day 1-2-4, with multi-threading at Day 3",
+      "outcome": "Unanimous — data showed 23% lower unsubscribe rate and 18% higher meeting bookings"
+    },
+    {
+      "round": 120,
+      "decision": "Final strategy: segment-specific messaging, compliance-first for regulated industries, ROI-first for SaaS",
+      "outcome": "Consensus reached — predicted 45-65% improvement over original one-size-fits-all approach"
+    }
+  ],
+  "actions": [
+    {
+      "agent_id": 1,
+      "agent_name": "Sarah Chen (VP Support @ Acme SaaS)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 6,
+      "timestamp": "2026-01-15T11:00:00Z",
+      "action_args": {"content": "Just evaluated Intercom's Fin AI agent — resolved 47% of our Tier 1 tickets in the pilot. Zendesk's AI Answer Bot never cracked 20%. The difference is night and day. We need to push this data to every prospect. #GrowthFirst"}
+    },
+    {
+      "agent_id": 2,
+      "agent_name": "Marcus Johnson (CX Director @ MedFirst Health)",
+      "action_type": "REPLY",
+      "platform": "twitter",
+      "round_num": 8,
+      "timestamp": "2026-01-15T12:00:00Z",
+      "action_args": {"content": "Impressive pilot data, but we can't lead with competitive displacement in Healthcare. HIPAA compliance must be sentence #1 or we lose 88% of the audience immediately. Let's not sacrifice trust for speed."}
+    },
+    {
+      "agent_id": 3,
+      "agent_name": "Priya Patel (Head of Ops @ PayStream Financial)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 12,
+      "timestamp": "2026-01-15T14:00:00Z",
+      "action_args": {"content": "Ran the numbers on our support stack: $18K/mo on Zendesk, handling 8,200 tickets. With Fin at 48% resolution, that's $7.2K/mo + redeploying 3 agents to proactive outreach. The math is undeniable. @SarahChen nailed it."}
+    },
+    {
+      "agent_id": 7,
+      "agent_name": "Anika Sharma (Support Eng Lead @ DevStack)",
+      "action_type": "CREATE_POST",
+      "platform": "reddit",
+      "round_num": 18,
+      "timestamp": "2026-01-15T17:00:00Z",
+      "action_args": {"content": "We deployed Zendesk's AI last year and it was a disaster — 12% accuracy on anything beyond basic FAQ. I'm not falling for another vendor's claims without a controlled pilot with REAL tickets. Show me the data on edge cases, not cherry-picked demos."}
+    },
+    {
+      "agent_id": 5,
+      "agent_name": "Rachel Torres (VP Support @ CloudOps Inc)",
+      "action_type": "REPLY",
+      "platform": "twitter",
+      "round_num": 24,
+      "timestamp": "2026-01-15T20:00:00Z",
+      "action_args": {"content": "The 'replace everything with AI' narrative misses the point. Our best outcomes come from AI augmenting human agents — suggested responses, context summaries, smart routing. Full automation sounds great in a slide deck but fails with nuanced enterprise queries."}
+    },
+    {
+      "agent_id": 10,
+      "agent_name": "Michael Chang (Head of Ops @ FinEdge)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 36,
+      "timestamp": "2026-01-16T06:00:00Z",
+      "action_args": {"content": "As a lean startup, we can't afford a 6-month migration timeline. Intercom's 3-week deployment pitch is exactly what budget-conscious teams need. Speed-to-value IS the value prop for early-stage companies. Let's go aggressive."}
+    },
+    {
+      "agent_id": 14,
+      "agent_name": "Nathan Lee (CTO @ DataPulse)",
+      "action_type": "CREATE_POST",
+      "platform": "reddit",
+      "round_num": 42,
+      "timestamp": "2026-01-16T09:00:00Z",
+      "action_args": {"content": "My concern with any support platform play is vendor lock-in. We build internal tooling for a reason. Before I'd advocate switching from our custom solution, I need to see API docs, data export capabilities, and a clear exit strategy. Proprietary platforms trap you."}
+    },
+    {
+      "agent_id": 4,
+      "agent_name": "David Kim (IT Leader @ ShopNova)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 48,
+      "timestamp": "2026-01-16T12:00:00Z",
+      "action_args": {"content": "I've been reading both sides of this debate. Here's what I think: the Growth Coalition is right about the ROI, but the Conservation Coalition is right about the risk. The answer is segment-specific messaging. Lead with ROI for SaaS, lead with compliance for Healthcare."}
+    },
+    {
+      "agent_id": 15,
+      "agent_name": "Catherine Hayes (CFO @ ScaleUp Corp)",
+      "action_type": "REPLY",
+      "platform": "twitter",
+      "round_num": 54,
+      "timestamp": "2026-01-16T15:00:00Z",
+      "action_args": {"content": "I need to see the total cost of ownership, not just the license savings. Migration cost, training time, productivity dip during transition — show me the full picture. If the payback period is under 6 months, I'm listening."}
+    },
+    {
+      "agent_id": 9,
+      "agent_name": "Elena Vasquez (Dir Digital @ HealthBridge)",
+      "action_type": "CREATE_POST",
+      "platform": "reddit",
+      "round_num": 60,
+      "timestamp": "2026-01-16T18:00:00Z",
+      "action_args": {"content": "We tested compliance-first vs ROI-first messaging with our healthcare network. Results: HIPAA-leading messaging got 31% engagement. ROI-leading got 12%. The data is clear — in regulated industries, compliance isn't just table stakes, it's the entire opening move."}
+    },
+    {
+      "agent_id": 1,
+      "agent_name": "Sarah Chen (VP Support @ Acme SaaS)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 64,
+      "timestamp": "2026-01-16T20:00:00Z",
+      "action_args": {"content": "@AnikaSharma I hear your skepticism — we felt the same way. Here's our actual Fin pilot data: 48% resolution rate over 30 days, 10% traffic test, CSAT went UP 8 points. Not cherry-picked. Real tickets, real metrics. Happy to share the full dataset."}
+    },
+    {
+      "agent_id": 7,
+      "agent_name": "Anika Sharma (Support Eng Lead @ DevStack)",
+      "action_type": "REPLY",
+      "platform": "twitter",
+      "round_num": 66,
+      "timestamp": "2026-01-16T21:00:00Z",
+      "action_args": {"content": "OK @SarahChen, that's the kind of data I respect. 48% on real traffic with CSAT improvement is different from demo metrics. I'd still want a structured pilot — but I'm willing to look at Fin seriously now. Send me the methodology."}
+    },
+    {
+      "agent_id": 4,
+      "agent_name": "David Kim (IT Leader @ ShopNova)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 72,
+      "timestamp": "2026-01-17T00:00:00Z",
+      "action_args": {"content": "Proposal: 4-track messaging strategy. SaaS → ROI + speed. Healthcare → compliance-first + patient experience. Fintech → security + cost efficiency. E-commerce → seasonal scaling + Shopify integration. One message doesn't fit all. Who's in?"}
+    },
+    {
+      "agent_id": 3,
+      "agent_name": "Priya Patel (Head of Ops @ PayStream Financial)",
+      "action_type": "REPLY",
+      "platform": "twitter",
+      "round_num": 78,
+      "timestamp": "2026-01-17T03:00:00Z",
+      "action_args": {"content": "@CatherineHayes TCO analysis: Zendesk $18K/mo, 8,200 tickets at $2.20/ticket. But reopened tickets cost $6 effective. Intercom+Fin: $10.8K/mo, 48% AI resolution at $1.32/ticket effective. Payback: 87 days. The numbers don't lie."}
+    },
+    {
+      "agent_id": 15,
+      "agent_name": "Catherine Hayes (CFO @ ScaleUp Corp)",
+      "action_type": "REPLY",
+      "platform": "twitter",
+      "round_num": 84,
+      "timestamp": "2026-01-17T06:00:00Z",
+      "action_args": {"content": "87-day payback with cost-per-resolution dropping from $6 to $1.32? That's not a cost center — that's an investment with measurable returns. @PriyaPatel I'm convinced. The real risk is NOT switching."}
+    },
+    {
+      "agent_id": 2,
+      "agent_name": "Marcus Johnson (CX Director @ MedFirst Health)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 96,
+      "timestamp": "2026-01-17T12:00:00Z",
+      "action_args": {"content": "I've shifted my position. @ElenaVasquez's data convinced me: compliance-first messaging doesn't sacrifice growth — it ENABLES it in regulated industries. 31% vs 12% engagement speaks for itself. I'm joining the consensus: segment-specific strategy is the way."}
+    },
+    {
+      "agent_id": 6,
+      "agent_name": "James Wright (CX Director @ Retail Plus)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 102,
+      "timestamp": "2026-01-17T15:00:00Z",
+      "action_args": {"content": "The cadence data is compelling too. Day 1-3-8-15 beat Day 1-2-4 by every metric: 23% fewer unsubscribes, 18% more meetings. And multi-threading at Day 3 (reaching the CX lead AND IT lead) increased conversion 3.1x. Let's lock this in."}
+    },
+    {
+      "agent_id": 14,
+      "agent_name": "Nathan Lee (CTO @ DataPulse)",
+      "action_type": "REPLY",
+      "platform": "reddit",
+      "round_num": 108,
+      "timestamp": "2026-01-17T18:00:00Z",
+      "action_args": {"content": "After reviewing Intercom's API docs that @DavidKim shared — I'm impressed. Native Salesforce, HubSpot, Slack connectors. REST and GraphQL APIs. Data export in standard formats. This isn't the vendor lock-in trap I expected. The build-vs-buy math favors buying at our scale."}
+    },
+    {
+      "agent_id": 11,
+      "agent_name": "Lisa Park (VP CX @ TravelNow)",
+      "action_type": "CREATE_POST",
+      "platform": "twitter",
+      "round_num": 114,
+      "timestamp": "2026-01-17T21:00:00Z",
+      "action_args": {"content": "Final take: the consensus strategy is right. Segment-specific messaging, compliance-first for regulated industries, Day 1-3-8-15 cadence, multi-threading at Day 3. Projected 45-65% improvement over one-size-fits-all. This group made the right call."}
+    },
+    {
+      "agent_id": 12,
+      "agent_name": "Sofia Martinez (Support Mgr @ QuickShip)",
+      "action_type": "REPLY",
+      "platform": "twitter",
+      "round_num": 120,
+      "timestamp": "2026-01-18T00:00:00Z",
+      "action_args": {"content": "The real win here isn't any single messaging change — it's that we moved from a binary 'growth vs conservation' debate to a nuanced strategy that respects both perspectives. That's what good GTM strategy looks like."}
+    }
+  ],
+  "influence_graph": {
+    "nodes": [
+      {"id": "1", "name": "Sarah Chen", "influence_score": 0.92, "persona_type": "VP Support", "coalition": "Growth"},
+      {"id": "2", "name": "Marcus Johnson", "influence_score": 0.78, "persona_type": "CX Director", "coalition": "Conservation"},
+      {"id": "3", "name": "Priya Patel", "influence_score": 0.87, "persona_type": "Head of Ops", "coalition": "Growth"},
+      {"id": "4", "name": "David Kim", "influence_score": 0.95, "persona_type": "IT Leader", "coalition": "Consensus Bridge"},
+      {"id": "5", "name": "Rachel Torres", "influence_score": 0.71, "persona_type": "VP Support", "coalition": "Conservation"},
+      {"id": "6", "name": "James Wright", "influence_score": 0.68, "persona_type": "CX Director", "coalition": "Consensus Bridge"},
+      {"id": "7", "name": "Anika Sharma", "influence_score": 0.74, "persona_type": "Support Eng Lead", "coalition": "Conservation"},
+      {"id": "8", "name": "Tom O'Brien", "influence_score": 0.65, "persona_type": "VP CS", "coalition": "Growth"},
+      {"id": "9", "name": "Elena Vasquez", "influence_score": 0.83, "persona_type": "Dir Digital", "coalition": "Conservation"},
+      {"id": "10", "name": "Michael Chang", "influence_score": 0.62, "persona_type": "Head of Ops", "coalition": "Growth"},
+      {"id": "11", "name": "Lisa Park", "influence_score": 0.69, "persona_type": "VP CX", "coalition": "Consensus Bridge"},
+      {"id": "12", "name": "Sofia Martinez", "influence_score": 0.58, "persona_type": "Support Mgr", "coalition": "Consensus Bridge"},
+      {"id": "13", "name": "Robert Williams", "influence_score": 0.55, "persona_type": "IT Director", "coalition": "Consensus Bridge"},
+      {"id": "14", "name": "Nathan Lee", "influence_score": 0.76, "persona_type": "CTO", "coalition": "Conservation"},
+      {"id": "15", "name": "Catherine Hayes", "influence_score": 0.81, "persona_type": "CFO", "coalition": "Growth"}
+    ],
+    "edges": [
+      {"source": "1", "target": "7", "weight": 0.85, "type": "persuasion", "description": "Sarah's pilot data convinced Anika to reconsider Fin"},
+      {"source": "1", "target": "3", "weight": 0.72, "type": "reinforcement", "description": "Sarah and Priya reinforced each other's ROI arguments"},
+      {"source": "3", "target": "15", "weight": 0.91, "type": "persuasion", "description": "Priya's TCO analysis convinced Catherine of 87-day payback"},
+      {"source": "9", "target": "2", "weight": 0.88, "type": "persuasion", "description": "Elena's compliance-first data shifted Marcus toward consensus"},
+      {"source": "4", "target": "14", "weight": 0.79, "type": "persuasion", "description": "David's API analysis addressed Nathan's vendor lock-in concerns"},
+      {"source": "4", "target": "6", "weight": 0.65, "type": "topic_adoption", "description": "James adopted David's segment-specific framework"},
+      {"source": "4", "target": "11", "weight": 0.62, "type": "topic_adoption", "description": "Lisa adopted David's consensus position"},
+      {"source": "5", "target": "7", "weight": 0.58, "type": "reinforcement", "description": "Rachel and Anika aligned on cautious AI deployment"},
+      {"source": "2", "target": "9", "weight": 0.67, "type": "reinforcement", "description": "Marcus and Elena aligned on compliance-first approach"},
+      {"source": "10", "target": "1", "weight": 0.55, "type": "reinforcement", "description": "Michael reinforced Sarah's growth position from startup angle"},
+      {"source": "8", "target": "3", "weight": 0.48, "type": "reinforcement", "description": "Tom supported Priya's expansion revenue argument"},
+      {"source": "12", "target": "4", "weight": 0.71, "type": "topic_adoption", "description": "Sofia recognized David's synthesis as the pragmatic middle ground"}
+    ]
+  },
+  "sentiment_timeline": [
+    {"round": 6, "growth_sentiment": 0.82, "conservation_sentiment": -0.45, "overall": 0.18},
+    {"round": 12, "growth_sentiment": 0.88, "conservation_sentiment": -0.52, "overall": 0.15},
+    {"round": 24, "growth_sentiment": 0.75, "conservation_sentiment": -0.61, "overall": 0.05},
+    {"round": 36, "growth_sentiment": 0.71, "conservation_sentiment": -0.58, "overall": 0.08},
+    {"round": 48, "growth_sentiment": 0.68, "conservation_sentiment": -0.42, "overall": 0.15},
+    {"round": 60, "growth_sentiment": 0.65, "conservation_sentiment": -0.22, "overall": 0.28},
+    {"round": 72, "growth_sentiment": 0.72, "conservation_sentiment": 0.12, "overall": 0.45},
+    {"round": 84, "growth_sentiment": 0.78, "conservation_sentiment": 0.35, "overall": 0.58},
+    {"round": 96, "growth_sentiment": 0.74, "conservation_sentiment": 0.52, "overall": 0.64},
+    {"round": 108, "growth_sentiment": 0.71, "conservation_sentiment": 0.61, "overall": 0.67},
+    {"round": 120, "growth_sentiment": 0.69, "conservation_sentiment": 0.65, "overall": 0.68},
+    {"round": 132, "growth_sentiment": 0.68, "conservation_sentiment": 0.67, "overall": 0.68},
+    {"round": 144, "growth_sentiment": 0.70, "conservation_sentiment": 0.69, "overall": 0.70}
+  ]
+}

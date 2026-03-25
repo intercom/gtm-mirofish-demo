@@ -25,15 +25,30 @@ _backend_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _backend_dir)
 sys.path.insert(0, os.path.join(_backend_dir, "app", "api"))
 
+from data.demo_preset.loader import (   # noqa: E402
+    get_dashboard,
+    get_preset_report_id,
+    get_preset_sim_id,
+    get_report as get_preset_report,
+    get_simulation as get_preset_simulation,
+    is_demo_preset_enabled,
+)
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from demo import register_demo_blueprints
+from demo import (                       # noqa: E402
+    register_demo_blueprints,
+    _graph_tasks,
+    _simulations,
+    _reports,
+)
 
 app = Flask(__name__)
 CORS(app)
 register_demo_blueprints(app)
 
+_preset_loaded: bool = False  # True when demo preset data is active
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -161,11 +176,88 @@ def whatif_get_variants(base_id):
 
 
 # ---------------------------------------------------------------------------
+# Demo Preset API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/demo-preset")
+def demo_preset_status():
+    """Check if demo preset is available and/or loaded."""
+    return _ok({
+        "available": is_demo_preset_enabled(),
+        "loaded": _preset_loaded,
+        "simulation_id": get_preset_sim_id() if _preset_loaded else None,
+        "report_id": get_preset_report_id() if _preset_loaded else None,
+    })
+
+
+@app.route("/api/demo-preset/load", methods=["POST"])
+def demo_preset_load():
+    """Load demo preset data into in-memory state for a curated presentation."""
+    global _preset_loaded
+
+    if not is_demo_preset_enabled():
+        return _err("Demo preset not enabled. Set DEMO_PRESET=true in environment.", 403)
+
+    preset_sim = get_preset_simulation()
+    preset_report = get_preset_report()
+    sim_id = preset_sim["simulation_id"]
+    report_id = preset_report["report_id"]
+
+    # Seed in-memory state so existing endpoints serve preset data
+    _simulations[sim_id] = {"start": 0}  # start=0 means completed (elapsed > threshold)
+    _graph_tasks[f"demo-graph-preset"] = {"start": 0}
+    _reports[report_id] = {"start": 0, "sim_id": sim_id}
+    _preset_loaded = True
+
+    return _ok({
+        "loaded": True,
+        "simulation_id": sim_id,
+        "report_id": report_id,
+        "graph_task_id": "demo-graph-preset",
+    })
+
+
+@app.route("/api/demo-preset/simulation")
+def demo_preset_simulation():
+    """Return full preset simulation data including coalitions and belief changes."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_preset_simulation())
+
+
+@app.route("/api/demo-preset/report")
+def demo_preset_report():
+    """Return full preset report data."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_preset_report())
+
+
+@app.route("/api/demo-preset/dashboard")
+def demo_preset_dashboard():
+    """Return preset dashboard widget configuration."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_dashboard())
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+
+    if is_demo_preset_enabled():
+        # Auto-load preset so the app starts with curated data ready to go
+        sim = get_preset_simulation()
+        rpt = get_preset_report()
+        _simulations[sim["simulation_id"]] = {"start": 0}
+        _graph_tasks["demo-graph-preset"] = {"start": 0}
+        _reports[rpt["report_id"]] = {"start": 0, "sim_id": sim["simulation_id"]}
+        _preset_loaded = True
+        print(f"Demo preset loaded: sim={sim['simulation_id']}, report={rpt['report_id']}")
+
     print(f"MiroFish Demo Backend starting on port {port} (demo mode)")
     app.run(host="0.0.0.0", port=port, debug=debug)

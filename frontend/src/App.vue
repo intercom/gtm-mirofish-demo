@@ -2,6 +2,7 @@
 import { watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
+import ErrorBoundary from './components/ui/ErrorBoundary.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import { useTheme } from './composables/useTheme'
@@ -50,11 +51,13 @@ onUnmounted(() => {
 
 <template>
   <AppLayout>
-    <router-view v-slot="{ Component }">
-      <Transition name="page" mode="out-in">
-        <component :is="Component" />
-      </Transition>
-    </router-view>
+    <ErrorBoundary>
+      <router-view v-slot="{ Component }">
+        <Transition name="page" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </router-view>
+    </ErrorBoundary>
   </AppLayout>
   <ToastContainer />
   <PresenterToolbar v-if="isDemoMode" />

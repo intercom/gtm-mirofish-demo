@@ -6,7 +6,9 @@ and seed data files from the gtm_scenarios/ and gtm_seed_data/ directories.
 """
 
 import json
-import os
+from unittest.mock import patch, MagicMock
+
+from app.models.task import TaskManager, TaskStatus
 
 
 # ── GET /api/gtm/scenarios ──
@@ -29,7 +31,7 @@ class TestListScenarios:
     def test_scenarios_not_empty(self, client):
         """There are 4 pre-built scenario JSON files in gtm_scenarios/."""
         data = client.get("/api/gtm/scenarios").get_json()
-        assert len(data["scenarios"]) >= 4
+        assert len(data["scenarios"]) == 4
 
     def test_scenario_item_shape(self, client):
         data = client.get("/api/gtm/scenarios").get_json()
@@ -37,11 +39,28 @@ class TestListScenarios:
         for key in ("id", "name", "description", "category", "icon"):
             assert key in item, f"Missing key: {key}"
 
+    def test_does_not_include_seed_text(self, client):
+        resp = client.get("/api/gtm/scenarios")
+        for s in resp.get_json()["scenarios"]:
+            assert "seed_text" not in s
+
     def test_known_scenario_ids(self, client):
         data = client.get("/api/gtm/scenarios").get_json()
         ids = {s["id"] for s in data["scenarios"]}
-        expected = {"outbound_campaign", "personalization", "pricing_simulation", "signal_validation"}
-        assert expected.issubset(ids)
+        assert ids == {
+            "outbound_campaign",
+            "pricing_simulation",
+            "personalization",
+            "signal_validation",
+        }
+
+    def test_empty_when_dir_missing(self, client, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "app.api.gtm_scenarios.SCENARIOS_DIR",
+            str(tmp_path / "nonexistent"),
+        )
+        resp = client.get("/api/gtm/scenarios")
+        assert resp.get_json()["scenarios"] == []
 
 
 # ── GET /api/gtm/scenarios/<scenario_id> ──
@@ -124,8 +143,8 @@ class TestGetScenarioSeedText:
 
 # ── POST /api/gtm/simulate ──
 
-class TestSimulateEndpoint:
-    """Tests for the unified simulation endpoint (validation only — no real services)."""
+class TestSimulate:
+    """Tests for the unified simulation endpoint."""
 
     def test_missing_seed_text_returns_400(self, client):
         resp = client.post(
@@ -134,9 +153,9 @@ class TestSimulateEndpoint:
             content_type="application/json",
         )
         assert resp.status_code == 400
-        data = resp.get_json()
-        assert data["success"] is False
-        assert "seed_text" in data["error"]
+        body = resp.get_json()
+        assert body["success"] is False
+        assert "seed_text" in body["error"]
 
     def test_empty_seed_text_returns_400(self, client):
         resp = client.post(
@@ -145,3 +164,95 @@ class TestSimulateEndpoint:
             content_type="application/json",
         )
         assert resp.status_code == 400
+
+    def test_missing_zep_key(self, client, app):
+        app.config["ZEP_API_KEY"] = None
+        with patch("app.api.gtm_scenarios.Config") as mock_cfg:
+            mock_cfg.ZEP_API_KEY = None
+            mock_cfg.DEFAULT_CHUNK_SIZE = 500
+            mock_cfg.DEFAULT_CHUNK_OVERLAP = 50
+            resp = client.post(
+                "/api/gtm/simulate",
+                json={"seed_text": "Test scenario text for simulation"},
+                content_type="application/json",
+            )
+        assert resp.status_code == 500
+        assert "ZEP_API_KEY" in resp.get_json()["error"]
+
+    @patch("app.api.gtm_scenarios.threading.Thread")
+    @patch("app.api.gtm_scenarios.ProjectManager")
+    @patch("app.api.gtm_scenarios.TextProcessor")
+    def test_successful_simulate(self, mock_tp, mock_pm, mock_thread, client):
+        mock_tp.preprocess_text.return_value = "preprocessed text"
+        mock_project = MagicMock()
+        mock_project.project_id = "proj_abc123"
+        mock_pm.create_project.return_value = mock_project
+
+        resp = client.post(
+            "/api/gtm/simulate",
+            json={
+                "seed_text": "Run a GTM simulation for outbound campaign",
+                "agent_count": 200,
+                "industries": ["SaaS"],
+            },
+            content_type="application/json",
+        )
+
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert "task_id" in body["data"]
+        assert body["data"]["project_id"] == "proj_abc123"
+
+        mock_thread.return_value.start.assert_called_once()
+
+    @patch("app.api.gtm_scenarios.threading.Thread")
+    @patch("app.api.gtm_scenarios.ProjectManager")
+    @patch("app.api.gtm_scenarios.TextProcessor")
+    def test_simulate_creates_task(self, mock_tp, mock_pm, mock_thread, client):
+        mock_tp.preprocess_text.return_value = "preprocessed"
+        mock_project = MagicMock()
+        mock_project.project_id = "proj_xyz"
+        mock_pm.create_project.return_value = mock_project
+
+        resp = client.post(
+            "/api/gtm/simulate",
+            json={"seed_text": "Some seed text"},
+            content_type="application/json",
+        )
+
+        task_id = resp.get_json()["data"]["task_id"]
+        tm = TaskManager()
+        task = tm.get_task(task_id)
+        assert task is not None
+        assert task.task_type == "GTM Simulation"
+        assert task.metadata["project_id"] == "proj_xyz"
+
+    @patch("app.api.gtm_scenarios.threading.Thread")
+    @patch("app.api.gtm_scenarios.ProjectManager")
+    @patch("app.api.gtm_scenarios.TextProcessor")
+    def test_simulate_stores_metadata(self, mock_tp, mock_pm, mock_thread, client):
+        mock_tp.preprocess_text.return_value = "preprocessed"
+        mock_project = MagicMock()
+        mock_project.project_id = "proj_meta"
+        mock_pm.create_project.return_value = mock_project
+
+        resp = client.post(
+            "/api/gtm/simulate",
+            json={
+                "seed_text": "Seed text here",
+                "agent_count": 100,
+                "persona_types": ["VP of Support"],
+                "industries": ["SaaS", "Healthcare"],
+                "duration_hours": 48,
+            },
+            content_type="application/json",
+        )
+
+        task_id = resp.get_json()["data"]["task_id"]
+        tm = TaskManager()
+        task = tm.get_task(task_id)
+        assert task.metadata["agent_count"] == 100
+        assert task.metadata["persona_types"] == ["VP of Support"]
+        assert task.metadata["industries"] == ["SaaS", "Healthcare"]
+        assert task.metadata["duration_hours"] == 48

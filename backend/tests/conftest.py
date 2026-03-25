@@ -16,6 +16,7 @@ import pytest
 
 from app import create_app
 from app.config import Config
+from app.models.task import TaskManager
 
 
 class TestConfig(Config):
@@ -26,6 +27,7 @@ class TestConfig(Config):
     ZEP_API_KEY = "test-zep-key"
     LLM_BASE_URL = "https://api.openai.com/v1/"
     LLM_MODEL_NAME = "gpt-4o-mini"
+    AUTH_ENABLED = False
 
 
 @pytest.fixture
@@ -77,6 +79,15 @@ def app(tmp_uploads):
 def client(app):
     """Flask test client."""
     return app.test_client()
+
+
+@pytest.fixture(autouse=True)
+def _reset_task_manager():
+    """Clear TaskManager singleton state between tests."""
+    tm = TaskManager()
+    tm._tasks.clear()
+    yield
+    tm._tasks.clear()
 
 
 # --------------- helper factories ---------------

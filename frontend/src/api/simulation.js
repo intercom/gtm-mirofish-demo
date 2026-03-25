@@ -59,6 +59,10 @@ export const simulationApi = {
   interviewAll: (data) => client.post('/simulation/interview/all', data),
   interviewHistory: (data) => client.post('/simulation/interview/history', data),
 
+  // --- Influence ---
+  getInfluence: (simulationId) =>
+    client.get(`/simulation/${simulationId}/influence`),
+
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),

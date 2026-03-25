@@ -11,11 +11,17 @@ from .pipeline import (
     FUNNEL_STAGES,
     default_funnel_stages,
 )
+from .custom_agent import (
+    CustomAgentConfig, CustomAgentManager,
+    PersonalityVector, VALID_COMMUNICATION_STYLES,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
     'Project', 'ProjectStatus', 'ProjectManager',
     'PipelineStage', 'FunnelSnapshot', 'ConversionEvent',
     'FUNNEL_STAGES', 'default_funnel_stages',
+    'CustomAgentConfig', 'CustomAgentManager',
+    'PersonalityVector', 'VALID_COMMUNICATION_STYLES',
 ]
 

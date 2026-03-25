@@ -2,16 +2,16 @@ import client from './client'
 
 export const cpqApi = {
   // --- Products ---
-  getProducts: (params) => client.get('/cpq/products', { params }),
+  getProducts: (params) => client.get('/v1/cpq/products', { params }),
 
   // --- Quotes ---
-  getQuotes: (params) => client.get('/cpq/quotes', { params }),
-  getQuote: (id) => client.get(`/cpq/quotes/${id}`),
-  getPdfPreview: (id) => client.get(`/cpq/quotes/${id}/pdf-preview`),
-  approveQuote: (id) => client.post(`/cpq/quotes/${id}/approve`),
+  getQuotes: (params) => client.get('/v1/cpq/quotes', { params }),
+  getQuote: (id) => client.get(`/v1/cpq/quotes/${id}`),
+  getPdfPreview: (id) => client.get(`/v1/cpq/quotes/${id}/pdf-preview`),
+  approveQuote: (id) => client.post(`/v1/cpq/quotes/${id}/approve`),
   rejectQuote: (id, reason) =>
-    client.post(`/cpq/quotes/${id}/reject`, { reason }),
+    client.post(`/v1/cpq/quotes/${id}/reject`, { reason }),
 
   // --- Stats ---
-  getCpqStats: () => client.get('/cpq/stats'),
+  getCpqStats: () => client.get('/v1/cpq/stats'),
 }

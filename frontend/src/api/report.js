@@ -26,6 +26,11 @@ export const reportApi = {
 
   // --- Transparency & logs ---
   getToolCalls: (reportId) => client.get(`/report/${reportId}/tool-calls`),
+
+  // --- Visualizations ---
+  getCampaignSpend: () => client.get('/report/campaign-spend'),
+
+  // --- Agent logs ---
   getAgentLog: (reportId, params) =>
     client.get(`/report/${reportId}/agent-log`, { params }),
   getAgentLogStream: (reportId) =>

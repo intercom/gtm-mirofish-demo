@@ -1097,6 +1097,48 @@ def stream_console_log(report_id: str):
         }), 500
 
 
+# ============== Campaign Spend Visualization ==============
+
+@report_bp.route('/campaign-spend', methods=['GET'])
+def get_campaign_spend():
+    """
+    Campaign spend allocation data for treemap visualization.
+    Returns mock GTM campaign data — works without LLM key.
+    """
+    campaigns = [
+        {"name": "Zendesk Displacement Email", "channel": "Email", "spend": 45000, "budget": 50000},
+        {"name": "LinkedIn Sponsored Content", "channel": "Paid Social", "spend": 38000, "budget": 40000},
+        {"name": "AI Agent Launch Email", "channel": "Email", "spend": 32000, "budget": 35000},
+        {"name": "Google Search — Competitor", "channel": "Search", "spend": 29000, "budget": 30000},
+        {"name": "Enterprise Webinar Series", "channel": "Events", "spend": 25000, "budget": 28000},
+        {"name": "LinkedIn InMail", "channel": "Paid Social", "spend": 22000, "budget": 25000},
+        {"name": "Content SEO Program", "channel": "Content", "spend": 18000, "budget": 20000},
+        {"name": "Google Display Retargeting", "channel": "Search", "spend": 15000, "budget": 18000},
+        {"name": "SDR Direct Outreach", "channel": "Outbound", "spend": 12000, "budget": 15000},
+    ]
+
+    total_spend = sum(c["spend"] for c in campaigns)
+    total_budget = sum(c["budget"] for c in campaigns)
+
+    channels = {}
+    for c in campaigns:
+        ch = c["channel"]
+        if ch not in channels:
+            channels[ch] = {"budget": 0, "spend": 0}
+        channels[ch]["budget"] += c["budget"]
+        channels[ch]["spend"] += c["spend"]
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "total_budget": total_budget,
+            "total_spend": total_spend,
+            "campaigns": campaigns,
+            "channels": channels,
+        }
+    })
+
+
 # ============== 工具调用接口（供调试使用）==============
 
 @report_bp.route('/tools/search', methods=['POST'])

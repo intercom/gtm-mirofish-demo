@@ -17,6 +17,15 @@ const CHART_MAP = {
   2: renderSubjectLinePerformance,
   3: renderBehavioralClusters,
   4: renderTopicTreemap,
+  5: renderCampaignSpendAllocation,
+}
+
+const COLORS = {
+  primary: '#2068FF',
+  orange: '#ff5600',
+  purple: '#AA00FF',
+  green: '#009900',
+  text: '#050505',
 }
 
 function hasChart(index) {
@@ -789,6 +798,166 @@ function renderTopicTreemap() {
       const pct = ((d.value / totalValue) * 100).toFixed(1)
       return `${d.data.name}\n${d.parent.data.name} \u2022 ${pct}%`
     })
+}
+
+// --- Chart 5: Treemap — Campaign Spend Allocation ---
+
+function renderCampaignSpendAllocation() {
+  const container = chartRef.value
+  if (!container) return
+
+  const campaigns = [
+    { name: 'Zendesk Displacement Email', channel: 'Email', spend: 45000 },
+    { name: 'LinkedIn Sponsored Content', channel: 'Paid Social', spend: 38000 },
+    { name: 'AI Agent Launch Email', channel: 'Email', spend: 32000 },
+    { name: 'Google Search — Competitor', channel: 'Search', spend: 29000 },
+    { name: 'Enterprise Webinar Series', channel: 'Events', spend: 25000 },
+    { name: 'LinkedIn InMail', channel: 'Paid Social', spend: 22000 },
+    { name: 'Content SEO Program', channel: 'Content', spend: 18000 },
+    { name: 'Google Display Retargeting', channel: 'Search', spend: 15000 },
+    { name: 'SDR Direct Outreach', channel: 'Outbound', spend: 12000 },
+  ]
+
+  const channelColors = {
+    'Email': COLORS.primary,
+    'Paid Social': COLORS.orange,
+    'Search': COLORS.purple,
+    'Events': COLORS.green,
+    'Content': '#1a5ae0',
+    'Outbound': '#888',
+  }
+
+  const totalSpend = campaigns.reduce((sum, c) => sum + c.spend, 0)
+
+  const containerWidth = container.clientWidth
+  const margin = { top: 56, right: 16, bottom: 56, left: 16 }
+  const width = containerWidth - margin.left - margin.right
+  const height = 300
+  const totalHeight = height + margin.top + margin.bottom
+
+  const svg = d3.select(container)
+    .append('svg')
+    .attr('width', containerWidth)
+    .attr('height', totalHeight)
+    .attr('viewBox', `0 0 ${containerWidth} ${totalHeight}`)
+    .style('overflow', 'visible')
+
+  svg.append('text')
+    .attr('x', margin.left)
+    .attr('y', 22)
+    .attr('font-size', '14px')
+    .attr('font-weight', '600')
+    .attr('fill', COLORS.text)
+    .text('Campaign Spend Allocation')
+
+  svg.append('text')
+    .attr('x', margin.left)
+    .attr('y', 40)
+    .attr('font-size', '11px')
+    .attr('fill', '#888')
+    .text(`Budget distribution across GTM campaigns ($${(totalSpend / 1000).toFixed(0)}K total)`)
+
+  const g = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`)
+
+  const root = d3.hierarchy({
+    name: 'root',
+    children: campaigns.map(c => ({ ...c, value: c.spend })),
+  }).sum(d => d.value)
+
+  d3.treemap()
+    .size([width, height])
+    .padding(3)
+    .round(true)(root)
+
+  const leaves = root.leaves()
+
+  const cells = g.selectAll('.cell')
+    .data(leaves)
+    .join('g')
+    .attr('transform', d => `translate(${d.x0},${d.y0})`)
+
+  cells.append('rect')
+    .attr('width', d => d.x1 - d.x0)
+    .attr('height', d => d.y1 - d.y0)
+    .attr('rx', 4)
+    .attr('fill', d => channelColors[d.data.channel])
+    .attr('opacity', 0)
+    .transition()
+    .duration(600)
+    .delay((d, i) => i * 60)
+    .ease(d3.easeCubicOut)
+    .attr('opacity', 0.85)
+
+  cells.each(function (d, i) {
+    const w = d.x1 - d.x0
+    const h = d.y1 - d.y0
+    const cell = d3.select(this)
+    const baseDelay = 600 + i * 60
+
+    if (w > 70 && h > 44) {
+      const maxChars = Math.floor((w - 16) / 6.5)
+      cell.append('text')
+        .attr('x', 8)
+        .attr('y', 20)
+        .attr('font-size', w > 130 ? '11px' : '9px')
+        .attr('font-weight', '600')
+        .attr('fill', '#fff')
+        .style('opacity', 0)
+        .text(d.data.name.length > maxChars
+          ? d.data.name.slice(0, maxChars) + '…'
+          : d.data.name)
+        .transition().duration(300).delay(baseDelay)
+        .style('opacity', 1)
+
+      cell.append('text')
+        .attr('x', 8)
+        .attr('y', 36)
+        .attr('font-size', '10px')
+        .attr('fill', 'rgba(255,255,255,0.75)')
+        .style('opacity', 0)
+        .text(`$${(d.data.spend / 1000).toFixed(0)}K`)
+        .transition().duration(300).delay(baseDelay + 50)
+        .style('opacity', 1)
+    } else if (w > 36 && h > 22) {
+      cell.append('text')
+        .attr('x', 5)
+        .attr('y', 15)
+        .attr('font-size', '9px')
+        .attr('font-weight', '600')
+        .attr('fill', '#fff')
+        .style('opacity', 0)
+        .text(`$${(d.data.spend / 1000).toFixed(0)}K`)
+        .transition().duration(300).delay(baseDelay)
+        .style('opacity', 1)
+    }
+  })
+
+  // Legend
+  const channels = Object.keys(channelColors)
+  const legendG = g.append('g')
+    .attr('transform', `translate(0, ${height + 16})`)
+
+  let lx = 0
+  channels.forEach((ch) => {
+    legendG.append('rect')
+      .attr('x', lx)
+      .attr('y', 0)
+      .attr('width', 10)
+      .attr('height', 10)
+      .attr('rx', 2)
+      .attr('fill', channelColors[ch])
+      .attr('opacity', 0.85)
+
+    const label = legendG.append('text')
+      .attr('x', lx + 14)
+      .attr('y', 9)
+      .attr('font-size', '10px')
+      .attr('fill', '#888')
+      .text(ch)
+
+    lx += 14 + label.node().getComputedTextLength() + 16
+  })
 }
 
 // --- Lifecycle ---

@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
 import OfflineBanner from './components/common/OfflineBanner.vue'
+import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndicator.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
@@ -59,5 +60,6 @@ onUnmounted(() => {
   </AppLayout>
   <OfflineBanner />
   <ToastContainer />
+  <NavigationShortcutIndicator />
   <PresenterToolbar v-if="isDemoMode" />
 </template>

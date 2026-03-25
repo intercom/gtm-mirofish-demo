@@ -48,6 +48,12 @@ def create_app(config_class=Config):
     if should_log_startup:
         logger.info("已注册模拟进程清理函数")
     
+    # Rate limiting middleware (must be registered before request logging)
+    from .middleware.rate_limit import init_rate_limiter
+    init_rate_limiter(app)
+    if should_log_startup:
+        logger.info("Rate limiting middleware registered")
+
     # 请求日志中间件
     @app.before_request
     def log_request():

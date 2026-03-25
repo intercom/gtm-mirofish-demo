@@ -92,6 +92,12 @@ class Config:
     REPORT_AGENT_MAX_REFLECTION_ROUNDS = int(os.environ.get('REPORT_AGENT_MAX_REFLECTION_ROUNDS', '2'))
     REPORT_AGENT_TEMPERATURE = float(os.environ.get('REPORT_AGENT_TEMPERATURE', '0.5'))
 
+    # Rate Limiting
+    RATE_LIMIT_ENABLED = os.environ.get('RATE_LIMIT_ENABLED', 'true').lower() == 'true'
+    RATE_LIMIT_DEFAULT = int(os.environ.get('RATE_LIMIT_DEFAULT', '60'))  # requests per window
+    RATE_LIMIT_LLM = int(os.environ.get('RATE_LIMIT_LLM', '10'))  # stricter for LLM endpoints
+    RATE_LIMIT_WINDOW = int(os.environ.get('RATE_LIMIT_WINDOW', '60'))  # window in seconds
+
     # Auth Configuration
     AUTH_ENABLED = os.environ.get('AUTH_ENABLED', 'false').lower() == 'true'
     AUTH_PROVIDER = os.environ.get('AUTH_PROVIDER', 'google')

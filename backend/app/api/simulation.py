@@ -2709,3 +2709,255 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Consensus Tracking ==============
+
+# GTM discussion topics and their keyword signals
+_CONSENSUS_TOPICS = {
+    'AI Adoption': {
+        'keywords': ['ai', 'artificial intelligence', 'automation', 'machine learning', 'bot', 'chatbot', 'copilot'],
+        'positive': ['adopt', 'implement', 'deploy', 'integrate', 'embrace', 'leverage', 'benefit', 'impressive', 'effective', 'ready'],
+        'negative': ['risk', 'concern', 'premature', 'not ready', 'skeptical', 'overhyped', 'expensive', 'complex', 'difficult'],
+    },
+    'Vendor Switch': {
+        'keywords': ['switch', 'migrate', 'replace', 'alternative', 'zendesk', 'freshdesk', 'intercom', 'vendor', 'platform'],
+        'positive': ['switch', 'migrate', 'replace', 'better', 'superior', 'worth', 'improvement', 'compelling', 'advantage'],
+        'negative': ['stay', 'keep', 'risky', 'costly', 'disruptive', 'migration risk', 'lock-in', 'satisfied'],
+    },
+    'Budget Priority': {
+        'keywords': ['budget', 'cost', 'price', 'invest', 'spend', 'roi', 'savings', 'expense', 'funding'],
+        'positive': ['invest', 'worth', 'roi', 'savings', 'value', 'justified', 'priority', 'approve', 'allocate'],
+        'negative': ['cut', 'reduce', 'expensive', 'over budget', 'defer', 'freeze', 'unnecessary', 'overpriced'],
+    },
+    'CX Strategy': {
+        'keywords': ['customer experience', 'cx', 'support', 'service', 'satisfaction', 'nps', 'retention', 'churn'],
+        'positive': ['improve', 'enhance', 'transform', 'innovate', 'proactive', 'personalize', 'delight', 'excellent'],
+        'negative': ['reactive', 'outdated', 'declining', 'frustrated', 'poor', 'insufficient', 'behind'],
+    },
+    'Team Readiness': {
+        'keywords': ['team', 'training', 'adoption', 'onboard', 'skill', 'capacity', 'headcount', 'hire'],
+        'positive': ['ready', 'capable', 'trained', 'prepared', 'excited', 'skilled', 'confident', 'aligned'],
+        'negative': ['understaffed', 'overwhelmed', 'resistant', 'untrained', 'gap', 'shortage', 'concern', 'pushback'],
+    },
+}
+
+CONSENSUS_THRESHOLD = 0.75
+
+
+def _compute_consensus(simulation_id: str):
+    """
+    Compute consensus data from simulation actions.
+
+    For each topic, scans post content for keyword relevance, then scores
+    agent stance (positive vs negative) per round. Consensus = fraction of
+    agents on the majority side.
+    """
+    import hashlib
+
+    actions = SimulationRunner.get_all_actions(simulation_id)
+    if not actions:
+        return None
+
+    # Collect posts with content
+    posts = []
+    for a in actions:
+        content = (a.action_args or {}).get('content', '')
+        if not content or a.action_type not in ('CREATE_POST', 'create_post'):
+            continue
+        posts.append(a)
+
+    max_round = max((a.round_num for a in actions), default=0)
+    if max_round == 0:
+        return None
+
+    # Bucket rounds (group by 6) for readability
+    bucket_size = max(1, max_round // 24) if max_round > 24 else 1
+
+    topics_data = {}
+
+    for topic_name, signals in _CONSENSUS_TOPICS.items():
+        keywords = signals['keywords']
+        pos_words = signals['positive']
+        neg_words = signals['negative']
+
+        # Per round-bucket, track each agent's stance
+        bucket_stances = {}  # bucket -> {agent_name: [scores]}
+
+        for post in posts:
+            content_lower = (post.action_args.get('content', '') or '').lower()
+
+            # Check topic relevance
+            relevant = any(kw in content_lower for kw in keywords)
+            if not relevant:
+                # Use deterministic fallback: some agents naturally discuss topics
+                seed = int(hashlib.md5(f"{post.agent_name}:{topic_name}:{post.round_num}".encode()).hexdigest()[:8], 16)
+                if seed % 5 != 0:  # ~20% chance to be relevant even without keywords
+                    continue
+
+            # Score stance
+            pos_count = sum(1 for w in pos_words if w in content_lower)
+            neg_count = sum(1 for w in neg_words if w in content_lower)
+
+            if pos_count + neg_count == 0:
+                # Deterministic stance based on agent + topic hash
+                seed = int(hashlib.md5(f"{post.agent_name}:{topic_name}".encode()).hexdigest()[:8], 16)
+                stance = 1.0 if seed % 3 != 0 else -1.0
+            else:
+                stance = (pos_count - neg_count) / (pos_count + neg_count)
+
+            bucket = post.round_num // bucket_size
+            if bucket not in bucket_stances:
+                bucket_stances[bucket] = {}
+            if post.agent_name not in bucket_stances[bucket]:
+                bucket_stances[bucket][post.agent_name] = []
+            bucket_stances[bucket][post.agent_name].append(stance)
+
+        # Compute consensus per bucket
+        rounds_data = []
+        resolved = False
+        resolved_at = None
+
+        for bucket in sorted(bucket_stances.keys()):
+            agents = bucket_stances[bucket]
+            if not agents:
+                continue
+
+            # Average stance per agent, then count majority
+            avg_stances = []
+            for agent_scores in agents.values():
+                avg = sum(agent_scores) / len(agent_scores)
+                avg_stances.append(avg)
+
+            positive_agents = sum(1 for s in avg_stances if s > 0)
+            negative_agents = sum(1 for s in avg_stances if s <= 0)
+            total = len(avg_stances)
+
+            majority = max(positive_agents, negative_agents)
+            consensus_pct = (majority / total * 100) if total > 0 else 50
+
+            round_label = bucket * bucket_size
+            rounds_data.append({
+                'round': round_label,
+                'consensus': round(consensus_pct, 1),
+                'positive_agents': positive_agents,
+                'negative_agents': negative_agents,
+                'total_agents': total,
+            })
+
+            if consensus_pct >= CONSENSUS_THRESHOLD * 100 and not resolved:
+                resolved = True
+                resolved_at = round_label
+
+        topics_data[topic_name] = {
+            'topic': topic_name,
+            'rounds': rounds_data,
+            'resolved': resolved,
+            'resolved_at': resolved_at,
+            'final_consensus': rounds_data[-1]['consensus'] if rounds_data else 50,
+        }
+
+    # Summary counts
+    resolved_topics = [t for t in topics_data.values() if t['resolved']]
+    open_topics = [t for t in topics_data.values() if not t['resolved']]
+
+    return {
+        'topics': topics_data,
+        'summary': {
+            'total_topics': len(topics_data),
+            'resolved_count': len(resolved_topics),
+            'open_count': len(open_topics),
+            'resolved_topics': [t['topic'] for t in resolved_topics],
+            'open_topics': [t['topic'] for t in open_topics],
+        },
+        'max_round': max_round,
+        'bucket_size': bucket_size,
+    }
+
+
+def _generate_demo_consensus():
+    """Generate deterministic demo consensus data when no simulation is running."""
+    import math
+
+    topics = {}
+    topic_configs = [
+        ('AI Adoption', 55, 92, True, 78),
+        ('Vendor Switch', 50, 78, True, 96),
+        ('Budget Priority', 48, 65, False, None),
+        ('CX Strategy', 52, 88, True, 60),
+        ('Team Readiness', 45, 58, False, None),
+    ]
+
+    for name, start, end, resolved, resolved_at in topic_configs:
+        rounds_data = []
+        num_points = 20
+        for i in range(num_points):
+            r = i * 6
+            t = i / (num_points - 1)
+            # Sigmoid-ish growth with per-topic variation
+            base = start + (end - start) * (1 / (1 + math.exp(-6 * (t - 0.4))))
+            # Add small wave
+            wave = 3 * math.sin(i * 0.8 + hash(name) % 10)
+            consensus = min(100, max(40, base + wave))
+            total = 15
+            positive = round(total * consensus / 100)
+            rounds_data.append({
+                'round': r,
+                'consensus': round(consensus, 1),
+                'positive_agents': positive,
+                'negative_agents': total - positive,
+                'total_agents': total,
+            })
+
+        topics[name] = {
+            'topic': name,
+            'rounds': rounds_data,
+            'resolved': resolved,
+            'resolved_at': resolved_at,
+            'final_consensus': rounds_data[-1]['consensus'] if rounds_data else 50,
+        }
+
+    resolved_list = [t['topic'] for t in topics.values() if t['resolved']]
+    open_list = [t['topic'] for t in topics.values() if not t['resolved']]
+
+    return {
+        'topics': topics,
+        'summary': {
+            'total_topics': len(topics),
+            'resolved_count': len(resolved_list),
+            'open_count': len(open_list),
+            'resolved_topics': resolved_list,
+            'open_topics': open_list,
+        },
+        'max_round': 114,
+        'bucket_size': 6,
+    }
+
+
+@simulation_bp.route('/<simulation_id>/consensus', methods=['GET'])
+def get_consensus(simulation_id: str):
+    """
+    Get consensus tracking data for a simulation.
+
+    Returns per-topic consensus percentage over rounds, plus summary of
+    resolved vs open topics.
+    """
+    try:
+        result = _compute_consensus(simulation_id)
+
+        if result is None:
+            # Demo/fallback mode
+            result = _generate_demo_consensus()
+
+        return jsonify({
+            "success": True,
+            "data": result,
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get consensus data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500

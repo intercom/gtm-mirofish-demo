@@ -62,4 +62,8 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- Consensus ---
+  getConsensus: (simulationId) =>
+    client.get(`/simulation/${simulationId}/consensus`),
 }

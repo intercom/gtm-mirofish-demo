@@ -63,6 +63,13 @@ from .reasoning_parser import (
     StepType
 )
 from .coalition_labeler import CoalitionLabeler, Coalition
+from .debate_scorer import (
+    DebateScorer,
+    DebateScorecard,
+    AgentPerformance,
+    ArgumentScore,
+    DebateFormat,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -118,5 +125,10 @@ __all__ = [
     'StepType',
     'CoalitionLabeler',
     'Coalition',
+    'DebateScorer',
+    'DebateScorecard',
+    'AgentPerformance',
+    'ArgumentScore',
+    'DebateFormat',
 ]
 

@@ -36,6 +36,7 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .agent_memory import AgentMemory, MemoryMessage, MemorySearchResult
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +70,8 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'AgentMemory',
+    'MemoryMessage',
+    'MemorySearchResult',
 ]
 

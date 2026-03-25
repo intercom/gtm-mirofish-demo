@@ -1,6 +1,7 @@
 """
 Data pipeline models for sync job tracking, dbt model/test status, and data freshness.
 Covers both Fivetran (source → Snowflake) and Census (Snowflake → CRM) sync patterns.
+Used by the pipeline sync generator to produce realistic demo data.
 """
 
 from dataclasses import dataclass, field
@@ -55,7 +56,7 @@ class SyncJob:
     direction: SyncDirection = SyncDirection.INGEST
     completed_at: Optional[str] = None
     rows_synced: int = 0
-    duration_seconds: Optional[int] = None
+    duration_seconds: Optional[float] = None
     error_message: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:

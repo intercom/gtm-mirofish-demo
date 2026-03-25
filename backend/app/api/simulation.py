@@ -2709,3 +2709,100 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Orchestrator endpoints ==============
+
+# In-memory registry of orchestrator instances (keyed by simulation_id).
+# In production these would be shared via Redis / DB; for the demo a
+# module-level dict suffices since Flask runs in a single process.
+_orchestrators: dict = {}
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/status', methods=['GET'])
+def get_orchestrator_status(simulation_id: str):
+    """
+    Return the orchestrator's lightweight status snapshot.
+
+    Response:
+        {
+            "success": true,
+            "data": {
+                "simulation_id": "sim_xxxx",
+                "state": "running",
+                "current_round": 42,
+                "total_rounds": 144,
+                "progress_percent": 29.2,
+                "twitter_actions": 120,
+                "reddit_actions": 85,
+                "total_actions": 205,
+                ...
+            }
+        }
+    """
+    from ..services.oasis_orchestrator import OasisOrchestrator
+
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({
+            "success": False,
+            "error": f"No active orchestrator for {simulation_id}",
+        }), 404
+
+    return jsonify({"success": True, "data": orch.get_status()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/results', methods=['GET'])
+def get_orchestrator_results(simulation_id: str):
+    """
+    Return the full structured results from the orchestrator.
+
+    Response:
+        {
+            "success": true,
+            "data": { ... OrchestratorResults ... }
+        }
+    """
+    from ..services.oasis_orchestrator import OasisOrchestrator
+
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({
+            "success": False,
+            "error": f"No active orchestrator for {simulation_id}",
+        }), 404
+
+    return jsonify({"success": True, "data": orch.get_results().to_dict()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/pause', methods=['POST'])
+def pause_orchestrator(simulation_id: str):
+    """Pause the running orchestrator after its current round."""
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({"success": False, "error": "No active orchestrator"}), 404
+
+    orch.pause()
+    return jsonify({"success": True, "data": orch.get_status()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/resume', methods=['POST'])
+def resume_orchestrator(simulation_id: str):
+    """Resume a paused orchestrator."""
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({"success": False, "error": "No active orchestrator"}), 404
+
+    orch.resume()
+    return jsonify({"success": True, "data": orch.get_status()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/stop', methods=['POST'])
+def stop_orchestrator(simulation_id: str):
+    """Request a graceful stop of the orchestrator."""
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({"success": False, "error": "No active orchestrator"}), 404
+
+    orch.stop()
+    return jsonify({"success": True, "data": orch.get_status()})

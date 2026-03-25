@@ -71,6 +71,16 @@ D3.js force-directed graph with entity type coloring (Topics, Personas, Relation
 
 ![Knowledge Graph](docs/screenshots/graph.png)
 
+### Chat with Simulation
+Conversational interface for querying the simulated world. Ask about simulation findings, persona engagement, messaging effectiveness, and recommended next steps.
+
+![Chat](docs/screenshots/chat.png)
+
+### Settings
+Configure LLM provider (Claude, GPT-4o, or Gemini), theme preference, and API keys. In demo mode, API keys are not required.
+
+![Settings](docs/screenshots/settings.png)
+
 ---
 
 ## Features

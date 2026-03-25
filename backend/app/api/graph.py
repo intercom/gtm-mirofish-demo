@@ -13,6 +13,7 @@ from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
+from ..services.community_detection import CommunityDetector
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
@@ -587,6 +588,88 @@ def get_graph_data(graph_id: str):
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Community Detection ==============
+
+@graph_bp.route('/communities/<graph_id>', methods=['GET'])
+def get_communities(graph_id: str):
+    """
+    Detect communities in a knowledge graph.
+    Returns community clusters with labels, members, topics, and cohesion scores.
+    Falls back to demo data when ZEP_API_KEY is not configured.
+    """
+    try:
+        detector = CommunityDetector()
+
+        if not Config.ZEP_API_KEY:
+            logger.info("ZEP_API_KEY not configured, returning demo communities")
+            demo_data = _get_demo_graph_data()
+            result = detector.detect(demo_data['nodes'], demo_data['edges'])
+            result['metadata']['demo'] = True
+            return jsonify({'success': True, 'data': result})
+
+        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+        graph_data = builder.get_graph_data(graph_id)
+
+        nodes = graph_data.get('nodes', [])
+        edges = graph_data.get('edges', [])
+        result = detector.detect(nodes, edges)
+
+        return jsonify({'success': True, 'data': result})
+
+    except Exception as e:
+        logger.error(f"Community detection failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+def _get_demo_graph_data():
+    """Return demo graph data for community detection when no Zep key is available."""
+    nodes = [
+        {'uuid': 'p1', 'name': 'Enterprise Buyer', 'labels': ['Entity', 'Persona'], 'summary': 'Decision-maker evaluating platform purchases for growth.'},
+        {'uuid': 'p2', 'name': 'SMB Founder', 'labels': ['Entity', 'Persona'], 'summary': 'Small business owner seeking affordable support tools.'},
+        {'uuid': 'p3', 'name': 'Developer Advocate', 'labels': ['Entity', 'Persona'], 'summary': 'Technical influencer evaluating APIs and integrations.'},
+        {'uuid': 'p4', 'name': 'VP of Support', 'labels': ['Entity', 'Persona'], 'summary': 'Senior leader responsible for support team performance.'},
+        {'uuid': 'p5', 'name': 'CX Director', 'labels': ['Entity', 'Persona'], 'summary': 'Owns customer experience strategy and CSAT metrics.'},
+        {'uuid': 'p6', 'name': 'CFO', 'labels': ['Entity', 'Persona'], 'summary': 'Financial decision-maker focused on ROI and cost reduction.'},
+        {'uuid': 't1', 'name': 'Customer Support', 'labels': ['Entity', 'Topic'], 'summary': 'Core product area for ticket management and live chat.'},
+        {'uuid': 't2', 'name': 'AI Automation', 'labels': ['Entity', 'Topic'], 'summary': 'ML-powered features that drive efficiency and enable growth.'},
+        {'uuid': 't3', 'name': 'Pricing Strategy', 'labels': ['Entity', 'Topic'], 'summary': 'Seat-based vs usage-based pricing models and packaging.'},
+        {'uuid': 't4', 'name': 'Fin AI Agent', 'labels': ['Entity', 'Topic'], 'summary': 'AI resolution engine handling frontline support queries.'},
+        {'uuid': 't5', 'name': 'Resolution Rate', 'labels': ['Entity', 'Topic'], 'summary': 'Key metric for support queries resolved without escalation.'},
+        {'uuid': 't6', 'name': 'Cost Reduction', 'labels': ['Entity', 'Topic'], 'summary': 'Strategies to lower support cost via automation.'},
+        {'uuid': 'e1', 'name': 'Product-Led Growth', 'labels': ['Entity', 'Process'], 'summary': 'GTM motion focusing on self-serve onboarding.'},
+        {'uuid': 'e2', 'name': 'Sales-Led Motion', 'labels': ['Entity', 'Process'], 'summary': 'Enterprise sales cycle with demos and procurement.'},
+        {'uuid': 'e3', 'name': 'ROI Analysis', 'labels': ['Entity', 'Process'], 'summary': 'Quantitative assessment of cost savings and gains.'},
+        {'uuid': 'e4', 'name': 'Contract Renewal', 'labels': ['Entity', 'Event'], 'summary': 'Renewal negotiation risk and close opportunity.'},
+    ]
+    edges = [
+        {'source_node_uuid': 'p1', 'target_node_uuid': 't1', 'name': 'evaluates'},
+        {'source_node_uuid': 'p1', 'target_node_uuid': 'e2', 'name': 'engages_via'},
+        {'source_node_uuid': 'p2', 'target_node_uuid': 'e1', 'name': 'converts_through'},
+        {'source_node_uuid': 'p2', 'target_node_uuid': 't3', 'name': 'influenced_by'},
+        {'source_node_uuid': 'p3', 'target_node_uuid': 't2', 'name': 'integrates'},
+        {'source_node_uuid': 'p3', 'target_node_uuid': 'e1', 'name': 'tests'},
+        {'source_node_uuid': 'p4', 'target_node_uuid': 't1', 'name': 'owns'},
+        {'source_node_uuid': 'p4', 'target_node_uuid': 't5', 'name': 'monitors'},
+        {'source_node_uuid': 'p4', 'target_node_uuid': 't4', 'name': 'depends_on'},
+        {'source_node_uuid': 'p5', 'target_node_uuid': 't1', 'name': 'drives'},
+        {'source_node_uuid': 'p5', 'target_node_uuid': 't5', 'name': 'monitors'},
+        {'source_node_uuid': 'p6', 'target_node_uuid': 't6', 'name': 'requires'},
+        {'source_node_uuid': 'p6', 'target_node_uuid': 'e3', 'name': 'requires'},
+        {'source_node_uuid': 'p6', 'target_node_uuid': 't3', 'name': 'evaluates'},
+        {'source_node_uuid': 't1', 'target_node_uuid': 't2', 'name': 'enhanced_by'},
+        {'source_node_uuid': 't2', 'target_node_uuid': 't4', 'name': 'enables'},
+        {'source_node_uuid': 't4', 'target_node_uuid': 't5', 'name': 'produces'},
+        {'source_node_uuid': 't6', 'target_node_uuid': 't2', 'name': 'depends_on'},
+        {'source_node_uuid': 'e2', 'target_node_uuid': 'e4', 'name': 'leads_to'},
+        {'source_node_uuid': 'e3', 'target_node_uuid': 't6', 'name': 'validates'},
+    ]
+    return {'nodes': nodes, 'edges': edges}
 
 
 @graph_bp.route('/delete/<graph_id>', methods=['DELETE'])

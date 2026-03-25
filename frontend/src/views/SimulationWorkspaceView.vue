@@ -8,6 +8,7 @@ import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+import CommunityView from '../components/graph/CommunityView.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -22,7 +23,9 @@ const simulationStore = useSimulationStore()
 const polling = useSimulationPolling(() => props.taskId)
 provide('polling', polling)
 
-const activeTab = ref(route.query.tab === 'simulation' ? 'simulation' : 'graph')
+const VALID_TABS = ['graph', 'simulation', 'communities']
+const initialTab = VALID_TABS.includes(route.query.tab) ? route.query.tab : 'graph'
+const activeTab = ref(initialTab)
 const demoMode = ref(false)
 provide('demoMode', demoMode)
 
@@ -34,7 +37,7 @@ const scenarioName = computed(() =>
 )
 
 watch(() => route.query.tab, (tab) => {
-  if (tab === 'graph' || tab === 'simulation') {
+  if (VALID_TABS.includes(tab)) {
     activeTab.value = tab
   }
 })
@@ -50,6 +53,7 @@ function handleKeydown(e) {
   if (tag === 'input' || tag === 'textarea' || tag === 'select') return
   if (e.key === '1') activeTab.value = 'graph'
   else if (e.key === '2') activeTab.value = 'simulation'
+  else if (e.key === '3') activeTab.value = 'communities'
 }
 
 watch(() => polling.simStatus.value, (status, oldStatus) => {
@@ -136,6 +140,9 @@ onUnmounted(() => {
       </div>
       <div v-show="activeTab === 'simulation'" class="absolute inset-0">
         <SimulationPanel :taskId="taskId" />
+      </div>
+      <div v-show="activeTab === 'communities'" class="absolute inset-0">
+        <CommunityView :taskId="taskId" :demoMode="demoMode" />
       </div>
     </div>
   </div>

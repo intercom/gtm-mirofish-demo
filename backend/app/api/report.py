@@ -925,6 +925,82 @@ def stream_console_log(report_id: str):
         }), 500
 
 
+# ============== Report Sharing ==============
+
+@report_bp.route('/<report_id>/share', methods=['POST'])
+def create_share_link(report_id: str):
+    """Create a shareable link for a report."""
+    try:
+        share_info = ReportManager.create_share(report_id)
+        if not share_info:
+            return jsonify({"success": False, "error": "Report not found"}), 404
+
+        return jsonify({"success": True, "data": share_info})
+    except Exception as e:
+        logger.error(f"Failed to create share link: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/<report_id>/share', methods=['GET'])
+def get_share_link(report_id: str):
+    """Get current share info for a report."""
+    try:
+        share_info = ReportManager.get_share(report_id)
+        return jsonify({
+            "success": True,
+            "data": share_info,
+            "is_shared": share_info is not None,
+        })
+    except Exception as e:
+        logger.error(f"Failed to get share info: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/<report_id>/share', methods=['DELETE'])
+def revoke_share_link(report_id: str):
+    """Revoke the share link for a report."""
+    try:
+        revoked = ReportManager.revoke_share(report_id)
+        if not revoked:
+            return jsonify({"success": False, "error": "No active share link"}), 404
+
+        return jsonify({"success": True, "message": "Share link revoked"})
+    except Exception as e:
+        logger.error(f"Failed to revoke share link: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/shared/<token>', methods=['GET'])
+def get_shared_report(token: str):
+    """
+    Public endpoint: access a report via share token.
+    Returns report sections for read-only viewing.
+    """
+    try:
+        report = ReportManager.get_report_by_share_token(token)
+        if not report:
+            return jsonify({"success": False, "error": "Invalid or expired share link"}), 404
+
+        if report.status != ReportStatus.COMPLETED:
+            return jsonify({"success": False, "error": "Report is not yet complete"}), 400
+
+        sections = ReportManager.get_generated_sections(report.report_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "report_id": report.report_id,
+                "sections": sections,
+                "total_sections": len(sections),
+                "created_at": report.created_at,
+                "completed_at": report.completed_at,
+            },
+        })
+    except Exception as e:
+        logger.error(f"Failed to access shared report: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # ============== 工具调用接口（供调试使用）==============
 
 @report_bp.route('/tools/search', methods=['POST'])

@@ -2567,5 +2567,103 @@ class ReportManager:
         if os.path.exists(old_md_path):
             os.remove(old_md_path)
             deleted = True
-        
+
         return deleted
+
+    # ============== Share methods ==============
+
+    _SHARE_INDEX_PATH = os.path.join(Config.UPLOAD_FOLDER, 'share_index.json')
+
+    @classmethod
+    def _load_share_index(cls) -> Dict[str, str]:
+        """Load the global share_token → report_id index."""
+        if os.path.exists(cls._SHARE_INDEX_PATH):
+            with open(cls._SHARE_INDEX_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+
+    @classmethod
+    def _save_share_index(cls, index: Dict[str, str]) -> None:
+        os.makedirs(os.path.dirname(cls._SHARE_INDEX_PATH), exist_ok=True)
+        with open(cls._SHARE_INDEX_PATH, 'w', encoding='utf-8') as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+
+    @classmethod
+    def create_share(cls, report_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Create a share token for a report.
+        Returns share info dict or None if report doesn't exist.
+        """
+        import secrets
+
+        report = cls.get_report(report_id)
+        if not report:
+            return None
+
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+
+        # Return existing share if present
+        if os.path.exists(share_path):
+            with open(share_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+
+        token = secrets.token_urlsafe(24)
+        share_info = {
+            'token': token,
+            'report_id': report_id,
+            'created_at': datetime.now().isoformat(),
+        }
+
+        with open(share_path, 'w', encoding='utf-8') as f:
+            json.dump(share_info, f, ensure_ascii=False, indent=2)
+
+        # Update global index
+        index = cls._load_share_index()
+        index[token] = report_id
+        cls._save_share_index(index)
+
+        return share_info
+
+    @classmethod
+    def get_share(cls, report_id: str) -> Optional[Dict[str, Any]]:
+        """Get current share info for a report, or None if not shared."""
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+        if os.path.exists(share_path):
+            with open(share_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return None
+
+    @classmethod
+    def revoke_share(cls, report_id: str) -> bool:
+        """Revoke the share link for a report. Returns True if revoked."""
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+        if not os.path.exists(share_path):
+            return False
+
+        with open(share_path, 'r', encoding='utf-8') as f:
+            share_info = json.load(f)
+
+        os.remove(share_path)
+
+        # Remove from global index
+        index = cls._load_share_index()
+        index.pop(share_info.get('token', ''), None)
+        cls._save_share_index(index)
+
+        return True
+
+    @classmethod
+    def get_report_by_share_token(cls, token: str) -> Optional['Report']:
+        """Look up a report by its share token."""
+        index = cls._load_share_index()
+        report_id = index.get(token)
+        if not report_id:
+            return None
+        # Verify the share file still exists (not revoked out-of-band)
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+        if not os.path.exists(share_path):
+            # Stale index entry — clean up
+            index.pop(token, None)
+            cls._save_share_index(index)
+            return None
+        return cls.get_report(report_id)

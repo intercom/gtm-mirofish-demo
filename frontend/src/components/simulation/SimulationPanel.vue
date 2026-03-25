@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import LiveMetrics from './LiveMetrics.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -540,6 +541,9 @@ onUnmounted(() => {
           :timeline="polling.timeline.value"
           class="mb-8"
         />
+
+        <!-- Live Metrics Dashboard -->
+        <LiveMetrics class="mb-8" />
 
         <!-- Platform breakdown -->
         <div v-if="polling.runStatus.value" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

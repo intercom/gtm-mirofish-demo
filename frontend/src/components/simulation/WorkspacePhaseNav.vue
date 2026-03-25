@@ -32,6 +32,11 @@ const tabs = computed(() => {
       metric: nodeCount > 0 ? `${nodeCount} nodes` : null,
     },
     {
+      key: 'communities',
+      label: 'Communities',
+      metric: nodeCount > 0 ? 'Clusters' : null,
+    },
+    {
       key: 'simulation',
       label: 'Simulation',
       metric: simMetric,

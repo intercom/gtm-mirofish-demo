@@ -4,6 +4,7 @@ import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
+import ServiceStatus from '../components/common/ServiceStatus.vue'
 
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
@@ -154,6 +155,11 @@ onMounted(() => {
       <p class="text-sm text-[var(--color-text-secondary)]">
         <span class="font-semibold text-[var(--color-text)]">Demo Mode</span> — Using simulated data. API keys are not required.
       </p>
+    </section>
+
+    <!-- Service Status -->
+    <section class="mb-8 md:mb-10">
+      <ServiceStatus mode="expanded" />
     </section>
 
     <!-- Theme -->

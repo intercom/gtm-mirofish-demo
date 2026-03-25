@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { useToast } from '../composables/useToast'
+import { useAutoSave } from '../composables/useAutoSave'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import { graphApi } from '../api/graph'
@@ -36,6 +37,33 @@ const minutesPerRound = ref(30)
 const showAdvanced = ref(false)
 
 const isCustom = computed(() => props.id === 'custom')
+
+const { saveStatus, hasDraft, load: loadDraft, clear: clearDraft } = useAutoSave(
+  `scenario-${props.id}`,
+  () => ({
+    seedText: seedText.value,
+    agentCount: agentCount.value,
+    selectedPersonas: selectedPersonas.value,
+    selectedIndustries: selectedIndustries.value,
+    selectedCompanySizes: selectedCompanySizes.value,
+    selectedRegions: selectedRegions.value,
+    duration: duration.value,
+    minutesPerRound: minutesPerRound.value,
+    platformMode: platformMode.value,
+  }),
+  (data) => {
+    if (data.seedText != null) seedText.value = data.seedText
+    if (data.agentCount != null) agentCount.value = data.agentCount
+    if (data.selectedPersonas) selectedPersonas.value = data.selectedPersonas
+    if (data.selectedIndustries) selectedIndustries.value = data.selectedIndustries
+    if (data.selectedCompanySizes) selectedCompanySizes.value = data.selectedCompanySizes
+    if (data.selectedRegions) selectedRegions.value = data.selectedRegions
+    if (data.duration != null) duration.value = data.duration
+    if (data.minutesPerRound != null) minutesPerRound.value = data.minutesPerRound
+    if (data.platformMode) platformMode.value = data.platformMode
+  },
+  [seedText, agentCount, selectedPersonas, selectedIndustries, selectedCompanySizes, selectedRegions, duration, minutesPerRound, platformMode],
+)
 
 const canRun = computed(() =>
   seedText.value.trim().length > 0 && selectedPersonas.value.length > 0 && !running.value,
@@ -237,6 +265,8 @@ onMounted(async () => {
     if (route.query.industries) {
       try { selectedIndustries.value = JSON.parse(route.query.industries) } catch {}
     }
+  } else {
+    loadDraft()
   }
 })
 
@@ -297,6 +327,7 @@ async function runSimulation() {
       scenarioName: scenario.value?.name || 'Untitled Scenario',
       status: 'building_graph',
     })
+    clearDraft()
     toast.success('Building knowledge graph...')
     router.push(`/workspace/${taskId}`)
   } catch (e) {
@@ -335,8 +366,29 @@ async function runSimulation() {
         <router-link to="/simulations" class="font-medium hover:underline no-underline text-[#2068FF]">Back to Simulations</router-link>
       </div>
 
-      <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)] mb-2">{{ scenario.name }}</h1>
+      <div class="flex items-center gap-3 mb-2">
+        <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ scenario.name }}</h1>
+        <transition name="fade">
+          <span v-if="saveStatus === 'saved'" class="text-[10px] font-medium text-[#090] bg-[rgba(0,153,0,0.08)] px-2 py-0.5 rounded-full whitespace-nowrap">
+            ✓ Draft saved
+          </span>
+        </transition>
+      </div>
       <p class="text-sm text-[var(--color-text-secondary)] mb-6 md:mb-8">{{ scenario.description }}</p>
+
+      <!-- Draft restored banner -->
+      <div
+        v-if="hasDraft && !isRerun"
+        class="flex items-center justify-between gap-2 mb-4 px-4 py-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-secondary)]"
+      >
+        <span>Restored from your previous draft.</span>
+        <button
+          @click="clearDraft(); loadScenario()"
+          class="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+        >
+          Discard draft
+        </button>
+      </div>
 
       <!-- Mobile: tab switcher -->
       <div class="md:hidden flex gap-2 mb-4">

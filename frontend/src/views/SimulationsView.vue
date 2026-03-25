@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useSimulationStore } from '../stores/simulation'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
+import { useStaggerAnimation } from '../composables/useStaggerAnimation'
 import DashboardMiniChart from '../components/dashboard/DashboardMiniChart.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
@@ -21,6 +22,12 @@ const sortBy = ref('newest')
 
 const statusOptions = ['all', 'completed', 'in_progress', 'failed']
 const filterStatus = ref('all')
+
+const { onBeforeEnter, onEnter, onLeave, reset: resetStagger } = useStaggerAnimation({
+  delay: 60,
+  duration: 350,
+})
+watch([searchQuery, filterStatus, sortBy], () => resetStagger())
 
 const sortOptions = [
   { value: 'newest', label: 'Newest first' },
@@ -468,10 +475,19 @@ function exportRun(run) {
         <div class="text-[11px] md:text-xs font-medium text-[var(--color-text-muted)] mb-2">
           Recent Activity
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        <TransitionGroup
+          tag="div"
+          class="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4"
+          :css="false"
+          appear
+          @before-enter="onBeforeEnter"
+          @enter="onEnter"
+          @leave="onLeave"
+        >
           <div
-            v-for="run in filteredRuns"
+            v-for="(run, index) in filteredRuns"
             :key="run.id"
+            :data-index="index"
             class="run-card"
           >
             <!-- Card header -->
@@ -564,7 +580,7 @@ function exportRun(run) {
               </router-link>
             </div>
           </div>
-        </div>
+        </TransitionGroup>
       </div>
     </div>
 

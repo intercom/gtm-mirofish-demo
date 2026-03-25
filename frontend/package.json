@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "vite build --mode production 2>&1 | head -50"
+    "lint": "vite build --mode production 2>&1 | head -50",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "axios": "^1.13.6",
@@ -22,6 +24,7 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.2.2",
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.6",

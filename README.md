@@ -79,7 +79,7 @@ D3.js force-directed graph with entity type coloring (Topics, Personas, Relation
 - **Multi-LLM Support** — Claude (Anthropic), OpenAI (GPT-4o), Google Gemini — switchable in settings
 - **Intercom Branding** — Full Intercom design language with brand colors (#2068FF blue, #050505 navy, #ff5600 Fin orange), typography, and logo
 - **Real GTM Seed Data** — Anonymized data from Intercom's actual GTM models (accounts, signals, templates, personas)
-- **8 Interactive Views** — Landing, Scenario Builder, Knowledge Graph, Live Simulation, Report Explorer, Chat, Settings, Simulation History
+- **8 Interactive Views** — Landing, Scenario Builder, Simulation Workspace (Knowledge Graph + Live Simulation tabs), Agent Profile, Report Explorer, Chat, Settings, Simulation History
 - **D3.js Knowledge Graphs** — Force-directed graph visualization with entity type coloring, zoom/pan, and click-to-inspect
 - **Async Task System** — All long-running operations (graph build, simulation, report gen) return task IDs for progress polling
 - **Report Agent** — AI-powered report generation with section-by-section streaming and tool-call logging
@@ -425,24 +425,51 @@ gtm-mirofish-demo/
 │   │   │   ├── graph.py        # Knowledge graph CRUD + build routes
 │   │   │   ├── simulation.py   # OASIS simulation lifecycle routes
 │   │   │   ├── report.py       # Report generation + chat routes
+│   │   │   ├── settings.py     # Settings and config routes
 │   │   │   └── gtm_scenarios.py # GTM scenario template API
 │   │   ├── models/             # Project + task persistence
 │   │   ├── services/           # Core business logic (READ-ONLY)
-│   │   └── utils/              # LLM client, file parser, logger
+│   │   └── utils/
+│   │       ├── llm_client.py   # Multi-provider LLM abstraction
+│   │       ├── file_parser.py  # PDF/MD/TXT file processing
+│   │       ├── logger.py       # Logging configuration
+│   │       ├── retry.py        # Retry logic decorator
+│   │       └── zep_paging.py   # Zep pagination utilities
 │   ├── auth/                   # OAuth middleware (Google/Okta)
 │   ├── gtm_scenarios/          # Pre-built scenario JSON files
 │   ├── gtm_seed_data/          # Anonymized GTM data
 │   ├── scripts/                # Utility scripts for direct simulation
+│   ├── demo_app.py             # Lightweight mock server for Docker/demos
 │   ├── run.py                  # Backend entry point
 │   └── pyproject.toml          # Python dependencies (uv)
 ├── frontend/                   # Vue 3 frontend (complete rebuild)
 │   ├── src/
+│   │   ├── api/
+│   │   │   ├── client.js       # Axios base client with error normalization
+│   │   │   ├── graph.js        # Knowledge graph API calls
+│   │   │   ├── simulation.js   # Simulation lifecycle API calls
+│   │   │   ├── report.js       # Report generation API calls
+│   │   │   ├── scenarios.js    # GTM scenario API calls
+│   │   │   └── chat.js         # Chat/interview API calls
 │   │   ├── assets/
-│   │   │   └── brand-tokens.css # Intercom design tokens
-│   │   ├── components/layout/  # AppNav, AppFooter
-│   │   └── views/              # 8 views (Landing through Settings)
+│   │   │   └── brand-tokens.css # Intercom design tokens (CSS variables)
+│   │   ├── components/
+│   │   │   ├── common/         # Reusable UI primitives (Button, Card, Modal, etc.)
+│   │   │   ├── layout/         # AppLayout, AppNav, AppFooter
+│   │   │   ├── simulation/     # GraphPanel, SimulationPanel, SentimentTimeline
+│   │   │   ├── report/         # ReportCharts
+│   │   │   ├── demo/           # PresenterToolbar (demo mode)
+│   │   │   ├── landing/        # HeroSwarm animation
+│   │   │   └── ui/             # ConfirmDialog, EmptyState, LoadingSpinner, etc.
+│   │   ├── composables/        # Vue composition functions (reusable logic)
+│   │   ├── stores/             # Pinia state management
+│   │   ├── views/              # 8 route-level page components
+│   │   └── router/             # Vue Router configuration
 │   ├── package.json
 │   └── vite.config.js          # Proxy /api -> backend:5001
+├── docs/
+│   ├── scenarios/              # GTM scenario documentation (4 guides)
+│   └── screenshots/            # Application screenshots
 ├── docker-compose.yml          # Two-service Docker setup
 └── .env.example                # All environment variables
 ```
@@ -463,10 +490,36 @@ The Vite dev server proxies all `/api` requests to `http://localhost:5001` (conf
 
 **Conventions:**
 - All components use Composition API with `<script setup>`
-- Styling uses Tailwind CSS utility classes with brand tokens from `src/assets/brand-tokens.css`
-- API requests use the `/api` prefix, which Vite proxies to the Flask backend
-- State management via Pinia stores
-- Routing via Vue Router
+- Tailwind CSS v4 via `@tailwindcss/vite` plugin — no `tailwind.config.js`; design tokens live in `src/assets/brand-tokens.css` as CSS variables
+- API requests go through modules in `src/api/` which build on the shared Axios client in `src/api/client.js`
+- State management via Pinia stores in `src/stores/`
+- Reusable logic via composables in `src/composables/`
+- Routing via Vue Router with lazy-loaded views for code splitting
+
+**Composables** (`src/composables/`):
+
+| Composable | Purpose |
+|------------|---------|
+| `useDemoMode` | Demo mode state — controls mock data vs real backend |
+| `useSimulationPolling` | Long-polling for simulation/graph/report progress |
+| `useTheme` | Dark/light theme management |
+| `useToast` | Toast notification system |
+| `useCountUp` | Animated number counting for stats |
+| `useIntercom` | Intercom widget integration |
+
+**Pinia Stores** (`src/stores/`):
+
+| Store | Purpose |
+|-------|---------|
+| `auth` | Authentication state (login, user, permissions) |
+| `scenarios` | Scenario list and current scenario selection |
+| `settings` | App settings (LLM provider, theme) |
+| `simulation` | Current simulation state (task ID, phases, data) |
+| `toast` | Toast notification queue |
+
+**API Client** (`src/api/`):
+
+The frontend uses a modular API layer built on Axios. `client.js` creates a shared instance with `baseURL` from `VITE_API_URL` (defaults to `/api`) and a response interceptor that normalizes errors to `{ message, status, data }`. Domain-specific modules (`graph.js`, `simulation.js`, `report.js`, `scenarios.js`, `chat.js`) export functions that use this client.
 
 **Frontend Views:**
 
@@ -475,10 +528,13 @@ The Vite dev server proxies all `/api` requests to `http://localhost:5001` (conf
 | `/` | LandingView | Scenario cards, "How It Works" section |
 | `/scenarios/:id` | ScenarioBuilderView | Configure and launch a simulation |
 | `/workspace/:taskId` | SimulationWorkspaceView | Unified tabbed workspace (Graph + Simulation) |
+| `/workspace/:taskId/agent/:agentId` | AgentProfileView | Individual agent persona detail and interview |
 | `/simulations` | SimulationsView | Persistent simulation history with search/filter |
 | `/report/:taskId` | ReportView | Multi-chapter report explorer |
 | `/chat/:taskId` | ChatView | Q&A with simulated world |
 | `/settings` | SettingsView | LLM provider, API keys, theme |
+
+> **Redirects:** `/graph/:taskId` and `/simulation/:taskId` redirect to `/workspace/:taskId` with the appropriate tab. `/dashboard` redirects to `/simulations`. All routes use lazy loading for code splitting.
 
 **Intercom Design Tokens:**
 - Primary blue: `#2068FF`
@@ -503,6 +559,7 @@ The backend validates `LLM_API_KEY` and `ZEP_API_KEY` on startup. If either is m
 **Conventions:**
 - Services in `app/services/` are **read-only** — do not modify
 - New GTM-specific routes go in `app/api/gtm_scenarios.py`
+- All LLM calls go through `app/utils/llm_client.py` (multi-provider abstraction)
 - Configuration is resolved via `app/config.py` from `.env`
 - All routes return JSON with `{success: bool, data: ..., error: ...}` shape
 - Async operations return a `task_id` for polling via `/api/graph/task/<task_id>`

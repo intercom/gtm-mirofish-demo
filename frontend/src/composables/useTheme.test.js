@@ -104,6 +104,35 @@ describe('useTheme', () => {
     expect(preference.value).toBe('system')
   })
 
+  describe('systemPreference', () => {
+    it('exposes system preference as light when OS prefers light', () => {
+      const media = createMockMatchMedia(false)
+      window.matchMedia = media.mock
+
+      const { systemPreference } = useTheme()
+      expect(systemPreference.value).toBe('light')
+    })
+
+    it('exposes system preference as dark when OS prefers dark', () => {
+      const media = createMockMatchMedia(true)
+      window.matchMedia = media.mock
+
+      const { systemPreference } = useTheme()
+      expect(systemPreference.value).toBe('dark')
+    })
+
+    it('updates systemPreference reactively when OS changes', async () => {
+      const media = createMockMatchMedia(false)
+      window.matchMedia = media.mock
+
+      const { systemPreference } = useTheme()
+      expect(systemPreference.value).toBe('light')
+
+      media.listeners[0]({ matches: true })
+      expect(systemPreference.value).toBe('dark')
+    })
+  })
+
   describe('route-aware defaults', () => {
     it('uses dark route default when no explicit preference is stored', () => {
       const media = createMockMatchMedia(false)

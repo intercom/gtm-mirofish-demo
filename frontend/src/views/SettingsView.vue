@@ -5,7 +5,7 @@ import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
 
-const { preference: themePreference, setTheme } = useTheme()
+const { preference: themePreference, systemPreference, setTheme } = useTheme()
 const toast = useToast()
 const { isDemoMode } = useDemoMode()
 
@@ -173,6 +173,9 @@ onMounted(() => {
           <span>{{ opt.label }}</span>
         </button>
       </div>
+      <p v-if="themePreference === 'system'" class="text-xs text-[var(--color-text-muted)] mt-2">
+        Theme follows your system preference — currently <span class="font-medium text-[var(--color-text-secondary)]">{{ systemPreference }}</span> mode.
+      </p>
     </section>
 
     <!-- LLM Provider -->

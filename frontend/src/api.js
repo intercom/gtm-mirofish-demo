@@ -129,6 +129,25 @@ export function chatWithReport(simulationId, message, chatHistory = []) {
   })
 }
 
+// ── Insights ──
+
+export function listInsights(category) {
+  const params = category ? `?category=${category}` : ''
+  return request(`${API_BASE}/v1/insights${params}`)
+}
+
+export function refreshInsights() {
+  return request(`${API_BASE}/v1/insights/refresh`, { method: 'POST' })
+}
+
+export function pinInsight(insightId) {
+  return request(`${API_BASE}/v1/insights/${insightId}/pin`, { method: 'POST' })
+}
+
+export function dismissInsight(insightId) {
+  return request(`${API_BASE}/v1/insights/${insightId}/dismiss`, { method: 'POST' })
+}
+
 // ── Polling helper ──
 
 export function poll(fn, interval = 3000) {

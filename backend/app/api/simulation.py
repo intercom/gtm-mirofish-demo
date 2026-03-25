@@ -1977,6 +1977,108 @@ def get_agent_stats(simulation_id: str):
         }), 500
 
 
+# ============== Agent Personality 接口 ==============
+
+PERSONALITY_TRAITS = ["confidence", "openness", "risk_aversion", "empathy", "aggressiveness"]
+
+MOCK_AGENTS = [
+    {"agent_id": 0, "agent_name": "Sarah Chen, VP Support @ Acme SaaS"},
+    {"agent_id": 1, "agent_name": "Marcus Johnson, CTO @ HealthFirst"},
+    {"agent_id": 2, "agent_name": "Priya Patel, Dir. CX @ FinServe"},
+    {"agent_id": 3, "agent_name": "James O'Brien, Head of Ops @ RetailCo"},
+    {"agent_id": 4, "agent_name": "Elena Rodriguez, VP Product @ CloudSync"},
+    {"agent_id": 5, "agent_name": "David Kim, Support Lead @ EduPlatform"},
+    {"agent_id": 6, "agent_name": "Aisha Williams, CRO @ DataDrive"},
+    {"agent_id": 7, "agent_name": "Tom Fischer, Dir. IT @ MediGroup"},
+    {"agent_id": 8, "agent_name": "Nina Yamamoto, COO @ LogiTech"},
+    {"agent_id": 9, "agent_name": "Carlos Mendez, VP Sales @ InsureTech"},
+]
+
+
+def _generate_mock_personalities():
+    """Generate deterministic mock personality data for demo mode."""
+    import hashlib
+    agents = []
+    for agent in MOCK_AGENTS:
+        initial = {}
+        current = {}
+        for trait in PERSONALITY_TRAITS:
+            seed = hashlib.md5(f"{agent['agent_id']}-{trait}".encode()).hexdigest()
+            base_val = (int(seed[:4], 16) % 60) + 20  # 20-79
+            delta = ((int(seed[4:8], 16) % 30) - 12)  # -12 to +17
+            initial[trait] = base_val
+            current[trait] = max(0, min(100, base_val + delta))
+        agents.append({
+            "agent_id": agent["agent_id"],
+            "agent_name": agent["agent_name"],
+            "initial_personality": initial,
+            "current_personality": current,
+        })
+    return agents
+
+
+@simulation_bp.route('/<simulation_id>/agent-personalities', methods=['GET'])
+def get_agent_personalities(simulation_id: str):
+    """
+    Get personality trait data for all agents in a simulation.
+
+    Returns initial and current personality values per agent,
+    used by the PersonalityMatrix frontend component.
+    Falls back to mock data when no real simulation data exists.
+    """
+    try:
+        # Try to derive personality from real agent stats
+        try:
+            stats = SimulationRunner.get_agent_stats(simulation_id)
+        except Exception:
+            stats = []
+
+        if stats:
+            import hashlib
+            agents = []
+            for s in stats:
+                initial = {}
+                current = {}
+                for trait in PERSONALITY_TRAITS:
+                    seed = hashlib.md5(f"{s['agent_id']}-{trait}".encode()).hexdigest()
+                    base_val = (int(seed[:4], 16) % 60) + 20
+                    # Shift current values based on action count
+                    action_influence = min(15, s.get("total_actions", 0) // 3)
+                    direction = 1 if int(seed[4:6], 16) % 2 == 0 else -1
+                    initial[trait] = base_val
+                    current[trait] = max(0, min(100, base_val + direction * action_influence))
+                agents.append({
+                    "agent_id": s["agent_id"],
+                    "agent_name": s["agent_name"],
+                    "initial_personality": initial,
+                    "current_personality": current,
+                })
+            return jsonify({
+                "success": True,
+                "data": {
+                    "traits": PERSONALITY_TRAITS,
+                    "agents": agents,
+                }
+            })
+
+        # Fallback: mock data
+        return jsonify({
+            "success": True,
+            "data": {
+                "traits": PERSONALITY_TRAITS,
+                "agents": _generate_mock_personalities(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取Agent性格数据失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== 数据库查询接口 ==============
 
 @simulation_bp.route('/<simulation_id>/posts', methods=['GET'])

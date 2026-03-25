@@ -70,6 +70,11 @@ from .debate_scorer import (
     ArgumentScore,
     DebateFormat,
 )
+from .agent_prompts import (
+    AgentPromptModifier,
+    AgentPromptContext,
+    PersonalityVector,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -130,5 +135,8 @@ __all__ = [
     'AgentPerformance',
     'ArgumentScore',
     'DebateFormat',
+    'AgentPromptModifier',
+    'AgentPromptContext',
+    'PersonalityVector',
 ]
 

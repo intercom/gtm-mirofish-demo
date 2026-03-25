@@ -42,13 +42,13 @@ function confirm() {
             </div>
             <div class="flex items-center justify-end gap-3 px-6 pb-6">
               <button
-                class="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
+                class="btn-interactive px-4 py-2 text-sm font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] cursor-pointer"
                 @click="close"
               >
                 {{ cancelLabel }}
               </button>
               <button
-                class="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors cursor-pointer"
+                class="btn-interactive px-4 py-2 text-sm font-medium rounded-lg text-white cursor-pointer hover:shadow-md hover:-translate-y-px"
                 :class="destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-[#2068FF] hover:bg-[#1a5ae0]'"
                 @click="confirm"
               >

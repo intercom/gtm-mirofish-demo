@@ -21,7 +21,7 @@ defineEmits(['click'])
   <button
     :disabled="disabled || loading"
     :class="[
-      'inline-flex items-center justify-center font-semibold transition-colors cursor-pointer',
+      'btn-interactive inline-flex items-center justify-center font-semibold cursor-pointer',
       'disabled:opacity-50 disabled:cursor-not-allowed',
       {
         'text-xs px-3 py-1.5 rounded-md': size === 'sm',
@@ -29,7 +29,7 @@ defineEmits(['click'])
         'text-sm px-8 py-3 rounded-lg': size === 'lg',
       },
       {
-        'bg-[--color-primary] hover:bg-[--color-primary-hover] text-white': variant === 'primary',
+        'bg-[--color-primary] hover:bg-[--color-primary-hover] text-white hover:shadow-md hover:-translate-y-px': variant === 'primary',
         'bg-transparent border border-[--color-primary-border] text-[--color-primary] hover:bg-[--color-primary-light]': variant === 'secondary',
         'bg-transparent text-[--color-text-secondary] hover:text-[--color-text] hover:bg-black/5': variant === 'ghost',
       },

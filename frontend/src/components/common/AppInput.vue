@@ -1,4 +1,6 @@
 <script setup>
+import { ref, watch } from 'vue'
+
 const props = defineProps({
   type: {
     type: String,
@@ -18,8 +20,17 @@ const props = defineProps({
 
 defineEmits(['update:modelValue'])
 
+const shaking = ref(false)
+
+watch(() => props.error, (val, oldVal) => {
+  if (val && val !== oldVal) {
+    shaking.value = true
+    setTimeout(() => { shaking.value = false }, 400)
+  }
+})
+
 const inputClasses =
-  'w-full bg-[--color-surface] border border-[--color-border] rounded-lg px-3 py-2 text-sm text-[--color-text] placeholder:text-[--color-text-muted] focus:outline-none focus:border-[--color-primary] focus:ring-1 focus:ring-[--color-primary] transition-colors'
+  'input-interactive w-full bg-[--color-surface] border border-[--color-border] rounded-lg px-3 py-2 text-sm text-[--color-text] placeholder:text-[--color-text-muted] focus:outline-none focus:border-[--color-primary] focus:ring-1 focus:ring-[--color-primary]'
 </script>
 
 <template>
@@ -31,7 +42,7 @@ const inputClasses =
     <select
       v-if="type === 'select'"
       :value="modelValue"
-      :class="[inputClasses, error && 'border-red-500']"
+      :class="[inputClasses, error && 'border-red-500', shaking && 'animate-shake']"
       @change="$emit('update:modelValue', $event.target.value)"
     >
       <option v-if="placeholder" value="" disabled>{{ placeholder }}</option>
@@ -45,7 +56,7 @@ const inputClasses =
       :value="modelValue"
       :placeholder="placeholder"
       :rows="rows"
-      :class="[inputClasses, 'resize-y', error && 'border-red-500']"
+      :class="[inputClasses, 'resize-y', error && 'border-red-500', shaking && 'animate-shake']"
       @input="$emit('update:modelValue', $event.target.value)"
     />
 
@@ -54,7 +65,7 @@ const inputClasses =
       type="text"
       :value="modelValue"
       :placeholder="placeholder"
-      :class="[inputClasses, error && 'border-red-500']"
+      :class="[inputClasses, error && 'border-red-500', shaking && 'animate-shake']"
       @input="$emit('update:modelValue', $event.target.value)"
     />
 

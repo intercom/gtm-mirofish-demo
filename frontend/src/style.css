@@ -161,6 +161,59 @@ button, [role="button"], a[href], summary, select, input[type="checkbox"], input
   animation: pulse 2s ease-in-out infinite;
 }
 
+/* ── Button & Form Interaction Animations ─────────────────────────────── */
+
+/* Error shake — draws attention to validation failures */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 400ms ease;
+}
+
+/* Success flash — brief green glow on successful form submission */
+@keyframes success-flash {
+  0% { box-shadow: 0 0 0 0 rgba(0, 153, 0, 0.4); }
+  50% { box-shadow: 0 0 0 4px rgba(0, 153, 0, 0.15); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 153, 0, 0); }
+}
+
+.animate-success {
+  animation: success-flash 600ms ease;
+}
+
+/* Button interaction base — shared by all interactive buttons */
+.btn-interactive {
+  transition: color var(--transition-fast),
+              background-color var(--transition-fast),
+              border-color var(--transition-fast),
+              box-shadow var(--transition-fast),
+              transform var(--transition-fast);
+}
+
+.btn-interactive:active:not(:disabled) {
+  transform: scale(var(--btn-press-scale, 0.97));
+}
+
+.btn-interactive:focus-visible {
+  outline: none;
+  box-shadow: var(--btn-focus-ring);
+}
+
+/* Input focus glow — smooth shadow expansion on focus */
+.input-interactive {
+  transition: border-color var(--transition-fast),
+              box-shadow var(--transition-fast),
+              background-color var(--transition-fast);
+}
+
+.input-interactive:focus {
+  box-shadow: var(--input-focus-shadow);
+}
+
 /* Prose styles for rendered markdown in chat */
 .prose p { margin-bottom: 0.5em; }
 .prose p:last-child { margin-bottom: 0; }

@@ -8,6 +8,7 @@ import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+import NavigationMiniMap from '../components/navigation/NavigationMiniMap.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -91,16 +92,19 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-[calc(100vh-56px)]">
-    <!-- Breadcrumbs -->
-    <div class="px-4 md:px-6 pt-3 text-xs text-[var(--color-text-muted)]">
-      <router-link
-        to="/"
-        class="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] no-underline transition-colors"
-      >Home</router-link>
-      <span class="mx-1">/</span>
-      <span>{{ scenarioName }}</span>
-      <span class="mx-1">/</span>
-      <span class="text-[var(--color-text)]">Workspace</span>
+    <!-- Breadcrumbs + Mini-map -->
+    <div class="flex items-center justify-between px-4 md:px-6 pt-3">
+      <div class="text-xs text-[var(--color-text-muted)]">
+        <router-link
+          to="/"
+          class="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] no-underline transition-colors"
+        >Home</router-link>
+        <span class="mx-1">/</span>
+        <span>{{ scenarioName }}</span>
+        <span class="mx-1">/</span>
+        <span class="text-[var(--color-text)]">Workspace</span>
+      </div>
+      <NavigationMiniMap class="hidden md:block" />
     </div>
 
     <!-- Success banner -->

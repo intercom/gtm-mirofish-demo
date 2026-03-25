@@ -12,6 +12,7 @@ const mobileMenuOpen = ref(false)
 const navLinks = computed(() => {
   return [
     { to: '/', label: 'Home', exact: true },
+    { to: '/dashboard', label: 'Dashboard', exact: false },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
     { to: '/settings', label: 'Settings', exact: false },
   ]

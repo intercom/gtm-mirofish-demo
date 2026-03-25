@@ -6,16 +6,24 @@ const styleCss = readFileSync(resolve(__dirname, '../style.css'), 'utf-8')
 const appVue = readFileSync(resolve(__dirname, '../App.vue'), 'utf-8')
 
 describe('Transition CSS classes', () => {
-  it('defines page-enter-active and page-leave-active classes', () => {
-    expect(styleCss).toContain('.page-enter-active')
-    expect(styleCss).toContain('.page-leave-active')
+  it('defines directional page transition classes', () => {
+    expect(styleCss).toContain('.page-forward-enter-active')
+    expect(styleCss).toContain('.page-forward-leave-active')
+    expect(styleCss).toContain('.page-back-enter-active')
+    expect(styleCss).toContain('.page-back-leave-active')
   })
 
-  it('page transition uses fade + slide transform', () => {
-    expect(styleCss).toContain('.page-enter-from')
-    expect(styleCss).toContain('.page-leave-to')
-    expect(styleCss).toMatch(/\.page-enter-from[\s\S]*?translateY/)
-    expect(styleCss).toMatch(/\.page-leave-to[\s\S]*?translateY/)
+  it('page transitions use fade + directional slide', () => {
+    expect(styleCss).toContain('.page-forward-enter-from')
+    expect(styleCss).toContain('.page-forward-leave-to')
+    expect(styleCss).toContain('.page-back-enter-from')
+    expect(styleCss).toContain('.page-back-leave-to')
+    expect(styleCss).toMatch(/\.page-forward-enter-from[\s\S]*?translateY/)
+    expect(styleCss).toMatch(/\.page-back-enter-from[\s\S]*?translateY/)
+  })
+
+  it('respects prefers-reduced-motion', () => {
+    expect(styleCss).toContain('prefers-reduced-motion')
   })
 
   it('defines fade transition classes', () => {
@@ -36,8 +44,13 @@ describe('Transition CSS classes', () => {
 })
 
 describe('App.vue page transition', () => {
-  it('wraps router-view in Transition with name="page"', () => {
-    expect(appVue).toContain('<Transition name="page" mode="out-in">')
+  it('wraps router-view in dynamic Transition with out-in mode', () => {
+    expect(appVue).toContain(':name="transitionName"')
+    expect(appVue).toContain('mode="out-in"')
     expect(appVue).toContain('<router-view')
+  })
+
+  it('imports usePageTransition composable', () => {
+    expect(appVue).toContain("import { usePageTransition } from './composables/usePageTransition'")
   })
 })

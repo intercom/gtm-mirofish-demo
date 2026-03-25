@@ -18,6 +18,7 @@ import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
 import { useCommandPalette } from './composables/useCommandPalette'
 import { useResourcePreload } from './composables/useResourcePreload'
+import { usePageTransition } from './composables/usePageTransition'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 import { useSettingsStore } from './stores/settings'
@@ -30,6 +31,7 @@ const { isDemoMode } = useDemoMode()
 useCommandPalette()
 useResourcePreload()
 const { register, showHelp } = useKeyboardShortcuts()
+const { transitionName } = usePageTransition()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 const settings = useSettingsStore()
@@ -110,7 +112,7 @@ onUnmounted(() => {
   <AppLayout>
     <ErrorBoundary>
       <router-view v-slot="{ Component }">
-        <Transition name="page" mode="out-in">
+        <Transition :name="transitionName" mode="out-in">
           <component :is="Component" />
         </Transition>
       </router-view>

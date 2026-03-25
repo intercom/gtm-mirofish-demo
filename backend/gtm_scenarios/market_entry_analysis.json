@@ -1,0 +1,32 @@
+{
+  "id": "market_entry_analysis",
+  "name": "New Market Entry Analysis",
+  "description": "Evaluate entering the healthcare vertical with AI-powered patient support, simulating buyer reception and regulatory constraints.",
+  "category": "market",
+  "icon": "map",
+  "seed_text": "Intercom is evaluating a strategic push into the healthcare vertical, which currently represents only 6% of revenue ($14.4M ARR from 180 customers) despite being one of the fastest-growing segments in customer support software. The opportunity: healthcare organizations are under massive pressure to modernize patient communication while maintaining HIPAA compliance.\n\nMarket opportunity assessment:\n- Total addressable market for healthcare CX platforms: $3.2B (growing 18% YoY)\n- Key segments: hospital systems (200+), health tech companies (4,000+), insurance/payers (500+), telehealth platforms (800+)\n- Current Intercom healthcare customers are primarily health tech startups — zero hospital systems or payers\n- Top competitors in healthcare CX: Salesforce Health Cloud ($890M), ServiceNow ($340M), specialized players like Luma Health and Klara\n\nBarriers to entry identified:\n1. HIPAA compliance: Intercom is HIPAA-eligible on Enterprise plan, but lacks BAA templates, audit logging depth, and PHI handling workflows that healthcare procurement requires\n2. EHR integration: Healthcare buyers expect native integrations with Epic, Cerner, and Athenahealth — Intercom has none\n3. Regulatory messaging: Patient communication has strict opt-in/consent requirements that differ from standard marketing outreach\n4. Sales cycle: Healthcare enterprise deals average 9-14 months (vs Intercom's current 3-5 month cycle)\n5. Domain expertise: The sales team has zero healthcare industry specialists — RFPs require clinical workflow knowledge\n6. Fin AI for healthcare: Fin would need medical-grade guardrails to avoid providing clinical advice — liability concerns are significant\n\nPotential go-to-market approaches:\n- Partner-led: Integrate with Epic/Cerner via marketplace partnerships, let EHR vendors drive distribution\n- Vertical product: Build 'Intercom for Healthcare' with HIPAA workflows, patient communication templates, and EHR connectors\n- Acquire: Buy a healthcare-native CX startup (3 identified targets, $15-40M range) for instant domain credibility\n- Niche-first: Focus only on health tech companies (already a fit) and expand from there\n\nThe simulation should model buyer reception in each healthcare sub-segment, predict market entry timelines and investment requirements, and identify the highest-probability entry strategy.",
+  "agent_config": {
+    "count": 300,
+    "persona_types": ["VP of Patient Experience", "CIO", "CISO", "Head of Digital Health", "Compliance Officer", "Health Tech CTO"],
+    "firmographic_mix": {
+      "industries": ["Healthcare", "Health Tech", "Insurance", "Telehealth"],
+      "company_sizes": ["200-500", "500-2000", "2000-5000", "5000-10000"],
+      "regions": ["North America", "EMEA"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Market entry strategy comparison (build vs buy vs partner)",
+    "Buyer persona receptivity by healthcare sub-segment",
+    "HIPAA compliance gap assessment and remediation cost",
+    "EHR integration priority ranking",
+    "Sales cycle length prediction by segment",
+    "Investment requirement forecast per entry strategy",
+    "Competitive positioning against Salesforce Health Cloud",
+    "3-year revenue projection by market entry approach"
+  ]
+}

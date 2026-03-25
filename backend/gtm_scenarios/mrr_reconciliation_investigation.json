@@ -1,0 +1,31 @@
+{
+  "id": "mrr_reconciliation_investigation",
+  "name": "MRR Reconciliation Investigation",
+  "description": "Finance and RevOps investigate billing discrepancies, simulating how different teams detect and resolve MRR leakage across systems.",
+  "category": "revenue",
+  "icon": "search",
+  "seed_text": "Intercom's finance team has identified a $420K discrepancy between Stripe MRR ($14.8M) and the CRM-reported MRR ($15.22M) during the monthly close. This is the third consecutive month the gap has widened (it was $180K two months ago). The board meeting is in 10 days and the CFO needs a reconciled number.\n\nKnown discrepancy sources identified so far:\n1. Dunning/failed payments: 83 accounts ($142K MRR) have invoices in 'past due' status — CRM counts them as active, Stripe does not\n2. Free trial extensions: Sales granted 34 extended trials ($68K projected MRR) that are in CRM as 'closed-won' but have $0 in Stripe\n3. Multi-year deal recognition: 8 enterprise deals ($340K TCV) were booked as full annual MRR in CRM but Stripe recognizes monthly\n4. Discount inconsistencies: 22 accounts have different discount percentages in Stripe vs CRM, totaling $47K/month in variance\n5. Churned but not closed: 11 accounts canceled in Stripe but remain 'active' in CRM ($63K MRR)\n6. Currency conversion: EMEA deals booked in EUR/GBP show different USD values depending on which system's FX rate is used ($38K variance)\n\nProcess gaps contributing to the problem:\n- No automated sync between Stripe and CRM — a RevOps analyst manually reconciles monthly\n- Sales can override deal amounts in CRM without triggering a billing update\n- Free trial extensions bypass the standard approval workflow\n- No single source of truth defined — finance uses Stripe, sales leadership uses CRM\n\nThe simulation should model how finance, RevOps, sales, and engineering personas collaborate to investigate discrepancies, assign ownership, and design a reconciliation process that prevents future drift.",
+  "agent_config": {
+    "count": 100,
+    "persona_types": ["CFO", "RevOps Analyst", "Sales Operations Manager", "Finance Controller", "Engineering Manager"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Fintech"],
+      "company_sizes": ["500-2000"],
+      "regions": ["North America", "EMEA"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 24,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Discrepancy root cause breakdown with dollar attribution",
+    "Reconciled MRR figure with confidence interval",
+    "Process gap severity ranking",
+    "System integration recommendations (Stripe-CRM sync)",
+    "Ownership matrix for each discrepancy category",
+    "Preventive controls design for future reconciliation",
+    "Board-ready MRR reporting recommendation"
+  ]
+}

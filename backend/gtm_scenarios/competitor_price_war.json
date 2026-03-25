@@ -1,0 +1,31 @@
+{
+  "id": "competitor_price_war",
+  "name": "Competitor Price War Response",
+  "description": "Competitor slashes prices 30% — cross-functional team debates whether to match, differentiate, or hold the line on value-based pricing.",
+  "category": "competitive",
+  "icon": "shield",
+  "seed_text": "Freshdesk has announced a 30% price reduction across all tiers, effective immediately, with an aggressive 'Switch from Intercom' migration campaign offering free data migration and 6 months at the reduced rate. Early signals from the field:\n\n- 12 active Intercom deals in Stage 2-3 have forwarded the Freshdesk pricing to their AEs asking for a match\n- 3 existing mid-market customers ($85K combined ARR) have opened renewal negotiations citing the Freshdesk offer\n- Social media sentiment shows 340+ mentions in 48 hours, with 'overpriced' appearing in 28% of Intercom-tagged posts\n- Gartner analyst published a hot take: 'Freshdesk is buying market share — unsustainable but disruptive in the short term'\n\nIntercom's current positioning centers on Fin AI agent as a premium differentiator — customers using Fin see 58% automated resolution, but Fin is only available on Pro and Premium tiers ($99-$199/seat/month). Freshdesk's reduced pricing undercuts Intercom's Starter tier.\n\nInternal debate lines:\n- Sales wants a temporary competitive match program for at-risk deals\n- Product argues doubling down on AI differentiation and launching Fin Lite on lower tiers\n- Finance warns that matching prices would erode $4.2M in annual margin\n- Marketing wants to run a 'total cost of ownership' counter-campaign\n- CS is concerned about churn among customers who don't use Fin and see Intercom as 'just a chat widget'\n\nThe simulation should model how different GTM personas react to competitive pricing pressure, which response strategies they advocate for, and predict the revenue impact of each approach over 6-12 months.",
+  "agent_config": {
+    "count": 200,
+    "persona_types": ["Account Executive", "Product Manager", "CFO", "CMO", "Customer Success Manager", "Sales Engineer"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "E-commerce", "Fintech", "Healthcare", "Education"],
+      "company_sizes": ["50-200", "200-500", "500-2000", "2000-5000"],
+      "regions": ["North America", "EMEA", "APAC"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Churn risk assessment by customer segment",
+    "Revenue impact projection for each response strategy",
+    "Competitive win/loss rate prediction under price war",
+    "Customer sentiment shift analysis",
+    "Recommended pricing response by segment",
+    "Fin AI differentiation effectiveness score",
+    "Deal-level save/loss prediction for at-risk pipeline"
+  ]
+}

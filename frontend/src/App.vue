@@ -3,6 +3,7 @@ import { watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
+import OfflineBanner from './components/common/OfflineBanner.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
@@ -56,6 +57,7 @@ onUnmounted(() => {
       </Transition>
     </router-view>
   </AppLayout>
+  <OfflineBanner />
   <ToastContainer />
   <PresenterToolbar v-if="isDemoMode" />
 </template>

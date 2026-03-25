@@ -7,6 +7,7 @@ import ToastContainer from './components/ui/ToastContainer.vue'
 import OfflineBanner from './components/common/OfflineBanner.vue'
 import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndicator.vue'
 import OnboardingTour from './components/ui/OnboardingTour.vue'
+import PwaUpdateBanner from './components/ui/PwaUpdateBanner.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import CommandPalette from './components/common/CommandPalette.vue'
 import SystemStatusBar from './components/common/SystemStatusBar.vue'
@@ -121,6 +122,7 @@ onUnmounted(() => {
   </AppLayout>
   <OfflineBanner />
   <ToastContainer />
+  <PwaUpdateBanner />
   <NavigationShortcutIndicator />
   <OnboardingTour />
   <CommandPalette />

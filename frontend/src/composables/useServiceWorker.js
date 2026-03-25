@@ -1,54 +1,29 @@
-import { ref, readonly } from 'vue'
+import { useRegisterSW } from 'virtual:pwa-register/vue'
 
-const isSupported = ref('serviceWorker' in navigator)
-const isReady = ref(false)
-const hasUpdate = ref(false)
-const registration = ref(null)
-
-let registered = false
+const UPDATE_CHECK_INTERVAL = 60 * 60 * 1000 // 1 hour
 
 export function useServiceWorker() {
-  async function register() {
-    if (registered || !isSupported.value) return
-
-    registered = true
-    try {
-      const reg = await navigator.serviceWorker.register('/sw.js')
-      registration.value = reg
-
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing
-        if (!newWorker) return
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
-            hasUpdate.value = true
-          }
-        })
-      })
-
-      if (reg.active) isReady.value = true
-      navigator.serviceWorker.ready.then(() => {
-        isReady.value = true
-      })
-    } catch (err) {
-      console.warn('Service worker registration failed:', err)
-    }
-  }
+  const {
+    needRefresh,
+    offlineReady,
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisteredSW(swUrl, registration) {
+      if (!registration) return
+      setInterval(() => {
+        registration.update()
+      }, UPDATE_CHECK_INTERVAL)
+    },
+  })
 
   function update() {
-    registration.value?.update()
+    updateServiceWorker()
   }
 
-  function applyUpdate() {
-    window.location.reload()
+  function dismiss() {
+    needRefresh.value = false
+    offlineReady.value = false
   }
 
-  return {
-    isSupported: readonly(isSupported),
-    isReady: readonly(isReady),
-    hasUpdate: readonly(hasUpdate),
-    register,
-    update,
-    applyUpdate,
-  }
+  return { needRefresh, offlineReady, update, dismiss }
 }

@@ -3,6 +3,9 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { select, scaleLinear, area as d3Area, line as d3Line, curveMonotoneX, stack as d3Stack, stackOrderNone, easeCubicOut } from 'd3'
 import { useChartEntrance } from '../../composables/useChartEntrance'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const { isMobile } = useMobileChart()
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },
@@ -123,9 +126,12 @@ function renderChart() {
 
 function renderTrend(container, data, containerWidth) {
   const c = getChartColors()
-  const margin = { top: 12, right: 16, bottom: 28, left: 36 }
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 8, right: 12, bottom: 24, left: 30 }
+    : { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
-  const height = 180
+  const height = mobile ? 140 : 180
   const totalHeight = height + margin.top + margin.bottom
 
   const svg = select(container)
@@ -280,10 +286,12 @@ function renderTrend(container, data, containerWidth) {
     .attr('stroke', c.surface)
     .attr('stroke-width', 1.5)
 
+  const dotRadius = mobile ? 6 : 4
+
   dots.transition()
     .duration(300)
     .delay((_, i) => 800 + i * 40)
-    .attr('r', 4)
+    .attr('r', dotRadius)
 
   const tooltip = select(container)
     .append('div')
@@ -327,7 +335,7 @@ function renderTrend(container, data, containerWidth) {
 
     dots.filter(dd => dd.round === d.round)
       .transition().duration(100)
-      .attr('r', 6)
+      .attr('r', dotRadius + 2)
     activeRound = d.round
   }
 
@@ -336,7 +344,7 @@ function renderTrend(container, data, containerWidth) {
     if (activeRound != null) {
       dots.filter(dd => dd.round === activeRound)
         .transition().duration(100)
-        .attr('r', 4)
+        .attr('r', dotRadius)
       activeRound = null
     }
   }
@@ -372,9 +380,12 @@ function renderTrend(container, data, containerWidth) {
 
 function renderDistribution(container, data, containerWidth) {
   const c = getChartColors()
-  const margin = { top: 12, right: 16, bottom: 28, left: 36 }
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 8, right: 12, bottom: 24, left: 30 }
+    : { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
-  const height = 180
+  const height = mobile ? 140 : 180
   const totalHeight = height + margin.top + margin.bottom
 
   const svg = select(container)
@@ -495,7 +506,7 @@ function renderDistribution(container, data, containerWidth) {
 
 // --- Lifecycle ---
 
-watch([() => props.actions.length, () => props.timeline.length, viewMode, isVisible, isDark], () => {
+watch([() => props.actions.length, () => props.timeline.length, viewMode, isVisible, isDark, isMobile], () => {
   if (isVisible.value) {
     nextTick(() => renderChart())
   }
@@ -521,11 +532,11 @@ onUnmounted(() => {
 <template>
   <div
     ref="wrapperRef"
-    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5 transition-all duration-500 ease-out"
+    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 sm:p-5 transition-all duration-500 ease-out"
     :class="isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'"
   >
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-sm font-semibold text-[var(--color-text)]">Sentiment Timeline</h3>
+    <div class="flex items-center justify-between mb-3 sm:mb-4">
+      <h3 class="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Sentiment Timeline</h3>
       <div v-if="sentimentData.length" class="flex gap-1 bg-[var(--color-tint)] rounded-md p-0.5">
         <button
           class="px-2.5 py-1 text-[11px] rounded font-medium transition-colors"
@@ -548,7 +559,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="sentimentData.length" class="relative" ref="chartRef" style="height: 220px; touch-action: pan-y" />
+    <div v-if="sentimentData.length" class="relative" ref="chartRef" :style="{ height: isMobile ? '172px' : '220px', touchAction: 'pan-y' }" />
 
     <div v-else class="flex items-center justify-center h-[180px] text-[var(--color-text-muted)] text-sm">
       <span>Sentiment data will appear as agents interact</span>

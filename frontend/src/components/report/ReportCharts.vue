@@ -1,7 +1,10 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { select, scaleLinear, scaleBand, easeCubicOut, pie, arc, interpolate, hierarchy, treemap, scaleOrdinal } from 'd3'
+import { select, scaleLinear, scaleBand, easeCubicOut, pie as d3Pie, arc as d3Arc, interpolate, hierarchy, treemap, scaleOrdinal } from 'd3'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const { isMobile } = useMobileChart()
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
@@ -61,10 +64,13 @@ function renderPersonaEngagement() {
   ]
 
   const containerWidth = container.clientWidth
-  const margin = { top: 56, right: 60, bottom: 24, left: 100 }
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 48, right: 40, bottom: 20, left: 72 }
+    : { top: 56, right: 60, bottom: 24, left: 100 }
   const width = containerWidth - margin.left - margin.right
-  const barHeight = 36
-  const barGap = 12
+  const barHeight = mobile ? 28 : 36
+  const barGap = mobile ? 8 : 12
   const height = data.length * (barHeight + barGap) - barGap
   const totalHeight = height + margin.top + margin.bottom
 
@@ -77,8 +83,8 @@ function renderPersonaEngagement() {
 
   svg.append('text')
     .attr('x', margin.left)
-    .attr('y', 22)
-    .attr('font-size', '14px')
+    .attr('y', mobile ? 18 : 22)
+    .attr('font-size', mobile ? '12px' : '14px')
     .attr('font-weight', '600')
     .attr('fill', c.text)
     .text('Persona Engagement Rates')
@@ -89,8 +95,8 @@ function renderPersonaEngagement() {
 
   svg.append('text')
     .attr('x', margin.left)
-    .attr('y', 40)
-    .attr('font-size', '11px')
+    .attr('y', mobile ? 34 : 40)
+    .attr('font-size', mobile ? '10px' : '11px')
     .attr('fill', c.textMuted)
     .text('Average email open rate by target persona')
     .style('opacity', 0)
@@ -149,9 +155,9 @@ function renderPersonaEngagement() {
     .attr('y', d => y(d.label) + y.bandwidth() / 2)
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
-    .attr('font-size', '12px')
+    .attr('font-size', mobile ? '10px' : '12px')
     .attr('fill', c.textSecondary)
-    .text(d => d.label)
+    .text(d => mobile && d.label.length > 10 ? d.label.slice(0, 10) + '…' : d.label)
     .style('opacity', 0)
     .transition()
     .duration(300)
@@ -194,10 +200,10 @@ function renderPersonaEngagement() {
   g.selectAll('.bar-value')
     .data(data)
     .join('text')
-    .attr('x', d => x(d.value) + 8)
+    .attr('x', d => x(d.value) + 6)
     .attr('y', d => y(d.label) + y.bandwidth() / 2)
     .attr('dy', '0.35em')
-    .attr('font-size', '12px')
+    .attr('font-size', mobile ? '10px' : '12px')
     .attr('font-weight', '600')
     .attr('fill', c.text)
     .style('opacity', 0)
@@ -223,9 +229,12 @@ function renderSubjectLinePerformance() {
   ]
 
   const containerWidth = container.clientWidth
-  const margin = { top: 56, right: 24, bottom: 80, left: 48 }
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 48, right: 16, bottom: 72, left: 36 }
+    : { top: 56, right: 24, bottom: 80, left: 48 }
   const width = containerWidth - margin.left - margin.right
-  const height = 260
+  const height = mobile ? 200 : 260
   const totalHeight = height + margin.top + margin.bottom
 
   const svg = select(container)
@@ -237,8 +246,8 @@ function renderSubjectLinePerformance() {
 
   svg.append('text')
     .attr('x', margin.left)
-    .attr('y', 22)
-    .attr('font-size', '14px')
+    .attr('y', mobile ? 18 : 22)
+    .attr('font-size', mobile ? '12px' : '14px')
     .attr('font-weight', '600')
     .attr('fill', c.text)
     .text('Subject Line Performance')
@@ -249,8 +258,8 @@ function renderSubjectLinePerformance() {
 
   svg.append('text')
     .attr('x', margin.left)
-    .attr('y', 40)
-    .attr('font-size', '11px')
+    .attr('y', mobile ? 34 : 40)
+    .attr('font-size', mobile ? '10px' : '11px')
     .attr('fill', c.textMuted)
     .text('Open rate vs. spam flag rate by subject variant')
     .style('opacity', 0)
@@ -414,8 +423,10 @@ function renderSubjectLinePerformance() {
     .delay((_, i) => 200 + i * 60)
     .style('opacity', 1)
 
+  const legendFontSize = mobile ? '10px' : '11px'
+  const legendX = mobile ? margin.left : containerWidth - margin.right - 180
   const legend = svg.append('g')
-    .attr('transform', `translate(${containerWidth - margin.right - 180}, 14)`)
+    .attr('transform', `translate(${legendX}, ${mobile ? totalHeight - 10 : 14})`)
     .style('opacity', 0)
 
   legend.append('rect')
@@ -427,7 +438,7 @@ function renderSubjectLinePerformance() {
 
   legend.append('text')
     .attr('x', 16).attr('y', 9)
-    .attr('font-size', '11px')
+    .attr('font-size', legendFontSize)
     .attr('fill', c.textSecondary)
     .text('Open Rate')
 
@@ -440,7 +451,7 @@ function renderSubjectLinePerformance() {
 
   legend.append('text')
     .attr('x', 106).attr('y', 9)
-    .attr('font-size', '11px')
+    .attr('font-size', legendFontSize)
     .attr('fill', c.textSecondary)
     .text('Spam Flag')
 
@@ -468,10 +479,12 @@ function renderBehavioralClusters() {
   const segmentColors = [c.primary, c.orange, c.green, c.purple, c.textMuted]
 
   const containerWidth = container.clientWidth
-  const size = Math.min(containerWidth, 400)
-  const radius = size / 2 - 40
+  const mobile = isMobile.value
+  const size = Math.min(containerWidth, mobile ? 260 : 400)
+  const radius = size / 2 - (mobile ? 24 : 40)
   const innerRadius = radius * 0.55
-  const totalHeight = size + 60
+  const legendHeight = mobile ? data.length * 22 + 16 : 0
+  const totalHeight = size + 60 + legendHeight
 
   const svg = select(container)
     .append('svg')
@@ -482,9 +495,9 @@ function renderBehavioralClusters() {
 
   svg.append('text')
     .attr('x', containerWidth / 2)
-    .attr('y', 22)
+    .attr('y', mobile ? 18 : 22)
     .attr('text-anchor', 'middle')
-    .attr('font-size', '14px')
+    .attr('font-size', mobile ? '12px' : '14px')
     .attr('font-weight', '600')
     .attr('fill', c.text)
     .text('Behavioral Cluster Distribution')
@@ -495,11 +508,11 @@ function renderBehavioralClusters() {
 
   svg.append('text')
     .attr('x', containerWidth / 2)
-    .attr('y', 40)
+    .attr('y', mobile ? 34 : 40)
     .attr('text-anchor', 'middle')
-    .attr('font-size', '11px')
+    .attr('font-size', mobile ? '10px' : '11px')
     .attr('fill', c.textMuted)
-    .text('Prospect segmentation by observed engagement pattern')
+    .text(mobile ? 'Prospect segmentation by engagement' : 'Prospect segmentation by observed engagement pattern')
     .style('opacity', 0)
     .transition()
     .duration(350)
@@ -509,17 +522,17 @@ function renderBehavioralClusters() {
   const g = svg.append('g')
     .attr('transform', `translate(${containerWidth / 2},${size / 2 + 50})`)
 
-  const pie = pie()
+  const pie = d3Pie()
     .value(d => d.value)
     .sort(null)
     .padAngle(0.02)
 
-  const arc = arc()
+  const arc = d3Arc()
     .innerRadius(innerRadius)
     .outerRadius(radius)
     .cornerRadius(4)
 
-  const labelArc = arc()
+  const labelArc = d3Arc()
     .innerRadius(radius + 16)
     .outerRadius(radius + 16)
 
@@ -567,51 +580,87 @@ function renderBehavioralClusters() {
     .delay(850)
     .style('opacity', 1)
 
-  const labelGroups = g.selectAll('.label-group')
-    .data(arcs)
-    .join('g')
-    .style('opacity', 0)
+  if (mobile) {
+    const legendG = svg.append('g')
+      .attr('transform', `translate(24,${size + 50})`)
 
-  labelGroups.each(function (d, i) {
-    const group = select(this)
-    const pos = labelArc.centroid(d)
-    const midAngle = (d.startAngle + d.endAngle) / 2
-    const isRight = midAngle < Math.PI
-    const xOffset = isRight ? 12 : -12
+    data.forEach((d, i) => {
+      const row = legendG.append('g')
+        .attr('transform', `translate(0,${i * 22})`)
+        .style('opacity', 0)
 
-    const arcMid = arc.centroid(d)
-    group.append('line')
-      .attr('x1', arcMid[0] * 1.15)
-      .attr('y1', arcMid[1] * 1.15)
-      .attr('x2', pos[0] + xOffset)
-      .attr('y2', pos[1])
-      .attr('stroke', c.connectorLine)
-      .attr('stroke-width', 1)
+      row.append('rect')
+        .attr('width', 10).attr('height', 10)
+        .attr('rx', 2)
+        .attr('fill', segmentColors[i])
+        .attr('opacity', 0.85)
 
-    group.append('text')
-      .attr('x', pos[0] + xOffset * 2)
-      .attr('y', pos[1])
-      .attr('dy', '-0.3em')
-      .attr('text-anchor', isRight ? 'start' : 'end')
-      .attr('font-size', '11px')
-      .attr('fill', c.textSecondary)
-      .text(data[i].label)
+      row.append('text')
+        .attr('x', 16).attr('y', 9)
+        .attr('font-size', '11px')
+        .attr('fill', c.textSecondary)
+        .text(d.label)
 
-    group.append('text')
-      .attr('x', pos[0] + xOffset * 2)
-      .attr('y', pos[1])
-      .attr('dy', '0.9em')
-      .attr('text-anchor', isRight ? 'start' : 'end')
-      .attr('font-size', '12px')
-      .attr('font-weight', '600')
-      .attr('fill', segmentColors[i])
-      .text(`${data[i].value}%`)
-  })
+      row.append('text')
+        .attr('x', containerWidth - 48).attr('y', 9)
+        .attr('text-anchor', 'end')
+        .attr('font-size', '11px')
+        .attr('font-weight', '600')
+        .attr('fill', segmentColors[i])
+        .text(`${d.value}%`)
 
-  labelGroups.transition()
-    .duration(300)
-    .delay((d, i) => 800 + i * 80)
-    .style('opacity', 1)
+      row.transition()
+        .duration(300)
+        .delay(600 + i * 60)
+        .style('opacity', 1)
+    })
+  } else {
+    const labelGroups = g.selectAll('.label-group')
+      .data(arcs)
+      .join('g')
+      .style('opacity', 0)
+
+    labelGroups.each(function (d, i) {
+      const group = select(this)
+      const pos = labelArc.centroid(d)
+      const midAngle = (d.startAngle + d.endAngle) / 2
+      const isRight = midAngle < Math.PI
+      const xOffset = isRight ? 12 : -12
+
+      const arcMid = arc.centroid(d)
+      group.append('line')
+        .attr('x1', arcMid[0] * 1.15)
+        .attr('y1', arcMid[1] * 1.15)
+        .attr('x2', pos[0] + xOffset)
+        .attr('y2', pos[1])
+        .attr('stroke', c.connectorLine)
+        .attr('stroke-width', 1)
+
+      group.append('text')
+        .attr('x', pos[0] + xOffset * 2)
+        .attr('y', pos[1])
+        .attr('dy', '-0.3em')
+        .attr('text-anchor', isRight ? 'start' : 'end')
+        .attr('font-size', '11px')
+        .attr('fill', c.textSecondary)
+        .text(data[i].label)
+
+      group.append('text')
+        .attr('x', pos[0] + xOffset * 2)
+        .attr('y', pos[1])
+        .attr('dy', '0.9em')
+        .attr('text-anchor', isRight ? 'start' : 'end')
+        .attr('font-size', '12px')
+        .attr('font-weight', '600')
+        .attr('fill', segmentColors[i])
+        .text(`${data[i].value}%`)
+    })
+
+    labelGroups.transition()
+      .duration(300)
+      .delay((d, i) => 800 + i * 80)
+      .style('opacity', 1)
+  }
 }
 
 // --- Chart 4: Treemap — Topic Distribution ---
@@ -968,7 +1017,7 @@ watch(() => props.chapterIndex, () => {
   }
 })
 
-watch(isDark, () => {
+watch([isDark, isMobile], () => {
   if (hasChart(props.chapterIndex)) {
     nextTick(() => renderActiveChart())
   }

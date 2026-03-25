@@ -1,6 +1,6 @@
 <script setup>
 import { computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
 import ErrorBoundary from './components/ui/ErrorBoundary.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
@@ -14,22 +14,63 @@ import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
 import { useCommandPalette } from './composables/useCommandPalette'
 import { useResourcePreload } from './composables/useResourcePreload'
+import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 import { useSettingsStore } from './stores/settings'
 
 const route = useRoute()
+const router = useRouter()
 const { setRouteDefault } = useTheme()
 const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
 useCommandPalette()
 useResourcePreload()
+const { register } = useKeyboardShortcuts()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 const settings = useSettingsStore()
 
 const isDev = import.meta.env.DEV
 const showStatusBar = computed(() => isDev || settings.statusBarEnabled)
+
+// --- Global keyboard shortcuts ---
+
+register('mod+k', () => {
+  window.dispatchEvent(new CustomEvent('shortcut:command-palette'))
+}, { description: 'Open command palette' })
+
+register('mod+n', () => {
+  router.push('/')
+}, { description: 'New simulation' })
+
+register('mod+s', () => {
+  window.dispatchEvent(new CustomEvent('shortcut:save'))
+}, { description: 'Save current work' })
+
+register('escape', () => {
+  window.dispatchEvent(new CustomEvent('shortcut:close-overlay'))
+}, { description: 'Close modal or panel' })
+
+register('/', () => {
+  window.dispatchEvent(new CustomEvent('shortcut:focus-search'))
+}, { description: 'Focus search' })
+
+register('?', () => {
+  window.dispatchEvent(new CustomEvent('shortcut:shortcuts-help'))
+}, { description: 'Show keyboard shortcuts' })
+
+register('g+d', () => {
+  router.push('/simulations')
+}, { description: 'Go to Dashboard', category: 'Navigation' })
+
+register('g+s', () => {
+  router.push('/simulations')
+}, { description: 'Go to Simulations', category: 'Navigation' })
+
+register('g+r', () => {
+  router.push('/simulations')
+}, { description: 'Go to Reports', category: 'Navigation' })
 
 watch(() => route.name, (name) => {
   setRouteDefault(name === 'landing' ? 'dark' : 'light')

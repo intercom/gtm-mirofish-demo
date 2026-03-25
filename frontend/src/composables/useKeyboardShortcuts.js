@@ -1,88 +1,96 @@
-import { onUnmounted } from 'vue'
+import { ref, getCurrentInstance, onUnmounted } from 'vue'
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent)
-
+const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 const registry = new Map()
+const gModeActive = ref(false)
+let gModeTimer = null
 let listenerAttached = false
 
 function isInputFocused() {
   const el = document.activeElement
   if (!el) return false
-  const tag = el.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
-  return el.isContentEditable
+  const tag = el.tagName.toLowerCase()
+  return tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable
 }
 
-function normalizeShortcut(shortcut) {
-  return shortcut
-    .toLowerCase()
-    .split('+')
-    .map((k) => k.trim())
-    .sort()
-    .join('+')
-}
-
-function eventToShortcut(e) {
+function eventToKey(e) {
   const parts = []
-  if (isMac ? e.metaKey : e.ctrlKey) parts.push('ctrl')
-  if (e.shiftKey) parts.push('shift')
+  const mod = isMac ? e.metaKey : e.ctrlKey
+  if (mod) parts.push('mod')
+  if (e.shiftKey && (mod || e.altKey)) parts.push('shift')
   if (e.altKey) parts.push('alt')
-
-  const key = e.key.toLowerCase()
-  if (!['control', 'meta', 'shift', 'alt'].includes(key)) {
-    parts.push(key === ' ' ? 'space' : key)
-  }
-
-  return parts.sort().join('+')
+  parts.push(e.key.toLowerCase())
+  return parts.join('+')
 }
 
 function handleKeydown(e) {
-  const combo = eventToShortcut(e)
-  const entry = registry.get(combo)
-  if (!entry) return
+  if (e.repeat) return
 
-  if (entry.options?.allowInInput !== true && isInputFocused()) return
+  if (e.key === 'Escape') {
+    gModeActive.value = false
+    clearTimeout(gModeTimer)
+    const entry = registry.get('escape')
+    if (entry) {
+      e.preventDefault()
+      entry.handler()
+    }
+    return
+  }
 
-  e.preventDefault()
-  entry.handler(e)
-}
+  const mod = isMac ? e.metaKey : e.ctrlKey
+  if (mod) {
+    const key = eventToKey(e)
+    const entry = registry.get(key)
+    if (entry) {
+      e.preventDefault()
+      entry.handler()
+    }
+    return
+  }
 
-function ensureListener() {
-  if (listenerAttached) return
-  document.addEventListener('keydown', handleKeydown)
-  listenerAttached = true
-}
+  if (isInputFocused()) return
 
-function removeListenerIfEmpty() {
-  if (registry.size === 0 && listenerAttached) {
-    document.removeEventListener('keydown', handleKeydown)
-    listenerAttached = false
+  if (gModeActive.value) {
+    gModeActive.value = false
+    clearTimeout(gModeTimer)
+    const key = `g+${e.key.toLowerCase()}`
+    const entry = registry.get(key)
+    if (entry) {
+      e.preventDefault()
+      entry.handler()
+    }
+    return
+  }
+
+  if (e.key === 'g' && !e.shiftKey && !e.altKey) {
+    const hasG = [...registry.keys()].some(k => k.startsWith('g+'))
+    if (hasG) {
+      gModeActive.value = true
+      gModeTimer = setTimeout(() => { gModeActive.value = false }, 500)
+      return
+    }
+  }
+
+  const key = eventToKey(e)
+  const entry = registry.get(key)
+  if (entry) {
+    e.preventDefault()
+    entry.handler()
   }
 }
 
-function register(shortcut, handler, options = {}) {
-  const key = normalizeShortcut(shortcut)
-
-  if (registry.has(key)) {
-    console.warn(`[useKeyboardShortcuts] Shortcut "${shortcut}" is already registered. Overwriting.`)
+function attachListener() {
+  if (!listenerAttached) {
+    window.addEventListener('keydown', handleKeydown)
+    listenerAttached = true
   }
-
-  registry.set(key, { shortcut, handler, options })
-  ensureListener()
-}
-
-function unregister(shortcut) {
-  const key = normalizeShortcut(shortcut)
-  registry.delete(key)
-  removeListenerIfEmpty()
 }
 
 function getAll() {
-  return Array.from(registry.values()).map(({ shortcut, options }) => ({
-    shortcut,
-    description: options.description || '',
-    category: options.category || 'General',
-    scope: options.scope || 'global',
+  return Array.from(registry.entries()).map(([key, entry]) => ({
+    shortcut: key,
+    description: entry.description || '',
+    category: entry.category || 'Global',
   }))
 }
 
@@ -91,7 +99,7 @@ function formatKey(shortcut) {
     .split('+')
     .map((k) => {
       const lower = k.trim().toLowerCase()
-      if (lower === 'ctrl') return isMac ? '⌘' : 'Ctrl'
+      if (lower === 'mod') return isMac ? '⌘' : 'Ctrl'
       if (lower === 'shift') return isMac ? '⇧' : 'Shift'
       if (lower === 'alt') return isMac ? '⌥' : 'Alt'
       if (lower === 'escape') return 'Esc'
@@ -109,28 +117,38 @@ function formatKey(shortcut) {
 }
 
 export function useKeyboardShortcuts() {
-  const registered = []
+  attachListener()
 
-  function registerLocal(shortcut, handler, options = {}) {
-    register(shortcut, handler, options)
-    registered.push(shortcut)
+  const localKeys = []
+
+  function register(shortcut, handler, options = {}) {
+    const key = shortcut.toLowerCase().replace(/ctrl|cmd|meta/g, 'mod')
+    if (registry.has(key)) {
+      console.warn(`[shortcuts] Overwriting: ${shortcut}`)
+    }
+    registry.set(key, {
+      handler,
+      description: options.description || '',
+      category: options.category || 'Global',
+    })
+    localKeys.push(key)
+  }
+
+  function unregister(shortcut) {
+    const key = shortcut.toLowerCase().replace(/ctrl|cmd|meta/g, 'mod')
+    registry.delete(key)
+    const idx = localKeys.indexOf(key)
+    if (idx !== -1) localKeys.splice(idx, 1)
   }
 
   function unregisterAll() {
-    registered.forEach((s) => unregister(s))
-    registered.length = 0
+    localKeys.forEach(key => registry.delete(key))
+    localKeys.length = 0
   }
 
-  onUnmounted(unregisterAll)
-
-  return {
-    register: registerLocal,
-    unregister,
-    unregisterAll,
-    getAll,
-    formatKey,
-    isMac,
+  if (getCurrentInstance()) {
+    onUnmounted(unregisterAll)
   }
+
+  return { register, unregister, unregisterAll, getAll, formatKey, isMac, gModeActive, registry }
 }
-
-export { register, unregister, getAll, formatKey, normalizeShortcut, isMac, registry }

@@ -12,6 +12,7 @@ import ReportSummaryCards from '../components/report/ReportSummaryCards.vue'
 import DataTable from '../components/report/DataTable.vue'
 import ThemeConfigurator from '../components/report-builder/ThemeConfigurator.vue'
 import { useReportTheme } from '../composables/useReportTheme'
+import ReportCanvas from '../components/report/ReportCanvas.vue'
 
 const { resolvedTheme, themeStyles } = useReportTheme()
 
@@ -27,6 +28,7 @@ const error = ref(null)
 const isComplete = ref(false)
 const showAgentLog = ref(false)
 const showThemePanel = ref(false)
+const builderMode = ref(false)
 
 const agentTableRows = ref([])
 const agentTableColumns = [
@@ -215,6 +217,14 @@ const { showHelp, shortcuts } = useReportShortcuts({
   },
 })
 
+function handleReorder(from, to) {
+  const arr = [...sections.value]
+  const [moved] = arr.splice(from, 1)
+  arr.splice(to, 0, moved)
+  arr.forEach((s, i) => { s.section_index = i + 1 })
+  sections.value = arr
+}
+
 onMounted(() => {
   checkAndLoad()
   fetchAgentStats()
@@ -237,6 +247,17 @@ onUnmounted(stopPolling)
         </p>
       </div>
       <div class="flex gap-2">
+        <button
+          v-if="!generating && sections.length > 1"
+          @click="builderMode = !builderMode"
+          class="border hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          :class="builderMode ? 'border-[#2068FF] bg-[rgba(32,104,255,0.06)]' : 'border-[var(--color-border)]'"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          {{ builderMode ? 'Done' : 'Reorder' }}
+        </button>
         <button
           v-if="!generating && sections.length > 0"
           @click="showThemePanel = !showThemePanel"
@@ -320,6 +341,15 @@ onUnmounted(stopPolling)
       <p class="text-xs text-[var(--color-text-muted)] mt-1 text-right">{{ progress }}%</p>
     </div>
 
+    <!-- Builder Mode: drag-and-drop section reorder -->
+    <ReportCanvas
+      v-if="builderMode && sections.length > 1"
+      :sections="sections"
+      @reorder="handleReorder"
+      class="max-w-2xl mx-auto"
+    />
+
+    <template v-if="!builderMode">
     <!-- Mobile: horizontal tab bar -->
     <div v-if="chapters.length > 0" class="md:hidden mb-4 -mx-4 px-4 overflow-x-auto">
       <div class="flex gap-2 min-w-max">
@@ -502,6 +532,7 @@ onUnmounted(stopPolling)
         />
       </div>
     </div>
+    </template>
   </div>
 </template>
 

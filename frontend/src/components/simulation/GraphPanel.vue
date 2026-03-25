@@ -4,8 +4,10 @@ import { select, forceSimulation, forceCenter, forceManyBody, forceCollide, forc
 import GraphSearch from './GraphSearch.vue'
 import Graph3DPanel from './Graph3DPanel.vue'
 import { useMobileChart } from '../../composables/useMobileChart'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
 
 const { isMobile } = useMobileChart()
+const { measure, trackFrame, countDomNodes } = useD3PerfMonitor()
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -223,148 +225,153 @@ function renderGraph() {
   nodeCount.value = nodes.length
   edgeCount.value = links.length
 
-  select(svgRef.value).selectAll('*').remove()
+  measure('GraphPanel', () => {
+    select(svgRef.value).selectAll('*').remove()
 
-  svg = select(svgRef.value)
-    .attr('width', width)
-    .attr('height', height)
+    svg = select(svgRef.value)
+      .attr('width', width)
+      .attr('height', height)
 
-  zoomBehavior = zoom()
-    .scaleExtent([0.2, 5])
-    .on('zoom', (event) => {
-      zoomGroup.attr('transform', event.transform)
+    zoomBehavior = zoom()
+      .scaleExtent([0.2, 5])
+      .on('zoom', (event) => {
+        zoomGroup.attr('transform', event.transform)
+      })
+    svg.call(zoomBehavior)
+
+    zoomGroup = svg.append('g')
+
+    const defs = svg.append('defs')
+
+    defs.append('marker')
+      .attr('id', 'arrow')
+      .attr('viewBox', '0 -4 8 8')
+      .attr('refX', 20)
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-4L8,0L0,4')
+      .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
+
+    const glowFilter = defs.append('filter')
+      .attr('id', 'drag-glow')
+      .attr('x', '-50%').attr('y', '-50%')
+      .attr('width', '200%').attr('height', '200%')
+    glowFilter.append('feGaussianBlur')
+      .attr('in', 'SourceGraphic')
+      .attr('stdDeviation', '3')
+      .attr('result', 'blur')
+    const glowMerge = glowFilter.append('feMerge')
+    glowMerge.append('feMergeNode').attr('in', 'blur')
+    glowMerge.append('feMergeNode').attr('in', 'SourceGraphic')
+
+    const mobile = isMobile.value
+    simulation = forceSimulation(nodes)
+      .force('link', forceLink(links).id(d => d.id).distance(mobile ? 70 : 120))
+      .force('charge', forceManyBody().strength(mobile ? -150 : -300))
+      .force('center', forceCenter(width / 2, height / 2))
+      .force('collision', forceCollide().radius(d => d.radius + (mobile ? 2 : 4)))
+
+    const link = zoomGroup.append('g')
+      .selectAll('line')
+      .data(links)
+      .join('line')
+      .attr('stroke', dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
+      .attr('stroke-width', 1)
+      .attr('marker-end', 'url(#arrow)')
+      .style('opacity', 0)
+
+    const edgeLabel = zoomGroup.append('g')
+      .selectAll('text')
+      .data(links)
+      .join('text')
+      .text(d => d.name)
+      .attr('fill', dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')
+      .attr('font-size', '8px')
+      .attr('text-anchor', 'middle')
+      .style('pointer-events', 'none')
+      .style('opacity', 0)
+
+    const node = zoomGroup.append('g')
+      .selectAll('g')
+      .data(nodes)
+      .join('g')
+      .style('cursor', 'grab')
+      .style('opacity', 0)
+      .call(drag()
+        .on('start', dragstarted)
+        .on('drag', dragged)
+        .on('end', dragended)
+      )
+      .on('click', (event, d) => {
+        event.stopPropagation()
+        selectNode(d)
+      })
+
+    node.append('circle')
+      .attr('r', d => d.radius + 4)
+      .attr('fill', d => d.color)
+      .attr('opacity', 0.2)
+
+    node.append('circle')
+      .attr('r', d => d.radius)
+      .attr('fill', d => d.color)
+      .attr('stroke', d => d.color)
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.4)
+      .attr('fill-opacity', 0.85)
+
+    node.append('text')
+      .text(d => d.name)
+      .attr('dy', d => d.radius + 14)
+      .attr('text-anchor', 'middle')
+      .attr('fill', dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)')
+      .attr('font-size', '10px')
+      .style('pointer-events', 'none')
+
+    const nodeDelay = mobile ? 20 : 60
+    const linkBaseDelay = nodes.length * nodeDelay
+
+    node.transition()
+      .delay((d, i) => i * nodeDelay)
+      .duration(mobile ? 250 : 400)
+      .style('opacity', 1)
+
+    link.transition()
+      .delay((d, i) => linkBaseDelay + i * (mobile ? 10 : 30))
+      .duration(300)
+      .style('opacity', 1)
+
+    edgeLabel.transition()
+      .delay((d, i) => linkBaseDelay + i * (mobile ? 10 : 30))
+      .duration(300)
+      .style('opacity', 1)
+
+    nodeSelection = node
+    linkSelection = link
+    edgeLabelSelection = edgeLabel
+
+    simulation.on('tick', () => {
+      trackFrame('GraphPanel')
+
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y)
+
+      edgeLabel
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2)
+
+      node.attr('transform', d => `translate(${d.x},${d.y})`)
     })
-  svg.call(zoomBehavior)
 
-  zoomGroup = svg.append('g')
-
-  const defs = svg.append('defs')
-
-  defs.append('marker')
-    .attr('id', 'arrow')
-    .attr('viewBox', '0 -4 8 8')
-    .attr('refX', 20)
-    .attr('refY', 0)
-    .attr('markerWidth', 6)
-    .attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-4L8,0L0,4')
-    .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
-
-  const glowFilter = defs.append('filter')
-    .attr('id', 'drag-glow')
-    .attr('x', '-50%').attr('y', '-50%')
-    .attr('width', '200%').attr('height', '200%')
-  glowFilter.append('feGaussianBlur')
-    .attr('in', 'SourceGraphic')
-    .attr('stdDeviation', '3')
-    .attr('result', 'blur')
-  const glowMerge = glowFilter.append('feMerge')
-  glowMerge.append('feMergeNode').attr('in', 'blur')
-  glowMerge.append('feMergeNode').attr('in', 'SourceGraphic')
-
-  const mobile = isMobile.value
-  simulation = forceSimulation(nodes)
-    .force('link', forceLink(links).id(d => d.id).distance(mobile ? 70 : 120))
-    .force('charge', forceManyBody().strength(mobile ? -150 : -300))
-    .force('center', forceCenter(width / 2, height / 2))
-    .force('collision', forceCollide().radius(d => d.radius + (mobile ? 2 : 4)))
-
-  const link = zoomGroup.append('g')
-    .selectAll('line')
-    .data(links)
-    .join('line')
-    .attr('stroke', dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
-    .attr('stroke-width', 1)
-    .attr('marker-end', 'url(#arrow)')
-    .style('opacity', 0)
-
-  const edgeLabel = zoomGroup.append('g')
-    .selectAll('text')
-    .data(links)
-    .join('text')
-    .text(d => d.name)
-    .attr('fill', dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')
-    .attr('font-size', '8px')
-    .attr('text-anchor', 'middle')
-    .style('pointer-events', 'none')
-    .style('opacity', 0)
-
-  const node = zoomGroup.append('g')
-    .selectAll('g')
-    .data(nodes)
-    .join('g')
-    .style('cursor', 'grab')
-    .style('opacity', 0)
-    .call(drag()
-      .on('start', dragstarted)
-      .on('drag', dragged)
-      .on('end', dragended)
-    )
-    .on('click', (event, d) => {
-      event.stopPropagation()
-      selectNode(d)
-    })
-
-  node.append('circle')
-    .attr('r', d => d.radius + 4)
-    .attr('fill', d => d.color)
-    .attr('opacity', 0.2)
-
-  node.append('circle')
-    .attr('r', d => d.radius)
-    .attr('fill', d => d.color)
-    .attr('stroke', d => d.color)
-    .attr('stroke-width', 1.5)
-    .attr('stroke-opacity', 0.4)
-    .attr('fill-opacity', 0.85)
-
-  node.append('text')
-    .text(d => d.name)
-    .attr('dy', d => d.radius + 14)
-    .attr('text-anchor', 'middle')
-    .attr('fill', dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)')
-    .attr('font-size', '10px')
-    .style('pointer-events', 'none')
-
-  const nodeDelay = mobile ? 20 : 60
-  const linkBaseDelay = nodes.length * nodeDelay
-
-  node.transition()
-    .delay((d, i) => i * nodeDelay)
-    .duration(mobile ? 250 : 400)
-    .style('opacity', 1)
-
-  link.transition()
-    .delay((d, i) => linkBaseDelay + i * (mobile ? 10 : 30))
-    .duration(300)
-    .style('opacity', 1)
-
-  edgeLabel.transition()
-    .delay((d, i) => linkBaseDelay + i * (mobile ? 10 : 30))
-    .duration(300)
-    .style('opacity', 1)
-
-  nodeSelection = node
-  linkSelection = link
-  edgeLabelSelection = edgeLabel
-
-  simulation.on('tick', () => {
-    link
-      .attr('x1', d => d.source.x)
-      .attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x)
-      .attr('y2', d => d.target.y)
-
-    edgeLabel
-      .attr('x', d => (d.source.x + d.target.x) / 2)
-      .attr('y', d => (d.source.y + d.target.y) / 2)
-
-    node.attr('transform', d => `translate(${d.x},${d.y})`)
+    svg.on('click', () => { selectedNode.value = null })
   })
-
-  svg.on('click', () => { selectedNode.value = null })
+  countDomNodes('GraphPanel', containerRef.value)
 }
 
 function dragstarted(event, d) {

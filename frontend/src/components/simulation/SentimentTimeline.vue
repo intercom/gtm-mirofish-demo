@@ -5,8 +5,10 @@ import { useChartEntrance } from '../../composables/useChartEntrance'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 import { useMobileChart } from '../../composables/useMobileChart'
 import { useLocale } from '../../composables/useLocale'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
 
 const { isMobile } = useMobileChart()
+const { measure, countDomNodes } = useD3PerfMonitor()
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },
@@ -120,11 +122,14 @@ function renderChart() {
   const containerWidth = container.clientWidth
   if (containerWidth === 0) return
 
-  if (viewMode.value === 'distribution') {
-    renderDistribution(container, data, containerWidth)
-  } else {
-    renderTrend(container, data, containerWidth)
-  }
+  measure('SentimentTimeline', () => {
+    if (viewMode.value === 'distribution') {
+      renderDistribution(container, data, containerWidth)
+    } else {
+      renderTrend(container, data, containerWidth)
+    }
+  })
+  countDomNodes('SentimentTimeline', container)
 }
 
 function renderTrend(container, data, containerWidth) {

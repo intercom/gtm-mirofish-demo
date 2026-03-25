@@ -8,6 +8,7 @@ import OfflineBanner from './components/common/OfflineBanner.vue'
 import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndicator.vue'
 import OnboardingTour from './components/ui/OnboardingTour.vue'
 import PwaUpdateBanner from './components/ui/PwaUpdateBanner.vue'
+import D3PerfOverlay from './components/ui/D3PerfOverlay.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import CommandPalette from './components/common/CommandPalette.vue'
 import SystemStatusBar from './components/common/SystemStatusBar.vue'
@@ -129,6 +130,7 @@ onUnmounted(() => {
   <KeyboardShortcutsModal />
   <KeyboardShortcutCard />
   <DemoModeOverlay v-if="isDemoMode" />
+  <D3PerfOverlay />
   <PresenterToolbar v-if="isDemoMode" />
   <SystemStatusBar v-if="showStatusBar" />
 </template>

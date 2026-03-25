@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 import { forceSimulation, forceX, forceY, forceManyBody, forceCollide } from 'd3'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
+
+const { measure, trackFrame } = useD3PerfMonitor()
 
 const canvasRef = ref(null)
 let simulation = null
@@ -102,7 +105,8 @@ function startAnimation(canvas) {
     })
 
   function loop() {
-    draw(ctx, width, height, lineDistance)
+    measure('HeroSwarm', () => draw(ctx, width, height, lineDistance))
+    trackFrame('HeroSwarm')
     animationId = requestAnimationFrame(loop)
   }
   animationId = requestAnimationFrame(loop)

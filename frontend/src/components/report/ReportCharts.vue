@@ -3,8 +3,10 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { select, scaleLinear, scaleBand, easeCubicOut, pie as d3Pie, arc as d3Arc, interpolate, hierarchy, treemap, scaleOrdinal } from 'd3'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 import { useMobileChart } from '../../composables/useMobileChart'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
 
 const { isMobile } = useMobileChart()
+const { measure, countDomNodes } = useD3PerfMonitor()
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
@@ -52,7 +54,10 @@ function renderActiveChart() {
   clearChart()
   const renderFn = CHART_MAP[props.chapterIndex]
   if (renderFn && chartRef.value) {
-    nextTick(() => renderFn())
+    nextTick(() => {
+      measure('ReportCharts', renderFn)
+      countDomNodes('ReportCharts', chartRef.value)
+    })
   }
 }
 

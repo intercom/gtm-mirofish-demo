@@ -4,6 +4,7 @@ export const reportApi = {
   // --- Generation ---
   generate: (data) => client.post('/report/generate', data),
   generateStatus: (data) => client.post('/report/generate/status', data),
+  getReportTypes: () => client.get('/report/types'),
 
   // --- CRUD ---
   get: (reportId) => client.get(`/report/${reportId}`),
@@ -14,7 +15,8 @@ export const reportApi = {
   download: (reportId) =>
     client.get(`/report/${reportId}/download`, { responseType: 'blob' }),
 
-  // --- Progress & sections ---
+  // --- Status & progress ---
+  getStatus: (reportId) => client.get(`/report/${reportId}/status`),
   getProgress: (reportId) => client.get(`/report/${reportId}/progress`),
   getSections: (reportId) => client.get(`/report/${reportId}/sections`),
   getSection: (reportId, sectionIndex) =>
@@ -22,7 +24,8 @@ export const reportApi = {
   checkStatus: (simulationId) =>
     client.get(`/report/check/${simulationId}`),
 
-  // --- Agent logs ---
+  // --- Transparency & logs ---
+  getToolCalls: (reportId) => client.get(`/report/${reportId}/tool-calls`),
   getAgentLog: (reportId, params) =>
     client.get(`/report/${reportId}/agent-log`, { params }),
   getAgentLogStream: (reportId) =>

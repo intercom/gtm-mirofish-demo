@@ -271,6 +271,234 @@ def scenarios_leaderboard():
     return jsonify({'success': True, 'data': entries})
 
 
+# ============== Outcome Mapping ==============
+
+# Pre-built decision→impact data keyed by scenario category.
+# Used in demo/mock mode; can be enriched via LLM when a key is configured.
+_DEMO_OUTCOMES = {
+    'outbound': {
+        'scenario_name': 'Outbound Campaign Pre-Testing',
+        'decisions': [
+            {
+                'id': 'sdr_headcount',
+                'title': 'Increase SDR headcount by 2',
+                'category': 'hiring',
+                'impact': {'pipeline_per_month': 200000, 'cost_per_month': 80000},
+                'timeline': {
+                    'day_30': {'pipeline': 50000, 'cost': 80000},
+                    'day_60': {'pipeline': 140000, 'cost': 80000},
+                    'day_90': {'pipeline': 200000, 'cost': 80000},
+                },
+                'roi': 2.5,
+                'confidence': 0.72,
+            },
+            {
+                'id': 'competitive_campaign',
+                'title': 'Launch competitive comparison campaign',
+                'category': 'campaign',
+                'impact': {'pipeline_per_month': 75000, 'cost_per_month': 15000},
+                'timeline': {
+                    'day_30': {'pipeline': 20000, 'cost': 15000},
+                    'day_60': {'pipeline': 55000, 'cost': 15000},
+                    'day_90': {'pipeline': 75000, 'cost': 15000},
+                },
+                'roi': 5.0,
+                'confidence': 0.65,
+            },
+            {
+                'id': 'subject_line_optimization',
+                'title': 'A/B test top-2 subject lines at scale',
+                'category': 'optimization',
+                'impact': {'pipeline_per_month': 45000, 'cost_per_month': 5000},
+                'timeline': {
+                    'day_30': {'pipeline': 15000, 'cost': 5000},
+                    'day_60': {'pipeline': 35000, 'cost': 5000},
+                    'day_90': {'pipeline': 45000, 'cost': 5000},
+                },
+                'roi': 9.0,
+                'confidence': 0.81,
+            },
+            {
+                'id': 'persona_targeting',
+                'title': 'Focus outreach on VP Support & CX Director personas',
+                'category': 'targeting',
+                'impact': {'pipeline_per_month': 120000, 'cost_per_month': 10000},
+                'timeline': {
+                    'day_30': {'pipeline': 30000, 'cost': 10000},
+                    'day_60': {'pipeline': 80000, 'cost': 10000},
+                    'day_90': {'pipeline': 120000, 'cost': 10000},
+                },
+                'roi': 12.0,
+                'confidence': 0.78,
+            },
+        ],
+    },
+    'pricing': {
+        'scenario_name': 'Pricing Change Simulation',
+        'decisions': [
+            {
+                'id': 'grandfather_existing',
+                'title': 'Grandfather existing customers for 12 months',
+                'category': 'retention',
+                'impact': {'pipeline_per_month': 0, 'cost_per_month': 180000},
+                'timeline': {
+                    'day_30': {'pipeline': 0, 'cost': 180000},
+                    'day_60': {'pipeline': 0, 'cost': 180000},
+                    'day_90': {'pipeline': 50000, 'cost': 180000},
+                },
+                'roi': 0.28,
+                'confidence': 0.85,
+            },
+            {
+                'id': 'usage_based_repricing',
+                'title': 'Migrate to usage-based pricing model',
+                'category': 'pricing',
+                'impact': {'pipeline_per_month': 320000, 'cost_per_month': 45000},
+                'timeline': {
+                    'day_30': {'pipeline': 60000, 'cost': 45000},
+                    'day_60': {'pipeline': 200000, 'cost': 45000},
+                    'day_90': {'pipeline': 320000, 'cost': 45000},
+                },
+                'roi': 7.1,
+                'confidence': 0.58,
+            },
+            {
+                'id': 'churn_prevention',
+                'title': 'Proactive outreach to at-risk accounts',
+                'category': 'retention',
+                'impact': {'pipeline_per_month': 150000, 'cost_per_month': 25000},
+                'timeline': {
+                    'day_30': {'pipeline': 80000, 'cost': 25000},
+                    'day_60': {'pipeline': 130000, 'cost': 25000},
+                    'day_90': {'pipeline': 150000, 'cost': 25000},
+                },
+                'roi': 6.0,
+                'confidence': 0.74,
+            },
+        ],
+    },
+    'signals': {
+        'scenario_name': 'Sales Signal Validation',
+        'decisions': [
+            {
+                'id': 'signal_prioritization',
+                'title': 'Reduce signal types from 8 to top-3 predictive',
+                'category': 'optimization',
+                'impact': {'pipeline_per_month': 95000, 'cost_per_month': 8000},
+                'timeline': {
+                    'day_30': {'pipeline': 25000, 'cost': 8000},
+                    'day_60': {'pipeline': 65000, 'cost': 8000},
+                    'day_90': {'pipeline': 95000, 'cost': 8000},
+                },
+                'roi': 11.9,
+                'confidence': 0.71,
+            },
+            {
+                'id': 'slack_consolidation',
+                'title': 'Consolidate signal delivery to single Slack channel',
+                'category': 'process',
+                'impact': {'pipeline_per_month': 40000, 'cost_per_month': 3000},
+                'timeline': {
+                    'day_30': {'pipeline': 15000, 'cost': 3000},
+                    'day_60': {'pipeline': 30000, 'cost': 3000},
+                    'day_90': {'pipeline': 40000, 'cost': 3000},
+                },
+                'roi': 13.3,
+                'confidence': 0.82,
+            },
+            {
+                'id': 'rep_enablement',
+                'title': 'Add signal context cards with recommended actions',
+                'category': 'enablement',
+                'impact': {'pipeline_per_month': 110000, 'cost_per_month': 20000},
+                'timeline': {
+                    'day_30': {'pipeline': 20000, 'cost': 20000},
+                    'day_60': {'pipeline': 70000, 'cost': 20000},
+                    'day_90': {'pipeline': 110000, 'cost': 20000},
+                },
+                'roi': 5.5,
+                'confidence': 0.67,
+            },
+        ],
+    },
+    'personalization': {
+        'scenario_name': 'Personalization Strategy',
+        'decisions': [
+            {
+                'id': 'ai_personalization',
+                'title': 'Deploy AI-generated email personalization',
+                'category': 'automation',
+                'impact': {'pipeline_per_month': 160000, 'cost_per_month': 12000},
+                'timeline': {
+                    'day_30': {'pipeline': 35000, 'cost': 12000},
+                    'day_60': {'pipeline': 100000, 'cost': 12000},
+                    'day_90': {'pipeline': 160000, 'cost': 12000},
+                },
+                'roi': 13.3,
+                'confidence': 0.69,
+            },
+            {
+                'id': 'segment_playbooks',
+                'title': 'Create industry-specific outreach playbooks',
+                'category': 'content',
+                'impact': {'pipeline_per_month': 85000, 'cost_per_month': 18000},
+                'timeline': {
+                    'day_30': {'pipeline': 15000, 'cost': 18000},
+                    'day_60': {'pipeline': 50000, 'cost': 18000},
+                    'day_90': {'pipeline': 85000, 'cost': 18000},
+                },
+                'roi': 4.7,
+                'confidence': 0.73,
+            },
+        ],
+    },
+}
+
+# Fallback: generic outcomes for unknown scenario categories
+_DEMO_OUTCOMES['general'] = _DEMO_OUTCOMES['outbound']
+
+
+@gtm_bp.route('/outcomes/<scenario_id>', methods=['GET'])
+def get_outcomes(scenario_id):
+    """
+    Return decision→impact outcome mappings for a scenario.
+
+    Works in demo mode with pre-built data. When an LLM key is configured,
+    the endpoint can optionally enrich outcomes (not yet implemented — the
+    demo data is sufficient for the visualization component).
+    """
+    # Try to load the scenario to determine category
+    filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
+    scenario = _load_json(filepath)
+
+    if scenario:
+        category = scenario.get('category', 'general')
+    else:
+        category = 'general'
+
+    outcomes = _DEMO_OUTCOMES.get(category, _DEMO_OUTCOMES['general'])
+
+    # Compute aggregate totals for the frontend
+    decisions = outcomes['decisions']
+    total_pipeline = sum(d['impact']['pipeline_per_month'] for d in decisions)
+    total_cost = sum(d['impact']['cost_per_month'] for d in decisions)
+    avg_roi = (
+        sum(d['roi'] for d in decisions) / len(decisions) if decisions else 0
+    )
+
+    return jsonify({
+        'scenario_id': scenario_id,
+        'scenario_name': outcomes['scenario_name'],
+        'decisions': decisions,
+        'totals': {
+            'pipeline_per_month': total_pipeline,
+            'cost_per_month': total_cost,
+            'net_impact': total_pipeline - total_cost,
+            'avg_roi': round(avg_roi, 1),
+        },
+    })
+
+
 # ============== Unified Simulation Endpoint ==============
 
 @gtm_bp.route('/simulate', methods=['POST'])

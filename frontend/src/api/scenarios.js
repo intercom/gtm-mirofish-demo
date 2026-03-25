@@ -8,4 +8,5 @@ export const scenariosApi = {
     client.get(`/gtm/scenarios/${scenarioId}/seed-text`),
   getLeaderboard: (runs = []) =>
     client.post('/gtm/scenarios/leaderboard', { runs }),
+  getOutcomes: (scenarioId) => client.get(`/gtm/outcomes/${scenarioId}`),
 }

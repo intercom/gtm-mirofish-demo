@@ -5,6 +5,7 @@ import { API_BASE } from '../api/client'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
+import ToolCallLog from '../components/report/ToolCallLog.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -16,6 +17,7 @@ const progress = ref(0)
 const progressMessage = ref('')
 const error = ref(null)
 const isComplete = ref(false)
+const showAgentLog = ref(false)
 
 let pollTimer = null
 
@@ -313,6 +315,22 @@ onUnmounted(stopPolling)
           v-if="activeContent && !generating"
           :chapterIndex="activeChapter"
         />
+
+        <!-- Agent Reasoning Log -->
+        <div v-if="reportId">
+          <button
+            @click="showAgentLog = !showAgentLog"
+            class="flex items-center gap-2 text-xs font-medium text-[var(--color-text-muted)] hover:text-[#2068FF] transition-colors mb-3"
+          >
+            <span class="transition-transform" :class="showAgentLog ? 'rotate-90' : ''">▶</span>
+            {{ showAgentLog ? 'Hide' : 'Show' }} Agent Reasoning Log
+          </button>
+          <ToolCallLog
+            v-if="showAgentLog"
+            :reportId="reportId"
+            :isGenerating="generating"
+          />
+        </div>
 
         <!-- Key Findings Summary -->
         <div v-if="keyFindings.length > 0" class="space-y-3">

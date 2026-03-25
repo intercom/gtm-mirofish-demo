@@ -6,16 +6,36 @@ const styleCss = readFileSync(resolve(__dirname, '../style.css'), 'utf-8')
 const appVue = readFileSync(resolve(__dirname, '../App.vue'), 'utf-8')
 
 describe('Transition CSS classes', () => {
-  it('defines page-enter-active and page-leave-active classes', () => {
-    expect(styleCss).toContain('.page-enter-active')
-    expect(styleCss).toContain('.page-leave-active')
+  it('defines direction-aware page transition classes', () => {
+    expect(styleCss).toContain('.page-fade-enter-active')
+    expect(styleCss).toContain('.page-fade-leave-active')
+    expect(styleCss).toContain('.page-slide-left-enter-active')
+    expect(styleCss).toContain('.page-slide-left-leave-active')
+    expect(styleCss).toContain('.page-slide-right-enter-active')
+    expect(styleCss).toContain('.page-slide-right-leave-active')
   })
 
-  it('page transition uses fade + slide transform', () => {
-    expect(styleCss).toContain('.page-enter-from')
-    expect(styleCss).toContain('.page-leave-to')
-    expect(styleCss).toMatch(/\.page-enter-from[\s\S]*?translateY/)
-    expect(styleCss).toMatch(/\.page-leave-to[\s\S]*?translateY/)
+  it('page-slide-left uses translateX for forward navigation', () => {
+    expect(styleCss).toContain('.page-slide-left-enter-from')
+    expect(styleCss).toContain('.page-slide-left-leave-to')
+    expect(styleCss).toMatch(/\.page-slide-left-enter-from[\s\S]*?translateX/)
+    expect(styleCss).toMatch(/\.page-slide-left-leave-to[\s\S]*?translateX/)
+  })
+
+  it('page-slide-right uses translateX for backward navigation', () => {
+    expect(styleCss).toContain('.page-slide-right-enter-from')
+    expect(styleCss).toContain('.page-slide-right-leave-to')
+    expect(styleCss).toMatch(/\.page-slide-right-enter-from[\s\S]*?translateX/)
+    expect(styleCss).toMatch(/\.page-slide-right-leave-to[\s\S]*?translateX/)
+  })
+
+  it('page-fade uses opacity for same-level navigation', () => {
+    expect(styleCss).toContain('.page-fade-enter-from')
+    expect(styleCss).toContain('.page-fade-leave-to')
+  })
+
+  it('respects prefers-reduced-motion', () => {
+    expect(styleCss).toContain('prefers-reduced-motion: reduce')
   })
 
   it('defines fade transition classes', () => {
@@ -42,8 +62,10 @@ describe('Transition CSS classes', () => {
 })
 
 describe('App.vue page transition', () => {
-  it('wraps router-view in Transition with name="page"', () => {
-    expect(appVue).toContain('<Transition name="page" mode="out-in">')
+  it('wraps router-view in dynamic Transition with usePageTransition', () => {
+    expect(appVue).toContain(':name="transitionName"')
+    expect(appVue).toContain('mode="out-in"')
     expect(appVue).toContain('<router-view')
+    expect(appVue).toContain('usePageTransition')
   })
 })

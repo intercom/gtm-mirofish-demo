@@ -65,20 +65,52 @@ button, [role="button"], a[href], summary, select, input[type="checkbox"], input
   transform: translateY(8px);
 }
 
-/* Page transitions: fade + slight slide */
-.page-enter-active,
-.page-leave-active {
+/* Page transitions: direction-aware (set dynamically via usePageTransition) */
+.page-fade-enter-active,
+.page-fade-leave-active,
+.page-slide-left-enter-active,
+.page-slide-left-leave-active,
+.page-slide-right-enter-active,
+.page-slide-right-leave-active {
   transition: opacity var(--transition-base), transform var(--transition-base);
 }
 
-.page-enter-from {
+/* Fade (same-level navigation) */
+.page-fade-enter-from,
+.page-fade-leave-to {
   opacity: 0;
-  transform: translateY(8px);
 }
 
-.page-leave-to {
+/* Slide left (navigating deeper: landing → scenario → workspace) */
+.page-slide-left-enter-from {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateX(30px);
+}
+.page-slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+
+/* Slide right (navigating back: workspace → scenario → landing) */
+.page-slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-30px);
+}
+.page-slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .page-fade-enter-active,
+  .page-fade-leave-active,
+  .page-slide-left-enter-active,
+  .page-slide-left-leave-active,
+  .page-slide-right-enter-active,
+  .page-slide-right-leave-active {
+    transition-duration: 0ms;
+  }
 }
 
 /* Staggered card grid transitions */

@@ -13,6 +13,11 @@ export const routes = [
     redirect: '/',
   },
   {
+    path: '/scenarios',
+    name: 'scenarios',
+    component: () => import('../views/ScenariosView.vue'),
+  },
+  {
     path: '/scenarios/:id',
     name: 'scenario-builder',
     component: () => import('../views/ScenarioBuilderView.vue'),

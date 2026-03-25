@@ -34,7 +34,7 @@ Intercom-branded fork of MiroFish — a swarm intelligence engine for GTM operat
 │   ├── run.py                 # Server entrypoint
 │   ├── Dockerfile
 │   └── pyproject.toml         # Python deps (managed by uv)
-├── frontend/                  # Vue 3 + Vite + Tailwind
+├── frontend/                  # Vue 3 + Vite + Tailwind CSS v4
 │   ├── src/
 │   │   ├── main.js            # App bootstrap (Vue + Pinia + Router)
 │   │   ├── api/
@@ -134,7 +134,7 @@ cd frontend && pnpm install && pnpm dev
 
 ### Framework & Style
 - **Vue 3 Composition API** with `<script setup>` syntax — no Options API
-- **Tailwind CSS** for styling via CSS utility classes
+- **Tailwind CSS v4** for styling via CSS utility classes (CSS-based config — no `tailwind.config.js`)
 - **D3.js v7** for all data visualizations (`pnpm add d3`)
 - **Intercom brand colors**:
   - Primary blue: `#2068FF`
@@ -220,7 +220,8 @@ Set `LLM_PROVIDER` in `.env` to switch providers:
 - **Simulation**: OASIS framework (built on CAMEL AI) runs agent simulations in a subprocess via `simulation_runner.py`
 - **Auth**: Optional OAuth (Google/Okta) gated by `AUTH_ENABLED=true`; enforces `@intercom.io` domain
 - **Scenarios**: 4 pre-built GTM scenarios in `backend/gtm_scenarios/` with seed data in `backend/gtm_seed_data/`
-- **Branding**: Intercom design tokens in `frontend/tailwind.config.js` and `frontend/src/assets/brand-tokens.css`
+- **Branding**: Intercom design tokens in `frontend/src/assets/brand-tokens.css` (Tailwind CSS v4 — no tailwind.config.js)
+- **Dockerfiles**: Per-service Dockerfiles in `backend/` and `frontend/` (used by both Railway and docker-compose)
 - **Demo mode**: System works without LLM keys — endpoints return mock/demo data when no key is configured
 
 ## API Endpoints
@@ -230,9 +231,9 @@ Set `LLM_PROVIDER` in `.env` to switch providers:
 - `GET /api/graph/project/<id>` — Get project details
 - `GET /api/graph/project/list` — List all projects
 - `POST /api/simulation/start` — Start OASIS simulation
-- `GET /api/simulation/status` — Check simulation progress
+- `GET /api/simulation/<id>/run-status` — Check simulation progress
 - `POST /api/report/generate` — Generate predictive report
-- `POST /api/chat` — Chat with simulated world
+- `POST /api/report/chat` — Chat with simulated world
 
 ### GTM Extensions
 - `GET /api/gtm/scenarios` — List GTM scenario templates

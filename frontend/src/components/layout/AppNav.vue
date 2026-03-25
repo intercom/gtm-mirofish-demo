@@ -3,10 +3,13 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import { useSettingsStore } from '../../stores/settings'
+import PresenceIndicator from '../common/PresenceIndicator.vue'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
+const settingsStore = useSettingsStore()
 const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => {
@@ -64,6 +67,8 @@ watch(() => route.path, () => {
       </div>
 
       <div class="flex items-center gap-3">
+        <PresenceIndicator v-if="settingsStore.showPresence" />
+
         <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
           <span>Local</span>

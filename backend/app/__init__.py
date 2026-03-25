@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Cost model API (campaign cost modeling calculator)
+    from .api.cost_model import cost_model_bp
+    app.register_blueprint(cost_model_bp)
     
     # 健康检查
     @app.route('/health')

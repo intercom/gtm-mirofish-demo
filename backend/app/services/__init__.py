@@ -36,6 +36,16 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .whatif_engine import (
+    WhatIfEngine,
+    ScenarioConfig,
+    SimulationResults,
+    ComparisonResult,
+    SensitivityResult,
+    Modification,
+    ModificationType,
+    ScenarioStatus,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +79,13 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'WhatIfEngine',
+    'ScenarioConfig',
+    'SimulationResults',
+    'ComparisonResult',
+    'SensitivityResult',
+    'Modification',
+    'ModificationType',
+    'ScenarioStatus',
 ]
 

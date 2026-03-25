@@ -46,6 +46,12 @@ from .campaign import (
     CampaignCostBreakdown, CostType,
     CampaignAttribution, AttributionModel,
 )
+from .data_pipeline import (
+    SyncJob, SyncStatus, SyncDirection,
+    DbtModel, DbtMaterialization, DbtModelStatus,
+    DbtTest, DbtTestStatus, DbtTestSeverity,
+    DataFreshness,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -70,4 +76,8 @@ __all__ = [
     'Campaign', 'CampaignType', 'CampaignStatus',
     'CampaignCostBreakdown', 'CostType',
     'CampaignAttribution', 'AttributionModel',
+    'SyncJob', 'SyncStatus', 'SyncDirection',
+    'DbtModel', 'DbtMaterialization', 'DbtModelStatus',
+    'DbtTest', 'DbtTestStatus', 'DbtTestSeverity',
+    'DataFreshness',
 ]

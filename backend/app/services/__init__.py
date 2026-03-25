@@ -98,6 +98,7 @@ from .campaign_generator import (
     get_roi_comparison,
     get_budget_efficiency,
 )
+from .revenue_data_generator import RevenueDataGenerator
 
 __all__ = [
     'OntologyGenerator',
@@ -178,4 +179,5 @@ __all__ = [
     'get_campaign_stats',
     'get_roi_comparison',
     'get_budget_efficiency',
+    'RevenueDataGenerator',
 ]

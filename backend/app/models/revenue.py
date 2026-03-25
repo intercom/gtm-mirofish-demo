@@ -44,13 +44,13 @@ class RevenueMetric:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "month": self.month,
-            "mrr": self.mrr,
-            "arr": self.arr,
-            "new_mrr": self.new_mrr,
-            "expansion_mrr": self.expansion_mrr,
-            "contraction_mrr": self.contraction_mrr,
-            "churn_mrr": self.churn_mrr,
-            "net_new_mrr": self.net_new_mrr,
+            "mrr": round(self.mrr, 2),
+            "arr": round(self.arr, 2),
+            "new_mrr": round(self.new_mrr, 2),
+            "expansion_mrr": round(self.expansion_mrr, 2),
+            "contraction_mrr": round(self.contraction_mrr, 2),
+            "churn_mrr": round(self.churn_mrr, 2),
+            "net_new_mrr": round(self.net_new_mrr, 2),
         }
 
     @classmethod
@@ -83,7 +83,7 @@ class CustomerRevenue:
         return {
             "account_id": self.account_id,
             "account_name": self.account_name,
-            "mrr": self.mrr,
+            "mrr": round(self.mrr, 2),
             "plan": self.plan.value if isinstance(self.plan, PlanTier) else self.plan,
             "seats": self.seats,
             "usage_units": self.usage_units,
@@ -122,7 +122,7 @@ class ChurnEvent:
         return {
             "account_id": self.account_id,
             "account_name": self.account_name,
-            "mrr_lost": self.mrr_lost,
+            "mrr_lost": round(self.mrr_lost, 2),
             "reason": self.reason.value if isinstance(self.reason, ChurnReason) else self.reason,
             "churn_date": self.churn_date,
             "was_voluntary": self.was_voluntary,
@@ -157,9 +157,10 @@ class ExpansionEvent:
         return {
             "account_id": self.account_id,
             "account_name": self.account_name,
-            "previous_mrr": self.previous_mrr,
-            "new_mrr": self.new_mrr,
+            "previous_mrr": round(self.previous_mrr, 2),
+            "new_mrr": round(self.new_mrr, 2),
             "expansion_type": self.expansion_type.value if isinstance(self.expansion_type, ExpansionType) else self.expansion_type,
+            "expansion_mrr": round(self.new_mrr - self.previous_mrr, 2),
             "date": self.date,
         }
 

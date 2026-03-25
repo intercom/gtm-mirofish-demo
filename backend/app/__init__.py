@@ -72,6 +72,10 @@ def create_app(config_class=Config):
     from .api.gtm_scenarios import gtm_bp
     app.register_blueprint(gtm_bp)
 
+    # Pipeline funnel API (dashboard widgets)
+    from .api.pipeline import pipeline_bp
+    app.register_blueprint(pipeline_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

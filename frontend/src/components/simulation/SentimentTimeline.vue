@@ -1,6 +1,21 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useTheme } from '../../composables/useTheme'
+
+const { isDark } = useTheme()
+
+function getThemeColors() {
+  const dark = document.documentElement.classList.contains('dark')
+  const s = getComputedStyle(document.documentElement)
+  return {
+    textMuted: s.getPropertyValue('--color-text-muted').trim() || '#888',
+    surface: s.getPropertyValue('--color-surface').trim() || '#fff',
+    grid: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    gridStrong: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)',
+    gridOnArea: dark ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.4)',
+  }
+}
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },
@@ -116,6 +131,7 @@ function renderChart() {
 }
 
 function renderTrend(container, data, containerWidth) {
+  const tc = getThemeColors()
   const margin = { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
   const height = 180
@@ -149,7 +165,7 @@ function renderTrend(container, data, containerWidth) {
     .attr('x2', width)
     .attr('y1', d => y(d))
     .attr('y2', d => y(d))
-    .attr('stroke', d => d === 0 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.06)')
+    .attr('stroke', d => d === 0 ? tc.gridStrong : tc.grid)
     .attr('stroke-dasharray', d => d === 0 ? 'none' : '2,3')
 
   // Y-axis labels
@@ -164,7 +180,7 @@ function renderTrend(container, data, containerWidth) {
     .attr('fill', d => {
       if (d > 0) return '#009900'
       if (d < 0) return '#ff5600'
-      return '#888'
+      return tc.textMuted
     })
     .text(d => {
       if (d === 0) return '0'
@@ -180,7 +196,7 @@ function renderTrend(container, data, containerWidth) {
     .attr('y', height + 18)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
+    .attr('fill', tc.textMuted)
     .text(d => `R${d.round}`)
 
   // Positive area (above 0)
@@ -255,7 +271,7 @@ function renderTrend(container, data, containerWidth) {
       if (d.avgSentiment < -0.1) return '#ff5600'
       return '#2068FF'
     })
-    .attr('stroke', '#fff')
+    .attr('stroke', tc.surface)
     .attr('stroke-width', 1.5)
 
   dots.transition()
@@ -332,6 +348,7 @@ function renderTrend(container, data, containerWidth) {
 }
 
 function renderDistribution(container, data, containerWidth) {
+  const tc = getThemeColors()
   const margin = { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
   const height = 180
@@ -402,7 +419,7 @@ function renderDistribution(container, data, containerWidth) {
     .attr('x2', width)
     .attr('y1', d => y(d))
     .attr('y2', d => y(d))
-    .attr('stroke', 'rgba(255,255,255,0.4)')
+    .attr('stroke', tc.gridOnArea)
     .attr('stroke-dasharray', '2,3')
 
   // Y-axis labels
@@ -414,7 +431,7 @@ function renderDistribution(container, data, containerWidth) {
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
+    .attr('fill', tc.textMuted)
     .text(d => `${Math.round(d * 100)}%`)
 
   // X-axis labels
@@ -426,13 +443,17 @@ function renderDistribution(container, data, containerWidth) {
     .attr('y', height + 18)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
+    .attr('fill', tc.textMuted)
     .text(d => `R${d.round}`)
 }
 
 // --- Lifecycle ---
 
 watch([() => props.actions.length, () => props.timeline.length, viewMode], () => {
+  nextTick(() => renderChart())
+})
+
+watch(isDark, () => {
   nextTick(() => renderChart())
 })
 
@@ -489,13 +510,13 @@ onUnmounted(() => {
     <div v-if="sentimentData.length" class="flex items-center gap-4 mt-3 text-xs text-[var(--color-text-muted)]">
       <template v-if="viewMode === 'trend'">
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-2 h-2 rounded-full bg-[#009900]" /> Positive
+          <span class="inline-block w-2 h-2 rounded-full bg-[var(--color-success)]" /> Positive
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-2 h-2 rounded-full bg-[#2068FF]" /> Neutral
+          <span class="inline-block w-2 h-2 rounded-full bg-[var(--color-primary)]" /> Neutral
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-2 h-2 rounded-full bg-[#ff5600]" /> Negative
+          <span class="inline-block w-2 h-2 rounded-full bg-[var(--color-fin-orange)]" /> Negative
         </span>
       </template>
       <template v-else>

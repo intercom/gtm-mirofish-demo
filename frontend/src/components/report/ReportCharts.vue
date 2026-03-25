@@ -1,10 +1,13 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useTheme } from '../../composables/useTheme'
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
 })
+
+const { isDark } = useTheme()
 
 const chartRef = ref(null)
 let resizeObserver = null
@@ -16,12 +19,22 @@ const CHART_MAP = {
   3: renderBehavioralClusters,
 }
 
-const COLORS = {
-  primary: '#2068FF',
-  orange: '#ff5600',
-  purple: '#AA00FF',
-  green: '#009900',
-  text: '#050505',
+function getColors() {
+  const s = getComputedStyle(document.documentElement)
+  const dark = document.documentElement.classList.contains('dark')
+  return {
+    primary: s.getPropertyValue('--color-primary').trim() || '#2068FF',
+    orange: s.getPropertyValue('--color-fin-orange').trim() || '#ff5600',
+    purple: s.getPropertyValue('--color-accent').trim() || '#AA00FF',
+    green: s.getPropertyValue('--color-success').trim() || '#009900',
+    text: s.getPropertyValue('--color-text').trim() || '#050505',
+    textSecondary: s.getPropertyValue('--color-text-secondary').trim() || '#555555',
+    textMuted: s.getPropertyValue('--color-text-muted').trim() || '#888888',
+    grid: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    subtle: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+    connector: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)',
+    surface: s.getPropertyValue('--color-surface').trim() || '#ffffff',
+  }
 }
 
 function hasChart(index) {
@@ -46,6 +59,7 @@ function renderActiveChart() {
 function renderPersonaEngagement() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const data = [
     { label: 'VP Support', value: 38.4 },
@@ -84,7 +98,7 @@ function renderPersonaEngagement() {
     .attr('x', margin.left)
     .attr('y', 40)
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', COLORS.textMuted)
     .text('Average email open rate by target persona')
 
   const g = svg.append('g')
@@ -108,7 +122,7 @@ function renderPersonaEngagement() {
     .attr('x2', d => x(d))
     .attr('y1', 0)
     .attr('y2', height)
-    .attr('stroke', 'rgba(0,0,0,0.06)')
+    .attr('stroke', COLORS.grid)
     .attr('stroke-dasharray', '2,3')
 
   // X-axis labels
@@ -119,7 +133,7 @@ function renderPersonaEngagement() {
     .attr('y', height + 16)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#aaa')
+    .attr('fill', COLORS.textMuted)
     .text(d => `${d}%`)
 
   // Labels
@@ -131,7 +145,7 @@ function renderPersonaEngagement() {
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
     .attr('font-size', '12px')
-    .attr('fill', '#555')
+    .attr('fill', COLORS.textSecondary)
     .text(d => d.label)
 
   // Bar background
@@ -143,10 +157,10 @@ function renderPersonaEngagement() {
     .attr('width', width)
     .attr('height', y.bandwidth())
     .attr('rx', 4)
-    .attr('fill', 'rgba(0,0,0,0.03)')
+    .attr('fill', COLORS.subtle)
 
   // Bars with animation
-  const barColors = [COLORS.primary, COLORS.primary, COLORS.orange, COLORS.purple, '#888']
+  const barColors = [COLORS.primary, COLORS.primary, COLORS.orange, COLORS.purple, COLORS.textMuted]
 
   g.selectAll('.bar')
     .data(data)
@@ -187,6 +201,7 @@ function renderPersonaEngagement() {
 function renderSubjectLinePerformance() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const data = [
     { label: '"Your Zendesk bill is 3x..."', open: 34.7, spam: 8.2 },
@@ -222,7 +237,7 @@ function renderSubjectLinePerformance() {
     .attr('x', margin.left)
     .attr('y', 40)
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', COLORS.textMuted)
     .text('Open rate vs. spam flag rate by subject variant')
 
   const g = svg.append('g')
@@ -252,7 +267,7 @@ function renderSubjectLinePerformance() {
     .attr('x2', width)
     .attr('y1', d => y(d))
     .attr('y2', d => y(d))
-    .attr('stroke', 'rgba(0,0,0,0.06)')
+    .attr('stroke', COLORS.grid)
     .attr('stroke-dasharray', '2,3')
 
   // Y-axis labels
@@ -264,7 +279,7 @@ function renderSubjectLinePerformance() {
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
     .attr('font-size', '10px')
-    .attr('fill', '#aaa')
+    .attr('fill', COLORS.textMuted)
     .text(d => `${d}%`)
 
   // Grouped bars
@@ -344,7 +359,7 @@ function renderSubjectLinePerformance() {
     .attr('y', labelY)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
+    .attr('fill', COLORS.textMuted)
     .each(function (d) {
       const el = d3.select(this)
       const maxWidth = x0.bandwidth() + 10
@@ -388,7 +403,7 @@ function renderSubjectLinePerformance() {
   legend.append('text')
     .attr('x', 16).attr('y', 9)
     .attr('font-size', '11px')
-    .attr('fill', '#555')
+    .attr('fill', COLORS.textSecondary)
     .text('Open Rate')
 
   // Spam rate legend
@@ -402,7 +417,7 @@ function renderSubjectLinePerformance() {
   legend.append('text')
     .attr('x', 106).attr('y', 9)
     .attr('font-size', '11px')
-    .attr('fill', '#555')
+    .attr('fill', COLORS.textSecondary)
     .text('Spam Flag')
 }
 
@@ -411,6 +426,7 @@ function renderSubjectLinePerformance() {
 function renderBehavioralClusters() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const data = [
     { label: 'Active Evaluators', value: 31 },
@@ -420,7 +436,7 @@ function renderBehavioralClusters() {
     { label: 'Budget Blockers', value: 8 },
   ]
 
-  const colors = [COLORS.primary, COLORS.orange, COLORS.green, COLORS.purple, '#888']
+  const colors = [COLORS.primary, COLORS.orange, COLORS.green, COLORS.purple, COLORS.textMuted]
 
   const containerWidth = container.clientWidth
   const size = Math.min(containerWidth, 400)
@@ -451,7 +467,7 @@ function renderBehavioralClusters() {
     .attr('y', 40)
     .attr('text-anchor', 'middle')
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', COLORS.textMuted)
     .text('Prospect segmentation by observed engagement pattern')
 
   const g = svg.append('g')
@@ -479,7 +495,7 @@ function renderBehavioralClusters() {
     .join('path')
     .attr('fill', (d, i) => colors[i])
     .attr('opacity', 0.85)
-    .attr('stroke', '#fff')
+    .attr('stroke', COLORS.surface)
     .attr('stroke-width', 2)
 
   paths.transition()
@@ -509,7 +525,7 @@ function renderBehavioralClusters() {
     .attr('text-anchor', 'middle')
     .attr('dy', '1.2em')
     .attr('font-size', '11px')
-    .attr('fill', '#888')
+    .attr('fill', COLORS.textMuted)
     .style('opacity', 0)
     .text('of prospects')
     .transition()
@@ -537,7 +553,7 @@ function renderBehavioralClusters() {
       .attr('y1', arcMid[1] * 1.15)
       .attr('x2', pos[0] + xOffset)
       .attr('y2', pos[1])
-      .attr('stroke', 'rgba(0,0,0,0.15)')
+      .attr('stroke', COLORS.connector)
       .attr('stroke-width', 1)
 
     // Label text
@@ -547,7 +563,7 @@ function renderBehavioralClusters() {
       .attr('dy', '-0.3em')
       .attr('text-anchor', isRight ? 'start' : 'end')
       .attr('font-size', '11px')
-      .attr('fill', '#555')
+      .attr('fill', COLORS.textSecondary)
       .text(data[i].label)
 
     // Value text
@@ -571,6 +587,12 @@ function renderBehavioralClusters() {
 // --- Lifecycle ---
 
 watch(() => props.chapterIndex, () => {
+  if (hasChart(props.chapterIndex)) {
+    nextTick(() => renderActiveChart())
+  }
+})
+
+watch(isDark, () => {
   if (hasChart(props.chapterIndex)) {
     nextTick(() => renderActiveChart())
   }
@@ -601,7 +623,7 @@ onUnmounted(() => {
 <template>
   <div
     v-if="hasChart(chapterIndex)"
-    class="bg-white border border-black/10 rounded-lg p-4 md:p-6"
+    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 md:p-6"
   >
     <div ref="chartRef" class="w-full" />
   </div>

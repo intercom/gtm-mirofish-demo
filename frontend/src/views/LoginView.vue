@@ -41,7 +41,7 @@ onMounted(async () => {
 
 <template>
   <div class="min-h-[calc(100vh-120px)] bg-[var(--color-navy)] flex items-center justify-center px-6">
-    <div class="bg-white rounded-xl p-8 w-full max-w-sm text-center shadow-lg">
+    <div class="bg-[var(--color-surface)] rounded-xl p-8 w-full max-w-sm text-center shadow-lg">
       <!-- Logo -->
       <div class="flex justify-center mb-6">
         <svg width="40" height="40" viewBox="0 0 28 28" fill="none">

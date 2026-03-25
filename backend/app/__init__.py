@@ -9,11 +9,14 @@ import warnings
 # 需要在所有其他导入之前设置
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
-from flask import Flask, request
+from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 
 from .config import Config
 from .utils.logger import setup_logger, get_logger
+
+csrf = CSRFProtect()
 
 
 def create_app(config_class=Config):
@@ -39,8 +42,12 @@ def create_app(config_class=Config):
         logger.info("MiroFish Backend 启动中...")
         logger.info("=" * 50)
     
-    # 启用CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # 启用CORS (with credentials for CSRF cookie support)
+    cors_origins = [o.strip() for o in app.config.get('CORS_ORIGINS', 'http://localhost:3000').split(',')]
+    CORS(app, resources={r"/api/*": {"origins": cors_origins}}, supports_credentials=True)
+
+    # 启用CSRF保护
+    csrf.init_app(app)
     
     # 注册模拟进程清理函数（确保服务器关闭时终止所有模拟进程）
     from .services.simulation_runner import SimulationRunner
@@ -61,7 +68,23 @@ def create_app(config_class=Config):
         logger = get_logger('mirofish.request')
         logger.debug(f"响应: {response.status_code}")
         return response
-    
+
+    @app.after_request
+    def set_csrf_cookie(response):
+        response.set_cookie(
+            'csrf_token',
+            generate_csrf(),
+            samesite=app.config.get('SESSION_COOKIE_SAMESITE', 'Lax'),
+            secure=app.config.get('SESSION_COOKIE_SECURE', False),
+            httponly=False,
+        )
+        return response
+
+    # CSRF token endpoint for SPA clients
+    @app.route('/api/csrf-token', methods=['GET'])
+    def csrf_token():
+        return jsonify({'csrf_token': generate_csrf()})
+
     # Register blueprints
     from .api import graph_bp, simulation_bp, report_bp
     app.register_blueprint(graph_bp, url_prefix='/api/graph')

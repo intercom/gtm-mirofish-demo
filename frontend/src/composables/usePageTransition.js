@@ -7,19 +7,26 @@ const ROUTE_DEPTH = {
   settings: 1,
   'scenario-builder': 2,
   workspace: 3,
+  report: 3,
+  chat: 3,
   'agent-profile': 4,
-  report: 4,
-  chat: 4,
 }
 
 export function usePageTransition() {
   const router = useRouter()
-  const transitionName = ref('page-forward')
+  const transitionName = ref('page-fade')
 
   router.beforeEach((to, from) => {
-    const toDepth = ROUTE_DEPTH[to.name] ?? 0
-    const fromDepth = ROUTE_DEPTH[from.name] ?? 0
-    transitionName.value = toDepth >= fromDepth ? 'page-forward' : 'page-back'
+    const toDepth = ROUTE_DEPTH[to.name] ?? 1
+    const fromDepth = ROUTE_DEPTH[from.name] ?? 1
+
+    if (toDepth > fromDepth) {
+      transitionName.value = 'page-slide-left'
+    } else if (toDepth < fromDepth) {
+      transitionName.value = 'page-slide-right'
+    } else {
+      transitionName.value = 'page-fade'
+    }
   })
 
   return { transitionName }

@@ -66,46 +66,50 @@ button, [role="button"], a[href], summary, select, input[type="checkbox"], input
   transform: translateY(8px);
 }
 
-/* Page transitions: directional fade + slide */
-.page-forward-enter-active,
-.page-back-enter-active {
-  transition: opacity 250ms cubic-bezier(0, 0, 0.2, 1),
-              transform 250ms cubic-bezier(0, 0, 0.2, 1);
-  will-change: opacity, transform;
+/* Page transitions: direction-aware (set dynamically via usePageTransition) */
+.page-fade-enter-active,
+.page-fade-leave-active,
+.page-slide-left-enter-active,
+.page-slide-left-leave-active,
+.page-slide-right-enter-active,
+.page-slide-right-leave-active {
+  transition: opacity var(--transition-base), transform var(--transition-base);
 }
 
-.page-forward-leave-active,
-.page-back-leave-active {
-  transition: opacity 200ms cubic-bezier(0.4, 0, 1, 1),
-              transform 200ms cubic-bezier(0.4, 0, 1, 1);
-  will-change: opacity, transform;
-}
-
-.page-forward-enter-from {
+/* Fade (same-level navigation) */
+.page-fade-enter-from,
+.page-fade-leave-to {
   opacity: 0;
-  transform: translateY(12px);
 }
 
-.page-forward-leave-to {
+/* Slide left (navigating deeper: landing → scenario → workspace) */
+.page-slide-left-enter-from {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateX(30px);
 }
-
-.page-back-enter-from {
+.page-slide-left-leave-to {
   opacity: 0;
-  transform: translateY(-12px);
+  transform: translateX(-30px);
 }
 
-.page-back-leave-to {
+/* Slide right (navigating back: workspace → scenario → landing) */
+.page-slide-right-enter-from {
   opacity: 0;
-  transform: translateY(8px);
+  transform: translateX(-30px);
+}
+.page-slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(30px);
 }
 
+/* Respect reduced-motion preference */
 @media (prefers-reduced-motion: reduce) {
-  .page-forward-enter-active,
-  .page-forward-leave-active,
-  .page-back-enter-active,
-  .page-back-leave-active {
+  .page-fade-enter-active,
+  .page-fade-leave-active,
+  .page-slide-left-enter-active,
+  .page-slide-left-leave-active,
+  .page-slide-right-enter-active,
+  .page-slide-right-leave-active {
     transition-duration: 0ms;
   }
 }

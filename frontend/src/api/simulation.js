@@ -15,6 +15,10 @@ export const simulationApi = {
   prepareStatus: (data) => client.post('/simulation/prepare/status', data),
   start: (data) => client.post('/simulation/start', data),
   stop: (data) => client.post('/simulation/stop', data),
+  pause: (simulationId) =>
+    client.post(`/simulation/${simulationId}/pause`),
+  resume: (simulationId) =>
+    client.post(`/simulation/${simulationId}/resume`),
 
   // --- Status & info ---
   get: (simulationId) => client.get(`/simulation/${simulationId}`),
@@ -40,6 +44,12 @@ export const simulationApi = {
     client.get(`/simulation/script/${scriptName}/download`, { responseType: 'blob' }),
   generateProfiles: (data) =>
     client.post('/simulation/generate-profiles', data),
+
+  // --- OASIS round & metrics ---
+  getRound: (simulationId, roundNum) =>
+    client.get(`/simulation/${simulationId}/round/${roundNum}`),
+  getMetrics: (simulationId) =>
+    client.get(`/simulation/${simulationId}/metrics`),
 
   // --- Results ---
   getActions: (simulationId, params) =>

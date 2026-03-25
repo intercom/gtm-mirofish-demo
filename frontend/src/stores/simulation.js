@@ -30,6 +30,9 @@ export const useSimulationStore = defineStore('simulation', () => {
   const projectId = ref(null)
   const error = ref(null)
 
+  // Simulation mode: 'oasis' (real LLM) or 'demo' (synthetic data)
+  const mode = ref(null)
+
   // Progress tracking for the active phase
   const progress = ref({
     percent: 0,
@@ -92,10 +95,15 @@ export const useSimulationStore = defineStore('simulation', () => {
     setStatus('preparing')
   }
 
-  function startRun(simId) {
+  function startRun(simId, simMode) {
     simulationId.value = simId
+    mode.value = simMode || null
     error.value = null
     setStatus('running')
+  }
+
+  function setMode(newMode) {
+    mode.value = newMode
   }
 
   function updateProgress(data) {
@@ -114,6 +122,9 @@ export const useSimulationStore = defineStore('simulation', () => {
       redditActions: data.reddit_actions_count ?? metrics.value.redditActions,
       simulatedHours: data.simulated_hours ?? metrics.value.simulatedHours,
       totalSimulationHours: data.total_simulation_hours ?? metrics.value.totalSimulationHours,
+    }
+    if (data.mode) {
+      mode.value = data.mode
     }
   }
 
@@ -187,6 +198,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     prepareTaskId.value = null
     projectId.value = null
     error.value = null
+    mode.value = null
     scenarioConfig.value = null
     progress.value = { percent: 0, message: '', currentRound: 0, totalRounds: 0 }
     metrics.value = { totalActions: 0, twitterActions: 0, redditActions: 0, simulatedHours: 0, totalSimulationHours: 0 }
@@ -199,6 +211,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     prepareTaskId,
     projectId,
     error,
+    mode,
     progress,
     metrics,
     scenarioConfig,
@@ -209,6 +222,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     startGraphBuild,
     startPrepare,
     startRun,
+    setMode,
     updateProgress,
     updateMetrics,
     setError,

@@ -82,6 +82,12 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/knowledge-graph/:graphId?',
+    name: 'knowledge-graph',
+    component: () => import('../views/KnowledgeGraphView.vue'),
+    props: true,
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),

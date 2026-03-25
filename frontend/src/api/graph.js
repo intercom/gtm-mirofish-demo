@@ -28,4 +28,8 @@ export const graphApi = {
   // --- Search ---
   search: (graphId, query, { limit = 10, scope = 'edges' } = {}) =>
     client.post('/graph/search', { graph_id: graphId, query, limit, scope }),
+
+  // --- Knowledge graph entities & search ---
+  getEntities: (graphId, params) => client.get(`/graph/entities/${graphId}`, { params }),
+  searchGraph: (graphId, query) => client.get(`/graph/search/${graphId}`, { params: { q: query } }),
 }

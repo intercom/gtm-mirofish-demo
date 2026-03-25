@@ -4,6 +4,7 @@ import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
+import UserManagement from '../components/settings/UserManagement.vue'
 
 const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
@@ -316,6 +317,11 @@ onMounted(() => {
       <p class="text-xs text-[var(--color-text-muted)] mt-4">
         These defaults pre-fill the Scenario Builder. You can override them per-simulation.
       </p>
+    </section>
+
+    <!-- User Management (admin only — permission gating via usePermissions composable TBD) -->
+    <section class="mb-8 md:mb-10">
+      <UserManagement />
     </section>
 
     <!-- Info -->

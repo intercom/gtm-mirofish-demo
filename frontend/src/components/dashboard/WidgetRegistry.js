@@ -1,8 +1,27 @@
 /**
  * Registry of all available dashboard widget types.
  * Maps widget_type → metadata for dynamic rendering and the WidgetPicker panel.
- * Actual widget components will be registered as they are built.
  */
+
+import KpiCardWidget from './widgets/KpiCardWidget.vue'
+import LineChartWidget from './widgets/LineChartWidget.vue'
+import BarChartWidget from './widgets/BarChartWidget.vue'
+import DonutChartWidget from './widgets/DonutChartWidget.vue'
+import TableWidget from './widgets/TableWidget.vue'
+import FunnelWidget from './widgets/FunnelWidget.vue'
+import GaugeWidget from './widgets/GaugeWidget.vue'
+import TextWidget from './widgets/TextWidget.vue'
+import ActivityFeedWidget from './widgets/ActivityFeedWidget.vue'
+
+const DATA_SOURCES = [
+  'revenue',
+  'pipeline',
+  'salesforce',
+  'cpq',
+  'orders',
+  'simulation',
+  'reconciliation',
+]
 
 export const WIDGET_CATEGORIES = {
   charts: { label: 'Charts', order: 0 },
@@ -11,14 +30,14 @@ export const WIDGET_CATEGORIES = {
   other: { label: 'Other', order: 3 },
 }
 
-const registry = {
+export const widgetRegistry = {
   kpi_card: {
     type: 'kpi_card',
+    component: KpiCardWidget,
     label: 'KPI Card',
     description: 'Display a key metric with trend indicator and sparkline.',
     category: 'cards',
-    icon: 'kpi_card',
-    component: null,
+    icon: 'hash',
     defaultConfig: {
       data_source: 'revenue',
       metric_name: 'total_revenue',
@@ -34,11 +53,11 @@ const registry = {
   },
   line_chart: {
     type: 'line_chart',
+    component: LineChartWidget,
     label: 'Line Chart',
     description: 'Track metrics over time with multi-series support.',
     category: 'charts',
-    icon: 'line_chart',
-    component: null,
+    icon: 'trending-up',
     defaultConfig: {
       data_source: 'revenue',
       metrics: ['total_revenue'],
@@ -52,11 +71,11 @@ const registry = {
   },
   bar_chart: {
     type: 'bar_chart',
+    component: BarChartWidget,
     label: 'Bar Chart',
     description: 'Compare values across categories with grouped bars.',
     category: 'charts',
-    icon: 'bar_chart',
-    component: null,
+    icon: 'bar-chart-2',
     defaultConfig: {
       data_source: 'pipeline',
       metrics: ['deal_count'],
@@ -66,15 +85,15 @@ const registry = {
       show_labels: true,
     },
     defaultSize: { width: 6, height: 4 },
-    supportedDataSources: ['revenue', 'pipeline', 'salesforce', 'orders', 'simulation'],
+    supportedDataSources: DATA_SOURCES,
   },
   donut_chart: {
     type: 'donut_chart',
+    component: DonutChartWidget,
     label: 'Donut Chart',
     description: 'Show proportional segments with center total.',
     category: 'charts',
-    icon: 'donut_chart',
-    component: null,
+    icon: 'pie-chart',
     defaultConfig: {
       data_source: 'pipeline',
       metric: 'stage_distribution',
@@ -86,11 +105,11 @@ const registry = {
   },
   table: {
     type: 'table',
+    component: TableWidget,
     label: 'Data Table',
     description: 'Sortable table with configurable columns and formatting.',
     category: 'tables',
     icon: 'table',
-    component: null,
     defaultConfig: {
       data_source: 'pipeline',
       columns: [],
@@ -99,47 +118,50 @@ const registry = {
       row_limit: 10,
     },
     defaultSize: { width: 6, height: 4 },
-    supportedDataSources: ['revenue', 'pipeline', 'salesforce', 'cpq', 'orders', 'simulation', 'reconciliation'],
+    supportedDataSources: DATA_SOURCES,
   },
   funnel: {
     type: 'funnel',
+    component: FunnelWidget,
     label: 'Funnel',
     description: 'Visualize stage-by-stage conversion rates.',
-    category: 'other',
-    icon: 'funnel',
-    component: null,
+    category: 'charts',
+    icon: 'filter',
     defaultConfig: {
       data_source: 'pipeline',
       stages: ['MQL', 'SQL', 'Opportunity', 'Closed Won'],
       show_conversion_rates: true,
+      show_labels: true,
+      show_percentages: true,
     },
     defaultSize: { width: 4, height: 4 },
     supportedDataSources: ['pipeline', 'salesforce', 'simulation'],
   },
   gauge: {
     type: 'gauge',
+    component: GaugeWidget,
     label: 'Gauge',
     description: 'Display progress toward a target with a radial gauge.',
-    category: 'other',
-    icon: 'gauge',
-    component: null,
+    category: 'charts',
+    icon: 'activity',
     defaultConfig: {
       data_source: 'revenue',
       metric: 'quota_attainment',
       min: 0,
       max: 100,
       thresholds: [50, 80],
+      colors: ['#ef4444', '#f59e0b', '#009900'],
     },
     defaultSize: { width: 3, height: 3 },
     supportedDataSources: ['revenue', 'pipeline', 'salesforce', 'orders'],
   },
   text: {
     type: 'text',
+    component: TextWidget,
     label: 'Text / Note',
     description: 'Add titles, annotations, or markdown notes.',
     category: 'other',
-    icon: 'text',
-    component: null,
+    icon: 'type',
     defaultConfig: {
       content: '',
       font_size: 'base',
@@ -150,12 +172,13 @@ const registry = {
   },
   activity_feed: {
     type: 'activity_feed',
+    component: ActivityFeedWidget,
     label: 'Activity Feed',
     description: 'Live stream of recent actions and events.',
     category: 'other',
-    icon: 'activity_feed',
-    component: null,
+    icon: 'activity',
     defaultConfig: {
+      title: 'Activity',
       data_source: 'simulation',
       max_items: 20,
       show_timestamps: true,
@@ -165,12 +188,35 @@ const registry = {
   },
 }
 
+export const widgetTypes = Object.keys(widgetRegistry)
+
+export const widgetCategories = {}
+for (const [key, meta] of Object.entries(WIDGET_CATEGORIES)) {
+  widgetCategories[key] = { ...meta, types: [] }
+}
+for (const [type, entry] of Object.entries(widgetRegistry)) {
+  const cat = entry.category
+  if (widgetCategories[cat]) {
+    widgetCategories[cat].types.push(type)
+  }
+}
+
 export function getWidgetTypes() {
-  return Object.values(registry)
+  return Object.values(widgetRegistry)
 }
 
 export function getWidgetType(type) {
-  return registry[type] || null
+  return widgetRegistry[type] || null
+}
+
+export function getWidgetComponent(type) {
+  return widgetRegistry[type]?.component ?? null
+}
+
+export function getWidgetDefaultConfig(type) {
+  const entry = widgetRegistry[type]
+  if (!entry) return {}
+  return structuredClone(entry.defaultConfig)
 }
 
 export function getWidgetsByCategory() {
@@ -178,10 +224,10 @@ export function getWidgetsByCategory() {
   for (const [catKey, catMeta] of Object.entries(WIDGET_CATEGORIES)) {
     grouped[catKey] = {
       ...catMeta,
-      widgets: Object.values(registry).filter((w) => w.category === catKey),
+      widgets: Object.values(widgetRegistry).filter((w) => w.category === catKey),
     }
   }
   return grouped
 }
 
-export default registry
+export default widgetRegistry

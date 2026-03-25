@@ -28,6 +28,13 @@ from .zep_graph_memory_updater import (
     ZepGraphMemoryManager,
     AgentActivity
 )
+from .zep_graph_memory import (
+    GraphMemoryService,
+    GraphQueryResult,
+    EntityRelationship,
+    CommunitySummary,
+    TemporalFact,
+)
 from .simulation_ipc import (
     SimulationIPCClient,
     SimulationIPCServer,
@@ -63,6 +70,11 @@ __all__ = [
     'ZepGraphMemoryUpdater',
     'ZepGraphMemoryManager',
     'AgentActivity',
+    'GraphMemoryService',
+    'GraphQueryResult',
+    'EntityRelationship',
+    'CommunitySummary',
+    'TemporalFact',
     'SimulationIPCClient',
     'SimulationIPCServer',
     'IPCCommand',

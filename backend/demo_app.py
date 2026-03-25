@@ -272,6 +272,499 @@ def demo_preset_load():
     return _ok({
         "loaded": True,
         "simulation_id": sim_id,
+        "status": "completed" if sim_id in _simulations and _elapsed(_simulations, sim_id) > SIMULATION_RUN_SECONDS() else "running",
+        "config": {"total_hours": 72, "minutes_per_round": 30, "platform_mode": "parallel"},
+        "report_id": report_id,
+        "graph_task_id": "demo-graph-preset",
+    })
+
+
+@app.route("/api/simulation/list")
+def sim_list():
+    return _ok({"simulations": []})
+
+
+@app.route("/api/simulation/history")
+def sim_history():
+    return _ok({"history": []})
+
+
+@app.route("/api/simulation/<sim_id>/actions")
+def sim_actions(sim_id):
+    return _ok({"actions": _generate_agent_actions(72)})
+
+
+@app.route("/api/simulation/<sim_id>/agent-stats")
+def sim_agent_stats(sim_id):
+    return _ok({"stats": []})
+
+
+@app.route("/api/simulation/<sim_id>/posts")
+def sim_posts(sim_id):
+    return _ok({"posts": []})
+
+
+@app.route("/api/simulation/<sim_id>/comments")
+def sim_comments(sim_id):
+    return _ok({"comments": []})
+
+
+@app.route("/api/simulation/entities/<graph_id>")
+def sim_entities(graph_id):
+    nodes, _ = _build_knowledge_graph()
+    return _ok({"entities": nodes})
+
+
+# ---------------------------------------------------------------------------
+# Snapshot Comparison API
+# ---------------------------------------------------------------------------
+
+_POSITIVE_WORDS = [
+    'impressive', 'compelling', 'great', 'interested', 'good', 'recommend',
+    'valuable', 'effective', 'worth', 'excellent', 'innovative', 'benefit',
+    'advantage', 'better', 'love', 'amazing', 'helpful', 'promising',
+]
+_NEGATIVE_WORDS = [
+    'concerned', 'skeptical', 'aggressive', 'missing', 'risk', 'worried',
+    'expensive', 'complex', 'difficult', 'dismiss', 'doubt', 'issue',
+    'problem', 'unclear', 'frustrated', 'poor', 'slow', 'lacks',
+]
+
+
+def _score_content(content):
+    if not content:
+        return 0.0
+    lower = content.lower()
+    pos = sum(1 for w in _POSITIVE_WORDS if w in lower)
+    neg = sum(1 for w in _NEGATIVE_WORDS if w in lower)
+    if pos + neg == 0:
+        return 0.0
+    return (pos - neg) / (pos + neg)
+
+
+def _build_snapshot_at_round(sim_id, target_round):
+    """Build a complete simulation state snapshot at a given round."""
+    rng = random.Random(12345)
+    timeline = []
+    total_twitter = 0
+    total_reddit = 0
+    for r in range(1, target_round + 1):
+        base = 3 + math.log(r + 1) * 2.5
+        tw = max(0, int(base * (0.55 + rng.uniform(-0.1, 0.1))))
+        rd = max(0, int(base * (0.45 + rng.uniform(-0.1, 0.1))))
+        total_twitter += tw
+        total_reddit += rd
+        timeline.append({"round_num": r, "twitter_actions": tw, "reddit_actions": rd})
+
+    total_actions = total_twitter + total_reddit
+
+    # Generate cumulative agent activity up to this round
+    agents_data = {}
+    for r in range(1, target_round + 1):
+        actions = _generate_agent_actions(r)
+        for a in actions:
+            name = a["agent_name"]
+            if name not in agents_data:
+                agents_data[name] = {
+                    "name": name,
+                    "actionCount": 0,
+                    "sentimentSum": 0.0,
+                    "sentimentCount": 0,
+                    "twitter": 0,
+                    "reddit": 0,
+                    "firstRound": r,
+                    "lastRound": r,
+                }
+            entry = agents_data[name]
+            entry["actionCount"] += 1
+            entry["lastRound"] = max(entry["lastRound"], r)
+            if a["platform"] == "twitter":
+                entry["twitter"] += 1
+            else:
+                entry["reddit"] += 1
+            content = a.get("action_args", {}).get("content", "")
+            if content:
+                entry["sentimentSum"] += _score_content(content)
+                entry["sentimentCount"] += 1
+
+    agents_list = []
+    for entry in agents_data.values():
+        avg_sent = entry["sentimentSum"] / entry["sentimentCount"] if entry["sentimentCount"] else 0.0
+        agents_list.append({
+            "name": entry["name"],
+            "actionCount": entry["actionCount"],
+            "sentiment": round(avg_sent, 3),
+            "twitter": entry["twitter"],
+            "reddit": entry["reddit"],
+            "primaryPlatform": "twitter" if entry["twitter"] >= entry["reddit"] else "reddit",
+        })
+    agents_list.sort(key=lambda x: x["actionCount"], reverse=True)
+
+    overall_sentiment = 0.0
+    if agents_list:
+        overall_sentiment = sum(a["sentiment"] for a in agents_list) / len(agents_list)
+
+    return {
+        "round": target_round,
+        "metrics": {
+            "totalActions": total_actions,
+            "twitterActions": total_twitter,
+            "redditActions": total_reddit,
+            "activeAgents": len(agents_list),
+        },
+        "agents": agents_list[:15],
+        "sentimentAvg": round(overall_sentiment, 3),
+    }
+
+
+def _compute_snapshot_diff(snap_a, snap_b):
+    """Compute diff between two snapshots."""
+    ma, mb = snap_a["metrics"], snap_b["metrics"]
+    metric_diff = {}
+    for key in ma:
+        a_val, b_val = ma[key], mb[key]
+        delta = b_val - a_val
+        pct = round(delta / a_val * 100, 1) if a_val else 0.0
+        metric_diff[key] = {"a": a_val, "b": b_val, "delta": delta, "pctChange": pct}
+
+    # Agent-level changes
+    agents_a = {a["name"]: a for a in snap_a["agents"]}
+    agents_b = {a["name"]: a for a in snap_b["agents"]}
+    all_names = set(agents_a) | set(agents_b)
+
+    new_agents = [agents_b[n] for n in all_names if n not in agents_a]
+    removed_agents = [agents_a[n] for n in all_names if n not in agents_b]
+
+    agent_changes = []
+    biggest_change = {"description": "No changes", "value": 0}
+    most_affected = {"name": "N/A", "totalChange": 0}
+
+    for name in sorted(all_names):
+        if name not in agents_a or name not in agents_b:
+            continue
+        aa, ab = agents_a[name], agents_b[name]
+        action_delta = ab["actionCount"] - aa["actionCount"]
+        sentiment_delta = round(ab["sentiment"] - aa["sentiment"], 3)
+        total_change = abs(action_delta) + abs(sentiment_delta) * 10
+
+        if action_delta != 0:
+            agent_changes.append({
+                "agent": name,
+                "metric": "actionCount",
+                "oldValue": aa["actionCount"],
+                "newValue": ab["actionCount"],
+                "change": action_delta,
+            })
+        if abs(sentiment_delta) > 0.01:
+            agent_changes.append({
+                "agent": name,
+                "metric": "sentiment",
+                "oldValue": aa["sentiment"],
+                "newValue": ab["sentiment"],
+                "change": sentiment_delta,
+            })
+
+        if total_change > most_affected["totalChange"]:
+            most_affected = {"name": name, "totalChange": round(total_change, 1)}
+
+    if agent_changes:
+        top = max(agent_changes, key=lambda c: abs(c["change"]))
+        biggest_change = {
+            "description": f"{top['agent']} {top['metric']} changed by {top['change']:+}",
+            "value": abs(top["change"]),
+        }
+
+    sentiment_delta = round(snap_b["sentimentAvg"] - snap_a["sentimentAvg"], 3)
+
+    return {
+        "metrics": metric_diff,
+        "agentChanges": agent_changes,
+        "newAgents": new_agents,
+        "removedAgents": removed_agents,
+        "biggestChange": biggest_change,
+        "mostAffectedAgent": most_affected,
+        "totalChanges": len(agent_changes) + len(new_agents) + len(removed_agents),
+        "sentimentDelta": sentiment_delta,
+    }
+
+
+@app.route("/api/simulation/<sim_id>/snapshot/compare")
+def sim_snapshot_compare(sim_id):
+    round_a = request.args.get("round_a", 1, type=int)
+    round_b = request.args.get("round_b", TOTAL_ROUNDS, type=int)
+    round_a = max(1, min(TOTAL_ROUNDS, round_a))
+    round_b = max(1, min(TOTAL_ROUNDS, round_b))
+
+    snap_a = _build_snapshot_at_round(sim_id, round_a)
+    snap_b = _build_snapshot_at_round(sim_id, round_b)
+    diff = _compute_snapshot_diff(snap_a, snap_b)
+
+    return _ok({
+        "point_a": snap_a,
+        "point_b": snap_b,
+        "diff": diff,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Report API
+# ---------------------------------------------------------------------------
+
+REPORT_SECTIONS = [
+    {
+        "section_index": 0,
+        "content": """## Executive Summary
+
+This report presents findings from a 72-hour swarm intelligence simulation involving **200 AI agents** representing synthetic buyer personas across SaaS, Healthcare, Fintech, and E-commerce verticals. The simulation tested Intercom's outbound campaign messaging strategy targeting mid-market companies currently using Zendesk.
+
+### Key Findings
+
+- **VP of Support personas showed 3.2x higher engagement with ROI-driven messaging** compared to speed-to-value messaging, with particularly strong response rates among companies spending >$10K/mo on support tooling
+- **"Your Zendesk bill is 3x what it should be"** was the highest-performing subject line, achieving a **34.7% simulated open rate** — but triggered spam perception in 8.2% of Healthcare personas due to aggressive competitive framing
+- **Healthcare and Fintech verticals require compliance-first messaging** — standard ROI messaging achieved only 12% engagement vs. 31% when HIPAA/SOC2 compliance was mentioned in the first two sentences
+- **Optimal email cadence is Day 1 → Day 3 → Day 8 → Day 15** — the standard Day 1 → Day 2 → Day 4 cadence showed 23% higher unsubscribe intent signals
+- **Fin AI agent resolution rate claims** (50% automation) were the single most persuasive data point, referenced in 67% of positive engagement signals across all persona types
+
+### Simulation Confidence
+
+| Metric | Value |
+|--------|-------|
+| Total agent interactions | 12,384 |
+| Unique conversation threads | 847 |
+| Cross-persona influence events | 234 |
+| Simulation convergence score | 0.89 / 1.00 |
+| Statistical confidence | 94.2% |
+
+> **Bottom line:** The outbound campaign has strong fundamentals but requires segment-specific message tailoring. A one-size-fits-all approach would underperform by an estimated 40-55% compared to the optimized variant matrix recommended in Chapter 5.""",
+    },
+    {
+        "section_index": 1,
+        "content": """## Engagement Analysis
+
+### Engagement by Persona Type
+
+The simulation reveals dramatic differences in how each persona type engages with outbound messaging:
+
+| Persona Type | Open Rate | Reply Rate | Meeting Book Rate | Top Message Trigger |
+|-------------|-----------|------------|-------------------|---------------------|
+| VP of Support | 38.4% | 12.1% | 4.8% | Cost reduction proof points |
+| CX Director | 31.2% | 8.7% | 3.2% | AI resolution rate benchmarks |
+| IT Leader | 22.8% | 5.3% | 2.1% | Integration ecosystem details |
+| Head of Operations | 35.6% | 10.4% | 4.1% | Efficiency metrics and headcount impact |
+| CFO / Finance | 28.9% | 7.8% | 3.6% | ROI calculations with timeframe |
+
+### Engagement by Industry
+
+- **SaaS companies** showed the highest overall engagement (34.2% average open rate), driven by familiarity with the competitive landscape and active tool evaluation cycles
+- **Healthcare** had the lowest initial engagement (19.8%) but the **highest conversion-to-meeting rate** (5.1%) when compliance messaging was front-loaded — these buyers are slower to engage but more serious when they do
+- **Fintech** personas exhibited strong "comparison shopping" behavior — 73% of engaged fintech personas also researched Freshdesk and HubSpot Service Hub within the simulation, suggesting multi-vendor evaluation is the norm
+- **E-commerce** engagement was highly seasonal-dependent — agents simulating Q4 planning cycles showed 2.8x higher engagement than those in steady-state operations
+
+### Engagement by Company Size
+
+| Company Size | Avg Open Rate | Avg Reply Rate | Key Pattern |
+|-------------|--------------|----------------|-------------|
+| 200-500 employees | 36.1% | 11.2% | Price-sensitive, fast decision cycles |
+| 500-1000 employees | 32.4% | 9.8% | Committee-driven, need multiple touches |
+| 1000-2000 employees | 27.8% | 7.1% | Security-first, require enterprise features |
+
+### Network Effects
+
+A notable finding: when **3+ personas from the same simulated company** engaged with outbound content, the likelihood of a meeting booking increased by **4.7x**. This suggests that multi-threading (reaching multiple stakeholders at the same company) is significantly more effective than single-contact outreach.
+
+The simulation identified **23 "viral content" events** where one agent's positive engagement triggered interest from connected agents, primarily through simulated internal Slack-like channels. The content that generated these cascade events consistently featured **specific, verifiable metrics** (e.g., "48% AI resolution rate in 30-day pilot") rather than general claims.""",
+    },
+    {
+        "section_index": 2,
+        "content": """## Messaging Effectiveness
+
+### Subject Line Performance
+
+All four subject line variants were tested against the full 200-agent population. Results ranked by simulated open rate:
+
+| Rank | Subject Line | Open Rate | Spam Flag Rate | Best Segment |
+|------|-------------|-----------|----------------|--------------|
+| 1 | "Your Zendesk bill is 3x what it should be" | 34.7% | 8.2% | SaaS VP of Support |
+| 2 | "How [Company] cut support costs 40% with AI" | 31.2% | 2.1% | All — safest universal option |
+| 3 | "The AI agent your support team actually wants" | 28.9% | 1.4% | CX Directors, Support Managers |
+| 4 | "Replace Zendesk in 30 days — here's how" | 24.3% | 11.7% | SaaS IT Leaders only |
+
+**Critical insight:** Subject line #1 has the highest open rate but also the highest spam perception. In Healthcare, the spam flag rate jumps to **14.8%** — this subject line should be **excluded from Healthcare segments entirely**.
+
+Subject line #2 is the recommended default: strong performance across all segments with minimal negative perception. The `[Company]` personalization token increased open rates by an additional 3.2 percentage points when the case study was industry-matched.
+
+### Message Body Analysis
+
+The simulation tested message body variations across three dimensions:
+
+**Tone:**
+- **Data-driven tone** outperformed all others across VP and Director personas (+18% engagement vs. casual)
+- **Casual tone** performed well with Support Managers and smaller companies but alienated Enterprise buyers (-22%)
+- **Consultative tone** was the best performer for IT Leaders who valued being treated as technical peers
+
+**Length:**
+- **Short emails (< 100 words)** had the highest open-to-read rate but lowest meeting booking rate
+- **Medium emails (100-200 words)** were the optimal length, balancing engagement and conversion
+- **Long emails (> 200 words)** were only effective for CFO personas who wanted detailed ROI analysis
+
+**Call-to-Action Style:**
+- **Soft ask** ("Would it be useful to see how [similar company] approached this?"): 11.3% reply rate
+- **Hard ask** ("Can we schedule 20 minutes this week?"): 7.8% reply rate, but 2.1x higher meeting conversion
+- **Question CTA** ("What's your team's biggest support bottleneck right now?"): 14.7% reply rate — highest response rate but lower quality responses
+
+### Competitive Displacement Sensitivity
+
+Mentions of competitor names triggered strong reactions:
+
+- **Zendesk mentions** were well-received by frustrated current users (positive in 64% of interactions) but triggered defensive responses from satisfied Zendesk users (negative in 78%)
+- **Freshdesk mentions** were largely neutral — most personas viewed Freshdesk as a lower-tier option and didn't feel defensive
+- **HubSpot Service Hub mentions** triggered "already evaluated" fatigue in 34% of personas — many had recently looked at HubSpot and decided against it
+
+**Recommendation:** Lead with value proposition, not competitive displacement. Introduce competitor comparisons only in follow-up emails (email 2 or 3 in sequence) and only when the prospect has shown engagement signals.""",
+    },
+    {
+        "section_index": 3,
+        "content": """## Behavioral Patterns
+
+### Temporal Engagement Patterns
+
+The 72-hour simulation revealed distinct behavioral waves:
+
+- **Hours 0-12:** Initial engagement spike. 62% of all first opens occurred within the first 12 simulated hours. VP-level personas opened within 2 hours; Manager-level personas took 6-8 hours on average.
+- **Hours 12-36:** "Research phase." Engaged personas spent this period visiting simulated product pages, reading case studies, and discussing internally. **This is when the multi-threading effect is strongest** — reaching a second stakeholder during this window increased conversion 3.1x.
+- **Hours 36-56:** Decision crystallization. Personas either moved toward meeting booking or disengaged. The "silent middle" — personas who opened but didn't respond — showed a 23% eventual conversion rate when followed up at Hour 48.
+- **Hours 56-72:** Late responders. A surprising 15% of total meetings were booked in this window, primarily from personas who needed internal approval or budget confirmation.
+
+### Persona Behavioral Clusters
+
+The simulation identified five distinct behavioral clusters that cut across job titles:
+
+**Cluster 1: "Rapid Evaluators" (18% of agents)**
+- Opened email within 1 hour, clicked through to product page, and either booked or dismissed within 24 hours
+- Best reached with: direct CTA, specific metrics, and a clear "next step"
+- Over-indexed on: SaaS companies, 200-500 employees
+
+**Cluster 2: "Committee Builders" (24% of agents)**
+- Forwarded content to 2-3 internal stakeholders before engaging
+- Best reached with: shareable content (case studies, ROI calculators), multi-stakeholder messaging
+- Over-indexed on: 500-1000 employee companies, Healthcare
+
+**Cluster 3: "Silent Researchers" (31% of agents)**
+- Opened multiple times but never replied to outbound email
+- Eventually engaged through a different channel (simulated product page visit, competitor comparison page)
+- Best reached with: retargeting-style follow-ups that acknowledge their research behavior
+
+**Cluster 4: "Skeptical Evaluators" (19% of agents)**
+- Responded with objections or requests for proof before any positive engagement
+- **Most likely to convert once objections are addressed** (34% eventual meeting rate vs. 12% average)
+- Best reached with: detailed technical documentation, peer references, and pilot program offers
+
+**Cluster 5: "Passive Observers" (8% of agents)**
+- Minimal engagement but remained subscribed. Represent future pipeline for re-engagement campaigns.
+- Best reached with: low-frequency, high-value content (quarterly industry reports, benchmark data)
+
+### Objection Mapping
+
+The most common objections by frequency:
+
+1. **"We just renewed our Zendesk contract"** (34% of negative responses) — Counter: offer ROI analysis to build business case for next renewal cycle
+2. **"AI chatbots give bad answers"** (28%) — Counter: Fin accuracy benchmarks with comparable company data
+3. **"We don't have budget for a migration"** (22%) — Counter: migration cost offset by first-year savings calculation
+4. **"We need [specific feature] that you don't have"** (16%) — Counter: feature parity documentation and roadmap
+
+### Network Influence Analysis
+
+Key finding: **8 "influencer" agents** (4% of the population) generated **34% of all positive sentiment cascade events**. These agents shared characteristics:
+- Senior titles (VP or Director level)
+- At companies with 500+ employees
+- Had previously evaluated 2+ support tools
+- Engaged with data-driven content (not emotional appeals)
+
+This suggests that identifying and prioritizing "influencer" prospects in real campaigns could dramatically improve campaign ROI.""",
+    },
+    {
+        "section_index": 4,
+        "content": """## Recommendations
+
+Based on the simulation findings, we recommend the following prioritized action items:
+
+### Priority 1: Segment-Specific Message Variants (Confidence: 96%)
+
+- **Create 4 industry-specific email variants** instead of one universal template
+  - **SaaS:** Lead with Zendesk migration ease and Fin resolution rates
+  - **Healthcare:** Lead with HIPAA compliance and patient communication AI
+  - **Fintech:** Lead with security certifications and cost-per-ticket metrics
+  - **E-commerce:** Lead with seasonal scaling and Shopify integration
+- **Expected impact:** 35-45% improvement in overall engagement rate
+
+### Priority 2: Optimize Subject Line Strategy (Confidence: 94%)
+
+- **Default to "How [Company] cut support costs 40% with AI"** as the universal subject line
+- **Use "Your Zendesk bill is 3x what it should be"** only for SaaS companies confirmed on Zendesk
+- **Never use competitive displacement subject lines** for Healthcare or Fintech segments
+- **A/B test "The AI agent your support team actually wants"** for CX Director personas specifically
+- **Expected impact:** 8-12% higher open rates with 60% reduction in spam flags
+
+### Priority 3: Revise Email Cadence (Confidence: 91%)
+
+- **Switch from Day 1-2-4 to Day 1-3-8-15 cadence** to reduce unsubscribe pressure
+- **Add a "research acknowledgment" touchpoint at Day 5** for prospects who opened but didn't reply — "I noticed you've been exploring [topic] — here's a relevant case study"
+- **Introduce multi-threading at Day 3** — reach a second stakeholder at engaged companies
+- **Expected impact:** 23% reduction in unsubscribe rate, 18% increase in meeting bookings
+
+### Priority 4: Build "Influencer Prospect" Targeting (Confidence: 87%)
+
+- **Identify real-world equivalents of the 8 influencer archetypes** found in the simulation
+- **Characteristics to target:** VP/Director at 500+ employee companies who have evaluated 2+ support tools in the past 18 months
+- **Create premium content track** (executive briefings, benchmark reports) for these high-value prospects
+- **Expected impact:** 3-4x ROI on outreach to this segment
+
+### Priority 5: Address Top Objections Proactively (Confidence: 85%)
+
+- **Add "contract flexibility" messaging** in Email 2 for the 34% who cite existing contracts
+- **Create Fin accuracy benchmark one-pager** for the 28% concerned about AI quality
+- **Build an interactive migration cost calculator** for the 22% citing budget constraints
+- **Publish feature parity matrix** (Intercom vs. Zendesk vs. Freshdesk) for the 16% with feature concerns
+- **Expected impact:** 15-20% improvement in objection-to-engagement conversion
+
+### Implementation Timeline
+
+| Week | Action | Owner |
+|------|--------|-------|
+| 1 | Create industry-specific email variants | Content team |
+| 1 | Implement new subject line strategy | Growth marketing |
+| 2 | Update cadence in outbound automation | Marketing ops |
+| 2 | Build influencer prospect target list | Sales ops |
+| 3 | Create objection-handling collateral | Product marketing |
+| 3 | Launch A/B tests with optimized variants | Growth marketing |
+| 4 | Analyze first-week results and iterate | All teams |
+
+### Risk Factors
+
+- **Spam filter sensitivity:** Aggressive competitive messaging in subject lines carries brand risk. Monitor deliverability metrics closely in the first 48 hours of any campaign launch.
+- **Data freshness:** The simulation used anonymized seed data. Verify that technographic data (who uses Zendesk) is current — stale data was identified as a known issue (25-32% accuracy in Clay enrichment).
+- **AI perception gap:** 28% of personas had negative preconceptions about AI chatbots. Leading with "AI agent" framing may backfire — consider "intelligent automation" or "smart support" as alternative positioning.
+
+> **Overall recommendation:** Implement Priorities 1-3 immediately for the next outbound campaign cycle. Priorities 4-5 are medium-term improvements that can be phased in over the following quarter. The simulation predicts a **45-65% improvement in campaign effectiveness** when all five recommendations are implemented versus the current one-size-fits-all approach.""",
+    },
+]
+
+
+@app.route("/api/report/generate", methods=["POST"])
+def report_generate():
+    body = request.get_json(silent=True) or {}
+    sim_id = body.get("simulation_id", "demo-sim-00001")
+    report_id = f"demo-report-{sim_id.split('-')[-1]}"
+
+    if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS():
+        return _ok({
+            "report_id": report_id,
+            "status": "completed",
+            "already_generated": True,
+        })
+
+    _reports[report_id] = {"start": time.time(), "sim_id": sim_id}
+    return _ok({
         "report_id": report_id,
         "graph_task_id": "demo-graph-preset",
     })

@@ -32,6 +32,15 @@ from .order_to_cash import (
     BillingRecord, BillingStatus,
     ValidationResult, ValidationStatus,
 )
+from .reconciliation import (
+    ReconciliationRecord,
+    ReconciliationRun,
+    ReconciliationRule,
+    ReconciliationStatus,
+    DiscrepancyType,
+    RuleAction,
+    RuleCheckType,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -51,4 +60,6 @@ __all__ = [
     'ProvisioningStep', 'ProvisioningStatus',
     'BillingRecord', 'BillingStatus',
     'ValidationResult', 'ValidationStatus',
+    'ReconciliationRecord', 'ReconciliationRun', 'ReconciliationRule',
+    'ReconciliationStatus', 'DiscrepancyType', 'RuleAction', 'RuleCheckType',
 ]

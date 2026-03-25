@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import PredictionDashboard from './PredictionDashboard.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -538,6 +539,15 @@ onUnmounted(() => {
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
           :timeline="polling.timeline.value"
+          class="mb-8"
+        />
+
+        <!-- Prediction Dashboard -->
+        <PredictionDashboard
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          :currentRound="currentRound"
+          :totalRounds="totalRounds"
           class="mb-8"
         />
 

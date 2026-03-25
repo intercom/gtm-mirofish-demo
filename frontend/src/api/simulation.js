@@ -62,4 +62,10 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- Predictions ---
+  getPredictions: (simulationId) =>
+    client.get(`/simulation/${simulationId}/predictions`),
+  getPredictionAccuracy: (simulationId) =>
+    client.get(`/simulation/${simulationId}/predictions/accuracy`),
 }

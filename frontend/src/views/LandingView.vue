@@ -6,6 +6,7 @@ import { useCountUp } from '../composables/useCountUp'
 import { useParallax } from '../composables/useParallax'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
 import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
+import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -67,7 +68,14 @@ const steps = [
 
 const scenarioSection = ref(null)
 
+const selectedScenarioId = ref(null)
+
+function openScenarioDetail(id) {
+  selectedScenarioId.value = id
+}
+
 function launchScenario(id) {
+  selectedScenarioId.value = null
   router.push(`/scenarios/${id}`)
 }
 
@@ -240,7 +248,7 @@ const year = new Date().getFullYear()
             ref="scenarioSection"
             variant="dark"
             hero-first
-            @select="launchScenario"
+            @select="openScenarioDetail"
           />
         </div>
       </div>
@@ -812,6 +820,14 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </footer>
+
+    <!-- Scenario Detail Modal -->
+    <ScenarioDetailModal
+      :open="!!selectedScenarioId"
+      :scenario-id="selectedScenarioId"
+      @close="selectedScenarioId = null"
+      @launch="launchScenario"
+    />
   </div>
 </template>
 

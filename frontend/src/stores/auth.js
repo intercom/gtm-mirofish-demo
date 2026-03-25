@@ -40,6 +40,8 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function checkAuth() {
     if (!token.value) return false
+    // When offline, trust cached credentials rather than logging out
+    if (!navigator.onLine) return true
     try {
       const res = await fetch(`${API_BASE}/auth/me`, {
         headers: { Authorization: `Bearer ${token.value}` },
@@ -52,7 +54,8 @@ export const useAuthStore = defineStore('auth', () => {
       logout()
       return false
     } catch {
-      return false
+      // Network error (likely offline) — trust cached auth
+      return !!token.value
     }
   }
 

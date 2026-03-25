@@ -14,6 +14,7 @@ const navLinks = computed(() => {
     { to: '/', label: 'Home', exact: true },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
     { to: '/settings', label: 'Settings', exact: false },
+    { to: '/api-docs', label: 'API Docs', exact: false },
   ]
 })
 

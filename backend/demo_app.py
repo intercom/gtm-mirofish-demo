@@ -38,6 +38,10 @@ _graph_tasks: dict = {}     # task_id -> {"start": float}
 _simulations: dict = {}     # sim_id  -> {"start": float}
 _reports: dict = {}         # report_id -> {"start": float, "sim_id": str}
 
+_last_cleanup: float = 0.0  # timestamp of last lazy cleanup
+_CLEANUP_INTERVAL = 300     # seconds between lazy cleanups (5 min)
+_STALE_AGE = 3600           # seconds before an entry is considered stale (1 hr)
+
 _BASE_GRAPH_BUILD_SECONDS = 6
 _BASE_SIMULATION_RUN_SECONDS = 35
 _BASE_REPORT_GEN_SECONDS = 18
@@ -78,6 +82,38 @@ def _elapsed(store, key):
     if not entry:
         return 0.0
     return time.time() - entry["start"]
+
+
+# ---------------------------------------------------------------------------
+# Stale data cleanup
+# ---------------------------------------------------------------------------
+
+def _cleanup_stale_data():
+    """Remove entries older than _STALE_AGE from in-memory tracking dicts."""
+    now = time.time()
+    removed = {}
+    for name, store in [("graph_tasks", _graph_tasks),
+                        ("simulations", _simulations),
+                        ("reports", _reports)]:
+        stale_keys = [k for k, v in store.items() if now - v["start"] > _STALE_AGE]
+        for k in stale_keys:
+            del store[k]
+        removed[name] = len(stale_keys)
+
+    total = sum(removed.values())
+    if total > 0:
+        log.info("Stale data cleanup: removed %s (graph_tasks=%d, simulations=%d, reports=%d)",
+                 total, removed["graph_tasks"], removed["simulations"], removed["reports"])
+    return removed
+
+
+@app.before_request
+def _maybe_cleanup():
+    global _last_cleanup
+    now = time.time()
+    if now - _last_cleanup > _CLEANUP_INTERVAL:
+        _last_cleanup = now
+        _cleanup_stale_data()
 
 
 # ---------------------------------------------------------------------------
@@ -1495,6 +1531,24 @@ def demo_reset():
     _reports.clear()
     _demo_speed = 1.0
     return _ok({"reset": True})
+
+
+# ---------------------------------------------------------------------------
+# Admin
+# ---------------------------------------------------------------------------
+
+@app.route("/api/admin/cleanup", methods=["POST"])
+def admin_cleanup():
+    """Trigger immediate cleanup of stale in-memory data."""
+    global _last_cleanup
+    removed = _cleanup_stale_data()
+    _last_cleanup = time.time()
+    remaining = {
+        "graph_tasks": len(_graph_tasks),
+        "simulations": len(_simulations),
+        "reports": len(_reports),
+    }
+    return _ok({"removed": removed, "remaining": remaining})
 
 
 # ---------------------------------------------------------------------------

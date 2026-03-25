@@ -42,12 +42,16 @@ export const useSettingsStore = defineStore('settings', () => {
   watch([provider, apiKey, zepKey], save, { flush: 'post' })
 
   async function testConnection(service) {
+    if (!navigator.onLine) {
+      connectionStatus.value[service] = 'offline'
+      return
+    }
     connectionStatus.value[service] = 'testing'
     try {
       const res = await fetch(`${API_BASE}/health`)
       connectionStatus.value[service] = res.ok ? 'success' : 'error'
     } catch {
-      connectionStatus.value[service] = 'error'
+      connectionStatus.value[service] = navigator.onLine ? 'error' : 'offline'
     }
   }
 

@@ -5,6 +5,7 @@ import { API_BASE } from '../api/client'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
+import ComparisonOverlay from '../components/report/ComparisonOverlay.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -313,6 +314,9 @@ onUnmounted(stopPolling)
           v-if="activeContent && !generating"
           :chapterIndex="activeChapter"
         />
+
+        <!-- Comparative Chart Overlay -->
+        <ComparisonOverlay v-if="!generating && sections.length > 0" />
 
         <!-- Key Findings Summary -->
         <div v-if="keyFindings.length > 0" class="space-y-3">

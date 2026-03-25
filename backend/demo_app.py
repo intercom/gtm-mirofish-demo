@@ -299,6 +299,40 @@ def sim_agent_stats(sim_id):
     return _ok({"stats": []})
 
 
+@app.route("/api/simulation/<sim_id>/agent-personalities")
+def sim_agent_personalities(sim_id):
+    import hashlib
+    traits = ["confidence", "openness", "risk_aversion", "empathy", "aggressiveness"]
+    names = [
+        "Sarah Chen, VP Support @ Acme SaaS",
+        "Marcus Johnson, CTO @ HealthFirst",
+        "Priya Patel, Dir. CX @ FinServe",
+        "James O'Brien, Head of Ops @ RetailCo",
+        "Elena Rodriguez, VP Product @ CloudSync",
+        "David Kim, Support Lead @ EduPlatform",
+        "Aisha Williams, CRO @ DataDrive",
+        "Tom Fischer, Dir. IT @ MediGroup",
+        "Nina Yamamoto, COO @ LogiTech",
+        "Carlos Mendez, VP Sales @ InsureTech",
+    ]
+    agents = []
+    for i, name in enumerate(names):
+        initial, current = {}, {}
+        for trait in traits:
+            seed = hashlib.md5(f"{i}-{trait}".encode()).hexdigest()
+            base_val = (int(seed[:4], 16) % 60) + 20
+            delta = (int(seed[4:8], 16) % 30) - 12
+            initial[trait] = base_val
+            current[trait] = max(0, min(100, base_val + delta))
+        agents.append({
+            "agent_id": i,
+            "agent_name": name,
+            "initial_personality": initial,
+            "current_personality": current,
+        })
+    return _ok({"traits": traits, "agents": agents})
+
+
 @app.route("/api/simulation/<sim_id>/posts")
 def sim_posts(sim_id):
     return _ok({"posts": []})

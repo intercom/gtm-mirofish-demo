@@ -36,6 +36,13 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .reasoning_parser import (
+    ReasoningParser,
+    ParsedReasoning,
+    ReasoningStep,
+    LogicLink,
+    StepType
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +76,10 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'ReasoningParser',
+    'ParsedReasoning',
+    'ReasoningStep',
+    'LogicLink',
+    'StepType',
 ]
 

@@ -10,8 +10,8 @@ Intercom-branded fork of MiroFish — a swarm intelligence engine for GTM operat
   - `gtm_scenarios/` — Pre-built GTM simulation scenario JSON files
   - `gtm_seed_data/` — Anonymized GTM data for agent persona generation
   - `auth/` — Optional OAuth middleware (Google/Okta)
-- `frontend/` — Complete Vue 3 + Vite + Tailwind rebuild with Intercom branding
-  - 7 views: Landing, Scenario Builder, Knowledge Graph, Simulation, Report, Chat, Settings
+- `frontend/` — Complete Vue 3 + Vite + Tailwind CSS v4 rebuild with Intercom branding
+  - 9 views: Landing, Login, Scenario Builder, Simulations, Simulation Workspace, Report, Chat, Agent Profile, Settings
   - Intercom design tokens (#2068FF blue, #050505 navy)
 
 ## Quick Start
@@ -33,7 +33,7 @@ cd backend && uv sync && uv run python run.py
 
 ### Frontend
 ```bash
-cd frontend && npm install && npm run dev
+cd frontend && pnpm install && pnpm run dev
 ```
 
 ## Deployment
@@ -49,7 +49,7 @@ cd frontend && npm install && npm run dev
 - **Multi-LLM**: Set `LLM_PROVIDER=anthropic|openai|gemini` in .env — auto-configures base URL and model
 - **Auth**: Set `AUTH_ENABLED=true` for production — enforces @intercom.io email via Google/Okta OAuth
 - **Scenarios**: 4 pre-built GTM scenarios in `backend/gtm_scenarios/`
-- **Branding**: Intercom design tokens in `frontend/tailwind.config.js` and `frontend/src/assets/brand-tokens.css`
+- **Branding**: Intercom design tokens in `frontend/src/assets/brand-tokens.css` (Tailwind CSS v4 — no tailwind.config.js)
 - **Dockerfiles**: Per-service Dockerfiles in `backend/` and `frontend/` (used by both Railway and docker-compose)
 
 ## API Endpoints
@@ -57,9 +57,9 @@ cd frontend && npm install && npm run dev
 ### MiroFish Core (unchanged)
 - `POST /api/graph/build` — Build knowledge graph from seed text
 - `POST /api/simulation/start` — Start OASIS simulation
-- `GET /api/simulation/status` — Check simulation progress
+- `GET /api/simulation/<id>/run-status` — Check simulation progress
 - `POST /api/report/generate` — Generate predictive report
-- `POST /api/chat` — Chat with simulated world
+- `POST /api/report/chat` — Chat with simulated world
 
 ### GTM Extensions (new)
 - `GET /api/gtm/scenarios` — List GTM scenario templates

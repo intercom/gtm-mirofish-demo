@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSimulationStore } from '../stores/simulation'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 
@@ -162,6 +162,24 @@ function confirmClearAll() {
   showClearDialog.value = false
 }
 
+const showCards = ref(false)
+onMounted(() => { showCards.value = true })
+
+function onCardBeforeEnter(el) {
+  el.style.opacity = 0
+  el.style.transform = 'translateY(12px)'
+}
+
+function onCardEnter(el, done) {
+  const delay = el.dataset.index * 60
+  setTimeout(() => {
+    el.style.transition = 'opacity var(--transition-base), transform var(--transition-base)'
+    el.style.opacity = 1
+    el.style.transform = 'translateY(0)'
+    el.addEventListener('transitionend', done, { once: true })
+  }, delay)
+}
+
 function exportRun(run) {
   const data = {
     id: run.id,
@@ -308,11 +326,19 @@ function exportRun(run) {
     </div>
 
     <!-- Run cards -->
-    <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <TransitionGroup
+      v-else
+      tag="div"
+      class="grid grid-cols-1 md:grid-cols-2 gap-4"
+      :css="false"
+      @before-enter="onCardBeforeEnter"
+      @enter="onCardEnter"
+    >
       <div
-        v-for="run in filteredRuns"
+        v-for="(run, i) in showCards ? filteredRuns : []"
         :key="run.id"
-        class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)]"
+        :data-index="i"
+        class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 hover-lift"
       >
         <!-- Card header -->
         <div class="flex items-start justify-between mb-3">
@@ -406,7 +432,7 @@ function exportRun(run) {
           Re-run
         </router-link>
       </div>
-    </div>
+    </TransitionGroup>
 
     <!-- Confirmation Dialogs -->
     <ConfirmDialog

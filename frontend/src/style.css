@@ -161,6 +161,100 @@ button, [role="button"], a[href], summary, select, input[type="checkbox"], input
   animation: pulse 2s ease-in-out infinite;
 }
 
+/* ── Micro-interaction animations ─────────────────────────────────────── */
+
+/* Button press: spring-back scale on active */
+.press-scale {
+  transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.press-scale:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Card hover lift: subtle vertical shift + shadow increase */
+.hover-lift {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Focus ring pulse: animated ring on focus */
+@keyframes ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(32, 104, 255, 0.4); }
+  70% { box-shadow: 0 0 0 4px rgba(32, 104, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(32, 104, 255, 0); }
+}
+.focus-ring-pulse:focus {
+  animation: ring-pulse 0.6s ease-out;
+}
+
+/* Ripple effect container */
+.ripple-container {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-container .ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple-expand 500ms ease-out forwards;
+  pointer-events: none;
+}
+@keyframes ripple-expand {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Accordion smooth reveal */
+.accordion-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--transition-base);
+}
+.accordion-body[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+.accordion-body > div {
+  overflow: hidden;
+}
+
+/* Chevron rotation for accordions */
+.chevron-rotate {
+  transition: transform var(--transition-fast);
+}
+.chevron-rotate[data-open="true"] {
+  transform: rotate(180deg);
+}
+
+/* Staggered list entrance via TransitionGroup */
+.stagger-enter-active {
+  transition: opacity var(--transition-base), transform var(--transition-base);
+}
+.stagger-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* Tab indicator slide */
+.tab-indicator {
+  transition: left var(--transition-base), width var(--transition-base);
+}
+
+/* Status badge pop */
+@keyframes badge-pop {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.badge-pop {
+  animation: badge-pop 300ms ease-out forwards;
+}
+
 /* Prose styles for rendered markdown in chat */
 .prose p { margin-bottom: 0.5em; }
 .prose p:last-child { margin-bottom: 0; }

@@ -10,7 +10,7 @@ defineProps({
 <template>
   <div
     :class="[
-      'bg-[--color-surface] border border-[--color-border] rounded-lg',
+      'bg-[--color-surface] border border-[--color-border] rounded-lg hover-lift',
       padding && 'p-6',
     ]"
   >

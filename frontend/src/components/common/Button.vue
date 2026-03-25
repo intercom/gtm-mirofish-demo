@@ -1,4 +1,7 @@
 <script setup>
+import { ref } from 'vue'
+import { useRipple } from '../../composables/useMicroInteractions'
+
 defineProps({
   variant: {
     type: String,
@@ -19,14 +22,18 @@ defineProps({
 })
 
 defineEmits(['click'])
+
+const btnRef = ref(null)
+useRipple(btnRef)
 </script>
 
 <template>
   <button
+    ref="btnRef"
     :type="type"
     :disabled="disabled || loading"
     @click="$emit('click', $event)"
-    class="inline-flex items-center justify-center font-semibold rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+    class="ripple-container press-scale inline-flex items-center justify-center font-semibold rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
     style="transition: var(--btn-transition)"
     :class="[
       {

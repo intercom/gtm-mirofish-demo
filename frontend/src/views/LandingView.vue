@@ -73,6 +73,7 @@ const ICON_MAP = {
   dollar: '💰',
   sparkle: '✨',
   pipeline: '🔄',
+  'trending-up': '📈',
 }
 
 function resolveIcon(icon) {
@@ -129,6 +130,12 @@ async function loadScenarios() {
         name: 'Pipeline Optimization',
         description: 'Identify pipeline bottlenecks and test intervention strategies.',
         icon: '🔄',
+      },
+      {
+        id: 'expansion_revenue',
+        name: 'Expansion Revenue Simulation',
+        description: 'Simulate upsell and cross-sell motions across existing customer segments.',
+        icon: '📈',
       },
     ]
     error.value = null

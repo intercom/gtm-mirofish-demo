@@ -11,6 +11,7 @@ from flask import request, jsonify, send_file
 from . import report_bp
 from ..config import Config
 from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
+from ..services.report_templates import list_templates, get_template, get_template_dict
 from ..services.simulation_manager import SimulationManager
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
@@ -55,7 +56,8 @@ def generate_report():
                 "success": False,
                 "error": "请提供 simulation_id"
             }), 400
-        
+
+        template_id = data.get('template_id')
         force_regenerate = data.get('force_regenerate', False)
         
         # 获取模拟信息
@@ -109,6 +111,9 @@ def generate_report():
         import uuid
         report_id = f"report_{uuid.uuid4().hex[:12]}"
         
+        # Resolve template if provided
+        template = get_template(template_id) if template_id else None
+
         # 创建异步任务
         task_manager = TaskManager()
         task_id = task_manager.create_task(
@@ -116,7 +121,8 @@ def generate_report():
             metadata={
                 "simulation_id": simulation_id,
                 "graph_id": graph_id,
-                "report_id": report_id
+                "report_id": report_id,
+                "template_id": template_id,
             }
         )
         
@@ -148,7 +154,8 @@ def generate_report():
                 # 生成报告（传入预先生成的 report_id）
                 report = agent.generate_report(
                     progress_callback=progress_callback,
-                    report_id=report_id
+                    report_id=report_id,
+                    template=template,
                 )
                 
                 # 保存报告
@@ -923,6 +930,33 @@ def stream_console_log(report_id: str):
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== 报告模板接口 ==============
+
+@report_bp.route('/templates', methods=['GET'])
+def list_report_templates():
+    """List all available report templates."""
+    return jsonify({
+        "success": True,
+        "data": list_templates()
+    })
+
+
+@report_bp.route('/templates/<template_id>', methods=['GET'])
+def get_report_template(template_id: str):
+    """Get a specific report template with full section definitions."""
+    template = get_template_dict(template_id)
+    if not template:
+        return jsonify({
+            "success": False,
+            "error": f"Template not found: {template_id}"
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "data": template
+    })
 
 
 # ============== 工具调用接口（供调试使用）==============

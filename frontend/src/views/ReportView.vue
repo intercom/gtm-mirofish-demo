@@ -13,15 +13,18 @@ import DataTable from '../components/report/DataTable.vue'
 import ThemeConfigurator from '../components/report-builder/ThemeConfigurator.vue'
 import { useReportTheme } from '../composables/useReportTheme'
 import ReportCanvas from '../components/report/ReportCanvas.vue'
+import { useReportStore } from '../stores/report'
+import ReportTemplateSelector from '../components/report/ReportTemplateSelector.vue'
 
 const { resolvedTheme, themeStyles } = useReportTheme()
 
 const props = defineProps({ taskId: String })
+const reportStore = useReportStore()
 
 const reportId = ref(null)
 const sections = ref([])
 const activeChapter = ref(0)
-const generating = ref(true)
+const generating = ref(false)
 const progress = ref(0)
 const progressMessage = ref('')
 const error = ref(null)
@@ -58,6 +61,10 @@ async function fetchAgentStats() {
   }
 }
 
+// Template selection phase — shown when no report exists yet
+const showTemplateSelector = ref(false)
+const selectedTemplate = ref(null)
+
 let pollTimer = null
 
 const chapters = computed(() =>
@@ -93,15 +100,17 @@ const keyFindings = computed(() => {
   return findings
 })
 
-const fullMarkdown = computed(() =>
-  sections.value.map((s) => s.content).join('\n\n---\n\n')
-)
+const templateLabel = computed(() => {
+  if (selectedTemplate.value) return selectedTemplate.value.name
+  if (reportStore.selectedTemplate) return reportStore.selectedTemplate.name
+  return null
+})
 
 async function checkAndLoad() {
   try {
     const res = await fetch(`${API_BASE}/report/check/${props.taskId}`)
     if (!res.ok) {
-      await startGeneration()
+      showTemplateSelector.value = true
       return
     }
     const json = await res.json()
@@ -109,29 +118,41 @@ async function checkAndLoad() {
       reportId.value = json.data.report_id
       if (json.data.report_status === 'completed') {
         await loadSections()
-        generating.value = false
         isComplete.value = true
       } else {
+        generating.value = true
         startPolling()
       }
     } else {
-      await startGeneration()
+      showTemplateSelector.value = true
     }
-  } catch (e) {
+  } catch {
     error.value = 'Failed to check report status'
   }
 }
 
+function onTemplateSelect(tpl) {
+  selectedTemplate.value = tpl
+  reportStore.setTemplate(tpl)
+}
+
 async function startGeneration() {
+  showTemplateSelector.value = false
+  generating.value = true
   try {
+    const body = { simulation_id: props.taskId }
+    if (selectedTemplate.value && selectedTemplate.value.id) {
+      body.template_id = selectedTemplate.value.id
+    }
     const res = await fetch(`${API_BASE}/report/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ simulation_id: props.taskId }),
+      body: JSON.stringify(body),
     })
     const json = await res.json()
     if (json.success) {
       reportId.value = json.data.report_id
+      reportStore.setReportId(json.data.report_id)
       if (json.data.already_generated) {
         await loadSections()
         generating.value = false
@@ -141,9 +162,11 @@ async function startGeneration() {
       }
     } else {
       error.value = json.error || 'Failed to start report generation'
+      generating.value = false
     }
-  } catch (e) {
+  } catch {
     error.value = 'Failed to start report generation'
+    generating.value = false
   }
 }
 
@@ -229,7 +252,10 @@ onMounted(() => {
   checkAndLoad()
   fetchAgentStats()
 })
-onUnmounted(stopPolling)
+onUnmounted(() => {
+  stopPolling()
+  reportStore.reset()
+})
 </script>
 
 <template>
@@ -242,6 +268,9 @@ onUnmounted(stopPolling)
         <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]" style="letter-spacing: -0.64px">
           Predictive Report
         </h1>
+        <p v-if="templateLabel && !showTemplateSelector" class="text-xs text-[#2068FF] font-medium mt-0.5">
+          {{ templateLabel }}
+        </p>
         <p v-if="generating" class="text-sm text-[var(--color-text-muted)] mt-1">
           {{ progressMessage || 'Generating multi-chapter analysis...' }}
         </p>
@@ -330,15 +359,22 @@ onUnmounted(stopPolling)
       {{ error }}
     </div>
 
-    <!-- Progress Bar (during generation) -->
-    <div v-if="generating && progress > 0" class="mb-6">
-      <div class="h-1.5 bg-[var(--color-tint)] rounded-full overflow-hidden">
-        <div
-          class="h-full bg-[#2068FF] rounded-full transition-all duration-500"
-          :style="{ width: `${progress}%` }"
-        />
+    <!-- ══════ Template Selection Phase ══════ -->
+    <div v-if="showTemplateSelector" class="space-y-6">
+      <ReportTemplateSelector @select="onTemplateSelect" />
+
+      <div class="flex justify-end">
+        <button
+          @click="startGeneration"
+          :disabled="!selectedTemplate"
+          class="bg-[#2068FF] hover:bg-[#1a5ae0] disabled:bg-[var(--color-border)] disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Generate Report
+        </button>
       </div>
-      <p class="text-xs text-[var(--color-text-muted)] mt-1 text-right">{{ progress }}%</p>
     </div>
 
     <!-- Builder Mode: drag-and-drop section reorder -->
@@ -350,6 +386,18 @@ onUnmounted(stopPolling)
     />
 
     <template v-if="!builderMode">
+
+    <!-- Progress Bar (during generation) -->
+    <div v-if="generating && progress > 0" class="mb-6">
+      <div class="h-1.5 bg-[var(--color-tint)] rounded-full overflow-hidden">
+        <div
+          class="h-full bg-[#2068FF] rounded-full transition-all duration-500"
+          :style="{ width: `${progress}%` }"
+        />
+      </div>
+      <p class="text-xs text-[var(--color-text-muted)] mt-1 text-right">{{ progress }}%</p>
+    </div>
+
     <!-- Mobile: horizontal tab bar -->
     <div v-if="chapters.length > 0" class="md:hidden mb-4 -mx-4 px-4 overflow-x-auto">
       <div class="flex gap-2 min-w-max">
@@ -547,14 +595,23 @@ onUnmounted(stopPolling)
 .report-content :deep(ul) { list-style-type: disc; }
 .report-content :deep(ol) { list-style-type: decimal; }
 .report-content :deep(strong) { font-weight: 600; color: var(--color-text); }
+
+/* ═══ Blockquotes — agent quotes ═══ */
 .report-content :deep(blockquote) {
-  border-left: 3px solid var(--report-primary, var(--color-primary));
-  padding-left: 1rem;
-  margin: 1rem 0;
+  border-left: 3px solid var(--report-primary, #2068FF);
+  padding: 0.75rem 1rem;
+  margin: 1.25rem 0;
+  background: rgba(32, 104, 255, 0.03);
+  border-radius: 0 0.375rem 0.375rem 0;
   color: var(--color-text-secondary);
   font-style: italic;
   font-family: var(--report-font-family, inherit);
 }
+.report-content :deep(blockquote p) {
+  margin-bottom: 0;
+}
+
+/* ═══ Code blocks ═══ */
 .report-content :deep(code) {
   background: var(--color-tint);
   padding: 0.125rem 0.375rem;
@@ -570,16 +627,59 @@ onUnmounted(stopPolling)
   margin: 1rem 0;
 }
 .report-content :deep(pre code) { background: none; padding: 0; }
-.report-content :deep(table) { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: var(--report-body-size, 0.875rem); font-family: var(--report-font-family, inherit); }
+/* ═══ Tables ═══ */
+.report-content :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  font-size: var(--report-body-size, 0.8125rem);
+  font-family: var(--report-font-family, inherit);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+.report-content :deep(thead) {
+  background: rgba(32, 104, 255, 0.04);
+}
 .report-content :deep(th) {
   text-align: left;
-  padding: 0.5rem;
+  padding: 0.625rem 0.75rem;
   border-bottom: 2px solid var(--report-primary, var(--color-border-strong));
   font-weight: 600;
   color: var(--color-text);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
-.report-content :deep(td) { padding: 0.5rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); }
-.report-content :deep(hr) { border: none; border-top: 1px solid var(--color-border); margin: 1.5rem 0; }
+.report-content :deep(td) {
+  padding: 0.625rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+.report-content :deep(tr:last-child td) {
+  border-bottom: none;
+}
+
+/* ═══ Horizontal rules ═══ */
+.report-content :deep(hr) { border: none; border-top: 1px solid var(--color-border); margin: 2rem 0; }
+
+/* ═══ Report card print styles ═══ */
+.report-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+@media print {
+  .report-card {
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+  .report-content :deep(blockquote) {
+    border-left-color: #333;
+    background: #f9f9f9;
+  }
+}
+
+/* ═══ Key findings ═══ */
 .finding-text :deep(strong) { font-weight: 700; color: var(--color-text); }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }

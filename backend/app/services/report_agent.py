@@ -463,6 +463,7 @@ class Report:
     custom_prompt: Optional[str] = None
     include_charts: bool = True
     chart_data: Optional[Dict[str, Any]] = None
+    template_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -480,6 +481,7 @@ class Report:
             "custom_prompt": self.custom_prompt,
             "include_charts": self.include_charts,
             "chart_data": self.chart_data,
+            "template_id": self.template_id,
         }
 
 
@@ -936,6 +938,8 @@ class ReportAgent:
         self.report_logger: Optional[ReportLogger] = None
         # 控制台日志记录器（在 generate_report 中初始化）
         self.console_logger: Optional[ReportConsoleLogger] = None
+        # Template reference (set during generate_report when template is provided)
+        self._template = None
         
         logger.info(f"ReportAgent 初始化完成: graph_id={graph_id}, simulation_id={simulation_id}")
     
@@ -1717,6 +1721,28 @@ class ReportAgent:
             tools_description=self._get_tools_description(),
         )
 
+        # Inject template formatting directives when available
+        template = getattr(self, '_template', None)
+        if template:
+            formatting_parts = []
+            # Section-level formatting hint
+            section_def = next(
+                (s for s in template.sections if s.title == section.title), None
+            )
+            if section_def:
+                if section_def.description:
+                    formatting_parts.append(f"Section goal: {section_def.description}")
+                if section_def.formatting_hint:
+                    formatting_parts.append(f"Formatting guidance: {section_def.formatting_hint}")
+            # Report-level formatting
+            fmt = template.formatting
+            if fmt.get("tone"):
+                formatting_parts.append(f"Tone: {fmt['tone']}")
+            if fmt.get("style"):
+                formatting_parts.append(f"Style: {fmt['style']}")
+            if formatting_parts:
+                system_prompt += "\n\n═══ Template Formatting Directives ═══\n" + "\n".join(formatting_parts)
+
         # 构建用户prompt - 每个已完成章节各传入最大4000字
         if previous_sections:
             previous_parts = []
@@ -1988,9 +2014,10 @@ class ReportAgent:
         return final_answer
     
     def generate_report(
-        self, 
+        self,
         progress_callback: Optional[Callable[[str, int, str], None]] = None,
-        report_id: Optional[str] = None
+        report_id: Optional[str] = None,
+        template=None,
     ) -> Report:
         """
         生成完整报告（分章节实时输出）
@@ -2026,7 +2053,8 @@ class ReportAgent:
             graph_id=self.graph_id,
             simulation_requirement=self.simulation_requirement,
             status=ReportStatus.PENDING,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
+            template_id=template.id if template else None,
         )
         
         # 已完成的章节标题列表（用于进度追踪）
@@ -2059,19 +2087,36 @@ class ReportAgent:
                 report_id, "planning", 5, "开始规划报告大纲...",
                 completed_sections=[]
             )
-            
+
             # 记录规划开始日志
             self.report_logger.log_planning_start()
-            
+
             if progress_callback:
                 progress_callback("planning", 0, "开始规划报告大纲...")
-            
-            outline = self.plan_outline(
-                progress_callback=lambda stage, prog, msg: 
-                    progress_callback(stage, prog // 5, msg) if progress_callback else None
-            )
+
+            # If a template with sections is provided, use its structure
+            # instead of LLM-planned outline. The "full_gtm_analysis"
+            # template has empty sections, which falls through to LLM planning.
+            if template and hasattr(template, 'sections') and template.sections:
+                outline = ReportOutline(
+                    title=template.name,
+                    summary=template.description,
+                    sections=[
+                        ReportSection(title=s.title)
+                        for s in template.sections
+                    ],
+                )
+                # Stash template on self so _generate_section_react can read formatting hints
+                self._template = template
+                logger.info(f"Using template '{template.id}' with {len(template.sections)} sections")
+            else:
+                self._template = None
+                outline = self.plan_outline(
+                    progress_callback=lambda stage, prog, msg:
+                        progress_callback(stage, prog // 5, msg) if progress_callback else None
+                )
             report.outline = outline
-            
+
             # 记录规划完成日志
             self.report_logger.log_planning_complete(outline.to_dict())
             
@@ -2955,6 +3000,7 @@ class ReportManager:
             custom_prompt=data.get('custom_prompt'),
             include_charts=data.get('include_charts', True),
             chart_data=data.get('chart_data'),
+            template_id=data.get('template_id'),
         )
     
     @classmethod

@@ -13,7 +13,10 @@ from ..config import Config
 from ..services.report_agent import (
     ReportAgent, ReportManager, ReportStatus, REPORT_TYPES,
 )
-from ..services.report_templates import generate_demo_report, CHART_DATA_DEMO
+from ..services.report_templates import (
+    generate_demo_report, CHART_DATA_DEMO,
+    list_templates, get_template, get_template_dict,
+)
 from ..services.simulation_manager import SimulationManager
 from ..services.data_sources import DataSourceService
 from ..models.project import ProjectManager
@@ -88,6 +91,7 @@ def generate_report():
                 "error": f"不支持的报告类型: {report_type}. 可选: {list(REPORT_TYPES.keys())}"
             }), 400
 
+        template_id = data.get('template_id')
         custom_prompt = data.get('custom_prompt')
         include_charts = data.get('include_charts', True)
         force_regenerate = data.get('force_regenerate', False)
@@ -163,6 +167,9 @@ def generate_report():
                 "error": "缺少模拟需求描述"
             }), 400
 
+        # Resolve template if provided
+        template = get_template(template_id) if template_id else None
+
         # 创建异步任务
         task_manager = TaskManager()
         task_id = task_manager.create_task(
@@ -174,6 +181,7 @@ def generate_report():
                 "report_type": report_type,
                 "custom_prompt": custom_prompt,
                 "include_charts": include_charts,
+                "template_id": template_id,
             }
         )
 
@@ -201,7 +209,8 @@ def generate_report():
 
                 report = agent.generate_report(
                     progress_callback=progress_callback,
-                    report_id=report_id
+                    report_id=report_id,
+                    template=template,
                 )
 
                 # Attach generation metadata
@@ -1136,6 +1145,33 @@ def get_campaign_spend():
             "campaigns": campaigns,
             "channels": channels,
         }
+    })
+
+
+# ============== 报告模板接口 ==============
+
+@report_bp.route('/templates', methods=['GET'])
+def list_report_templates():
+    """List all available report templates."""
+    return jsonify({
+        "success": True,
+        "data": list_templates()
+    })
+
+
+@report_bp.route('/templates/<template_id>', methods=['GET'])
+def get_report_template(template_id: str):
+    """Get a specific report template with full section definitions."""
+    template = get_template_dict(template_id)
+    if not template:
+        return jsonify({
+            "success": False,
+            "error": f"Template not found: {template_id}"
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "data": template
     })
 
 

@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
+import { RichTextEditor } from '../components/common'
 import { useToast } from '../composables/useToast'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
@@ -387,12 +388,10 @@ async function runSimulation() {
           </div>
 
           <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Seed Document</label>
-          <textarea
+          <RichTextEditor
             v-model="seedText"
-            rows="16"
-            class="w-full border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-sm leading-relaxed focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-y bg-[var(--color-surface)]"
             placeholder="Describe your scenario: What campaign are you testing? What messaging will prospects see? Include email copy, target audience details, and any competitive context. The more realistic the seed document, the more useful the simulation results will be."
-          ></textarea>
+          />
 
           <!-- Persona Types Multiselect -->
           <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">

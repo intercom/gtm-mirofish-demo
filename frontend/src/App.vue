@@ -10,6 +10,7 @@ import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import CommandPalette from './components/common/CommandPalette.vue'
 import SystemStatusBar from './components/common/SystemStatusBar.vue'
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal.vue'
+import KeyboardShortcutCard from './components/ui/KeyboardShortcutCard.vue'
 import { useTheme } from './composables/useTheme'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useIntercom } from './composables/useIntercom'
@@ -119,6 +120,7 @@ onUnmounted(() => {
   <NavigationShortcutIndicator />
   <CommandPalette />
   <KeyboardShortcutsModal />
+  <KeyboardShortcutCard />
   <PresenterToolbar v-if="isDemoMode" />
   <SystemStatusBar v-if="showStatusBar" />
 </template>

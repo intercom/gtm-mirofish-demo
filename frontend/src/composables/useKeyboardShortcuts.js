@@ -12,7 +12,7 @@ const shortcuts = [
     group: 'General',
     items: [
       { keys: ['?'], description: 'Show keyboard shortcuts' },
-      { keys: ['Esc'], description: 'Close modal / dialog' },
+      { keys: ['Esc'], description: 'Close dialogs & overlays' },
     ],
   },
   {
@@ -23,7 +23,7 @@ const shortcuts = [
     ],
   },
   {
-    group: 'Chat',
+    group: 'Chat & Interview',
     items: [
       { keys: ['Enter'], description: 'Send message' },
       { keys: ['Shift', 'Enter'], description: 'New line in message' },
@@ -142,6 +142,14 @@ function formatKey(shortcut) {
     .join(isMac ? '' : '+')
 }
 
+function toggle() {
+  showHelp.value = !showHelp.value
+}
+
+function close() {
+  showHelp.value = false
+}
+
 export function useKeyboardShortcuts() {
   attachListener()
 
@@ -176,5 +184,5 @@ export function useKeyboardShortcuts() {
     onUnmounted(unregisterAll)
   }
 
-  return { register, unregister, unregisterAll, getAll, formatKey, isMac, gModeActive, registry, showHelp, shortcuts }
+  return { register, unregister, unregisterAll, getAll, formatKey, isMac, gModeActive, registry, showHelp, visible: showHelp, shortcuts, toggle, close }
 }

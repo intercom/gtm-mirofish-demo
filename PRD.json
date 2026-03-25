@@ -172,7 +172,7 @@
     },
     {
       "title": "Agent sentiment timeline visualization",
-      "completed": true,
+      "completed": false,
       "parallel_group": 4,
       "description": "Create `frontend/src/components/report/SentimentTimeline.vue` \u2014 a multi-line D3 chart showing per-agent sentiment scores over simulation rounds. Fetch data from `/api/simulation/{sim_id}/sentiment`. Render one line per agent, color-coded by persona type (VP Support = #2068FF blue, CX Director = #ff5600 orange, IT Leader = #A0F purple, Operations = #090 green, Finance = #FFB800 amber). Add: a legend showing agent names with color swatches (clickable to toggle line visibility), d3-zoom for horizontal zoom/pan to inspect specific round ranges, and a hover tooltip that snaps to the nearest data point showing agent name, round number, and exact sentiment score. Add a smoothing toggle that switches between raw values and a 5-round moving average. The chart should be responsive \u2014 recalculate dimensions on window resize using a ResizeObserver."
     },

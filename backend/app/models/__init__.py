@@ -22,6 +22,10 @@ from .cpq import (
     INTERCOM_PRODUCTS, INTERCOM_PRICEBOOK,
     generate_demo_quotes,
 )
+from .revenue import (
+    RevenueMetric, CustomerRevenue, ChurnEvent, ExpansionEvent,
+    ExpansionType, ChurnReason, PlanTier,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -35,5 +39,7 @@ __all__ = [
     'QuoteStatus', 'BillingFrequency',
     'INTERCOM_PRODUCTS', 'INTERCOM_PRICEBOOK',
     'generate_demo_quotes',
+    'RevenueMetric', 'CustomerRevenue', 'ChurnEvent', 'ExpansionEvent',
+    'ExpansionType', 'ChurnReason', 'PlanTier',
 ]
 

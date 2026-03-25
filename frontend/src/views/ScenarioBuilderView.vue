@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import TeamComposer from '../components/simulation/TeamComposer.vue'
+import MarkdownEditor from '../components/common/MarkdownEditor.vue'
 import { useToast } from '../composables/useToast'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useScenariosStore } from '../stores/scenarios'
@@ -431,12 +432,12 @@ async function runSimulation() {
           </div>
 
           <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Seed Document</label>
-          <textarea
+          <MarkdownEditor
             v-model="seedText"
-            rows="16"
-            class="w-full border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-sm leading-relaxed focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-y bg-[var(--color-surface)]"
+            :rows="16"
+            filename="seed-document"
             placeholder="Describe your scenario: What campaign are you testing? What messaging will prospects see? Include email copy, target audience details, and any competitive context. The more realistic the seed document, the more useful the simulation results will be."
-          ></textarea>
+          />
 
           <!-- Team Composer (drag-and-drop persona selection) -->
           <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">

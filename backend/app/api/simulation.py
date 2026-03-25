@@ -1741,11 +1741,15 @@ def get_run_status(simulation_id: str):
                 }
             })
         
+        result = run_state.to_dict()
+        result["llm_provider"] = os.environ.get('LLM_PROVIDER', 'unknown')
+        result["llm_model"] = Config.LLM_MODEL_NAME or 'unknown'
+
         return jsonify({
             "success": True,
-            "data": run_state.to_dict()
+            "data": result
         })
-        
+
     except Exception as e:
         logger.error(f"获取运行状态失败: {str(e)}")
         return jsonify({
@@ -1841,7 +1845,11 @@ def get_run_status_detail(simulation_id: str):
         result["rounds_count"] = len(run_state.rounds)
         # recent_actions 只展示当前最新一轮两个平台的内容
         result["recent_actions"] = [a.to_dict() for a in recent_actions]
-        
+
+        # LLM transparency metadata
+        result["llm_provider"] = os.environ.get('LLM_PROVIDER', 'unknown')
+        result["llm_model"] = Config.LLM_MODEL_NAME or 'unknown'
+
         return jsonify({
             "success": True,
             "data": result

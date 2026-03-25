@@ -2,12 +2,14 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import { useTransparency } from '../../composables/useTransparency'
 
 const props = defineProps({
   taskId: { type: String, required: true },
 })
 
 const polling = inject('polling')
+const { showThinking, hasAgentFilter, toggleThinking, toggleAgent, isAgentTransparent, clearAgentFilter } = useTransparency()
 
 const activePlatform = ref('all')
 const chartCanvas = ref(null)
@@ -287,6 +289,16 @@ function truncate(str, len = 120) {
   return str.slice(0, len) + '\u2026'
 }
 
+function formatTimestamp(ts) {
+  if (!ts) return ''
+  try {
+    const d = new Date(ts)
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return ts
+  }
+}
+
 function selectAgent(action) {
   const agentActions = polling.recentActions.value.filter(
     a => a.agent_name === action.agent_name
@@ -490,39 +502,110 @@ onUnmounted(() => {
 
           <!-- Agent Activity Feed -->
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-            <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center justify-between gap-2 mb-4">
               <h3 class="text-sm font-semibold text-[var(--color-text)]">Agent Activity Feed</h3>
-              <span class="text-xs text-[var(--color-text-muted)]">{{ filteredActions.length }} actions</span>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-[var(--color-text-muted)]">{{ filteredActions.length }} actions</span>
+                <button
+                  class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors border"
+                  :class="showThinking
+                    ? 'bg-[rgba(32,104,255,0.1)] text-[var(--color-primary)] border-[var(--color-primary)]'
+                    : 'bg-[var(--color-tint)] text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-secondary)]'"
+                  @click="toggleThinking"
+                  :title="showThinking ? 'Hide agent reasoning' : 'Show agent reasoning'"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.4V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.6c2.9-1.1 5-4 5-7.4a8 8 0 0 0-8-8z"/>
+                    <line x1="10" y1="22" x2="14" y2="22"/>
+                  </svg>
+                  {{ showThinking ? 'Thinking On' : 'Show Thinking' }}
+                </button>
+              </div>
             </div>
+
+            <!-- LLM model badge when transparency is on -->
+            <div v-if="showThinking && polling.runStatus.value?.llm_model" class="flex items-center gap-2 mb-3 px-2.5 py-1.5 rounded-md bg-[rgba(32,104,255,0.05)] border border-[rgba(32,104,255,0.1)]">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+              <span class="text-[10px] text-[var(--color-primary)] font-medium">
+                {{ polling.runStatus.value.llm_provider || 'LLM' }} &middot; {{ polling.runStatus.value.llm_model }}
+              </span>
+              <button
+                v-if="hasAgentFilter"
+                class="ml-auto text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+                @click="clearAgentFilter"
+              >
+                Clear agent filter
+              </button>
+            </div>
+
             <div
               v-if="filteredActions.length"
               ref="feedContainer"
-              class="space-y-2 max-h-[240px] overflow-y-auto pr-1"
+              class="space-y-0.5 overflow-y-auto pr-1"
+              :class="showThinking ? 'max-h-[360px]' : 'max-h-[240px]'"
               @scroll="onFeedScroll"
             >
               <div
                 v-for="(action, idx) in filteredActions.slice(0, 50)"
                 :key="idx"
-                class="flex items-start gap-2.5 py-2 border-b border-[var(--color-border)] last:border-0"
+                class="py-2 border-b border-[var(--color-border)] last:border-0"
               >
-                <span class="text-base mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <button class="text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] hover:underline transition-colors text-left" @click.stop="selectAgent(action)">
-                      {{ action.agent_name || `Agent #${action.agent_id}` }}
-                    </button>
-                    <span class="text-xs px-1.5 py-0.5 rounded-full" :class="platformBadge(action.platform).class">
-                      {{ platformBadge(action.platform).label }}
-                    </span>
-                    <span class="text-xs text-[var(--color-text-muted)]">R{{ action.round_num }}</span>
+                <div class="flex items-start gap-2.5">
+                  <span class="text-base mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <button class="text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] hover:underline transition-colors text-left" @click.stop="selectAgent(action)">
+                        {{ action.agent_name || `Agent #${action.agent_id}` }}
+                      </button>
+                      <span class="text-xs px-1.5 py-0.5 rounded-full" :class="platformBadge(action.platform).class">
+                        {{ platformBadge(action.platform).label }}
+                      </span>
+                      <span class="text-xs text-[var(--color-text-muted)]">R{{ action.round_num }}</span>
+                      <span v-if="showThinking && action.timestamp" class="text-[10px] text-[var(--color-text-muted)]">{{ formatTimestamp(action.timestamp) }}</span>
+                      <!-- Per-agent transparency toggle -->
+                      <button
+                        v-if="showThinking"
+                        class="ml-auto text-[10px] px-1.5 py-0.5 rounded transition-colors"
+                        :class="isAgentTransparent(action.agent_id)
+                          ? 'text-[var(--color-primary)] bg-[rgba(32,104,255,0.08)]'
+                          : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+                        @click.stop="toggleAgent(action.agent_id)"
+                        :title="isAgentTransparent(action.agent_id) ? 'Hide thinking for this agent' : 'Show thinking for this agent'"
+                      >
+                        {{ isAgentTransparent(action.agent_id) ? '&#x1F4A1;' : '&#x1F4A1;' }}
+                      </button>
+                    </div>
+                    <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
+                      {{ actionLabel(action.action_type) }}
+                      <span v-if="action.action_args?.content" class="text-[var(--color-text-muted)]">
+                        &mdash; {{ showThinking && isAgentTransparent(action.agent_id) ? action.action_args.content : truncate(action.action_args.content) }}
+                      </span>
+                    </p>
                   </div>
-                  <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
-                    {{ actionLabel(action.action_type) }}
-                    <span v-if="action.action_args?.content" class="text-[var(--color-text-muted)]">
-                      &mdash; {{ truncate(action.action_args.content) }}
-                    </span>
-                  </p>
                 </div>
+
+                <!-- Reasoning trace (visible when transparency is on for this agent) -->
+                <Transition name="reasoning">
+                  <div
+                    v-if="showThinking && isAgentTransparent(action.agent_id) && action.reasoning"
+                    class="ml-8 mt-2 pl-3 border-l-2 border-[rgba(32,104,255,0.2)] space-y-1.5"
+                  >
+                    <div class="flex items-start gap-1.5">
+                      <span class="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider shrink-0 mt-px">Thought</span>
+                      <p class="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{{ action.reasoning.thought }}</p>
+                    </div>
+                    <div class="flex items-start gap-1.5">
+                      <span class="text-[10px] font-semibold text-[#8b5cf6] uppercase tracking-wider shrink-0 mt-px">Action</span>
+                      <p class="text-[11px] text-[var(--color-text-muted)] leading-relaxed font-mono">{{ action.reasoning.action }}</p>
+                    </div>
+                    <div class="flex items-start gap-1.5">
+                      <span class="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider shrink-0 mt-px">Result</span>
+                      <p class="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{{ action.reasoning.observation }}</p>
+                    </div>
+                  </div>
+                </Transition>
               </div>
             </div>
             <div v-else class="flex flex-col items-center justify-center h-[200px] text-[var(--color-text-muted)]">
@@ -700,5 +783,20 @@ onUnmounted(() => {
 }
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
+}
+.reasoning-enter-active {
+  transition: all 0.2s ease-out;
+}
+.reasoning-leave-active {
+  transition: all 0.15s ease-in;
+}
+.reasoning-enter-from, .reasoning-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-4px);
+}
+.reasoning-enter-to, .reasoning-leave-from {
+  opacity: 1;
+  max-height: 200px;
 }
 </style>

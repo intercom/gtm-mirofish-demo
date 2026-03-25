@@ -6,6 +6,7 @@ import { useCountUp } from '../composables/useCountUp'
 import { useParallax } from '../composables/useParallax'
 import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
+import ScenarioTemplateCard from '../components/scenarios/ScenarioTemplateCard.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -66,19 +67,6 @@ const steps = [
     description: 'Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.',
   },
 ]
-
-const ICON_MAP = {
-  mail: '📧',
-  signal: '📡',
-  dollar: '💰',
-  sparkle: '✨',
-}
-
-function resolveIcon(icon) {
-  if (!icon) return '🐟'
-  if (/\p{Emoji}/u.test(icon)) return icon
-  return ICON_MAP[icon] || '🐟'
-}
 
 const scenarios = ref([])
 const loading = ref(true)
@@ -352,26 +340,16 @@ const year = new Date().getFullYear()
           @before-enter="onStaggerBeforeEnter"
           @enter="onStaggerEnter"
         >
-          <button
+          <ScenarioTemplateCard
             v-for="(scenario, i) in showCards ? scenarios : []"
             :key="scenario.id"
             :data-index="i"
-            @click="launchScenario(scenario.id)"
-            class="text-left rounded-lg transition-all duration-300 cursor-pointer border"
-            :class="[
-              scenario.hero
-                ? 'md:col-span-2 p-6 bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
-                : 'p-5 bg-white/5 border-white/10 hover:bg-white/10',
-            ]"
-          >
-            <div class="flex items-start gap-3">
-              <span :class="scenario.hero ? 'text-3xl' : 'text-2xl'">{{ resolveIcon(scenario.icon) }}</span>
-              <div>
-                <h3 :class="scenario.hero ? 'text-base font-semibold text-white' : 'text-sm font-semibold text-white'">{{ scenario.name }}</h3>
-                <p :class="scenario.hero ? 'text-sm text-white/50 mt-1.5' : 'text-xs text-white/50 mt-1'">{{ scenario.description }}</p>
-              </div>
-            </div>
-          </button>
+            :scenario="scenario"
+            :hero="!!scenario.hero"
+            variant="dark"
+            :class="scenario.hero && 'md:col-span-2'"
+            @select="launchScenario"
+          />
 
           <!-- Custom simulation card -->
           <button

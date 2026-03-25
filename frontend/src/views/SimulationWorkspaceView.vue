@@ -2,12 +2,14 @@
 import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSimulationPolling } from '../composables/useSimulationPolling'
+import { useTimelineScrubber, provideTimelineScrubber } from '../composables/useTimelineScrubber'
 import { useToast } from '../composables/useToast'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+import TimelineScrubber from '../components/simulation/TimelineScrubber.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -22,9 +24,16 @@ const simulationStore = useSimulationStore()
 const polling = useSimulationPolling(() => props.taskId)
 provide('polling', polling)
 
+const scrubber = useTimelineScrubber(polling)
+provideTimelineScrubber(scrubber)
+
 const activeTab = ref(route.query.tab === 'simulation' ? 'simulation' : 'graph')
 const demoMode = ref(false)
 provide('demoMode', demoMode)
+
+const showTimeline = computed(() =>
+  activeTab.value === 'simulation' && scrubber.totalRounds.value > 0,
+)
 
 const showCompleteBanner = ref(false)
 let bannerTimer = null
@@ -138,6 +147,9 @@ onUnmounted(() => {
         <SimulationPanel :taskId="taskId" />
       </div>
     </div>
+
+    <!-- Timeline Scrubber -->
+    <TimelineScrubber v-if="showTimeline" />
   </div>
 </template>
 

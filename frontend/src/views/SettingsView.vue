@@ -1,19 +1,12 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { API_BASE } from '../api/client'
+import ThemeSwitcher from '../components/common/ThemeSwitcher.vue'
 
-const { preference: themePreference, setTheme } = useTheme()
 const toast = useToast()
 const { isDemoMode } = useDemoMode()
-
-const themeOptions = [
-  { id: 'system', label: 'System', icon: '💻' },
-  { id: 'light', label: 'Light', icon: '☀️' },
-  { id: 'dark', label: 'Dark', icon: '🌙' },
-]
 
 const STORAGE_KEY = 'mirofish-settings'
 
@@ -159,20 +152,7 @@ onMounted(() => {
     <!-- Theme -->
     <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Theme</h2>
-      <div class="flex gap-2">
-        <button
-          v-for="opt in themeOptions"
-          :key="opt.id"
-          @click="setTheme(opt.id)"
-          class="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors cursor-pointer"
-          :class="themePreference === opt.id
-            ? 'border-[#2068FF] bg-[rgba(32,104,255,0.08)] text-[var(--color-text)]'
-            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#2068FF]/50'"
-        >
-          <span>{{ opt.icon }}</span>
-          <span>{{ opt.label }}</span>
-        </button>
-      </div>
+      <ThemeSwitcher />
     </section>
 
     <!-- LLM Provider -->

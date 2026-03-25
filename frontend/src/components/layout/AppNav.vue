@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import ThemeSwitcher from '../common/ThemeSwitcher.vue'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
@@ -64,6 +65,8 @@ watch(() => route.path, () => {
       </div>
 
       <div class="flex items-center gap-3">
+        <ThemeSwitcher compact class="hidden sm:inline-flex" />
+
         <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
           <span>Local</span>
@@ -109,9 +112,12 @@ watch(() => route.path, () => {
             ></span>
           </router-link>
         </div>
-        <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          Connected
+        <div class="px-4 pb-3 flex items-center justify-between">
+          <div class="flex items-center gap-2 text-xs text-white/40">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            Connected
+          </div>
+          <ThemeSwitcher compact />
         </div>
       </div>
     </Transition>

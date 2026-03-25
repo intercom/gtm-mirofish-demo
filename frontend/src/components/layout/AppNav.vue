@@ -1,21 +1,16 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { VueDraggable } from 'vue-draggable-plus'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import { useNavigationStore } from '../../stores/navigation'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
+const navigationStore = useNavigationStore()
 const mobileMenuOpen = ref(false)
-
-const navLinks = computed(() => {
-  return [
-    { to: '/', label: 'Home', exact: true },
-    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
-    { to: '/settings', label: 'Settings', exact: false },
-  ]
-})
 
 watch(() => route.path, () => {
   mobileMenuOpen.value = false
@@ -43,15 +38,29 @@ watch(() => route.path, () => {
           >DEMO</span>
         </router-link>
 
-        <div class="hidden md:flex items-center gap-1">
+        <VueDraggable
+          v-model="navigationStore.navLinks"
+          :animation="200"
+          ghost-class="nav-link--ghost"
+          drag-class="nav-link--drag"
+          handle=".nav-drag-handle"
+          class="hidden md:flex items-center gap-1"
+        >
           <router-link
-            v-for="link in navLinks"
-            :key="link.to"
+            v-for="link in navigationStore.navLinks"
+            :key="link.id"
             :to="link.to"
             :exact="link.exact"
-            class="nav-link"
+            class="nav-link group"
             :class="{ 'nav-link--exact': link.exact }"
           >
+            <span class="nav-drag-handle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <circle cx="4" cy="3" r="1" /><circle cx="8" cy="3" r="1" />
+                <circle cx="4" cy="6" r="1" /><circle cx="8" cy="6" r="1" />
+                <circle cx="4" cy="9" r="1" /><circle cx="8" cy="9" r="1" />
+              </svg>
+            </span>
             <span class="flex items-center gap-1.5">
               {{ link.label }}
               <span
@@ -60,7 +69,7 @@ watch(() => route.path, () => {
               ></span>
             </span>
           </router-link>
-        </div>
+        </VueDraggable>
       </div>
 
       <div class="flex items-center gap-3">
@@ -97,8 +106,8 @@ watch(() => route.path, () => {
       <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
         <div class="px-4 py-3 space-y-1">
           <router-link
-            v-for="link in navLinks"
-            :key="link.to"
+            v-for="link in navigationStore.navLinks"
+            :key="link.id"
             :to="link.to"
             class="flex items-center gap-1.5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
           >
@@ -120,12 +129,16 @@ watch(() => route.path, () => {
 
 <style scoped>
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast), background-color var(--transition-fast);
+  cursor: default;
 }
 .nav-link:hover {
   color: white;
@@ -142,5 +155,31 @@ watch(() => route.path, () => {
 .nav-link--exact.router-link-exact-active {
   color: white;
   background-color: rgba(255, 255, 255, 0.12);
+}
+
+.nav-drag-handle {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.15);
+  transition: color var(--transition-fast);
+  padding: 0.125rem;
+}
+.nav-link:hover .nav-drag-handle {
+  color: rgba(255, 255, 255, 0.5);
+}
+.nav-drag-handle:active {
+  cursor: grabbing;
+}
+
+.nav-link--ghost {
+  opacity: 0.4;
+  background-color: rgba(32, 104, 255, 0.15);
+  border-radius: var(--radius-sm);
+}
+.nav-link--drag {
+  opacity: 0.9;
+  background-color: rgba(32, 104, 255, 0.25);
+  border-radius: var(--radius-sm);
 }
 </style>

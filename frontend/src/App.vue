@@ -7,9 +7,11 @@ import ToastContainer from './components/ui/ToastContainer.vue'
 import OfflineBanner from './components/common/OfflineBanner.vue'
 import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndicator.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
+import CommandPalette from './components/common/CommandPalette.vue'
 import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
+import { useCommandPalette } from './composables/useCommandPalette'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 
@@ -17,6 +19,7 @@ const route = useRoute()
 const { setRouteDefault } = useTheme()
 const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
+useCommandPalette()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 
@@ -64,5 +67,6 @@ onUnmounted(() => {
   <OfflineBanner />
   <ToastContainer />
   <NavigationShortcutIndicator />
+  <CommandPalette />
   <PresenterToolbar v-if="isDemoMode" />
 </template>

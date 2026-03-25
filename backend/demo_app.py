@@ -1498,6 +1498,125 @@ def demo_reset():
 
 
 # ---------------------------------------------------------------------------
+# Org Chart with Information Flow
+# ---------------------------------------------------------------------------
+
+_ORG_TREE = {
+    "id": "ceo-1",
+    "name": "Sarah Chen",
+    "title": "CEO",
+    "children": [
+        {
+            "id": "vp-sales",
+            "name": "Marcus Rivera",
+            "title": "VP Sales",
+            "children": [
+                {"id": "sales-1", "name": "Jake Thornton", "title": "Enterprise AE"},
+                {"id": "sales-2", "name": "Priya Nair", "title": "Mid-Market AE"},
+                {"id": "sales-3", "name": "Tom Liu", "title": "SDR Lead"},
+            ],
+        },
+        {
+            "id": "vp-marketing",
+            "name": "Aisha Patel",
+            "title": "VP Marketing",
+            "children": [
+                {"id": "mktg-1", "name": "Dylan Park", "title": "Demand Gen"},
+                {"id": "mktg-2", "name": "Nina Costa", "title": "Product Marketing"},
+                {"id": "mktg-3", "name": "Eli Russo", "title": "Content Lead"},
+            ],
+        },
+        {
+            "id": "vp-cs",
+            "name": "David Kim",
+            "title": "VP Customer Success",
+            "children": [
+                {"id": "cs-1", "name": "Maria Lopez", "title": "Enterprise CSM"},
+                {"id": "cs-2", "name": "Sam Okafor", "title": "Mid-Market CSM"},
+                {"id": "cs-3", "name": "Jess Wang", "title": "Support Lead"},
+            ],
+        },
+        {
+            "id": "vp-product",
+            "name": "Rachel Stein",
+            "title": "VP Product",
+            "children": [
+                {"id": "prod-1", "name": "Arjun Mehta", "title": "PM — Platform"},
+                {"id": "prod-2", "name": "Lucy Tran", "title": "PM — AI/ML"},
+                {"id": "prod-3", "name": "Chris Novak", "title": "UX Lead"},
+            ],
+        },
+    ],
+}
+
+
+def _build_org_flows(time_point):
+    """Generate deterministic information flow edges for a given time point."""
+    rng = random.Random(42 + time_point)
+
+    flow_templates = [
+        # Reports flowing UP
+        {"source": "sales-1", "target": "vp-sales", "type": "data", "label": "Pipeline report", "direction": "up"},
+        {"source": "sales-2", "target": "vp-sales", "type": "data", "label": "Deal forecast", "direction": "up"},
+        {"source": "sales-3", "target": "vp-sales", "type": "data", "label": "SDR metrics", "direction": "up"},
+        {"source": "mktg-1", "target": "vp-marketing", "type": "data", "label": "Campaign results", "direction": "up"},
+        {"source": "mktg-2", "target": "vp-marketing", "type": "data", "label": "Win/loss analysis", "direction": "up"},
+        {"source": "cs-1", "target": "vp-cs", "type": "feedback", "label": "Customer health", "direction": "up"},
+        {"source": "cs-2", "target": "vp-cs", "type": "feedback", "label": "Churn risk alert", "direction": "up"},
+        {"source": "cs-3", "target": "vp-cs", "type": "feedback", "label": "Support tickets", "direction": "up"},
+        {"source": "prod-1", "target": "vp-product", "type": "data", "label": "Sprint velocity", "direction": "up"},
+        {"source": "prod-2", "target": "vp-product", "type": "data", "label": "AI model accuracy", "direction": "up"},
+        {"source": "vp-sales", "target": "ceo-1", "type": "data", "label": "Revenue update", "direction": "up"},
+        {"source": "vp-marketing", "target": "ceo-1", "type": "data", "label": "MQL pipeline", "direction": "up"},
+        {"source": "vp-cs", "target": "ceo-1", "type": "feedback", "label": "NPS trends", "direction": "up"},
+        {"source": "vp-product", "target": "ceo-1", "type": "data", "label": "Roadmap status", "direction": "up"},
+        # Directives flowing DOWN
+        {"source": "ceo-1", "target": "vp-sales", "type": "decision", "label": "Q3 targets", "direction": "down"},
+        {"source": "ceo-1", "target": "vp-marketing", "type": "decision", "label": "Budget realloc", "direction": "down"},
+        {"source": "ceo-1", "target": "vp-product", "type": "decision", "label": "Priority shift", "direction": "down"},
+        {"source": "vp-sales", "target": "sales-1", "type": "decision", "label": "Account focus", "direction": "down"},
+        {"source": "vp-marketing", "target": "mktg-1", "type": "decision", "label": "Campaign brief", "direction": "down"},
+        {"source": "vp-cs", "target": "cs-1", "type": "decision", "label": "Escalation plan", "direction": "down"},
+        {"source": "vp-product", "target": "prod-2", "type": "decision", "label": "AI roadmap", "direction": "down"},
+        # Cross-team HORIZONTAL collaboration
+        {"source": "vp-sales", "target": "vp-marketing", "type": "data", "label": "Lead quality", "direction": "horizontal"},
+        {"source": "vp-marketing", "target": "vp-sales", "type": "data", "label": "Content assets", "direction": "horizontal"},
+        {"source": "vp-cs", "target": "vp-product", "type": "feedback", "label": "Feature requests", "direction": "horizontal"},
+        {"source": "vp-product", "target": "vp-cs", "type": "data", "label": "Release notes", "direction": "horizontal"},
+        {"source": "vp-sales", "target": "vp-cs", "type": "data", "label": "Deal handoff", "direction": "horizontal"},
+        {"source": "mktg-2", "target": "sales-1", "type": "data", "label": "Battle cards", "direction": "horizontal"},
+        {"source": "cs-1", "target": "prod-1", "type": "feedback", "label": "Bug report", "direction": "horizontal"},
+    ]
+
+    active = [f for f in flow_templates if rng.random() < 0.6 + 0.05 * time_point]
+    for f in active:
+        f["volume"] = rng.randint(1, 10)
+
+    # Bottleneck detection: nodes receiving > threshold inbound flows
+    inbound_counts = {}
+    for f in active:
+        inbound_counts[f["target"]] = inbound_counts.get(f["target"], 0) + f["volume"]
+    bottleneck_threshold = 15
+    bottlenecks = [nid for nid, vol in inbound_counts.items() if vol >= bottleneck_threshold]
+
+    return active, bottlenecks
+
+
+@app.route("/api/v1/org-chart")
+def org_chart():
+    """Return org hierarchy tree, information flows, and bottleneck data."""
+    time_point = request.args.get("time", 0, type=int)
+    time_point = max(0, min(time_point, 10))
+    flows, bottlenecks = _build_org_flows(time_point)
+    return _ok({
+        "tree": _ORG_TREE,
+        "flows": flows,
+        "bottlenecks": bottlenecks,
+        "time_points": 11,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 

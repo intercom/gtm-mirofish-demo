@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
+import TeamComposer from '../components/simulation/TeamComposer.vue'
 import { useToast } from '../composables/useToast'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
@@ -34,6 +35,11 @@ const selectedCompanySizes = ref([])
 const selectedRegions = ref([])
 const minutesPerRound = ref(30)
 const showAdvanced = ref(false)
+const useTeamComposer = ref(false)
+
+function onTeamUpdate(roles) {
+  selectedPersonas.value = [...roles]
+}
 
 const isCustom = computed(() => props.id === 'custom')
 
@@ -394,10 +400,20 @@ async function runSimulation() {
             placeholder="Describe your scenario: What campaign are you testing? What messaging will prospects see? Include email copy, target audience details, and any competitive context. The more realistic the seed document, the more useful the simulation results will be."
           ></textarea>
 
-          <!-- Persona Types Multiselect -->
+          <!-- Persona Types -->
           <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">
-            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Persona Types</label>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex items-center justify-between mb-3">
+              <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)]">Persona Types</label>
+              <button
+                @click="useTeamComposer = !useTeamComposer"
+                class="text-[11px] text-[var(--color-primary)] hover:underline"
+              >
+                {{ useTeamComposer ? 'Simple mode' : 'Team composer' }}
+              </button>
+            </div>
+
+            <!-- Simple toggle mode -->
+            <div v-if="!useTeamComposer" class="flex flex-wrap gap-2">
               <button
                 v-for="persona in scenario.agent_config.persona_types"
                 :key="persona"
@@ -410,6 +426,13 @@ async function runSimulation() {
                 {{ persona }}
               </button>
             </div>
+
+            <!-- Team Composer mode -->
+            <TeamComposer
+              v-else
+              :scenario-personas="scenario.agent_config.persona_types"
+              @update:team="onTeamUpdate"
+            />
           </div>
 
           <!-- Industry Mix Checkboxes -->

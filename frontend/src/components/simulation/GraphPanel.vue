@@ -26,6 +26,9 @@ let resizeObserver = null
 let resizeTimer = null
 let themeObserver = null
 let demoBuildTimer = null
+let nodeSelection = null
+let linkSelection = null
+let edgeLabelSelection = null
 
 // Local state
 const selectedNode = ref(null)
@@ -227,7 +230,9 @@ function renderGraph() {
 
   zoomGroup = svg.append('g')
 
-  svg.append('defs').append('marker')
+  const defs = svg.append('defs')
+
+  defs.append('marker')
     .attr('id', 'arrow')
     .attr('viewBox', '0 -4 8 8')
     .attr('refX', 20)
@@ -238,6 +243,18 @@ function renderGraph() {
     .append('path')
     .attr('d', 'M0,-4L8,0L0,4')
     .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
+
+  const glowFilter = defs.append('filter')
+    .attr('id', 'drag-glow')
+    .attr('x', '-50%').attr('y', '-50%')
+    .attr('width', '200%').attr('height', '200%')
+  glowFilter.append('feGaussianBlur')
+    .attr('in', 'SourceGraphic')
+    .attr('stdDeviation', '3')
+    .attr('result', 'blur')
+  const glowMerge = glowFilter.append('feMerge')
+  glowMerge.append('feMergeNode').attr('in', 'blur')
+  glowMerge.append('feMergeNode').attr('in', 'SourceGraphic')
 
   simulation = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(links).id(d => d.id).distance(120))
@@ -269,7 +286,7 @@ function renderGraph() {
     .selectAll('g')
     .data(nodes)
     .join('g')
-    .style('cursor', 'pointer')
+    .style('cursor', 'grab')
     .style('opacity', 0)
     .call(d3.drag()
       .on('start', dragstarted)
@@ -317,6 +334,10 @@ function renderGraph() {
     .duration(300)
     .style('opacity', 1)
 
+  nodeSelection = node
+  linkSelection = link
+  edgeLabelSelection = edgeLabel
+
   simulation.on('tick', () => {
     link
       .attr('x1', d => d.source.x)
@@ -338,6 +359,40 @@ function dragstarted(event, d) {
   if (!event.active) simulation.alphaTarget(0.3).restart()
   d.fx = d.x
   d.fy = d.y
+
+  const el = d3.select(this)
+  el.raise()
+
+  el.select('circle:nth-child(2)')
+    .transition().duration(150)
+    .attr('r', d.radius * 1.15)
+    .attr('fill-opacity', 1)
+    .style('filter', 'url(#drag-glow)')
+
+  el.select('circle:first-child')
+    .transition().duration(150)
+    .attr('r', (d.radius + 4) * 1.15)
+    .attr('opacity', 0.35)
+
+  svg.style('cursor', 'grabbing')
+  el.style('cursor', 'grabbing')
+
+  if (nodeSelection) {
+    nodeSelection.filter(n => n !== d)
+      .transition().duration(200)
+      .style('opacity', 0.3)
+  }
+
+  if (linkSelection) {
+    linkSelection.transition().duration(200)
+      .style('opacity', l => (l.source === d || l.target === d) ? 1 : 0.08)
+      .attr('stroke-width', l => (l.source === d || l.target === d) ? 1.5 : 1)
+  }
+
+  if (edgeLabelSelection) {
+    edgeLabelSelection.transition().duration(200)
+      .style('opacity', l => (l.source === d || l.target === d) ? 1 : 0.05)
+  }
 }
 
 function dragged(event, d) {
@@ -349,6 +404,38 @@ function dragended(event, d) {
   if (!event.active) simulation.alphaTarget(0)
   d.fx = null
   d.fy = null
+
+  const el = d3.select(this)
+
+  el.select('circle:nth-child(2)')
+    .transition().duration(300).ease(d3.easeBackOut.overshoot(1.5))
+    .attr('r', d.radius)
+    .attr('fill-opacity', 0.85)
+    .style('filter', null)
+
+  el.select('circle:first-child')
+    .transition().duration(300).ease(d3.easeBackOut.overshoot(1.5))
+    .attr('r', d.radius + 4)
+    .attr('opacity', 0.2)
+
+  svg.style('cursor', null)
+  el.style('cursor', 'grab')
+
+  if (nodeSelection) {
+    nodeSelection.transition().duration(300)
+      .style('opacity', 1)
+  }
+
+  if (linkSelection) {
+    linkSelection.transition().duration(300)
+      .style('opacity', 1)
+      .attr('stroke-width', 1)
+  }
+
+  if (edgeLabelSelection) {
+    edgeLabelSelection.transition().duration(300)
+      .style('opacity', 1)
+  }
 }
 
 // --- Node Selection ---
@@ -636,6 +723,9 @@ onUnmounted(() => {
   if (resizeObserver) resizeObserver.disconnect()
   if (themeObserver) themeObserver.disconnect()
   clearTimeout(resizeTimer)
+  nodeSelection = null
+  linkSelection = null
+  edgeLabelSelection = null
 })
 </script>
 

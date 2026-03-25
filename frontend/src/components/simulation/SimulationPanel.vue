@@ -5,6 +5,7 @@ import SentimentTimeline from './SentimentTimeline.vue'
 import { useCountUp } from '../../composables/useCountUp'
 import TimelineEventMarkers from './TimelineEventMarkers.vue'
 import AgentMoodIndicator from './AgentMoodIndicator.vue'
+import BehaviorPatterns from './BehaviorPatterns.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -568,6 +569,13 @@ onUnmounted(() => {
         <TimelineEventMarkers
           v-if="polling.timeline.value.length > 0"
           :timeline="polling.timeline.value"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Behavior Patterns -->
+        <BehaviorPatterns
+          v-if="filteredActions.length > 0"
           :actions="filteredActions"
           class="mb-8"
         />

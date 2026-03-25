@@ -5,6 +5,7 @@ import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
 import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
+import LazyComponent from '../components/ui/LazyComponent.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -457,35 +458,38 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 5. AGENT PERSONAS                                                  -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
-      <div class="max-w-5xl mx-auto">
-        <div class="text-center mb-10 md:mb-14">
-          <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Meet the Swarm</h2>
-          <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
-            Every agent is a unique buyer persona with realistic demographics, motivations, and objection patterns drawn from your ICP.
+    <LazyComponent min-height="320px">
+      <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-10 md:mb-14">
+            <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Meet the Swarm</h2>
+            <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
+              Every agent is a unique buyer persona with realistic demographics, motivations, and objection patterns drawn from your ICP.
+            </p>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div
+              v-for="persona in personas"
+              :key="persona.role"
+              class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:shadow-md transition-shadow"
+            >
+              <div class="text-3xl mb-3">{{ persona.emoji }}</div>
+              <h3 class="text-sm font-semibold text-[var(--color-text)]">{{ persona.role }}</h3>
+              <p class="text-[11px] text-[var(--color-text-muted)] mt-0.5">{{ persona.company }}</p>
+              <p class="text-xs text-[var(--color-text-secondary)] mt-2 italic">"{{ persona.trait }}"</p>
+            </div>
+          </div>
+          <p class="text-center text-xs text-[var(--color-text-muted)] mt-6">
+            + thousands more generated from your ICP distribution
           </p>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div
-            v-for="persona in personas"
-            :key="persona.role"
-            class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:shadow-md transition-shadow"
-          >
-            <div class="text-3xl mb-3">{{ persona.emoji }}</div>
-            <h3 class="text-sm font-semibold text-[var(--color-text)]">{{ persona.role }}</h3>
-            <p class="text-[11px] text-[var(--color-text-muted)] mt-0.5">{{ persona.company }}</p>
-            <p class="text-xs text-[var(--color-text-secondary)] mt-2 italic">"{{ persona.trait }}"</p>
-          </div>
-        </div>
-        <p class="text-center text-xs text-[var(--color-text-muted)] mt-6">
-          + thousands more generated from your ICP distribution
-        </p>
-      </div>
-    </section>
+      </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 6. CAPABILITIES                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
       <div class="max-w-5xl mx-auto">
         <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10 md:mb-14">What You Can Simulate</h2>
@@ -529,10 +533,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 7. BEFORE / AFTER COMPARISON                                       -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="400px">
     <section class="bg-[#050505] text-white px-4 md:px-6 py-14 md:py-20">
       <div class="max-w-5xl mx-auto">
         <h2 class="text-xl md:text-2xl font-semibold text-center mb-3">Traditional Testing vs. Swarm Simulation</h2>
@@ -605,10 +611,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 8. SIMULATION PIPELINE                                             -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-10 md:mb-14">
@@ -655,10 +663,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 9. TECHNOLOGY STACK                                                -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="250px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
       <div class="max-w-4xl mx-auto text-center">
         <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Powered by Open-Source Intelligence</h2>
@@ -689,10 +699,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 10. USE CASES BY ROLE                                              -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="400px">
     <section class="bg-[#050505] text-white px-4 md:px-6 py-14 md:py-20">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-10 md:mb-14">
@@ -732,10 +744,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 11. SAMPLE REPORT PREVIEW                                          -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="400px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-10 md:mb-14">
@@ -814,10 +828,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 12. FAQ                                                            -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg-alt)]">
       <div class="max-w-3xl mx-auto">
         <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10">Frequently Asked Questions</h2>
@@ -849,6 +865,7 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 13. CTA                                                            -->

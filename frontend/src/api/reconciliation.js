@@ -30,12 +30,16 @@ function mockResponse(data, delay = 300) {
 }
 
 export const reconciliationApi = {
-  getRecords: (params) =>
-    client.get('/reconciliation/current', { params }).catch(() =>
+  // --- Runs ---
+  listRuns: (params) => client.get('/reconciliation/runs', { params }),
+  getRun: (runId) => client.get(`/reconciliation/runs/${runId}`),
+  getCurrent: () =>
+    client.get('/reconciliation/current').catch(() =>
       mockResponse({ records: MOCK_RECORDS }),
     ),
 
-  getDiscrepancies: (params) =>
+  // --- Discrepancies ---
+  listDiscrepancies: (params) =>
     client.get('/reconciliation/discrepancies', { params }).catch(() =>
       mockResponse({
         records: MOCK_RECORDS.filter(
@@ -43,9 +47,16 @@ export const reconciliationApi = {
         ),
       }),
     ),
-
   resolve: (recordId, data) =>
     client.post(`/reconciliation/resolve/${recordId}`, data).catch(() =>
       mockResponse({ success: true }),
     ),
+
+  // --- Account detail ---
+  getAccount: (accountId) =>
+    client.get(`/reconciliation/account/${accountId}`),
+
+  // --- Rules & stats ---
+  getRules: () => client.get('/reconciliation/rules'),
+  getStats: () => client.get('/reconciliation/stats'),
 }

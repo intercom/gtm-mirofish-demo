@@ -80,6 +80,16 @@ from .scenario_templates import (
     ScenarioTemplate,
     AgentConfig as ScenarioAgentConfig,
 )
+from .whatif_engine import (
+    WhatIfEngine,
+    ScenarioConfig,
+    SimulationResults,
+    ComparisonResult,
+    SensitivityResult,
+    Modification,
+    ModificationType,
+    ScenarioStatus,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -146,5 +156,13 @@ __all__ = [
     'ScenarioTemplateService',
     'ScenarioTemplate',
     'ScenarioAgentConfig',
+    'WhatIfEngine',
+    'ScenarioConfig',
+    'SimulationResults',
+    'ComparisonResult',
+    'SensitivityResult',
+    'Modification',
+    'ModificationType',
+    'ScenarioStatus',
 ]
 

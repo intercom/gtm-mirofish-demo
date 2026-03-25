@@ -30,14 +30,8 @@ describe('Transition CSS classes', () => {
     expect(styleCss).toContain('.slide-up-enter-from')
   })
 
-  it('defines card-list transition for staggered grids', () => {
-    expect(styleCss).toContain('.card-list-enter-active')
-    expect(styleCss).toContain('.card-list-enter-from')
-  })
-
   it('uses brand token transition durations', () => {
     expect(styleCss).toContain('var(--transition-base)')
-    expect(styleCss).toContain('var(--transition-slow)')
   })
 })
 

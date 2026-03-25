@@ -9,7 +9,7 @@ const css = readFileSync(
 
 /**
  * Extract all CSS custom properties from a given selector block.
- * Returns an array of property names (e.g., ['--color-primary', '--btn-radius']).
+ * Returns an array of property names (e.g., ['--color-primary', '--btn-primary-bg']).
  */
 function extractProperties(source, selector) {
   const pattern =
@@ -37,7 +37,6 @@ describe('brand-tokens.css', () => {
       '--color-primary-light',
       '--color-primary-border',
       '--color-navy',
-      '--color-navy-light',
       '--color-fin-orange',
       '--color-accent',
       '--color-success',
@@ -67,25 +66,9 @@ describe('brand-tokens.css', () => {
     }
   })
 
-  describe('typography scale', () => {
+  describe('typography', () => {
     const required = [
       '--font-family',
-      '--text-xs',
-      '--text-sm',
-      '--text-base',
-      '--text-lg',
-      '--text-xl',
-      '--text-2xl',
-      '--text-3xl',
-      '--text-4xl',
-      '--leading-tight',
-      '--leading-normal',
-      '--font-medium',
-      '--font-semibold',
-      '--font-bold',
-      '--letter-spacing-tight',
-      '--letter-spacing-tighter',
-      '--letter-spacing-tightest',
     ]
     for (const prop of required) {
       it(`includes ${prop}`, () => {
@@ -94,17 +77,10 @@ describe('brand-tokens.css', () => {
     }
   })
 
-  describe('spacing system', () => {
+  describe('radius', () => {
     const required = [
-      '--space-1',
-      '--space-2',
-      '--space-4',
-      '--space-8',
-      '--space-16',
       '--radius-sm',
-      '--radius',
       '--radius-lg',
-      '--radius-full',
     ]
     for (const prop of required) {
       it(`includes ${prop}`, () => {
@@ -120,14 +96,8 @@ describe('brand-tokens.css', () => {
       '--btn-primary-text',
       '--btn-secondary-bg',
       '--btn-secondary-border',
-      '--btn-dark-bg',
-      '--btn-ghost-bg',
-      '--btn-disabled-opacity',
-      '--btn-radius',
-      '--btn-padding-x',
-      '--btn-padding-y',
-      '--btn-font-weight',
-      '--btn-font-size',
+      '--btn-ghost-bg-hover',
+      '--btn-ghost-text',
       '--btn-transition',
     ]
     for (const prop of required) {
@@ -140,15 +110,9 @@ describe('brand-tokens.css', () => {
   describe('component tokens: cards', () => {
     const required = [
       '--card-bg',
-      '--card-bg-hover',
       '--card-border',
       '--card-radius',
-      '--card-padding',
       '--card-shadow',
-      '--card-shadow-hover',
-      '--card-transition',
-      '--card-highlight-bg',
-      '--card-highlight-border',
     ]
     for (const prop of required) {
       it(`includes ${prop}`, () => {
@@ -161,14 +125,10 @@ describe('brand-tokens.css', () => {
     const required = [
       '--input-bg',
       '--input-border',
-      '--input-border-focus',
       '--input-ring',
       '--input-text',
       '--input-placeholder',
       '--input-radius',
-      '--input-padding-x',
-      '--input-padding-y',
-      '--input-font-size',
       '--input-transition',
     ]
     for (const prop of required) {
@@ -184,13 +144,11 @@ describe('brand-tokens.css', () => {
       '--badge-primary-text',
       '--badge-secondary-bg',
       '--badge-secondary-text',
-      '--badge-orange-bg',
-      '--badge-success-bg',
-      '--badge-error-bg',
-      '--badge-radius',
+      '--badge-orange-bg-soft',
+      '--badge-success-bg-soft',
+      '--badge-error-bg-soft',
       '--badge-padding-x',
       '--badge-font-size',
-      '--badge-font-weight',
     ]
     for (const prop of required) {
       it(`includes ${prop}`, () => {

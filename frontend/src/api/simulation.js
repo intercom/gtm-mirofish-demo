@@ -59,6 +59,12 @@ export const simulationApi = {
   interviewAll: (data) => client.post('/simulation/interview/all', data),
   interviewHistory: (data) => client.post('/simulation/interview/history', data),
 
+  // --- Snapshots ---
+  snapshotCompare: (simulationId, roundA, roundB) =>
+    client.get(`/simulation/${simulationId}/snapshot/compare`, {
+      params: { round_a: roundA, round_b: roundB },
+    }),
+
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),

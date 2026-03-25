@@ -638,6 +638,197 @@ def sim_entities(graph_id):
 
 
 # ---------------------------------------------------------------------------
+# Snapshot Comparison API
+# ---------------------------------------------------------------------------
+
+_POSITIVE_WORDS = [
+    'impressive', 'compelling', 'great', 'interested', 'good', 'recommend',
+    'valuable', 'effective', 'worth', 'excellent', 'innovative', 'benefit',
+    'advantage', 'better', 'love', 'amazing', 'helpful', 'promising',
+]
+_NEGATIVE_WORDS = [
+    'concerned', 'skeptical', 'aggressive', 'missing', 'risk', 'worried',
+    'expensive', 'complex', 'difficult', 'dismiss', 'doubt', 'issue',
+    'problem', 'unclear', 'frustrated', 'poor', 'slow', 'lacks',
+]
+
+
+def _score_content(content):
+    if not content:
+        return 0.0
+    lower = content.lower()
+    pos = sum(1 for w in _POSITIVE_WORDS if w in lower)
+    neg = sum(1 for w in _NEGATIVE_WORDS if w in lower)
+    if pos + neg == 0:
+        return 0.0
+    return (pos - neg) / (pos + neg)
+
+
+def _build_snapshot_at_round(sim_id, target_round):
+    """Build a complete simulation state snapshot at a given round."""
+    rng = random.Random(12345)
+    timeline = []
+    total_twitter = 0
+    total_reddit = 0
+    for r in range(1, target_round + 1):
+        base = 3 + math.log(r + 1) * 2.5
+        tw = max(0, int(base * (0.55 + rng.uniform(-0.1, 0.1))))
+        rd = max(0, int(base * (0.45 + rng.uniform(-0.1, 0.1))))
+        total_twitter += tw
+        total_reddit += rd
+        timeline.append({"round_num": r, "twitter_actions": tw, "reddit_actions": rd})
+
+    total_actions = total_twitter + total_reddit
+
+    # Generate cumulative agent activity up to this round
+    agents_data = {}
+    for r in range(1, target_round + 1):
+        actions = _generate_agent_actions(r)
+        for a in actions:
+            name = a["agent_name"]
+            if name not in agents_data:
+                agents_data[name] = {
+                    "name": name,
+                    "actionCount": 0,
+                    "sentimentSum": 0.0,
+                    "sentimentCount": 0,
+                    "twitter": 0,
+                    "reddit": 0,
+                    "firstRound": r,
+                    "lastRound": r,
+                }
+            entry = agents_data[name]
+            entry["actionCount"] += 1
+            entry["lastRound"] = max(entry["lastRound"], r)
+            if a["platform"] == "twitter":
+                entry["twitter"] += 1
+            else:
+                entry["reddit"] += 1
+            content = a.get("action_args", {}).get("content", "")
+            if content:
+                entry["sentimentSum"] += _score_content(content)
+                entry["sentimentCount"] += 1
+
+    agents_list = []
+    for entry in agents_data.values():
+        avg_sent = entry["sentimentSum"] / entry["sentimentCount"] if entry["sentimentCount"] else 0.0
+        agents_list.append({
+            "name": entry["name"],
+            "actionCount": entry["actionCount"],
+            "sentiment": round(avg_sent, 3),
+            "twitter": entry["twitter"],
+            "reddit": entry["reddit"],
+            "primaryPlatform": "twitter" if entry["twitter"] >= entry["reddit"] else "reddit",
+        })
+    agents_list.sort(key=lambda x: x["actionCount"], reverse=True)
+
+    overall_sentiment = 0.0
+    if agents_list:
+        overall_sentiment = sum(a["sentiment"] for a in agents_list) / len(agents_list)
+
+    return {
+        "round": target_round,
+        "metrics": {
+            "totalActions": total_actions,
+            "twitterActions": total_twitter,
+            "redditActions": total_reddit,
+            "activeAgents": len(agents_list),
+        },
+        "agents": agents_list[:15],
+        "sentimentAvg": round(overall_sentiment, 3),
+    }
+
+
+def _compute_snapshot_diff(snap_a, snap_b):
+    """Compute diff between two snapshots."""
+    ma, mb = snap_a["metrics"], snap_b["metrics"]
+    metric_diff = {}
+    for key in ma:
+        a_val, b_val = ma[key], mb[key]
+        delta = b_val - a_val
+        pct = round(delta / a_val * 100, 1) if a_val else 0.0
+        metric_diff[key] = {"a": a_val, "b": b_val, "delta": delta, "pctChange": pct}
+
+    # Agent-level changes
+    agents_a = {a["name"]: a for a in snap_a["agents"]}
+    agents_b = {a["name"]: a for a in snap_b["agents"]}
+    all_names = set(agents_a) | set(agents_b)
+
+    new_agents = [agents_b[n] for n in all_names if n not in agents_a]
+    removed_agents = [agents_a[n] for n in all_names if n not in agents_b]
+
+    agent_changes = []
+    biggest_change = {"description": "No changes", "value": 0}
+    most_affected = {"name": "N/A", "totalChange": 0}
+
+    for name in sorted(all_names):
+        if name not in agents_a or name not in agents_b:
+            continue
+        aa, ab = agents_a[name], agents_b[name]
+        action_delta = ab["actionCount"] - aa["actionCount"]
+        sentiment_delta = round(ab["sentiment"] - aa["sentiment"], 3)
+        total_change = abs(action_delta) + abs(sentiment_delta) * 10
+
+        if action_delta != 0:
+            agent_changes.append({
+                "agent": name,
+                "metric": "actionCount",
+                "oldValue": aa["actionCount"],
+                "newValue": ab["actionCount"],
+                "change": action_delta,
+            })
+        if abs(sentiment_delta) > 0.01:
+            agent_changes.append({
+                "agent": name,
+                "metric": "sentiment",
+                "oldValue": aa["sentiment"],
+                "newValue": ab["sentiment"],
+                "change": sentiment_delta,
+            })
+
+        if total_change > most_affected["totalChange"]:
+            most_affected = {"name": name, "totalChange": round(total_change, 1)}
+
+    if agent_changes:
+        top = max(agent_changes, key=lambda c: abs(c["change"]))
+        biggest_change = {
+            "description": f"{top['agent']} {top['metric']} changed by {top['change']:+}",
+            "value": abs(top["change"]),
+        }
+
+    sentiment_delta = round(snap_b["sentimentAvg"] - snap_a["sentimentAvg"], 3)
+
+    return {
+        "metrics": metric_diff,
+        "agentChanges": agent_changes,
+        "newAgents": new_agents,
+        "removedAgents": removed_agents,
+        "biggestChange": biggest_change,
+        "mostAffectedAgent": most_affected,
+        "totalChanges": len(agent_changes) + len(new_agents) + len(removed_agents),
+        "sentimentDelta": sentiment_delta,
+    }
+
+
+@app.route("/api/simulation/<sim_id>/snapshot/compare")
+def sim_snapshot_compare(sim_id):
+    round_a = request.args.get("round_a", 1, type=int)
+    round_b = request.args.get("round_b", TOTAL_ROUNDS, type=int)
+    round_a = max(1, min(TOTAL_ROUNDS, round_a))
+    round_b = max(1, min(TOTAL_ROUNDS, round_b))
+
+    snap_a = _build_snapshot_at_round(sim_id, round_a)
+    snap_b = _build_snapshot_at_round(sim_id, round_b)
+    diff = _compute_snapshot_diff(snap_a, snap_b)
+
+    return _ok({
+        "point_a": snap_a,
+        "point_b": snap_b,
+        "diff": diff,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Report API
 # ---------------------------------------------------------------------------
 

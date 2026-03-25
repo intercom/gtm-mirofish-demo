@@ -55,6 +55,13 @@ from .memory_consolidation import (
     Memory,
     MemoryType,
 )
+from .reasoning_parser import (
+    ReasoningParser,
+    ParsedReasoning,
+    ReasoningStep,
+    LogicLink,
+    StepType
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -103,5 +110,10 @@ __all__ = [
     'MemoryConsolidator',
     'Memory',
     'MemoryType',
+    'ReasoningParser',
+    'ParsedReasoning',
+    'ReasoningStep',
+    'LogicLink',
+    'StepType',
 ]
 

@@ -62,6 +62,7 @@ from .reasoning_parser import (
     LogicLink,
     StepType
 )
+from .coalition_labeler import CoalitionLabeler, Coalition
 
 __all__ = [
     'OntologyGenerator', 
@@ -115,5 +116,7 @@ __all__ = [
     'ReasoningStep',
     'LogicLink',
     'StepType',
+    'CoalitionLabeler',
+    'Coalition',
 ]
 

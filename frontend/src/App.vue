@@ -7,6 +7,7 @@ import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
+import { usePageTransition } from './composables/usePageTransition'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 
@@ -14,6 +15,7 @@ const route = useRoute()
 const { setRouteDefault } = useTheme()
 const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
+const { transitionName } = usePageTransition()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 
@@ -51,7 +53,7 @@ onUnmounted(() => {
 <template>
   <AppLayout>
     <router-view v-slot="{ Component }">
-      <Transition name="page" mode="out-in">
+      <Transition :name="transitionName" mode="out-in">
         <component :is="Component" />
       </Transition>
     </router-view>

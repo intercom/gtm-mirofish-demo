@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Report Builder API (templates + generated reports)
+    from .api.report_builder import report_builder_bp
+    app.register_blueprint(report_builder_bp)
     
     # 健康检查
     @app.route('/health')

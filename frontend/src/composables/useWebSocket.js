@@ -1,121 +1,141 @@
-import { ref, onUnmounted } from 'vue'
+import { ref, readonly, onUnmounted, getCurrentInstance } from 'vue'
 import { io } from 'socket.io-client'
 import { API_BASE } from '../api/client'
 
-/**
- * Derives the Socket.IO server URL from the API base URL.
- * - Full URL (http://host:port/api) → http://host:port
- * - Relative path (/api) → '' (current origin, handled by socket.io-client)
- */
-function deriveSocketUrl() {
-  try {
-    const url = new URL(API_BASE)
-    return url.origin
-  } catch {
-    return ''
+function resolveServerUrl() {
+  const explicit = import.meta.env.VITE_WS_URL
+  if (explicit) return explicit
+
+  if (API_BASE.startsWith('http')) {
+    return API_BASE.replace(/\/api\/?$/, '')
   }
+
+  // Relative API path — socket.io will connect to current origin
+  // (works with Vite proxy in dev and same-origin deploys in prod)
+  return undefined
 }
 
-const SOCKET_URL = deriveSocketUrl()
+// Module-level shared state — one socket connection for the whole app
+const connected = ref(false)
+const reconnecting = ref(false)
+const disconnected = ref(true)
+const error = ref(null)
+let socket = null
 
-export function useWebSocket() {
-  let socket = null
-  let reconnectAttempts = 0
-  let reconnectTimer = null
-  const listeners = new Map()
+function bindSocketEvents() {
+  socket.on('connect', () => {
+    connected.value = true
+    reconnecting.value = false
+    disconnected.value = false
+    error.value = null
+  })
 
-  const connected = ref(false)
-  const error = ref(null)
+  socket.on('disconnect', () => {
+    connected.value = false
+    disconnected.value = true
+  })
 
-  const MAX_RECONNECT_ATTEMPTS = 10
-  const BASE_DELAY = 1000
-  const MAX_DELAY = 30000
+  socket.on('connect_error', (err) => {
+    connected.value = false
+    error.value = err.message || 'Connection failed'
+  })
+
+  socket.on('error', (data) => {
+    error.value = data?.message || data || 'Server error'
+  })
+
+  socket.io.on('reconnect_attempt', () => {
+    reconnecting.value = true
+    disconnected.value = false
+  })
+
+  socket.io.on('reconnect', () => {
+    reconnecting.value = false
+  })
+
+  socket.io.on('reconnect_failed', () => {
+    reconnecting.value = false
+    disconnected.value = true
+    error.value = 'Max reconnection attempts reached'
+  })
+}
+
+export function useWebSocket(options = {}) {
+  // Per-component handler tracking for cleanup on unmount
+  const localHandlers = []
 
   function connect(simulationId) {
-    disconnect()
-    error.value = null
-    reconnectAttempts = 0
-
-    socket = io(SOCKET_URL, {
-      path: '/socket.io',
-      transports: ['websocket', 'polling'],
-      reconnection: false, // we handle reconnection ourselves for backoff control
-    })
-
-    socket.on('connect', () => {
-      connected.value = true
-      error.value = null
-      reconnectAttempts = 0
-
+    if (socket?.connected) {
       if (simulationId) {
         socket.emit('join_simulation', { simulation_id: simulationId })
       }
-    })
-
-    socket.on('disconnect', (reason) => {
-      connected.value = false
-      if (reason !== 'io client disconnect') {
-        scheduleReconnect(simulationId)
-      }
-    })
-
-    socket.on('connect_error', (err) => {
-      connected.value = false
-      error.value = err.message || 'Connection failed'
-      scheduleReconnect(simulationId)
-    })
-
-    socket.on('error', (data) => {
-      error.value = data?.message || data || 'Server error'
-    })
-  }
-
-  function disconnect() {
-    clearTimeout(reconnectTimer)
-    reconnectTimer = null
-    reconnectAttempts = 0
-
-    if (socket) {
-      socket.removeAllListeners()
-      socket.disconnect()
-      socket = null
-    }
-    connected.value = false
-  }
-
-  function scheduleReconnect(simulationId) {
-    if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      error.value = 'Max reconnection attempts reached'
       return
     }
 
-    clearTimeout(reconnectTimer)
-    const delay = Math.min(BASE_DELAY * 2 ** reconnectAttempts, MAX_DELAY)
-    reconnectAttempts++
+    if (socket) {
+      socket.connect()
+      return
+    }
 
-    reconnectTimer = setTimeout(() => {
-      if (!connected.value) {
-        connect(simulationId)
-      }
-    }, delay)
+    socket = io(resolveServerUrl(), {
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30000,
+      reconnectionAttempts: 10,
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+      ...options,
+    })
+
+    bindSocketEvents()
+
+    if (simulationId) {
+      socket.on('connect', () => {
+        socket.emit('join_simulation', { simulation_id: simulationId })
+      })
+    }
+  }
+
+  function disconnect() {
+    if (!socket) return
+    socket.disconnect()
+    socket = null
+    connected.value = false
+    reconnecting.value = false
+    disconnected.value = true
+    error.value = null
+  }
+
+  function joinSimulation(id) {
+    socket?.emit('join_simulation', { simulation_id: id })
+  }
+
+  function leaveSimulation(id) {
+    socket?.emit('leave_simulation', { simulation_id: id })
+  }
+
+  function subscribeData(type) {
+    socket?.emit('subscribe_data', { type })
   }
 
   function on(event, handler) {
-    if (!listeners.has(event)) {
-      listeners.set(event, new Set())
-    }
-    listeners.get(event).add(handler)
-
-    if (socket) {
-      socket.on(event, handler)
-    }
-
+    if (!socket) return () => {}
+    socket.on(event, handler)
+    localHandlers.push({ event, handler })
     return () => off(event, handler)
   }
 
   function off(event, handler) {
-    listeners.get(event)?.delete(handler)
-    socket?.off(event, handler)
+    if (!socket) return
+    socket.off(event, handler)
+    const idx = localHandlers.findIndex(
+      (h) => h.event === event && h.handler === handler,
+    )
+    if (idx !== -1) localHandlers.splice(idx, 1)
+  }
+
+  function emit(event, data) {
+    socket?.emit(event, data)
   }
 
   function onRoundComplete(callback) {
@@ -134,18 +154,29 @@ export function useWebSocket() {
     return on('simulation_status', callback)
   }
 
-  onUnmounted(() => {
-    disconnect()
-    listeners.clear()
-  })
+  // Clean up this component's listeners on unmount (only inside setup)
+  if (getCurrentInstance()) {
+    onUnmounted(() => {
+      for (const { event, handler } of localHandlers) {
+        socket?.off(event, handler)
+      }
+      localHandlers.length = 0
+    })
+  }
 
   return {
-    connected,
-    error,
+    connected: readonly(connected),
+    reconnecting: readonly(reconnecting),
+    disconnected: readonly(disconnected),
+    error: readonly(error),
     connect,
     disconnect,
+    joinSimulation,
+    leaveSimulation,
+    subscribeData,
     on,
     off,
+    emit,
     onRoundComplete,
     onAgentMessage,
     onMetricUpdate,

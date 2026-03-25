@@ -13,6 +13,11 @@ export default defineConfig({
         target: process.env.BACKEND_URL || 'http://localhost:5001',
         changeOrigin: true,
       },
+      '/socket.io': {
+        target: process.env.BACKEND_URL || 'http://localhost:5001',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   build: {

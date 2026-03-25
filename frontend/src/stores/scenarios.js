@@ -1,6 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { API_BASE } from '../api/client'
+import { scenariosApi } from '../api/scenarios'
 
 const STORAGE_KEY = 'mirofish_scenarios'
 const DETAIL_STORAGE_KEY = 'mirofish_scenario_details'
@@ -93,6 +94,21 @@ export const useScenariosStore = defineStore('scenarios', () => {
     }
   }
 
+  async function importScenario(scenarioData) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await scenariosApi.importScenario(scenarioData)
+      await fetchScenarios(true)
+      return res.data
+    } catch (e) {
+      error.value = e.message
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   function clearCache() {
     scenarios.value = []
     detailCache.value = {}
@@ -110,6 +126,7 @@ export const useScenariosStore = defineStore('scenarios', () => {
     hasScenarios,
     fetchScenarios,
     fetchScenarioById,
+    importScenario,
     clearCache,
   }
 })

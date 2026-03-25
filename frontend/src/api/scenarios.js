@@ -9,4 +9,6 @@ export const scenariosApi = {
   getLeaderboard: (runs = []) =>
     client.post('/gtm/scenarios/leaderboard', { runs }),
   getOutcomes: (scenarioId) => client.get(`/gtm/outcomes/${scenarioId}`),
+  importScenario: (scenarioData) =>
+    client.post('/gtm/scenarios/import', scenarioData),
 }

@@ -38,6 +38,8 @@ const selectedRegions = ref([])
 const minutesPerRound = ref(30)
 const showAdvanced = ref(false)
 
+const importFileInput = ref(null)
+
 const isCustom = computed(() => props.id === 'custom')
 
 const { saveStatus, hasDraft, load: loadDraft, clear: clearDraft } = useAutoSave(
@@ -199,6 +201,92 @@ function toggleRegion(region) {
   else selectedRegions.value.splice(idx, 1)
 }
 
+function buildScenarioJson() {
+  return {
+    id: scenario.value?.id || 'custom_export',
+    name: scenario.value?.name || 'Custom Simulation',
+    description: scenario.value?.description || '',
+    category: scenario.value?.category || 'custom',
+    icon: scenario.value?.icon || 'upload',
+    seed_text: seedText.value,
+    agent_config: {
+      count: agentCount.value,
+      persona_types: [...selectedPersonas.value],
+      firmographic_mix: {
+        industries: [...selectedIndustries.value],
+        company_sizes: [...selectedCompanySizes.value],
+        regions: [...selectedRegions.value],
+      },
+    },
+    simulation_config: {
+      total_hours: duration.value,
+      minutes_per_round: minutesPerRound.value,
+      platform_mode: platformMode.value,
+    },
+    expected_outputs: scenario.value?.expected_outputs || [],
+  }
+}
+
+function exportScenario() {
+  const data = buildScenarioJson()
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${data.id}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success('Scenario exported')
+}
+
+function triggerImport() {
+  importFileInput.value?.click()
+}
+
+async function handleImportFile(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  event.target.value = ''
+
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+
+    const required = ['id', 'name', 'seed_text', 'agent_config', 'simulation_config']
+    const missing = required.filter((k) => !(k in data))
+    if (missing.length) {
+      toast.error(`Invalid scenario: missing ${missing.join(', ')}`)
+      return
+    }
+
+    seedText.value = data.seed_text || ''
+    agentCount.value = data.agent_config?.count || 200
+    selectedPersonas.value = [...(data.agent_config?.persona_types || [])]
+    selectedIndustries.value = [...(data.agent_config?.firmographic_mix?.industries || [])]
+    selectedCompanySizes.value = [...(data.agent_config?.firmographic_mix?.company_sizes || [])]
+    selectedRegions.value = [...(data.agent_config?.firmographic_mix?.regions || [])]
+    duration.value = data.simulation_config?.total_hours || 72
+    minutesPerRound.value = data.simulation_config?.minutes_per_round || 30
+    platformMode.value = data.simulation_config?.platform_mode || 'parallel'
+
+    scenario.value = {
+      ...scenario.value,
+      id: data.id,
+      name: data.name,
+      description: data.description || '',
+      category: data.category || 'custom',
+      icon: data.icon || 'upload',
+      expected_outputs: data.expected_outputs || [],
+      agent_config: data.agent_config,
+      simulation_config: data.simulation_config,
+    }
+
+    await scenariosStore.importScenario(data)
+    toast.success(`Imported "${data.name}"`)
+  } catch (e) {
+    toast.error(e.name === 'SyntaxError' ? 'File is not valid JSON' : `Import failed: ${e.message}`)
+  }
+}
 
 async function loadScenario() {
   loading.value = true
@@ -359,15 +447,47 @@ async function runSimulation() {
         <router-link to="/simulations" class="font-medium hover:underline no-underline text-[#2068FF]">Back to Simulations</router-link>
       </div>
 
-      <div class="flex items-center gap-3 mb-2">
-        <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ scenario.name }}</h1>
-        <transition name="fade">
-          <span v-if="saveStatus === 'saved'" class="text-[10px] font-medium text-[#090] bg-[rgba(0,153,0,0.08)] px-2 py-0.5 rounded-full whitespace-nowrap">
-            ✓ Draft saved
-          </span>
-        </transition>
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6 md:mb-8">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ scenario.name }}</h1>
+            <transition name="fade">
+              <span v-if="saveStatus === 'saved'" class="text-[10px] font-medium text-[#090] bg-[rgba(0,153,0,0.08)] px-2 py-0.5 rounded-full whitespace-nowrap">
+                ✓ Draft saved
+              </span>
+            </transition>
+          </div>
+          <p class="text-sm text-[var(--color-text-secondary)]">{{ scenario.description }}</p>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <button
+            @click="triggerImport"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors bg-[var(--color-surface)]"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+            </svg>
+            Import
+          </button>
+          <button
+            @click="exportScenario"
+            :disabled="!seedText.trim()"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors bg-[var(--color-surface)] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Export
+          </button>
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="handleImportFile"
+          />
+        </div>
       </div>
-      <p class="text-sm text-[var(--color-text-secondary)] mb-6 md:mb-8">{{ scenario.description }}</p>
 
       <!-- Draft restored banner -->
       <div

@@ -7,6 +7,7 @@ import TimelineEventMarkers from './TimelineEventMarkers.vue'
 import AgentMoodIndicator from './AgentMoodIndicator.vue'
 import BehaviorPatterns from './BehaviorPatterns.vue'
 import CollaborationIndicator from './CollaborationIndicator.vue'
+import LiveMetrics from './LiveMetrics.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -583,6 +584,9 @@ onUnmounted(() => {
           :actions="filteredActions"
           class="mb-8"
         />
+
+        <!-- Live Metrics Dashboard -->
+        <LiveMetrics class="mb-8" />
 
         <!-- Platform breakdown -->
         <div v-if="polling.runStatus.value" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

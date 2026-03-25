@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import NotificationCenter from '../ui/NotificationCenter.vue'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
@@ -64,6 +65,7 @@ watch(() => route.path, () => {
       </div>
 
       <div class="flex items-center gap-3">
+        <NotificationCenter />
         <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
           <span>Local</span>

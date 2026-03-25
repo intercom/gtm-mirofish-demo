@@ -9,11 +9,11 @@ import warnings
 # 需要在所有其他导入之前设置
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
-from flask import Flask, request
+from flask import Flask
 from flask_cors import CORS
 
 from .config import Config
-from .utils.logger import setup_logger, get_logger
+from .utils.logger import setup_logger
 
 
 def create_app(config_class=Config):
@@ -49,18 +49,8 @@ def create_app(config_class=Config):
         logger.info("已注册模拟进程清理函数")
     
     # 请求日志中间件
-    @app.before_request
-    def log_request():
-        logger = get_logger('mirofish.request')
-        logger.debug(f"请求: {request.method} {request.path}")
-        if request.content_type and 'json' in request.content_type:
-            logger.debug(f"请求体: {request.get_json(silent=True)}")
-    
-    @app.after_request
-    def log_response(response):
-        logger = get_logger('mirofish.request')
-        logger.debug(f"响应: {response.status_code}")
-        return response
+    from .middleware import register_request_logging
+    register_request_logging(app)
     
     # Register blueprints
     from .api import graph_bp, simulation_bp, report_bp

@@ -10,6 +10,7 @@ from flask import request, jsonify
 
 from . import graph_bp
 from ..config import Config
+from ..services.cache import cached_response
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
@@ -52,6 +53,7 @@ def get_project(project_id: str):
 
 
 @graph_bp.route('/project/list', methods=['GET'])
+@cached_response(ttl=30)
 def list_projects():
     """
     列出所有项目
@@ -562,6 +564,7 @@ def list_tasks():
 # ============== 图谱数据接口 ==============
 
 @graph_bp.route('/data/<graph_id>', methods=['GET'])
+@cached_response(ttl=900)
 def get_graph_data(graph_id: str):
     """
     获取图谱数据（节点和边）

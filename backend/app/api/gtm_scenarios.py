@@ -13,6 +13,7 @@ import threading
 from flask import Blueprint, jsonify, request
 
 from ..config import Config
+from ..services.cache import cached_response
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
@@ -37,6 +38,7 @@ def _load_json(filepath):
 
 
 @gtm_bp.route('/scenarios', methods=['GET'])
+@cached_response(ttl=600)
 def list_scenarios():
     """List all available GTM scenario templates."""
     scenarios = []
@@ -56,6 +58,7 @@ def list_scenarios():
 
 
 @gtm_bp.route('/scenarios/<scenario_id>', methods=['GET'])
+@cached_response(ttl=600)
 def get_scenario(scenario_id):
     """Get a specific scenario template with full configuration."""
     filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
@@ -66,6 +69,7 @@ def get_scenario(scenario_id):
 
 
 @gtm_bp.route('/seed-data/<data_type>', methods=['GET'])
+@cached_response(ttl=600)
 def get_seed_data(data_type):
     """Get GTM seed data by type (account_profiles, signal_definitions, etc.)."""
     filepath = os.path.join(SEED_DATA_DIR, f'{data_type}.json')
@@ -76,6 +80,7 @@ def get_seed_data(data_type):
 
 
 @gtm_bp.route('/scenarios/<scenario_id>/seed-text', methods=['GET'])
+@cached_response(ttl=600)
 def get_scenario_seed_text(scenario_id):
     """Get the seed text for a scenario, ready to paste into graph building."""
     filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')

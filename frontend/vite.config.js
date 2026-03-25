@@ -15,6 +15,27 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    target: 'esnext',
+    cssCodeSplit: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/vue') || id.includes('node_modules/@vue') || id.includes('node_modules/pinia')) {
+            return 'vue-vendor'
+          }
+          if (id.includes('node_modules/d3')) {
+            return 'd3'
+          }
+          if (id.includes('node_modules/axios') || id.includes('node_modules/marked')) {
+            return 'vendor'
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
+  },
   test: {
     environment: 'happy-dom',
     globals: true,

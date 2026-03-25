@@ -367,10 +367,10 @@ async function runSimulation() {
                 v-for="template in scenarioTemplates"
                 :key="template.name"
                 @click="applyTemplate(template)"
-                class="text-left p-3.5 rounded-lg border transition-all group"
+                class="text-left p-3.5 rounded-lg border card-interactive group"
                 :class="seedText === template.seedText
                   ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-[var(--shadow)]'"
+                  : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]'"
               >
                 <span class="block text-sm font-semibold text-[var(--color-text)] mb-1">{{ template.name }}</span>
                 <span class="block text-xs text-[var(--color-text-muted)] leading-relaxed mb-2">{{ template.description }}</span>

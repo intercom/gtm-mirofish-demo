@@ -340,11 +340,11 @@ const year = new Date().getFullYear()
             :key="scenario.id"
             :data-index="i"
             @click="launchScenario(scenario.id)"
-            class="text-left rounded-lg transition-all duration-300 cursor-pointer border"
+            class="text-left rounded-lg cursor-pointer border card-interactive-dark"
             :class="[
               scenario.hero
                 ? 'md:col-span-2 p-6 bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
-                : 'p-5 bg-white/5 border-white/10 hover:bg-white/10',
+                : 'p-5 bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20',
             ]"
           >
             <div class="flex items-start gap-3">
@@ -362,7 +362,7 @@ const year = new Date().getFullYear()
             key="custom"
             :data-index="scenarios.length"
             @click="launchScenario('custom')"
-            class="text-left rounded-lg transition-all duration-300 cursor-pointer border p-5 border-dashed border-white/20 hover:bg-white/10 hover:border-white/30 group"
+            class="text-left rounded-lg cursor-pointer border p-5 border-dashed border-white/20 hover:bg-white/10 hover:border-white/30 card-interactive-dark group"
           >
             <div class="flex items-start gap-3">
               <span class="text-2xl opacity-60 group-hover:opacity-100 transition-opacity">
@@ -469,7 +469,7 @@ const year = new Date().getFullYear()
           <div
             v-for="persona in personas"
             :key="persona.role"
-            class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:shadow-md transition-shadow"
+            class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 card-interactive"
           >
             <div class="text-3xl mb-3">{{ persona.emoji }}</div>
             <h3 class="text-sm font-semibold text-[var(--color-text)]">{{ persona.role }}</h3>

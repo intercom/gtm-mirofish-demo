@@ -1,5 +1,8 @@
 """
 Shared test fixtures for MiroFish backend API integration tests.
+
+Provides a Flask test client with a fresh app instance,
+plus common mock helpers for service-layer dependencies.
 """
 
 import os

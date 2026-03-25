@@ -24,13 +24,13 @@ from app.config import Config
 
 def main():
     """主函数"""
-    # 验证配置
+    # Validate configuration (warnings are logged internally by validate())
     errors = Config.validate()
     if errors:
-        print("配置错误:")
+        print("Configuration errors:")
         for err in errors:
             print(f"  - {err}")
-        print("\n请检查 .env 文件中的配置")
+        print("\nCheck your .env file")
         sys.exit(1)
 
     # 创建应用
@@ -38,7 +38,7 @@ def main():
 
     # 获取运行配置
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
-    port = int(os.environ.get('FLASK_PORT', 5001))
+    port = Config.PORT
     debug = Config.DEBUG
 
     # 启动服务

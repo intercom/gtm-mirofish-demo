@@ -5,6 +5,7 @@ import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
 import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
+import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
@@ -119,7 +120,14 @@ onMounted(loadScenarios)
 
 const scenarioSection = ref(null)
 
+const selectedScenarioId = ref(null)
+
+function openScenarioDetail(id) {
+  selectedScenarioId.value = id
+}
+
 function launchScenario(id) {
+  selectedScenarioId.value = null
   router.push(`/scenarios/${id}`)
 }
 
@@ -339,7 +347,7 @@ const year = new Date().getFullYear()
             v-for="(scenario, i) in showCards ? scenarios : []"
             :key="scenario.id"
             :data-index="i"
-            @click="launchScenario(scenario.id)"
+            @click="openScenarioDetail(scenario.id)"
             class="text-left rounded-lg transition-all duration-300 cursor-pointer border"
             :class="[
               scenario.hero
@@ -946,6 +954,14 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </footer>
+
+    <!-- Scenario Detail Modal -->
+    <ScenarioDetailModal
+      :open="!!selectedScenarioId"
+      :scenario-id="selectedScenarioId"
+      @close="selectedScenarioId = null"
+      @launch="launchScenario"
+    />
   </div>
 </template>
 

@@ -19,12 +19,13 @@ export const routes = [
     path: '/',
     name: 'landing',
     component: () => import('../views/LandingView.vue'),
+    meta: { public: true },
   },
   {
     path: '/login',
     name: 'login',
     component: () => import('../views/LoginView.vue'),
-    meta: { guest: true },
+    meta: { public: true, guest: true, hideNav: true },
   },
   {
     path: '/scenarios/:id',
@@ -108,6 +109,8 @@ export function createAppRouter() {
     const { authEnabled, authenticated } = getAuthState()
 
     if (!authEnabled) return true
+
+    if (to.meta.public && !(to.meta.guest && authenticated)) return true
 
     if (to.meta.requiresAuth && !authenticated) {
       return { name: 'login', query: { redirect: to.fullPath } }

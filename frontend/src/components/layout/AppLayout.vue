@@ -5,12 +5,13 @@ import AppNav from './AppNav.vue'
 import AppFooter from './AppFooter.vue'
 
 const route = useRoute()
-const showFooter = computed(() => route.name !== 'landing')
+const hideChrome = computed(() => route.meta.hideNav === true)
+const showFooter = computed(() => !hideChrome.value && route.name !== 'landing')
 </script>
 
 <template>
   <div class="min-h-screen flex flex-col bg-[var(--color-bg)]">
-    <AppNav />
+    <AppNav v-if="!hideChrome" />
     <main class="flex-1">
       <slot />
     </main>

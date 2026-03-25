@@ -61,6 +61,11 @@ export const routes = [
     component: () => import('../views/SimulationsView.vue'),
   },
   {
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('../views/AnalyticsView.vue'),
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

@@ -1,9 +1,17 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSimulationStore } from '../stores/simulation'
+import { getAllCachedTaskIds } from '../composables/useReportCache'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 
 const store = useSimulationStore()
+
+const cachedReportIds = ref(new Set())
+
+onMounted(async () => {
+  const ids = await getAllCachedTaskIds().catch(() => [])
+  cachedReportIds.value = new Set(ids)
+})
 
 const showDeleteDialog = ref(false)
 const showClearDialog = ref(false)
@@ -388,9 +396,18 @@ function exportRun(run) {
           </router-link>
           <router-link
             :to="`/report/${run.id}`"
-            class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md bg-[#2068FF] text-white hover:bg-[#1a5ae0] transition-colors no-underline"
+            class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md bg-[#2068FF] text-white hover:bg-[#1a5ae0] transition-colors no-underline relative"
           >
             Report
+            <span
+              v-if="cachedReportIds.has(run.id)"
+              class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center"
+              title="Available offline"
+            >
+              <svg class="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
           </router-link>
         </div>
 

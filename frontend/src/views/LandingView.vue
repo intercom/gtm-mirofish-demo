@@ -57,6 +57,7 @@ const ICON_MAP = {
   signal: '📡',
   dollar: '💰',
   sparkle: '✨',
+  refresh: '🔄',
 }
 
 function resolveIcon(icon) {
@@ -107,6 +108,12 @@ async function loadScenarios() {
         name: 'Personalization Optimization',
         description: 'Rank email variants by simulated engagement.',
         icon: '✨',
+      },
+      {
+        id: 'mrr_reconciliation',
+        name: 'MRR Reconciliation Simulation',
+        description: 'Predict revenue leakage and reconciliation bottlenecks across billing, CRM, and reporting.',
+        icon: '🔄',
       },
     ]
     error.value = null

@@ -15,6 +15,7 @@ from ..services.simulation_manager import SimulationManager
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
+from ..utils.pagination import paginate
 
 logger = get_logger('mirofish.api.report')
 
@@ -354,33 +355,32 @@ def get_report_by_simulation(simulation_id: str):
 def list_reports():
     """
     列出所有报告
-    
+
     Query参数：
         simulation_id: 按模拟ID过滤（可选）
-        limit: 返回数量限制（默认50）
-    
-    返回：
-        {
-            "success": true,
-            "data": [...],
-            "count": 10
-        }
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
     try:
         simulation_id = request.args.get('simulation_id')
-        limit = request.args.get('limit', 50, type=int)
-        
+
         reports = ReportManager.list_reports(
             simulation_id=simulation_id,
-            limit=limit
+            limit=9999,
         )
-        
+        result = paginate([r.to_dict() for r in reports])
+
         return jsonify({
             "success": True,
-            "data": [r.to_dict() for r in reports],
-            "count": len(reports)
+            "data": result["items"],
+            "pagination": {
+                "page": result["page"],
+                "per_page": result["per_page"],
+                "total": result["total"],
+                "total_pages": result["total_pages"],
+            },
         })
-        
+
     except Exception as e:
         logger.error(f"列出报告失败: {str(e)}")
         return jsonify({

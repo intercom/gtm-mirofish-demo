@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useSimulationStore } from '../stores/simulation'
+import { usePagination } from '../composables/usePagination'
+import Pagination from '../components/common/Pagination.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 
 const store = useSimulationStore()
@@ -83,6 +85,12 @@ const filteredRuns = computed(() => {
 
   return result
 })
+
+const {
+  currentPage,
+  totalPages,
+  paginatedItems: paginatedRuns,
+} = usePagination(filteredRuns, { perPage: 10 })
 
 function relativeTime(ts) {
   const diff = Math.floor((Date.now() - ts) / 1000)
@@ -310,7 +318,7 @@ function exportRun(run) {
     <!-- Run cards -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div
-        v-for="run in filteredRuns"
+        v-for="run in paginatedRuns"
         :key="run.id"
         class="border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)]"
       >
@@ -407,6 +415,15 @@ function exportRun(run) {
         </router-link>
       </div>
     </div>
+
+    <!-- Pagination -->
+    <Pagination
+      v-if="filteredRuns.length > 0"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :total="filteredRuns.length"
+      @update:current-page="currentPage = $event"
+    />
 
     <!-- Confirmation Dialogs -->
     <ConfirmDialog

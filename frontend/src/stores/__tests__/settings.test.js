@@ -68,4 +68,26 @@ describe('useSettingsStore', () => {
     expect(store.connectionStatus.zep).toBe('success')
     vi.unstubAllGlobals()
   })
+
+  it('testConnection sets intermediate testing status', async () => {
+    let resolvePromise
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() =>
+      new Promise(resolve => { resolvePromise = resolve })
+    ))
+    const store = useSettingsStore()
+    const promise = store.testConnection('llm')
+    expect(store.connectionStatus.llm).toBe('testing')
+    resolvePromise({ ok: true })
+    await promise
+    expect(store.connectionStatus.llm).toBe('success')
+    vi.unstubAllGlobals()
+  })
+
+  it('testConnection sets error on non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 503 }))
+    const store = useSettingsStore()
+    await store.testConnection('llm')
+    expect(store.connectionStatus.llm).toBe('error')
+    vi.unstubAllGlobals()
+  })
 })

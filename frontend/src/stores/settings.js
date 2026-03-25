@@ -14,6 +14,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const provider = ref('anthropic')
   const apiKey = ref('')
   const zepKey = ref('')
+  const statusBarEnabled = ref(false)
   const connectionStatus = ref({ llm: null, zep: null })
 
   function load() {
@@ -24,6 +25,7 @@ export const useSettingsStore = defineStore('settings', () => {
         provider.value = s.provider || 'anthropic'
         apiKey.value = s.apiKey || ''
         zepKey.value = s.zepKey || ''
+        statusBarEnabled.value = !!s.statusBarEnabled
       }
     } catch {
       // Corrupted data — reset to defaults
@@ -35,11 +37,12 @@ export const useSettingsStore = defineStore('settings', () => {
       provider: provider.value,
       apiKey: apiKey.value,
       zepKey: zepKey.value,
+      statusBarEnabled: statusBarEnabled.value,
     }))
   }
 
   // Auto-persist on changes
-  watch([provider, apiKey, zepKey], save, { flush: 'post' })
+  watch([provider, apiKey, zepKey, statusBarEnabled], save, { flush: 'post' })
 
   async function testConnection(service) {
     if (!navigator.onLine) {
@@ -62,6 +65,7 @@ export const useSettingsStore = defineStore('settings', () => {
     provider,
     apiKey,
     zepKey,
+    statusBarEnabled,
     connectionStatus,
     providers: PROVIDERS,
     load,

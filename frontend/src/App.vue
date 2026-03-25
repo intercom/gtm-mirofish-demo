@@ -1,5 +1,5 @@
 <script setup>
-import { watch, onMounted, onUnmounted } from 'vue'
+import { computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
 import ErrorBoundary from './components/ui/ErrorBoundary.vue'
@@ -8,6 +8,7 @@ import OfflineBanner from './components/common/OfflineBanner.vue'
 import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndicator.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import CommandPalette from './components/common/CommandPalette.vue'
+import SystemStatusBar from './components/common/SystemStatusBar.vue'
 import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
@@ -15,6 +16,7 @@ import { useCommandPalette } from './composables/useCommandPalette'
 import { useResourcePreload } from './composables/useResourcePreload'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
+import { useSettingsStore } from './stores/settings'
 
 const route = useRoute()
 const { setRouteDefault } = useTheme()
@@ -24,6 +26,10 @@ useCommandPalette()
 useResourcePreload()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
+const settings = useSettingsStore()
+
+const isDev = import.meta.env.DEV
+const showStatusBar = computed(() => isDev || settings.statusBarEnabled)
 
 watch(() => route.name, (name) => {
   setRouteDefault(name === 'landing' ? 'dark' : 'light')
@@ -71,4 +77,5 @@ onUnmounted(() => {
   <NavigationShortcutIndicator />
   <CommandPalette />
   <PresenterToolbar v-if="isDemoMode" />
+  <SystemStatusBar v-if="showStatusBar" />
 </template>

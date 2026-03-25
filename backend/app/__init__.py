@@ -76,8 +76,9 @@ def create_app(config_class=Config):
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
     
-    # 健康检查
+    # 健康检查 (both paths for docker-compose and direct access)
     @app.route('/health')
+    @app.route('/api/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}
     

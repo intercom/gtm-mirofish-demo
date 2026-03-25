@@ -5,4 +5,5 @@ COPY gtm_scenarios/ ./gtm_scenarios/
 COPY llm_client.py .
 COPY demo_app.py .
 ENV PORT=5001
+EXPOSE 5001
 CMD ["sh", "-c", "python demo_app.py"]

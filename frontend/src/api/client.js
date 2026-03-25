@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { perfMonitor } from '../lib/perfMonitor'
 
 export const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
@@ -6,6 +7,8 @@ const client = axios.create({
   baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 })
+
+perfMonitor.createAxiosTimingInterceptors(client)
 
 // Normalize errors so callers always get { message, status, data }
 client.interceptors.response.use(

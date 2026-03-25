@@ -64,6 +64,11 @@ export const routes = [
     path: '/dashboard',
     redirect: '/simulations',
   },
+  {
+    path: '/dashboard-builder',
+    name: 'dashboard-builder',
+    component: () => import('../views/DashboardBuilderView.vue'),
+  },
 ]
 
 export function createAppRouter() {

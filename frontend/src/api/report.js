@@ -22,6 +22,9 @@ export const reportApi = {
   checkStatus: (simulationId) =>
     client.get(`/report/check/${simulationId}`),
 
+  // --- Visualizations ---
+  getCampaignSpend: () => client.get('/report/campaign-spend'),
+
   // --- Agent logs ---
   getAgentLog: (reportId, params) =>
     client.get(`/report/${reportId}/agent-log`, { params }),

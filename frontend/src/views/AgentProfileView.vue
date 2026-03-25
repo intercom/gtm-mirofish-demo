@@ -3,6 +3,8 @@ import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
 import client from '../api/client'
+import { AppBreadcrumb } from '../components/common'
+import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -24,6 +26,10 @@ const agentName = computed(() => {
   const parts = rawName.value.split(',')
   return parts[0]?.trim() || rawName.value
 })
+
+const { crumbs } = useBreadcrumbs(
+  computed(() => ({ 'agent-profile': agentName.value })),
+)
 
 const agentRole = computed(() => {
   const parts = rawName.value.split(',')
@@ -205,13 +211,7 @@ async function sendMessage() {
 
 <template>
   <div class="max-w-4xl mx-auto px-4 md:px-6 py-6">
-    <!-- Back link -->
-    <router-link
-      :to="`/workspace/${taskId}?tab=simulation`"
-      class="inline-flex items-center gap-1 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-4"
-    >
-      &larr; Back to Simulation
-    </router-link>
+    <AppBreadcrumb :crumbs="crumbs" class="-mx-4 md:-mx-6 -mt-6 mb-4" />
 
     <!-- Agent header card -->
     <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-6 mb-6">

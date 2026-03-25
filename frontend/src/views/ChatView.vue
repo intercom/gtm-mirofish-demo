@@ -2,6 +2,8 @@
 import { ref, nextTick, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { marked } from 'marked'
+import { AppBreadcrumb } from '../components/common'
+import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 import EmptyState from '../components/ui/EmptyState.vue'
 import StatusIndicator from '../components/common/StatusIndicator.vue'
 import { chatApi } from '../api/chat'
@@ -11,6 +13,8 @@ import { useIntercom } from '../composables/useIntercom'
 import { useDemoMode } from '../composables/useDemoMode'
 
 const props = defineProps({ taskId: String })
+
+const { crumbs } = useBreadcrumbs()
 const route = useRoute()
 const simulation = useSimulationStore()
 const toast = useToast()
@@ -148,6 +152,7 @@ function formatToolName(name) {
 <template>
   <!-- Fin.ai Landing (when Intercom is configured) -->
   <div v-if="isIntercomEnabled" class="flex flex-col h-[calc(100vh-120px)] items-center justify-center px-4">
+    <AppBreadcrumb :crumbs="crumbs" class="self-start w-full mb-4" />
     <div class="max-w-lg w-full text-center">
       <div class="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#2068FF] to-[#1a5ae0] flex items-center justify-center shadow-lg">
         <svg class="w-8 h-8 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -184,6 +189,7 @@ function formatToolName(name) {
 
   <!-- Mock Chat Fallback (no Intercom App ID) -->
   <div v-else class="flex flex-col h-[calc(100vh-120px)]">
+    <AppBreadcrumb :crumbs="crumbs" />
     <!-- Context Bar -->
     <div
       class="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]"

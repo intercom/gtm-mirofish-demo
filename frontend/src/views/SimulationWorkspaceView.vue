@@ -5,6 +5,8 @@ import { useSimulationPolling } from '../composables/useSimulationPolling'
 import { useToast } from '../composables/useToast'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
+import { AppBreadcrumb } from '../components/common'
+import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
@@ -31,6 +33,10 @@ let bannerTimer = null
 
 const scenarioName = computed(() =>
   simulationStore.scenarioConfig?.scenarioName || 'Simulation',
+)
+
+const { crumbs } = useBreadcrumbs(
+  computed(() => ({ workspace: scenarioName.value })),
 )
 
 watch(() => route.query.tab, (tab) => {
@@ -91,17 +97,7 @@ onUnmounted(() => {
 
 <template>
   <div class="flex flex-col h-[calc(100vh-56px)]">
-    <!-- Breadcrumbs -->
-    <div class="px-4 md:px-6 pt-3 text-xs text-[var(--color-text-muted)]">
-      <router-link
-        to="/"
-        class="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] no-underline transition-colors"
-      >Home</router-link>
-      <span class="mx-1">/</span>
-      <span>{{ scenarioName }}</span>
-      <span class="mx-1">/</span>
-      <span class="text-[var(--color-text)]">Workspace</span>
-    </div>
+    <AppBreadcrumb :crumbs="crumbs" />
 
     <!-- Success banner -->
     <Transition name="slide-down">

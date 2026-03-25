@@ -8,6 +8,7 @@ import { useSimulationStore } from '../stores/simulation'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import SimulationPanel from '../components/simulation/SimulationPanel.vue'
+import SimulationControls from '../components/simulation/SimulationControls.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -134,8 +135,13 @@ onUnmounted(() => {
       <div v-show="activeTab === 'graph'" class="absolute inset-0">
         <GraphPanel :taskId="taskId" :demoMode="demoMode" />
       </div>
-      <div v-show="activeTab === 'simulation'" class="absolute inset-0">
-        <SimulationPanel :taskId="taskId" />
+      <div v-show="activeTab === 'simulation'" class="absolute inset-0 flex">
+        <div class="flex-1 min-w-0">
+          <SimulationPanel :taskId="taskId" />
+        </div>
+        <div class="hidden lg:block w-72 shrink-0 border-l border-[var(--color-border)] overflow-y-auto p-3">
+          <SimulationControls />
+        </div>
       </div>
     </div>
   </div>

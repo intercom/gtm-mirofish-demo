@@ -1,179 +1,116 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { reportBuilderApi } from '../api/reportBuilder'
 
-const STORAGE_KEY = 'mirofish_report_builder'
+const DEFAULT_THEME = {
+  primaryColor: '#2068FF',
+  accentColor: '#ff5600',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  headingFont: 'Inter, system-ui, sans-serif',
+  fontSize: 14,
+  spacing: 'comfortable',
+}
 
-function loadDraft() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
+function createSection(type, position = -1, config = {}) {
+  return {
+    id: crypto.randomUUID(),
+    type,
+    position,
+    config: { title: '', ...config },
+    createdAt: Date.now(),
   }
 }
 
 export const useReportBuilderStore = defineStore('reportBuilder', () => {
-  // Current template being edited
-  const template = ref(null)
+  // --- State ---
   const templates = ref([])
-  const reports = ref([])
+  const activeTemplate = ref(null)
+  const activeReport = ref(null)
+  const sections = ref([])
+  const theme = ref({ ...DEFAULT_THEME })
+  const isDirty = ref(false)
   const loading = ref(false)
   const error = ref(null)
 
-  const hasTemplate = computed(() => template.value !== null)
-  const sectionCount = computed(() => template.value?.sections?.length ?? 0)
+  // --- Computed ---
+  const hasTemplates = computed(() => templates.value.length > 0)
+  const hasSections = computed(() => sections.value.length > 0)
+  const sectionCount = computed(() => sections.value.length)
 
-  // ── Template editing ────────────────────────────────────────
+  // Track mutations to sections and theme
+  let dirtyWatchEnabled = false
+  watch(
+    [sections, theme],
+    () => {
+      if (dirtyWatchEnabled) isDirty.value = true
+    },
+    { deep: true },
+  )
 
-  function createTemplate(name = 'Untitled Report') {
-    template.value = {
-      id: null,
-      name,
-      sections: [],
-      theme: {
-        primary_color: '#2068FF',
-        accent_color: '#ff5600',
-        font_family: 'system-ui',
-      },
-      page_orientation: 'portrait',
-      header_config: { show_logo: true, title: '', subtitle: '' },
-      footer_config: { show_page_numbers: true, text: '' },
-    }
-    saveDraft()
-  }
+  // --- Actions ---
 
-  function addSection(section) {
-    if (!template.value) return
-    const id = `sec_${Date.now().toString(36)}`
-    template.value.sections.push({
-      id,
-      type: section.type || 'text',
-      title: section.title || '',
-      position: template.value.sections.length,
-      width: section.width || 'full',
-      config: section.config || {},
-      data_source: section.data_source || null,
-    })
-    reindexPositions()
-    saveDraft()
-  }
+  async function fetchTemplates(force = false) {
+    if (templates.value.length > 0 && !force) return templates.value
 
-  function updateSection(sectionId, updates) {
-    if (!template.value) return
-    const idx = template.value.sections.findIndex(s => s.id === sectionId)
-    if (idx === -1) return
-    Object.assign(template.value.sections[idx], updates)
-    saveDraft()
-  }
-
-  function removeSection(sectionId) {
-    if (!template.value) return
-    template.value.sections = template.value.sections.filter(s => s.id !== sectionId)
-    reindexPositions()
-    saveDraft()
-  }
-
-  function moveSection(sectionId, newPosition) {
-    if (!template.value) return
-    const sections = template.value.sections
-    const idx = sections.findIndex(s => s.id === sectionId)
-    if (idx === -1 || newPosition < 0 || newPosition >= sections.length) return
-    const [moved] = sections.splice(idx, 1)
-    sections.splice(newPosition, 0, moved)
-    reindexPositions()
-    saveDraft()
-  }
-
-  function reindexPositions() {
-    if (!template.value) return
-    template.value.sections.forEach((s, i) => { s.position = i })
-  }
-
-  function updateTheme(theme) {
-    if (!template.value) return
-    Object.assign(template.value.theme, theme)
-    saveDraft()
-  }
-
-  function updateHeaderConfig(config) {
-    if (!template.value) return
-    Object.assign(template.value.header_config, config)
-    saveDraft()
-  }
-
-  function updateFooterConfig(config) {
-    if (!template.value) return
-    Object.assign(template.value.footer_config, config)
-    saveDraft()
-  }
-
-  // ── Draft persistence (localStorage) ───────────────────────
-
-  function saveDraft() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(template.value))
-    } catch {
-      // Storage full — silently ignore
-    }
-  }
-
-  function loadDraftTemplate() {
-    const draft = loadDraft()
-    if (draft) template.value = draft
-  }
-
-  function clearDraft() {
-    localStorage.removeItem(STORAGE_KEY)
-  }
-
-  // ── API interactions ────────────────────────────────────────
-
-  async function fetchTemplates() {
     loading.value = true
     error.value = null
     try {
       const res = await reportBuilderApi.listTemplates()
-      templates.value = res.data.templates ?? []
+      templates.value = res.data?.templates ?? res.data ?? []
+      return templates.value
     } catch (e) {
-      error.value = e.message || 'Failed to load templates'
+      error.value = e.message
+      return []
     } finally {
       loading.value = false
     }
   }
 
-  async function saveTemplate() {
-    if (!template.value) return null
+  async function loadTemplate(id) {
     loading.value = true
     error.value = null
     try {
-      let res
-      if (template.value.id) {
-        res = await reportBuilderApi.updateTemplate(template.value.id, template.value)
-      } else {
-        res = await reportBuilderApi.createTemplate(template.value)
-      }
-      const saved = res.data.template
-      template.value.id = saved.id
-      clearDraft()
-      await fetchTemplates()
-      return saved
+      const res = await reportBuilderApi.getTemplate(id)
+      const tmpl = res.data
+      activeTemplate.value = tmpl
+      sections.value = (tmpl.sections || []).map((s, i) => ({
+        ...s,
+        id: s.id || crypto.randomUUID(),
+        position: s.position ?? i,
+      }))
+      theme.value = { ...DEFAULT_THEME, ...(tmpl.theme || {}) }
+      isDirty.value = false
+      dirtyWatchEnabled = true
+      return tmpl
     } catch (e) {
-      error.value = e.message || 'Failed to save template'
+      error.value = e.message
       return null
     } finally {
       loading.value = false
     }
   }
 
-  async function loadTemplate(templateId) {
+  async function saveTemplate() {
+    if (!activeTemplate.value) return null
+
     loading.value = true
     error.value = null
     try {
-      const res = await reportBuilderApi.getTemplate(templateId)
-      template.value = res.data.template
+      const payload = {
+        ...activeTemplate.value,
+        sections: sections.value,
+        theme: theme.value,
+      }
+      const isNew = !activeTemplate.value.id
+      const res = isNew
+        ? await reportBuilderApi.saveTemplate(payload)
+        : await reportBuilderApi.updateTemplate(activeTemplate.value.id, payload)
+      activeTemplate.value = res.data
+      isDirty.value = false
+      return res.data
     } catch (e) {
-      error.value = e.message || 'Failed to load template'
+      error.value = e.message
+      return null
     } finally {
       loading.value = false
     }
@@ -185,79 +122,151 @@ export const useReportBuilderStore = defineStore('reportBuilder', () => {
     try {
       await reportBuilderApi.deleteTemplate(templateId)
       templates.value = templates.value.filter(t => t.id !== templateId)
-      if (template.value?.id === templateId) template.value = null
+      if (activeTemplate.value?.id === templateId) {
+        activeTemplate.value = null
+        sections.value = []
+        theme.value = { ...DEFAULT_THEME }
+      }
     } catch (e) {
-      error.value = e.message || 'Failed to delete template'
+      error.value = e.message
     } finally {
       loading.value = false
     }
   }
 
-  async function fetchReports() {
-    loading.value = true
-    error.value = null
-    try {
-      const res = await reportBuilderApi.listReports()
-      reports.value = res.data.reports ?? []
-    } catch (e) {
-      error.value = e.message || 'Failed to load reports'
-    } finally {
-      loading.value = false
+  function addSection(type, position = -1, config = {}) {
+    const section = createSection(type, position, config)
+    if (position >= 0 && position < sections.value.length) {
+      sections.value.splice(position, 0, section)
+    } else {
+      sections.value.push(section)
     }
+    sections.value.forEach((s, i) => { s.position = i })
+    return section
   }
 
-  async function generateReport(simulationIds, method = 'template') {
-    if (!template.value?.id) return null
+  function removeSection(id) {
+    const idx = sections.value.findIndex(s => s.id === id)
+    if (idx === -1) return
+    sections.value.splice(idx, 1)
+    sections.value.forEach((s, i) => { s.position = i })
+  }
+
+  function updateSection(id, config) {
+    const section = sections.value.find(s => s.id === id)
+    if (!section) return
+    Object.assign(section.config, config)
+  }
+
+  function reorderSections(newOrder) {
+    const ordered = newOrder
+      .map(id => sections.value.find(s => s.id === id))
+      .filter(Boolean)
+    ordered.forEach((s, i) => { s.position = i })
+    sections.value = ordered
+  }
+
+  function setTheme(newTheme) {
+    Object.assign(theme.value, newTheme)
+  }
+
+  async function generateReport(simulationIds) {
     loading.value = true
     error.value = null
     try {
       const res = await reportBuilderApi.generate({
-        template_id: template.value.id,
-        simulation_ids: simulationIds,
-        generation_method: method,
+        templateId: activeTemplate.value?.id,
+        sections: sections.value,
+        theme: theme.value,
+        simulationIds,
       })
-      const report = res.data.report
-      reports.value.unshift(report)
-      return report
+      activeReport.value = res.data
+      return res.data
     } catch (e) {
-      error.value = e.message || 'Failed to generate report'
+      error.value = e.message
       return null
     } finally {
       loading.value = false
     }
   }
 
-  function reset() {
-    template.value = null
+  async function fetchReports(params) {
+    loading.value = true
     error.value = null
-    clearDraft()
+    try {
+      const res = await reportBuilderApi.listReports(params)
+      return res.data?.reports ?? res.data ?? []
+    } catch (e) {
+      error.value = e.message
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function fetchReport(id) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await reportBuilderApi.getReport(id)
+      activeReport.value = res.data
+      return res.data
+    } catch (e) {
+      error.value = e.message
+      return null
+    } finally {
+      loading.value = false
+    }
+  }
+
+  function newTemplate(name = 'Untitled Report') {
+    activeTemplate.value = { name, sections: [], theme: { ...DEFAULT_THEME } }
+    sections.value = []
+    theme.value = { ...DEFAULT_THEME }
+    isDirty.value = false
+    dirtyWatchEnabled = true
+  }
+
+  function reset() {
+    templates.value = []
+    activeTemplate.value = null
+    activeReport.value = null
+    sections.value = []
+    theme.value = { ...DEFAULT_THEME }
+    isDirty.value = false
+    dirtyWatchEnabled = false
+    loading.value = false
+    error.value = null
   }
 
   return {
-    template,
+    // State
     templates,
-    reports,
+    activeTemplate,
+    activeReport,
+    sections,
+    theme,
+    isDirty,
     loading,
     error,
-    hasTemplate,
+    // Computed
+    hasTemplates,
+    hasSections,
     sectionCount,
-    createTemplate,
-    addSection,
-    updateSection,
-    removeSection,
-    moveSection,
-    updateTheme,
-    updateHeaderConfig,
-    updateFooterConfig,
-    saveDraft,
-    loadDraftTemplate,
-    clearDraft,
+    // Actions
     fetchTemplates,
-    saveTemplate,
     loadTemplate,
+    saveTemplate,
     deleteTemplate,
-    fetchReports,
+    addSection,
+    removeSection,
+    updateSection,
+    reorderSections,
+    setTheme,
     generateReport,
+    fetchReports,
+    fetchReport,
+    newTemplate,
     reset,
   }
 })

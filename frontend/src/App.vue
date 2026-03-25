@@ -7,6 +7,7 @@ import PresenterToolbar from './components/demo/PresenterToolbar.vue'
 import { useTheme } from './composables/useTheme'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
+import { useResourcePreload } from './composables/useResourcePreload'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 
@@ -14,6 +15,7 @@ const route = useRoute()
 const { setRouteDefault } = useTheme()
 const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
+useResourcePreload()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 

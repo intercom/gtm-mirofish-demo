@@ -11,4 +11,6 @@ export const scenariosApi = {
   getOutcomes: (scenarioId) => client.get(`/gtm/outcomes/${scenarioId}`),
   importScenario: (scenarioData) =>
     client.post('/gtm/scenarios/import', scenarioData),
+  getContext: (scenarioId) =>
+    client.get(`/gtm/scenarios/${scenarioId}/context`),
 }

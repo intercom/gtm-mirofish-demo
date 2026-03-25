@@ -12,6 +12,7 @@ import LiveFeed from '../components/simulation/LiveFeed.vue'
 import SimulationControls from '../components/simulation/SimulationControls.vue'
 import LiveMetrics from '../components/simulation/LiveMetrics.vue'
 import SimulationProgressBar from '../components/simulation/SimulationProgressBar.vue'
+import GtmContextPanel from '../components/scenarios/GtmContextPanel.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -39,6 +40,10 @@ const scenarioName = computed(() =>
 const isReviewMode = computed(() => polling.simStatus.value === 'completed')
 const isSimActive = computed(() =>
   polling.simStatus.value === 'running' || polling.simStatus.value === 'building',
+)
+
+const currentScenarioId = computed(() =>
+  simulationStore.scenarioConfig?.scenarioId || '',
 )
 
 watch(() => route.query.tab, (tab) => {
@@ -139,49 +144,59 @@ onUnmounted(() => {
       />
     </div>
 
-    <!-- Panels -->
-    <div class="flex-1 relative overflow-hidden">
-      <!-- Graph tab (unchanged) -->
-      <div v-show="activeTab === 'graph'" class="absolute inset-0">
-        <GraphPanel :taskId="taskId" :demoMode="demoMode" />
-      </div>
+    <!-- Panels + Context sidebar -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Main panels -->
+      <div class="flex-1 relative overflow-hidden">
+        <!-- Graph tab -->
+        <div v-show="activeTab === 'graph'" class="absolute inset-0">
+          <GraphPanel :taskId="taskId" :demoMode="demoMode" />
+        </div>
 
-      <!-- Simulation tab -->
-      <div v-show="activeTab === 'simulation'" class="absolute inset-0 flex flex-col">
+        <!-- Simulation tab -->
+        <div v-show="activeTab === 'simulation'" class="absolute inset-0 flex flex-col">
 
-        <!-- Active simulation: split panel layout -->
-        <div v-if="!isReviewMode" class="flex-1 overflow-hidden">
-          <div class="workspace-panels h-full p-4 md:p-6 gap-4 md:gap-6">
-            <!-- Left panel (60%): Live Feed -->
-            <div class="workspace-left min-h-0">
-              <LiveFeed />
-            </div>
-
-            <!-- Right panel (40%): Controls + Metrics -->
-            <div class="workspace-right flex flex-col gap-4 md:gap-6 min-h-0">
-              <!-- Controls (top ~30%) -->
-              <div class="workspace-controls shrink-0">
-                <SimulationControls :taskId="taskId" />
+          <!-- Active simulation: split panel layout -->
+          <div v-if="!isReviewMode" class="flex-1 overflow-hidden">
+            <div class="workspace-panels h-full p-4 md:p-6 gap-4 md:gap-6">
+              <!-- Left panel (60%): Live Feed -->
+              <div class="workspace-left min-h-0">
+                <LiveFeed />
               </div>
-              <!-- Metrics (bottom ~70%) -->
-              <div class="flex-1 min-h-0">
-                <LiveMetrics />
+
+              <!-- Right panel (40%): Controls + Metrics -->
+              <div class="workspace-right flex flex-col gap-4 md:gap-6 min-h-0">
+                <!-- Controls (top ~30%) -->
+                <div class="workspace-controls shrink-0">
+                  <SimulationControls :taskId="taskId" />
+                </div>
+                <!-- Metrics (bottom ~70%) -->
+                <div class="flex-1 min-h-0">
+                  <LiveMetrics />
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Review mode: full SimulationPanel with all data -->
-        <div v-else class="flex-1 overflow-hidden">
-          <SimulationPanel :taskId="taskId" />
-        </div>
+          <!-- Review mode: full SimulationPanel with all data -->
+          <div v-else class="flex-1 overflow-hidden">
+            <SimulationPanel :taskId="taskId" />
+          </div>
 
-        <!-- Bottom progress bar -->
-        <SimulationProgressBar
-          v-if="isSimActive || isReviewMode"
-          :taskId="taskId"
-        />
+          <!-- Bottom progress bar -->
+          <SimulationProgressBar
+            v-if="isSimActive || isReviewMode"
+            :taskId="taskId"
+          />
+        </div>
       </div>
+
+      <!-- GTM context sidebar (hidden on mobile, visible on lg+) -->
+      <GtmContextPanel
+        v-if="currentScenarioId"
+        :scenarioId="currentScenarioId"
+        class="hidden lg:flex"
+      />
     </div>
   </div>
 </template>

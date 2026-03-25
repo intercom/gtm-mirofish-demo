@@ -4,13 +4,11 @@ import { useRouter } from 'vue-router'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
 import { useParallax } from '../composables/useParallax'
-import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
-import ScenarioTemplateCard from '../components/scenarios/ScenarioTemplateCard.vue'
+import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
-const showCards = ref(false)
 const showSteps = ref(false)
 
 const heroSection = ref(null)
@@ -43,7 +41,6 @@ function onStaggerEnter(el, done) {
 }
 
 onMounted(() => {
-  showCards.value = true
   setTimeout(() => { showSteps.value = true }, 200)
 })
 
@@ -67,58 +64,6 @@ const steps = [
     description: 'Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.',
   },
 ]
-
-const scenarios = ref([])
-const loading = ref(true)
-const error = ref(null)
-
-
-async function loadScenarios() {
-  loading.value = true
-  error.value = null
-  try {
-    const res = await fetch(`${API_BASE}/gtm/scenarios`)
-    if (!res.ok) throw new Error(`Failed to load scenarios (${res.status})`)
-    const json = await res.json()
-    const list = json.scenarios || json
-    if (list.length) list[0].hero = true
-    scenarios.value = list
-  } catch (e) {
-    error.value = e.message
-    scenarios.value = [
-      {
-        id: 'outbound_campaign',
-        name: 'Outbound Campaign Pre-Testing',
-        description: 'Simulate how AI-generated outbound emails land with synthetic prospect populations.',
-        icon: '📧',
-        hero: true,
-      },
-      {
-        id: 'signal_validation',
-        name: 'Sales Signal Validation',
-        description: 'Test whether signals actually predict buying behavior.',
-        icon: '📡',
-      },
-      {
-        id: 'pricing_simulation',
-        name: 'Pricing Change Simulation',
-        description: 'Predict customer reactions to P5 pricing migration.',
-        icon: '💰',
-      },
-      {
-        id: 'personalization',
-        name: 'Personalization Optimization',
-        description: 'Rank email variants by simulated engagement.',
-        icon: '✨',
-      },
-    ]
-    error.value = null
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(loadScenarios)
 
 const scenarioSection = ref(null)
 
@@ -290,88 +235,14 @@ const year = new Date().getFullYear()
           Interactive demo with simulated swarm intelligence
         </p>
 
-        <!-- Loading State -->
-        <div v-if="loading" class="max-w-2xl mx-auto">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="n in 4" :key="n"
-              class="rounded-lg p-5 border border-white/10 bg-white/5 animate-pulse">
-              <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded bg-white/10"></div>
-                <div class="flex-1 space-y-2">
-                  <div class="h-4 bg-white/10 rounded w-3/4"></div>
-                  <div class="h-3 bg-white/10 rounded w-full"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Error State -->
-        <div v-else-if="error" class="max-w-md mx-auto text-center py-8">
-          <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-            <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
-          </div>
-          <h3 class="text-base font-semibold text-white mb-1">Failed to load scenarios</h3>
-          <p class="text-sm text-white/50 mb-4">{{ error }}</p>
-          <button @click="loadScenarios"
-            class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
-            Try Again
-          </button>
-        </div>
-
-        <!-- Empty State -->
-        <div v-else-if="scenarios.length === 0" class="max-w-md mx-auto text-center py-8">
-          <div class="w-16 h-16 rounded-full bg-[rgba(32,104,255,0.15)] flex items-center justify-center mx-auto mb-4">
-            <span class="text-3xl">🐟</span>
-          </div>
-          <h3 class="text-base font-semibold text-white mb-1">No scenarios available</h3>
-          <p class="text-sm text-white/50">Check back soon — scenarios are being configured.</p>
-        </div>
-
-        <!-- Scenario Cards -->
-        <TransitionGroup
-          v-else
-          ref="scenarioSection"
-          tag="div"
-          class="grid grid-cols-1 gap-3 md:gap-4 max-w-2xl mx-auto md:grid-cols-2"
-          :css="false"
-          @before-enter="onStaggerBeforeEnter"
-          @enter="onStaggerEnter"
-        >
-          <ScenarioTemplateCard
-            v-for="(scenario, i) in showCards ? scenarios : []"
-            :key="scenario.id"
-            :data-index="i"
-            :scenario="scenario"
-            :hero="!!scenario.hero"
+        <div class="max-w-2xl mx-auto">
+          <ScenarioTemplateGallery
+            ref="scenarioSection"
             variant="dark"
-            :class="scenario.hero && 'md:col-span-2'"
+            hero-first
             @select="launchScenario"
           />
-
-          <!-- Custom simulation card -->
-          <button
-            v-if="showCards && scenarios.length"
-            key="custom"
-            :data-index="scenarios.length"
-            @click="launchScenario('custom')"
-            class="text-left rounded-lg transition-all duration-300 cursor-pointer border p-5 border-dashed border-white/20 hover:bg-white/10 hover:border-white/30 group"
-          >
-            <div class="flex items-start gap-3">
-              <span class="text-2xl opacity-60 group-hover:opacity-100 transition-opacity">
-                <svg class="w-6 h-6 text-white/50 group-hover:text-[#2068FF] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </span>
-              <div>
-                <h3 class="text-sm font-semibold text-white/80 group-hover:text-white transition-colors">Custom Simulation</h3>
-                <p class="text-xs text-white/40 mt-1">Bring your own seed document and configure a simulation from scratch.</p>
-              </div>
-            </div>
-          </button>
-        </TransitionGroup>
+        </div>
       </div>
     </section>
 

@@ -5,6 +5,7 @@ import { API_BASE } from '../api/client'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
+import ReportCanvas from '../components/report/ReportCanvas.vue'
 
 const props = defineProps({ taskId: String })
 
@@ -16,6 +17,7 @@ const progress = ref(0)
 const progressMessage = ref('')
 const error = ref(null)
 const isComplete = ref(false)
+const builderMode = ref(false)
 
 let pollTimer = null
 
@@ -161,6 +163,14 @@ function exportMarkdown() {
   }
 }
 
+function handleReorder(from, to) {
+  const arr = [...sections.value]
+  const [moved] = arr.splice(from, 1)
+  arr.splice(to, 0, moved)
+  arr.forEach((s, i) => { s.section_index = i + 1 })
+  sections.value = arr
+}
+
 onMounted(checkAndLoad)
 onUnmounted(stopPolling)
 </script>
@@ -180,6 +190,17 @@ onUnmounted(stopPolling)
         </p>
       </div>
       <div class="flex gap-2">
+        <button
+          v-if="!generating && sections.length > 1"
+          @click="builderMode = !builderMode"
+          class="border hover:bg-[var(--color-tint)] text-[var(--color-text)] px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          :class="builderMode ? 'border-[#2068FF] bg-[rgba(32,104,255,0.06)]' : 'border-[var(--color-border)]'"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          {{ builderMode ? 'Done' : 'Reorder' }}
+        </button>
         <button
           v-if="!generating && sections.length > 0"
           @click="exportMarkdown"
@@ -215,6 +236,15 @@ onUnmounted(stopPolling)
       <p class="text-xs text-[var(--color-text-muted)] mt-1 text-right">{{ progress }}%</p>
     </div>
 
+    <!-- Builder Mode: drag-and-drop section reorder -->
+    <ReportCanvas
+      v-if="builderMode && sections.length > 1"
+      :sections="sections"
+      @reorder="handleReorder"
+      class="max-w-2xl mx-auto"
+    />
+
+    <template v-if="!builderMode">
     <!-- Mobile: horizontal tab bar -->
     <div v-if="chapters.length > 0" class="md:hidden mb-4 -mx-4 px-4 overflow-x-auto">
       <div class="flex gap-2 min-w-max">
@@ -351,6 +381,7 @@ onUnmounted(stopPolling)
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 

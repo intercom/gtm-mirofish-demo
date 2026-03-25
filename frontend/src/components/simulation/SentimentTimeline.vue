@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
+
+const { measure, countDomNodes } = useD3PerfMonitor()
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },
@@ -108,11 +111,14 @@ function renderChart() {
   const containerWidth = container.clientWidth
   if (containerWidth === 0) return
 
-  if (viewMode.value === 'distribution') {
-    renderDistribution(container, data, containerWidth)
-  } else {
-    renderTrend(container, data, containerWidth)
-  }
+  measure('SentimentTimeline', () => {
+    if (viewMode.value === 'distribution') {
+      renderDistribution(container, data, containerWidth)
+    } else {
+      renderTrend(container, data, containerWidth)
+    }
+  })
+  countDomNodes('SentimentTimeline', container)
 }
 
 function renderTrend(container, data, containerWidth) {

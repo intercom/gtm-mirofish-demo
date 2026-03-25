@@ -1,6 +1,9 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
+
+const { measure, countDomNodes } = useD3PerfMonitor()
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
@@ -37,7 +40,10 @@ function renderActiveChart() {
   clearChart()
   const renderFn = CHART_MAP[props.chapterIndex]
   if (renderFn && chartRef.value) {
-    nextTick(() => renderFn())
+    nextTick(() => {
+      measure('ReportCharts', renderFn)
+      countDomNodes('ReportCharts', chartRef.value)
+    })
   }
 }
 

@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import * as d3 from 'd3'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
+
+const { measure, trackFrame, countDomNodes } = useD3PerfMonitor()
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -212,126 +215,131 @@ function renderGraph() {
   nodeCount.value = nodes.length
   edgeCount.value = links.length
 
-  d3.select(svgRef.value).selectAll('*').remove()
+  measure('GraphPanel', () => {
+    d3.select(svgRef.value).selectAll('*').remove()
 
-  svg = d3.select(svgRef.value)
-    .attr('width', width)
-    .attr('height', height)
+    svg = d3.select(svgRef.value)
+      .attr('width', width)
+      .attr('height', height)
 
-  const zoom = d3.zoom()
-    .scaleExtent([0.2, 5])
-    .on('zoom', (event) => {
-      zoomGroup.attr('transform', event.transform)
+    const zoom = d3.zoom()
+      .scaleExtent([0.2, 5])
+      .on('zoom', (event) => {
+        zoomGroup.attr('transform', event.transform)
+      })
+    svg.call(zoom)
+
+    zoomGroup = svg.append('g')
+
+    svg.append('defs').append('marker')
+      .attr('id', 'arrow')
+      .attr('viewBox', '0 -4 8 8')
+      .attr('refX', 20)
+      .attr('refY', 0)
+      .attr('markerWidth', 6)
+      .attr('markerHeight', 6)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,-4L8,0L0,4')
+      .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
+
+    simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id(d => d.id).distance(120))
+      .force('charge', d3.forceManyBody().strength(-300))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(d => d.radius + 4))
+
+    const link = zoomGroup.append('g')
+      .selectAll('line')
+      .data(links)
+      .join('line')
+      .attr('stroke', dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
+      .attr('stroke-width', 1)
+      .attr('marker-end', 'url(#arrow)')
+      .style('opacity', 0)
+
+    const edgeLabel = zoomGroup.append('g')
+      .selectAll('text')
+      .data(links)
+      .join('text')
+      .text(d => d.name)
+      .attr('fill', dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')
+      .attr('font-size', '8px')
+      .attr('text-anchor', 'middle')
+      .style('pointer-events', 'none')
+      .style('opacity', 0)
+
+    const node = zoomGroup.append('g')
+      .selectAll('g')
+      .data(nodes)
+      .join('g')
+      .style('cursor', 'pointer')
+      .style('opacity', 0)
+      .call(d3.drag()
+        .on('start', dragstarted)
+        .on('drag', dragged)
+        .on('end', dragended)
+      )
+      .on('click', (event, d) => {
+        event.stopPropagation()
+        selectNode(d)
+      })
+
+    node.append('circle')
+      .attr('r', d => d.radius + 4)
+      .attr('fill', d => d.color)
+      .attr('opacity', 0.2)
+
+    node.append('circle')
+      .attr('r', d => d.radius)
+      .attr('fill', d => d.color)
+      .attr('stroke', d => d.color)
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.4)
+      .attr('fill-opacity', 0.85)
+
+    node.append('text')
+      .text(d => d.name)
+      .attr('dy', d => d.radius + 14)
+      .attr('text-anchor', 'middle')
+      .attr('fill', dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)')
+      .attr('font-size', '10px')
+      .style('pointer-events', 'none')
+
+    node.transition()
+      .delay((d, i) => i * 60)
+      .duration(400)
+      .style('opacity', 1)
+
+    link.transition()
+      .delay((d, i) => nodes.length * 60 + i * 30)
+      .duration(300)
+      .style('opacity', 1)
+
+    edgeLabel.transition()
+      .delay((d, i) => nodes.length * 60 + i * 30)
+      .duration(300)
+      .style('opacity', 1)
+
+    simulation.on('tick', () => {
+      trackFrame('GraphPanel')
+
+      link
+        .attr('x1', d => d.source.x)
+        .attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x)
+        .attr('y2', d => d.target.y)
+
+      edgeLabel
+        .attr('x', d => (d.source.x + d.target.x) / 2)
+        .attr('y', d => (d.source.y + d.target.y) / 2)
+
+      node.attr('transform', d => `translate(${d.x},${d.y})`)
     })
-  svg.call(zoom)
 
-  zoomGroup = svg.append('g')
-
-  svg.append('defs').append('marker')
-    .attr('id', 'arrow')
-    .attr('viewBox', '0 -4 8 8')
-    .attr('refX', 20)
-    .attr('refY', 0)
-    .attr('markerWidth', 6)
-    .attr('markerHeight', 6)
-    .attr('orient', 'auto')
-    .append('path')
-    .attr('d', 'M0,-4L8,0L0,4')
-    .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
-
-  simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
-    .force('charge', d3.forceManyBody().strength(-300))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => d.radius + 4))
-
-  const link = zoomGroup.append('g')
-    .selectAll('line')
-    .data(links)
-    .join('line')
-    .attr('stroke', dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)')
-    .attr('stroke-width', 1)
-    .attr('marker-end', 'url(#arrow)')
-    .style('opacity', 0)
-
-  const edgeLabel = zoomGroup.append('g')
-    .selectAll('text')
-    .data(links)
-    .join('text')
-    .text(d => d.name)
-    .attr('fill', dark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)')
-    .attr('font-size', '8px')
-    .attr('text-anchor', 'middle')
-    .style('pointer-events', 'none')
-    .style('opacity', 0)
-
-  const node = zoomGroup.append('g')
-    .selectAll('g')
-    .data(nodes)
-    .join('g')
-    .style('cursor', 'pointer')
-    .style('opacity', 0)
-    .call(d3.drag()
-      .on('start', dragstarted)
-      .on('drag', dragged)
-      .on('end', dragended)
-    )
-    .on('click', (event, d) => {
-      event.stopPropagation()
-      selectNode(d)
-    })
-
-  node.append('circle')
-    .attr('r', d => d.radius + 4)
-    .attr('fill', d => d.color)
-    .attr('opacity', 0.2)
-
-  node.append('circle')
-    .attr('r', d => d.radius)
-    .attr('fill', d => d.color)
-    .attr('stroke', d => d.color)
-    .attr('stroke-width', 1.5)
-    .attr('stroke-opacity', 0.4)
-    .attr('fill-opacity', 0.85)
-
-  node.append('text')
-    .text(d => d.name)
-    .attr('dy', d => d.radius + 14)
-    .attr('text-anchor', 'middle')
-    .attr('fill', dark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.7)')
-    .attr('font-size', '10px')
-    .style('pointer-events', 'none')
-
-  node.transition()
-    .delay((d, i) => i * 60)
-    .duration(400)
-    .style('opacity', 1)
-
-  link.transition()
-    .delay((d, i) => nodes.length * 60 + i * 30)
-    .duration(300)
-    .style('opacity', 1)
-
-  edgeLabel.transition()
-    .delay((d, i) => nodes.length * 60 + i * 30)
-    .duration(300)
-    .style('opacity', 1)
-
-  simulation.on('tick', () => {
-    link
-      .attr('x1', d => d.source.x)
-      .attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x)
-      .attr('y2', d => d.target.y)
-
-    edgeLabel
-      .attr('x', d => (d.source.x + d.target.x) / 2)
-      .attr('y', d => (d.source.y + d.target.y) / 2)
-
-    node.attr('transform', d => `translate(${d.x},${d.y})`)
+    svg.on('click', () => { selectedNode.value = null })
   })
-
-  svg.on('click', () => { selectedNode.value = null })
+  countDomNodes('GraphPanel', containerRef.value)
 }
 
 function dragstarted(event, d) {

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./assets/brand-tokens.css";
+@import "./assets/animations.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -132,16 +133,6 @@ button, [role="button"], a[href], summary, select, input[type="checkbox"], input
 .graph-enter {
   opacity: 0;
   animation: graph-node-enter 500ms ease forwards;
-}
-
-/* Fade-in utility */
-@keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.animate-fade-in {
-  animation: fade-in 400ms ease forwards;
 }
 
 /* Spinner animation */

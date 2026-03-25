@@ -4216,3 +4216,83 @@ def get_personality_evolution(simulation_id: str):
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== 反事实分析接口 ==============
+
+@simulation_bp.route('/<simulation_id>/counterfactual', methods=['POST'])
+def analyze_counterfactual(simulation_id: str):
+    """
+    Analyze a counterfactual scenario for a decision point in the simulation.
+
+    Request (JSON):
+        {
+            "agent_name": "Agent X",
+            "round_num": 3,
+            "action_type": "REPLY",
+            "content": "what the agent actually did",
+            "alternative": "what-if alternative action"
+        }
+
+    Returns counterfactual comparison with confidence estimate.
+    """
+    try:
+        data = request.get_json() or {}
+
+        agent_name = data.get('agent_name')
+        round_num = data.get('round_num')
+        if not agent_name or round_num is None:
+            return jsonify({
+                "success": False,
+                "error": "agent_name and round_num are required"
+            }), 400
+
+        decision_point = {
+            "agent_name": agent_name,
+            "round_num": round_num,
+            "action_type": data.get('action_type', 'ACTION'),
+            "content": data.get('content', ''),
+            "alternative": data.get('alternative', ''),
+        }
+
+        # Fetch surrounding actions for context
+        actions_context = []
+        try:
+            actions_context = SimulationRunner.get_actions(
+                simulation_id=simulation_id,
+                limit=30,
+                offset=0,
+            )
+        except Exception:
+            logger.debug("Could not fetch actions context for counterfactual")
+
+        # Fetch agent profiles if available
+        agent_profiles = []
+        try:
+            profiles_raw = SimulationRunner.get_profiles(simulation_id)
+            if isinstance(profiles_raw, list):
+                agent_profiles = profiles_raw
+            elif isinstance(profiles_raw, dict):
+                agent_profiles = profiles_raw.get('profiles', [])
+        except Exception:
+            logger.debug("Could not fetch agent profiles for counterfactual")
+
+        from ..services.counterfactual_service import analyze_counterfactual as cf_analyze
+        result = cf_analyze(
+            decision_point=decision_point,
+            actions_context=actions_context,
+            agent_profiles=agent_profiles,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"Counterfactual analysis failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

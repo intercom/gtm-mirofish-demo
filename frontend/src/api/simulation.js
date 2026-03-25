@@ -96,4 +96,8 @@ export const simulationApi = {
   // --- Consensus ---
   getConsensus: (simulationId) =>
     client.get(`/simulation/${simulationId}/consensus`),
+
+  // --- Counterfactual analysis ---
+  analyzeCounterfactual: (simulationId, data) =>
+    client.post(`/simulation/${simulationId}/counterfactual`, data),
 }

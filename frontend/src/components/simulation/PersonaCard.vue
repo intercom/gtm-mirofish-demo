@@ -12,9 +12,10 @@ const props = defineProps({
   redditActions: { type: Number, default: 0 },
   compact: { type: Boolean, default: false },
   clickable: { type: Boolean, default: false },
+  removable: { type: Boolean, default: false },
 })
 
-defineEmits(['click'])
+defineEmits(['click', 'remove'])
 
 function hashCode(str) {
   let hash = 0
@@ -89,7 +90,7 @@ const hasStats = computed(() => props.totalActions > 0)
   <component
     :is="clickable ? 'button' : 'div'"
     :class="[
-      'bg-[var(--color-surface)] border border-[var(--color-border)] text-left w-full',
+      'persona-card bg-[var(--color-surface)] border border-[var(--color-border)] text-left w-full',
       compact ? 'rounded-lg p-3' : 'rounded-xl p-5',
       clickable && 'cursor-pointer transition-shadow hover:shadow-md hover:border-[var(--color-primary-border)]',
     ]"
@@ -143,6 +144,18 @@ const hasStats = computed(() => props.totalActions > 0)
           </span>
         </div>
       </div>
+
+      <!-- Remove button (drag-and-drop team composer) -->
+      <button
+        v-if="removable"
+        @click.stop="$emit('remove')"
+        class="w-5 h-5 flex items-center justify-center rounded-full text-[var(--color-text-muted)] hover:text-[var(--color-error)] hover:bg-[var(--color-error-light)] transition-colors shrink-0"
+        title="Remove from team"
+      >
+        <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M2 2l8 8M10 2l-8 8" />
+        </svg>
+      </button>
     </div>
 
     <!-- Stats bar (non-compact only) -->
@@ -162,3 +175,10 @@ const hasStats = computed(() => props.totalActions > 0)
     </div>
   </component>
 </template>
+
+<style scoped>
+.persona-card.dragging {
+  opacity: 0.4;
+  border-style: dashed;
+}
+</style>

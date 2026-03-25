@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
+import TeamComposer from '../components/simulation/TeamComposer.vue'
 import { useToast } from '../composables/useToast'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useScenariosStore } from '../stores/scenarios'
@@ -271,15 +272,6 @@ onMounted(async () => {
 })
 
 
-function togglePersona(persona) {
-  const idx = selectedPersonas.value.indexOf(persona)
-  if (idx === -1) {
-    selectedPersonas.value.push(persona)
-  } else {
-    selectedPersonas.value.splice(idx, 1)
-  }
-}
-
 function toggleIndustry(industry) {
   const idx = selectedIndustries.value.indexOf(industry)
   if (idx === -1) {
@@ -446,22 +438,13 @@ async function runSimulation() {
             placeholder="Describe your scenario: What campaign are you testing? What messaging will prospects see? Include email copy, target audience details, and any competitive context. The more realistic the seed document, the more useful the simulation results will be."
           ></textarea>
 
-          <!-- Persona Types Multiselect -->
+          <!-- Team Composer (drag-and-drop persona selection) -->
           <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">
-            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Persona Types</label>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="persona in scenario.agent_config.persona_types"
-                :key="persona"
-                @click="togglePersona(persona)"
-                class="px-3 py-1.5 text-xs rounded-full border transition-colors"
-                :class="selectedPersonas.includes(persona)
-                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                  : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
-              >
-                {{ persona }}
-              </button>
-            </div>
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Team Composition</label>
+            <TeamComposer
+              :available-personas="scenario.agent_config.persona_types"
+              v-model="selectedPersonas"
+            />
           </div>
 
           <!-- Industry Mix Checkboxes -->

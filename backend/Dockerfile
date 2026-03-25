@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 WORKDIR /app
-RUN pip install flask flask-cors python-dotenv anthropic openai
+RUN pip install flask flask-cors python-dotenv anthropic openai gunicorn
 COPY gtm_scenarios/ ./gtm_scenarios/
 COPY llm_client.py .
 COPY demo_app.py .

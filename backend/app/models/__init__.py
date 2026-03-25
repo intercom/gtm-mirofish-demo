@@ -15,6 +15,7 @@ from .custom_agent import (
     CustomAgentConfig, CustomAgentManager,
     PersonalityVector, VALID_COMMUNICATION_STYLES,
 )
+from .salesforce import Account, Opportunity, Contact, Lead
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -23,5 +24,6 @@ __all__ = [
     'FUNNEL_STAGES', 'default_funnel_stages',
     'CustomAgentConfig', 'CustomAgentManager',
     'PersonalityVector', 'VALID_COMMUNICATION_STYLES',
+    'Account', 'Opportunity', 'Contact', 'Lead',
 ]
 

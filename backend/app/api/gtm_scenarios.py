@@ -19,6 +19,7 @@ from ..services.text_processor import TextProcessor
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..services.permissions import inject_permissions, inject_permissions_list, compute_permissions
 
 logger = get_logger('mirofish.gtm')
 
@@ -52,7 +53,10 @@ def list_scenarios():
                         'category': data.get('category', 'general'),
                         'icon': data.get('icon', ''),
                     })
-    return jsonify({'scenarios': scenarios})
+    return jsonify({
+        'scenarios': scenarios,
+        'permissions': compute_permissions('scenario'),
+    })
 
 
 @gtm_bp.route('/scenarios/<scenario_id>', methods=['GET'])
@@ -61,6 +65,7 @@ def get_scenario(scenario_id):
     filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
     data = _load_json(filepath)
     if data:
+        data['permissions'] = compute_permissions('scenario')
         return jsonify(data)
     return jsonify({'error': f'Scenario {scenario_id} not found'}), 404
 
@@ -325,10 +330,10 @@ def simulate():
 
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "task_id": task_id,
                 "project_id": project_id,
-            },
+            }, 'scenario'),
         })
 
     except Exception as e:

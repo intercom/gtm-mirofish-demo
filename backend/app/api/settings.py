@@ -6,6 +6,8 @@ Test connections and retrieve auth status for the Settings page.
 from flask import Blueprint, jsonify, request, current_app
 from openai import OpenAI
 
+from ..services.permissions import compute_permissions
+
 settings_bp = Blueprint('settings', __name__, url_prefix='/api/settings')
 
 
@@ -80,5 +82,7 @@ def auth_status():
                 'name': user.get('name'),
                 'picture': user.get('picture'),
             }
+
+    result['permissions'] = compute_permissions('settings')
 
     return jsonify(result)

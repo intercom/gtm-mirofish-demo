@@ -15,6 +15,7 @@ from ..services.simulation_manager import SimulationManager
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
+from ..services.permissions import inject_permissions, inject_permissions_list
 
 logger = get_logger('mirofish.api.report')
 
@@ -74,13 +75,13 @@ def generate_report():
             if existing_report and existing_report.status == ReportStatus.COMPLETED:
                 return jsonify({
                     "success": True,
-                    "data": {
+                    "data": inject_permissions({
                         "simulation_id": simulation_id,
                         "report_id": existing_report.report_id,
                         "status": "completed",
                         "message": "报告已存在",
                         "already_generated": True
-                    }
+                    }, 'report')
                 })
         
         # 获取项目信息
@@ -176,14 +177,14 @@ def generate_report():
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "simulation_id": simulation_id,
                 "report_id": report_id,
                 "task_id": task_id,
                 "status": "generating",
                 "message": "报告生成任务已启动，请通过 /api/report/generate/status 查询进度",
                 "already_generated": False
-            }
+            }, 'report')
         })
         
     except Exception as e:
@@ -299,9 +300,9 @@ def get_report(report_id: str):
         
         return jsonify({
             "success": True,
-            "data": report.to_dict()
+            "data": inject_permissions(report.to_dict(), 'report')
         })
-        
+
     except Exception as e:
         logger.error(f"获取报告失败: {str(e)}")
         return jsonify({
@@ -337,7 +338,7 @@ def get_report_by_simulation(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": report.to_dict(),
+            "data": inject_permissions(report.to_dict(), 'report'),
             "has_report": True
         })
         
@@ -377,7 +378,7 @@ def list_reports():
         
         return jsonify({
             "success": True,
-            "data": [r.to_dict() for r in reports],
+            "data": inject_permissions_list([r.to_dict() for r in reports], 'report'),
             "count": len(reports)
         })
         
@@ -730,13 +731,13 @@ def check_report_status(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "simulation_id": simulation_id,
                 "has_report": has_report,
                 "report_status": report_status,
                 "report_id": report_id,
                 "interview_unlocked": interview_unlocked
-            }
+            }, 'report')
         })
         
     except Exception as e:

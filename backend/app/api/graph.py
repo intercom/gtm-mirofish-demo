@@ -17,6 +17,7 @@ from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..services.permissions import inject_permissions, inject_permissions_list
 
 # 获取日志器
 logger = get_logger('mirofish.api')
@@ -47,7 +48,7 @@ def get_project(project_id: str):
     
     return jsonify({
         "success": True,
-        "data": project.to_dict()
+        "data": inject_permissions(project.to_dict(), 'project')
     })
 
 
@@ -61,7 +62,7 @@ def list_projects():
     
     return jsonify({
         "success": True,
-        "data": [p.to_dict() for p in projects],
+        "data": inject_permissions_list([p.to_dict() for p in projects], 'project'),
         "count": len(projects)
     })
 
@@ -112,7 +113,7 @@ def reset_project(project_id: str):
     return jsonify({
         "success": True,
         "message": f"项目已重置: {project_id}",
-        "data": project.to_dict()
+        "data": inject_permissions(project.to_dict(), 'project')
     })
 
 
@@ -236,14 +237,14 @@ def generate_ontology():
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "project_id": project.project_id,
                 "project_name": project.name,
                 "ontology": project.ontology,
                 "analysis_summary": project.analysis_summary,
                 "files": project.files,
                 "total_text_length": project.total_text_length
-            }
+            }, 'project')
         })
         
     except Exception as e:
@@ -509,11 +510,11 @@ def build_graph():
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "project_id": project_id,
                 "task_id": task_id,
                 "message": "图谱构建任务已启动，请通过 /task/{task_id} 查询进度"
-            }
+            }, 'project')
         })
         
     except Exception as e:
@@ -578,7 +579,7 @@ def get_graph_data(graph_id: str):
         
         return jsonify({
             "success": True,
-            "data": graph_data
+            "data": inject_permissions(graph_data, 'project')
         })
         
     except Exception as e:

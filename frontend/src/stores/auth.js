@@ -7,6 +7,7 @@ const STORAGE_KEY = 'mirofish-auth'
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const token = ref(null)
+  const role = ref('admin')
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
 
@@ -17,24 +18,28 @@ export const useAuthStore = defineStore('auth', () => {
         const s = JSON.parse(saved)
         user.value = s.user || null
         token.value = s.token || null
+        role.value = s.role || 'admin'
       }
     } catch {
       // Corrupted data — reset
     }
   }
 
-  function setAuth(userData, authToken) {
+  function setAuth(userData, authToken, userRole = 'viewer') {
     user.value = userData
     token.value = authToken
+    role.value = userRole
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       user: userData,
       token: authToken,
+      role: userRole,
     }))
   }
 
   function logout() {
     user.value = null
     token.value = null
+    role.value = 'admin'
     localStorage.removeItem(STORAGE_KEY)
   }
 
@@ -62,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     user,
     token,
+    role,
     isAuthenticated,
     load,
     setAuth,

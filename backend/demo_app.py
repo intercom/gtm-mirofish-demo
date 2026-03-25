@@ -1482,6 +1482,218 @@ def sim_close_env():
 
 
 # ---------------------------------------------------------------------------
+# Insights API
+# ---------------------------------------------------------------------------
+
+
+def _generate_template_insights(runs):
+    """Derive cross-run insights from aggregated simulation data using templates."""
+    insights = []
+    if not runs:
+        return insights
+
+    completed = [r for r in runs if r.get("status") == "completed"]
+    if not completed:
+        completed = runs
+
+    # --- 1. Agent count vs action volume ---
+    by_agents = {}
+    for r in completed:
+        bucket = "6+" if r.get("agentCount", 0) >= 6 else "≤5"
+        by_agents.setdefault(bucket, []).append(r.get("totalActions", 0))
+    if "6+" in by_agents and "≤5" in by_agents:
+        avg_high = sum(by_agents["6+"]) / len(by_agents["6+"])
+        avg_low = sum(by_agents["≤5"]) / len(by_agents["≤5"])
+        if avg_low > 0:
+            pct = round((avg_high - avg_low) / avg_low * 100)
+            if pct > 0:
+                insights.append({
+                    "id": "agent-count-actions",
+                    "text": f"Simulations with 6+ agents produce {pct}% more actions than those with 5 or fewer.",
+                    "confidence": "high" if len(by_agents["6+"]) >= 3 and len(by_agents["≤5"]) >= 3 else "medium",
+                    "category": "configuration",
+                    "supporting_data": {
+                        "avg_actions_6plus": round(avg_high, 1),
+                        "avg_actions_5_or_less": round(avg_low, 1),
+                        "sample_sizes": {
+                            "6+": len(by_agents["6+"]),
+                            "≤5": len(by_agents["≤5"]),
+                        },
+                    },
+                })
+
+    # --- 2. Scenario template comparison ---
+    by_scenario = {}
+    for r in completed:
+        name = r.get("scenarioName", "Unknown")
+        by_scenario.setdefault(name, []).append(r.get("totalActions", 0))
+    if len(by_scenario) >= 2:
+        ranked = sorted(by_scenario.items(), key=lambda x: sum(x[1]) / len(x[1]), reverse=True)
+        best_name, best_vals = ranked[0]
+        worst_name, worst_vals = ranked[-1]
+        best_avg = sum(best_vals) / len(best_vals)
+        worst_avg = sum(worst_vals) / len(worst_vals)
+        insights.append({
+            "id": "best-template",
+            "text": f'The "{best_name}" template produces the most engagement with an average of {round(best_avg)} actions per run.',
+            "confidence": "high" if len(best_vals) >= 3 else "medium",
+            "category": "template",
+            "supporting_data": {
+                "best_template": best_name,
+                "best_avg_actions": round(best_avg, 1),
+                "worst_template": worst_name,
+                "worst_avg_actions": round(worst_avg, 1),
+                "templates_compared": len(by_scenario),
+            },
+        })
+
+    # --- 3. Platform mode comparison ---
+    by_platform = {}
+    for r in completed:
+        mode = r.get("platformMode", "unknown")
+        by_platform.setdefault(mode, []).append(r.get("totalActions", 0))
+    if len(by_platform) >= 2:
+        ranked = sorted(by_platform.items(), key=lambda x: sum(x[1]) / len(x[1]), reverse=True)
+        best_mode, best_vals = ranked[0]
+        best_avg = sum(best_vals) / len(best_vals)
+        insights.append({
+            "id": "platform-mode",
+            "text": f'"{best_mode.capitalize()}" platform mode generates the highest average engagement ({round(best_avg)} actions).',
+            "confidence": "medium",
+            "category": "configuration",
+            "supporting_data": {
+                "mode_averages": {k: round(sum(v) / len(v), 1) for k, v in by_platform.items()},
+            },
+        })
+
+    # --- 4. Social channel distribution ---
+    total_twitter = sum(r.get("twitterActions", 0) for r in completed)
+    total_reddit = sum(r.get("redditActions", 0) for r in completed)
+    total_social = total_twitter + total_reddit
+    if total_social > 0:
+        tw_pct = round(total_twitter / total_social * 100)
+        insights.append({
+            "id": "channel-distribution",
+            "text": f"Twitter/X drives {tw_pct}% of all social actions across simulations, with Reddit accounting for {100 - tw_pct}%.",
+            "confidence": "high",
+            "category": "channels",
+            "supporting_data": {
+                "twitter_actions": total_twitter,
+                "reddit_actions": total_reddit,
+                "twitter_pct": tw_pct,
+            },
+        })
+
+    # --- 5. Trend over time ---
+    if len(completed) >= 3:
+        sorted_runs = sorted(completed, key=lambda r: r.get("timestamp", 0))
+        half = len(sorted_runs) // 2
+        first_half = sorted_runs[:half]
+        second_half = sorted_runs[half:]
+        avg_first = sum(r.get("totalActions", 0) for r in first_half) / len(first_half)
+        avg_second = sum(r.get("totalActions", 0) for r in second_half) / len(second_half)
+        if avg_first > 0:
+            trend_pct = round((avg_second - avg_first) / avg_first * 100)
+            direction = "improving" if trend_pct > 0 else "declining"
+            if abs(trend_pct) >= 5:
+                insights.append({
+                    "id": "trend-over-time",
+                    "text": f"Simulation engagement is {direction} — recent runs average {abs(trend_pct)}% {'more' if trend_pct > 0 else 'fewer'} actions than earlier ones.",
+                    "confidence": "medium" if len(completed) >= 5 else "low",
+                    "category": "trend",
+                    "supporting_data": {
+                        "earlier_avg": round(avg_first, 1),
+                        "recent_avg": round(avg_second, 1),
+                        "trend_pct": trend_pct,
+                        "total_runs": len(completed),
+                    },
+                })
+
+    # --- 6. Duration efficiency ---
+    by_duration = {}
+    for r in completed:
+        dur = r.get("duration", 0)
+        actions = r.get("totalActions", 0)
+        if dur > 0:
+            bucket = "long" if dur >= 48 else "short"
+            by_duration.setdefault(bucket, []).append(actions / dur)
+    if "long" in by_duration and "short" in by_duration:
+        avg_long = sum(by_duration["long"]) / len(by_duration["long"])
+        avg_short = sum(by_duration["short"]) / len(by_duration["short"])
+        if avg_long < avg_short and avg_short > 0:
+            drop_pct = round((1 - avg_long / avg_short) * 100)
+            insights.append({
+                "id": "duration-efficiency",
+                "text": f"Longer simulations (48h+) show {drop_pct}% lower actions-per-hour than shorter ones, suggesting diminishing returns.",
+                "confidence": "medium",
+                "category": "configuration",
+                "supporting_data": {
+                    "short_actions_per_hour": round(avg_short, 2),
+                    "long_actions_per_hour": round(avg_long, 2),
+                },
+            })
+
+    return insights
+
+
+@app.route("/api/insights/generate", methods=["POST"])
+def generate_insights():
+    """Generate cross-run insights from aggregated simulation data.
+
+    Accepts a list of simulation run summaries.  Returns template-based insights
+    by default; uses LLM for richer synthesis when a key is configured.
+    """
+    body = request.get_json(silent=True) or {}
+    runs = body.get("runs", [])
+
+    if not runs:
+        return _err("No simulation runs provided", 400)
+
+    template_insights = _generate_template_insights(runs)
+
+    # Attempt LLM enhancement if a key is configured
+    llm_insights = None
+    try:
+        if template_insights:
+            summary_text = "; ".join(i["text"] for i in template_insights)
+            prompt = (
+                "You are an analytics assistant for a GTM simulation tool. "
+                "Given these template-generated insights from multiple simulation runs, "
+                "synthesize 1-2 additional strategic insights that a GTM leader would find actionable. "
+                "Return ONLY a JSON array of objects with keys: text, confidence (high/medium/low), category.\n\n"
+                f"Template insights: {summary_text}\n\n"
+                f"Number of runs analyzed: {len(runs)}"
+            )
+            result = chat_completion([
+                {"role": "system", "content": "You are a concise GTM analytics assistant. Return valid JSON only."},
+                {"role": "user", "content": prompt},
+            ], max_tokens=512)
+            if result:
+                parsed = json.loads(result)
+                if isinstance(parsed, list):
+                    for i, item in enumerate(parsed):
+                        item["id"] = f"llm-insight-{i}"
+                        item["source"] = "llm"
+                    llm_insights = parsed
+    except Exception:
+        log.debug("LLM insight generation skipped or failed")
+
+    all_insights = template_insights
+    if llm_insights:
+        all_insights = template_insights + llm_insights
+
+    return _ok({
+        "insights": all_insights,
+        "meta": {
+            "runs_analyzed": len(runs),
+            "template_count": len(template_insights),
+            "llm_count": len(llm_insights) if llm_insights else 0,
+            "llm_enhanced": llm_insights is not None,
+        },
+    })
+
+
+# ---------------------------------------------------------------------------
 # Auth stubs
 # ---------------------------------------------------------------------------
 

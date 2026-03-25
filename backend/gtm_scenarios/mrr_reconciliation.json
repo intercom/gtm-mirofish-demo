@@ -1,0 +1,30 @@
+{
+  "id": "mrr_reconciliation",
+  "name": "MRR Reconciliation Simulation",
+  "description": "Simulate how finance and RevOps teams detect and resolve MRR discrepancies across billing, CRM, and reporting systems to predict revenue leakage and process bottlenecks.",
+  "category": "revenue",
+  "icon": "refresh",
+  "seed_text": "Intercom's Revenue Operations team has identified persistent discrepancies between MRR reported in Stripe (billing system), Salesforce (CRM), and internal financial dashboards. These discrepancies have grown as the customer base scaled past 25,000 accounts.\n\nKey reconciliation challenges:\n\n1. Billing-to-CRM drift: Subscription changes (upgrades, downgrades, add-ons) made in Stripe sometimes take 24-72 hours to reflect in Salesforce opportunity records, creating a window where MRR snapshots diverge by 2-5%.\n\n2. Multi-currency normalization: 40% of revenue comes from non-USD contracts. Exchange rate timing differences between Stripe settlement and Salesforce currency conversion create phantom variances of $50K-$200K monthly.\n\n3. Usage-based billing complexity: Intercom's seat-based pricing with usage overages (Fin AI resolutions, Proactive Support messages) means invoiced amounts often differ from contracted MRR. Finance must distinguish true MRR from variable usage revenue.\n\n4. Contract amendment lag: Mid-cycle contract changes (early renewals, expansion deals, co-term agreements) create mismatches between what the Account Executive closed and what Billing Operations configured. Average resolution time is 8 business days.\n\n5. Credit and refund reconciliation: Customer credits, promotional discounts, and partial refunds applied in Stripe reduce collected revenue but should not always reduce MRR. The rules for when credits affect MRR vs. collections are inconsistent across teams.\n\n6. Churn timing disputes: Sales says a customer churned on contract end date; Finance counts churn when the last invoice goes unpaid past 90 days; Product counts churn when usage drops to zero. These three definitions create 3-8% MRR variance.\n\nSimulation parameters:\n- 300 agent personas representing cross-functional stakeholders\n- Each agent manages a portfolio of 50-200 accounts\n- Agents must reconcile discrepancies across three source systems\n- Introduce synthetic discrepancy events each round (upgrade not synced, currency mismatch, credit applied incorrectly)\n\nReconciliation scenarios to test:\n1. Manual monthly close: Teams use spreadsheets to reconcile at month-end\n2. Automated real-time sync: Webhook-driven reconciliation with human review for exceptions\n3. Tiered review process: Auto-approve variances under $500, manager review for $500-$5K, VP review for $5K+\n4. Source-of-truth model: Designate one system (Stripe) as authoritative and force all others to conform\n\nThe simulation should predict: Average days to reconcile by discrepancy type, revenue leakage rate by category, team bottleneck identification, optimal process recommendation, and forecast accuracy improvement per approach.",
+  "agent_config": {
+    "count": 300,
+    "persona_types": ["RevOps Manager", "Finance Analyst", "Account Executive", "Billing Operations Specialist", "FP&A Director"],
+    "firmographic_mix": {
+      "segments": ["SMB", "Mid-Market", "Enterprise"],
+      "account_portfolio_size": ["50-100 accounts", "100-150 accounts", "150-200 accounts"],
+      "reconciliation_experience": ["< 1 year", "1-3 years", "3+ years"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 96,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Average reconciliation time by discrepancy type",
+    "Revenue leakage rate by category (billing drift, currency, usage, amendments, credits, churn timing)",
+    "Team bottleneck heatmap across reconciliation workflow",
+    "Optimal reconciliation process recommendation",
+    "Forecast accuracy improvement per approach",
+    "Cross-system MRR variance reduction projection"
+  ]
+}

@@ -75,6 +75,7 @@ const ICON_MAP = {
   sparkle: '✨',
   pipeline: '🔄',
   'trending-up': '📈',
+  refresh: '🔄',
 }
 
 function resolveIcon(icon) {
@@ -137,6 +138,12 @@ async function loadScenarios() {
         name: 'Expansion Revenue Simulation',
         description: 'Simulate upsell and cross-sell motions across existing customer segments.',
         icon: '📈',
+      },
+      {
+        id: 'mrr_reconciliation',
+        name: 'MRR Reconciliation Simulation',
+        description: 'Predict revenue leakage and reconciliation bottlenecks across billing, CRM, and reporting.',
+        icon: '🔄',
       },
     ]
     error.value = null

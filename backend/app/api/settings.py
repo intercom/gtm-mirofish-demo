@@ -82,3 +82,28 @@ def auth_status():
             }
 
     return jsonify(result)
+
+
+# ============== Cache Management ==============
+
+@settings_bp.route('/cache', methods=['GET'])
+def cache_stats():
+    """Return current cache statistics."""
+    from ..services.cache import cache_manager
+    return jsonify({'ok': True, 'data': cache_manager.stats()})
+
+
+@settings_bp.route('/cache', methods=['DELETE'])
+def cache_clear():
+    """Clear all cached responses."""
+    from ..services.cache import cache_manager
+    removed = cache_manager.clear()
+    return jsonify({'ok': True, 'cleared': removed})
+
+
+@settings_bp.route('/cache/evict', methods=['POST'])
+def cache_evict():
+    """Evict expired entries from cache."""
+    from ..services.cache import cache_manager
+    evicted = cache_manager.evict_expired()
+    return jsonify({'ok': True, 'evicted': evicted})

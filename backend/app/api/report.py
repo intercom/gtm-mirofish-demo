@@ -10,6 +10,7 @@ from flask import request, jsonify, send_file
 
 from . import report_bp
 from ..config import Config
+from ..services.cache import cached_response
 from ..services.report_agent import (
     ReportAgent, ReportManager, ReportStatus, REPORT_TYPES,
 )
@@ -532,6 +533,7 @@ def get_report_by_simulation(simulation_id: str):
 
 
 @report_bp.route('/list', methods=['GET'])
+@cached_response(ttl=30)
 def list_reports():
     """
     列出所有报告

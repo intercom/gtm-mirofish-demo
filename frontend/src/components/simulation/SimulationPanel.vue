@@ -9,8 +9,9 @@ import AgentMoodIndicator from './AgentMoodIndicator.vue'
 import BehaviorPatterns from './BehaviorPatterns.vue'
 import CollaborationIndicator from './CollaborationIndicator.vue'
 import LiveMetrics from './LiveMetrics.vue'
-import TimelineAnnotations from '../timeline/TimelineAnnotations.vue'
 import PredictionDashboard from './PredictionDashboard.vue'
+import SyncedChart from '../timeline/SyncedChart.vue'
+import MultiMetricView from './MultiMetricView.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -19,6 +20,7 @@ const props = defineProps({
 const polling = inject('polling')
 
 const activePlatform = ref('all')
+const chartViewMode = ref('detail') // 'detail' | 'overview'
 const chartCanvas = ref(null)
 const heartbeatCanvas = ref(null)
 const feedContainer = ref(null)
@@ -509,18 +511,52 @@ onUnmounted(() => {
         <!-- Collaboration Indicator -->
         <CollaborationIndicator class="mb-6" />
 
-        <!-- Two-column layout: Chart + Activity Feed -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- View mode toggle -->
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex gap-1 bg-[var(--color-tint)] rounded-lg p-1">
+            <button
+              class="px-3 py-1 text-xs rounded-md font-medium transition-colors"
+              :class="chartViewMode === 'detail'
+                ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+              @click="chartViewMode = 'detail'"
+            >
+              Detail
+            </button>
+            <button
+              class="px-3 py-1 text-xs rounded-md font-medium transition-colors"
+              :class="chartViewMode === 'overview'
+                ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+              @click="chartViewMode = 'overview'"
+            >
+              Overview
+            </button>
+          </div>
+        </div>
+
+        <!-- Multi-Metric Overview (when in overview mode) -->
+        <MultiMetricView
+          v-if="chartViewMode === 'overview'"
+          :timeline="polling.timeline.value"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Two-column layout: Chart + Activity Feed (detail mode) -->
+        <div v-if="chartViewMode === 'detail'" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <!-- Engagement Timeline Chart -->
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
             <h3 class="text-sm font-semibold text-[var(--color-text)] mb-4">Engagement Timeline</h3>
-            <div v-if="polling.timeline.value.length" class="relative" style="height: 200px">
-              <canvas ref="chartCanvas" class="w-full h-full" />
-            </div>
-            <div v-else class="flex items-center justify-center h-[200px] text-[var(--color-text-muted)] text-sm">
-              <span v-if="status === 'building'">Waiting for simulation to start...</span>
-              <span v-else>No timeline data yet</span>
-            </div>
+            <SyncedChart :pad-left="40" :pad-right="16">
+              <div v-if="polling.timeline.value.length" class="relative" style="height: 200px">
+                <canvas ref="chartCanvas" class="w-full h-full" />
+              </div>
+              <div v-else class="flex items-center justify-center h-[200px] text-[var(--color-text-muted)] text-sm">
+                <span v-if="status === 'building'">Waiting for simulation to start...</span>
+                <span v-else>No timeline data yet</span>
+              </div>
+            </SyncedChart>
             <div v-if="polling.timeline.value.length" class="flex items-center gap-4 mt-3 text-xs text-[var(--color-text-muted)]">
               <span v-if="activePlatform !== 'reddit'" class="flex items-center gap-1">
                 <span class="inline-block w-3 h-0.5 bg-[var(--color-primary)] rounded" /> Twitter
@@ -581,21 +617,18 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Sentiment Timeline -->
-        <SentimentTimeline
-          v-if="filteredActions.length > 0"
-          :actions="filteredActions"
-          :timeline="polling.timeline.value"
-          class="mb-4"
-        />
-
-        <!-- Timeline Annotations -->
-        <TimelineAnnotations
-          v-if="filteredActions.length > 0"
-          :task-id="taskId"
-          :rounds="actionRounds"
+        <!-- Sentiment Timeline (detail mode only) -->
+        <SyncedChart
+          v-if="chartViewMode === 'detail' && filteredActions.length > 0"
+          :pad-left="56"
+          :pad-right="36"
           class="mb-8"
-        />
+        >
+          <SentimentTimeline
+            :actions="filteredActions"
+            :timeline="polling.timeline.value"
+          />
+        </SyncedChart>
 
         <!-- Timeline Event Markers -->
         <TimelineEventMarkers

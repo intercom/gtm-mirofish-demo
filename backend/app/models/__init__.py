@@ -4,6 +4,11 @@
 
 from .task import TaskManager, TaskStatus
 from .project import Project, ProjectStatus, ProjectManager
+from .session import Session, SessionStatus, SessionManager
 
-__all__ = ['TaskManager', 'TaskStatus', 'Project', 'ProjectStatus', 'ProjectManager']
+__all__ = [
+    'TaskManager', 'TaskStatus',
+    'Project', 'ProjectStatus', 'ProjectManager',
+    'Session', 'SessionStatus', 'SessionManager',
+]
 

@@ -72,6 +72,10 @@ def create_app(config_class=Config):
     from .api.gtm_scenarios import gtm_bp
     app.register_blueprint(gtm_bp)
 
+    # Revenue metrics API
+    from .api.revenue import revenue_bp
+    app.register_blueprint(revenue_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

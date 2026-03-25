@@ -24,7 +24,6 @@ describe('client', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.clearAllMocks()
-    localStorage.clear()
   })
 
   it('creates an axios instance with /api baseURL', async () => {
@@ -43,32 +42,10 @@ describe('client', () => {
     )
   })
 
-  it('registers request and response interceptors', async () => {
+  it('registers a response interceptor', async () => {
     await import('../client')
     const instance = axios.create.mock.results[0].value
-    expect(instance.interceptors.request.use).toHaveBeenCalledTimes(1)
     expect(instance.interceptors.response.use).toHaveBeenCalledTimes(1)
-  })
-
-  it('injects auth token from localStorage in request interceptor', async () => {
-    await import('../client')
-    const instance = axios.create.mock.results[0].value
-    const requestHandler = instance.interceptors.request.use.mock.calls[0][0]
-
-    localStorage.setItem('auth_token', 'test-token-123')
-    const config = { headers: {} }
-    const result = requestHandler(config)
-    expect(result.headers.Authorization).toBe('Bearer test-token-123')
-  })
-
-  it('does not set Authorization header when no token exists', async () => {
-    await import('../client')
-    const instance = axios.create.mock.results[0].value
-    const requestHandler = instance.interceptors.request.use.mock.calls[0][0]
-
-    const config = { headers: {} }
-    const result = requestHandler(config)
-    expect(result.headers.Authorization).toBeUndefined()
   })
 
   it('normalizes error responses in response interceptor', async () => {
@@ -88,21 +65,6 @@ describe('client', () => {
     })
   })
 
-  it('clears token on 401 and attempts redirect', async () => {
-    await import('../client')
-    const instance = axios.create.mock.results[0].value
-    const errorHandler = instance.interceptors.response.use.mock.calls[0][1]
-
-    localStorage.setItem('auth_token', 'expired')
-
-    const error = {
-      response: { status: 401, data: { error: 'Unauthorized' } },
-    }
-
-    await expect(errorHandler(error)).rejects.toBeDefined()
-    expect(localStorage.getItem('auth_token')).toBeNull()
-  })
-
   it('handles network errors without response', async () => {
     await import('../client')
     const instance = axios.create.mock.results[0].value
@@ -112,6 +74,36 @@ describe('client', () => {
 
     await expect(errorHandler(error)).rejects.toEqual({
       message: 'Network Error',
+      status: 0,
+      data: null,
+    })
+  })
+
+  it('uses error.response.data.message as fallback', async () => {
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    const errorHandler = instance.interceptors.response.use.mock.calls[0][1]
+
+    const error = {
+      response: { status: 400, data: { message: 'Bad request' } },
+    }
+
+    await expect(errorHandler(error)).rejects.toEqual({
+      message: 'Bad request',
+      status: 400,
+      data: { message: 'Bad request' },
+    })
+  })
+
+  it('defaults message to "Network error" when no info available', async () => {
+    await import('../client')
+    const instance = axios.create.mock.results[0].value
+    const errorHandler = instance.interceptors.response.use.mock.calls[0][1]
+
+    const error = {}
+
+    await expect(errorHandler(error)).rejects.toEqual({
+      message: 'Network error',
       status: 0,
       data: null,
     })

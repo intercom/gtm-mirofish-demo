@@ -32,7 +32,7 @@ describe('brand-tokens.css', () => {
     })
 
     it('defines accent purple', () => {
-      expect(rootProps.get('--color-accent')).toBe('#A0F')
+      expect(rootProps.get('--color-accent')).toBe('#AA00FF')
     })
 
     it('defines semantic status colors', () => {
@@ -66,15 +66,14 @@ describe('brand-tokens.css', () => {
     })
 
     it('defines font weights', () => {
-      expect(rootProps.has('--font-weight-normal')).toBe(true)
-      expect(rootProps.has('--font-weight-medium')).toBe(true)
-      expect(rootProps.has('--font-weight-semibold')).toBe(true)
-      expect(rootProps.has('--font-weight-bold')).toBe(true)
+      expect(rootProps.has('--font-medium')).toBe(true)
+      expect(rootProps.has('--font-semibold')).toBe(true)
+      expect(rootProps.has('--font-bold')).toBe(true)
     })
 
     it('defines font families', () => {
       expect(rootProps.has('--font-family')).toBe(true)
-      expect(rootProps.has('--font-family-mono')).toBe(true)
+      expect(rootProps.has('--font-mono')).toBe(true)
     })
   })
 
@@ -154,7 +153,7 @@ describe('brand-tokens.css', () => {
       expect(rootProps.has('--input-padding-x')).toBe(true)
       expect(rootProps.has('--input-padding-y')).toBe(true)
       expect(rootProps.has('--input-font-size')).toBe(true)
-      expect(rootProps.has('--input-focus-ring')).toBe(true)
+      expect(rootProps.has('--input-ring')).toBe(true)
       expect(rootProps.has('--input-placeholder')).toBe(true)
     })
   })
@@ -189,9 +188,9 @@ describe('brand-tokens.css', () => {
     })
 
     it('overrides badge status colors for legibility', () => {
-      expect(darkProps.has('--badge-success-text')).toBe(true)
-      expect(darkProps.has('--badge-warning-text')).toBe(true)
-      expect(darkProps.has('--badge-error-text')).toBe(true)
+      expect(darkProps.has('--badge-success-text-soft')).toBe(true)
+      expect(darkProps.has('--badge-warning-text-soft')).toBe(true)
+      expect(darkProps.has('--badge-error-text-soft')).toBe(true)
     })
   })
 })

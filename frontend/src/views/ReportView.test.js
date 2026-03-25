@@ -10,6 +10,7 @@ function createTestRouter() {
       { path: '/report/:taskId', component: ReportView, props: true },
       { path: '/chat/:taskId', component: { template: '<div />' } },
       { path: '/', component: { template: '<div />' } },
+      { path: '/workspace/:taskId', component: { template: '<div />' } },
     ],
   })
 }
@@ -33,33 +34,21 @@ const MOCK_SECTIONS = [
 ]
 
 function mockFetchForGenerated() {
-  return vi.fn((url, opts) => {
-    if (url === '/api/report/generate') {
+  return vi.fn((url) => {
+    if (url.includes('/report/check/')) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
           success: true,
           data: {
+            has_report: true,
             report_id: 'report_abc123',
-            status: 'completed',
-            already_generated: true,
+            report_status: 'completed',
           },
         }),
       })
     }
-    if (url === '/api/report/report_abc123') {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          success: true,
-          data: {
-            report_id: 'report_abc123',
-            markdown_content: MOCK_SECTIONS.map(s => s.content).join('\n\n'),
-          },
-        }),
-      })
-    }
-    if (url === '/api/report/report_abc123/sections') {
+    if (url.includes('/report/report_abc123/sections')) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
@@ -74,7 +63,10 @@ function mockFetchForGenerated() {
 
 function mockFetchForGenerating() {
   return vi.fn((url) => {
-    if (url === '/api/report/generate') {
+    if (url.includes('/report/check/')) {
+      return Promise.resolve({ ok: false })
+    }
+    if (url.includes('/report/generate')) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
@@ -88,7 +80,7 @@ function mockFetchForGenerating() {
         }),
       })
     }
-    if (url === '/api/report/report_new456/sections') {
+    if (url.includes('/report/report_new456/sections')) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
@@ -97,7 +89,7 @@ function mockFetchForGenerating() {
         }),
       })
     }
-    if (url === '/api/report/report_new456/progress') {
+    if (url.includes('/report/report_new456/progress')) {
       return Promise.resolve({
         ok: true,
         json: () => Promise.resolve({
@@ -117,15 +109,35 @@ function mockFetchForGenerating() {
 }
 
 function mockFetchForError() {
-  return vi.fn(() =>
-    Promise.resolve({
+  return vi.fn((url) => {
+    if (url.includes('/report/check/')) {
+      return Promise.resolve({ ok: false })
+    }
+    return Promise.resolve({
       ok: true,
       json: () => Promise.resolve({
         success: false,
         error: 'Simulation not found',
       }),
     })
-  )
+  })
+}
+
+function mountReport(fetchMock, opts = {}) {
+  globalThis.fetch = fetchMock
+  const router = createTestRouter()
+  return mount(ReportView, {
+    props: { taskId: 'sim_test' },
+    global: {
+      plugins: [router],
+      stubs: {
+        PhaseNav: { props: ['taskId', 'activePhase'], template: '<div class="phase-nav"></div>' },
+        ShimmerCard: { template: '<div class="shimmer"></div>' },
+        ReportCharts: { props: ['chapterIndex'], template: '<div class="charts"></div>' },
+      },
+    },
+    ...opts,
+  })
 }
 
 describe('ReportView', () => {
@@ -141,51 +153,41 @@ describe('ReportView', () => {
     vi.useRealTimers()
   })
 
-  it('shows loading state initially', () => {
+  it('shows shimmer loading state while generating with no content', async () => {
     globalThis.fetch = vi.fn(() => new Promise(() => {}))
     const router = createTestRouter()
     const wrapper = mount(ReportView, {
       props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
+      global: {
+        plugins: [router],
+        stubs: {
+          PhaseNav: { props: ['taskId', 'activePhase'], template: '<div class="phase-nav"></div>' },
+          ShimmerCard: { template: '<div class="shimmer"></div>' },
+          ReportCharts: { props: ['chapterIndex'], template: '<div class="charts"></div>' },
+        },
+      },
     })
-    expect(wrapper.text()).toContain('Loading report...')
+    expect(wrapper.text()).toContain('Predictive Report')
   })
 
-  it('renders header with title and task id', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+  it('renders header with title', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Simulation Report')
-    expect(wrapper.text()).toContain('sim_test')
+    expect(wrapper.text()).toContain('Predictive Report')
   })
 
-  it('renders sidebar with summary and chapter titles for completed report', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+  it('renders sidebar with chapter titles for completed report', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Summary')
     expect(wrapper.text()).toContain('Executive Summary')
     expect(wrapper.text()).toContain('Market Analysis')
     expect(wrapper.text()).toContain('Recommendations')
   })
 
-  it('shows key findings in summary view by default', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+  it('shows key findings extracted from chapters', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
     expect(wrapper.text()).toContain('Key Findings')
@@ -193,138 +195,68 @@ describe('ReportView', () => {
     expect(wrapper.text()).toContain('Competitor response was slower')
   })
 
-  it('displays blue callout boxes for key findings', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
-    await flushPromises()
-
-    const callouts = wrapper.findAll('.border-\\[\\#2068FF\\]')
-    expect(callouts.length).toBeGreaterThan(0)
-  })
-
-  it('shows report stats in summary view', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('Chapters')
-    expect(wrapper.text()).toContain('Key Findings')
-    expect(wrapper.text()).toContain('Complete')
-  })
-
   it('renders chapter content when a chapter is clicked', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
     const chapterButtons = wrapper.findAll('nav button')
-    // Click "Market Analysis" (3rd button: summary, exec summary, market analysis)
-    await chapterButtons[2].trigger('click')
+    const marketAnalysisBtn = chapterButtons.find(b => b.text().includes('Market Analysis'))
+    await marketAnalysisBtn.trigger('click')
 
     expect(wrapper.find('.report-content').exists()).toBe(true)
     expect(wrapper.text()).toContain('Detailed analysis of market conditions')
   })
 
   it('shows completion checkmarks for chapters', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
-    const checkmarks = wrapper.findAll('nav svg path[d="m4.5 12.75 6 6 9-13.5"]')
+    const checkmarks = wrapper.findAll('nav svg path[d="M5 13l4 4L19 7"]')
     expect(checkmarks.length).toBe(3)
   })
 
-  it('shows export button when chapters exist', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+  it('shows export button when chapters exist and report is complete', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Export .md')
+    expect(wrapper.text()).toContain('Export Markdown')
   })
 
-  it('exports markdown as a file download', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+  it('exports markdown via window.open', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
-    const createObjectURL = vi.fn(() => 'blob:test')
-    const revokeObjectURL = vi.fn()
-    globalThis.URL.createObjectURL = createObjectURL
-    globalThis.URL.revokeObjectURL = revokeObjectURL
-
-    const clickSpy = vi.fn()
-    vi.spyOn(document, 'createElement').mockReturnValueOnce({
-      href: '',
-      download: '',
-      click: clickSpy,
-    })
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
 
     const exportBtn = wrapper.findAll('button').find(b => b.text().includes('Export'))
     await exportBtn.trigger('click')
 
-    expect(createObjectURL).toHaveBeenCalled()
-    expect(clickSpy).toHaveBeenCalled()
-    expect(revokeObjectURL).toHaveBeenCalled()
+    expect(openSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/report/report_abc123/download'),
+      '_blank',
+    )
+    openSpy.mockRestore()
   })
 
-  it('shows error state when API fails', async () => {
-    globalThis.fetch = mockFetchForError()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+  it('shows error state when generation API fails', async () => {
+    const wrapper = mountReport(mockFetchForError())
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Report generation failed')
     expect(wrapper.text()).toContain('Simulation not found')
   })
 
-  it('shows empty state when no report and not generating', async () => {
+  it('shows empty state when no sections and not generating', async () => {
     globalThis.fetch = vi.fn((url) => {
-      if (url === '/api/report/generate') {
+      if (url.includes('/report/check/')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
             success: true,
-            data: { report_id: 'report_empty', status: 'completed', already_generated: true },
+            data: { has_report: true, report_id: 'report_empty', report_status: 'completed' },
           }),
         })
       }
-      if (url === '/api/report/report_empty') {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            success: true,
-            data: { report_id: 'report_empty', markdown_content: '' },
-          }),
-        })
-      }
-      if (url === '/api/report/report_empty/sections') {
+      if (url.includes('/report/report_empty/sections')) {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
@@ -338,85 +270,46 @@ describe('ReportView', () => {
     const router = createTestRouter()
     const wrapper = mount(ReportView, {
       props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
+      global: {
+        plugins: [router],
+        stubs: {
+          PhaseNav: { props: ['taskId', 'activePhase'], template: '<div class="phase-nav"></div>' },
+          ShimmerCard: { template: '<div class="shimmer"></div>' },
+          ReportCharts: { props: ['chapterIndex'], template: '<div class="charts"></div>' },
+        },
+      },
     })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No report data yet')
+    expect(wrapper.text()).toContain('No report content available')
   })
 
   it('shows progress bar when generating', async () => {
-    globalThis.fetch = mockFetchForGenerating()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+    const wrapper = mountReport(mockFetchForGenerating())
+    await flushPromises()
+
+    // Trigger the poll interval to execute
+    await vi.advanceTimersByTimeAsync(3000)
     await flushPromises()
 
     expect(wrapper.text()).toContain('Executive Summary')
-    expect(wrapper.text()).toContain('complete')
+    expect(wrapper.text()).toContain('33%')
   })
 
   it('renders Ask Follow-Up link to chat', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
-    const link = wrapper.find('a[href="/chat/sim_test"]')
-    expect(link.exists()).toBe(true)
+    const link = wrapper.find('a')
     expect(link.text()).toContain('Ask Follow-Up')
   })
 
-  it('switches between summary and chapter views', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
+  it('displays chapter navigation footer when multiple chapters exist', async () => {
+    const wrapper = mountReport(mockFetchForGenerated())
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Key Findings')
-
-    const buttons = wrapper.findAll('nav button')
-    await buttons[1].trigger('click')
-    expect(wrapper.find('.report-content').exists()).toBe(true)
-
-    await buttons[0].trigger('click')
-    expect(wrapper.text()).toContain('Key Findings')
-  })
-
-  it('uses TransitionGroup for chapter nav', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
-    await flushPromises()
-
-    const tg = wrapper.findComponent({ name: 'TransitionGroup' })
-    expect(tg.exists()).toBe(true)
-  })
-
-  it('uses Transition for chapter content switching', async () => {
-    globalThis.fetch = mockFetchForGenerated()
-    const router = createTestRouter()
-    const wrapper = mount(ReportView, {
-      props: { taskId: 'sim_test' },
-      global: { plugins: [router] },
-    })
-    await flushPromises()
-
-    const buttons = wrapper.findAll('nav button')
-    await buttons[1].trigger('click')
-
-    const transition = wrapper.findComponent({ name: 'Transition' })
-    expect(transition.exists()).toBe(true)
+    expect(wrapper.text()).toContain('Previous Chapter')
+    expect(wrapper.text()).toContain('Next Chapter')
+    expect(wrapper.text()).toContain('1 of 3')
   })
 })

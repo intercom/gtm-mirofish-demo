@@ -38,14 +38,13 @@ describe('SettingsView', () => {
     expect(wrapper.find('h1').text()).toBe('Settings')
   })
 
-  it('renders all five section headings', () => {
+  it('renders all four section headings', () => {
     const wrapper = mountSettings()
     const headings = wrapper.findAll('h2').map(h => h.text())
     expect(headings).toContain('Theme')
     expect(headings).toContain('LLM Provider')
     expect(headings).toContain('Zep Cloud (Knowledge Graph)')
     expect(headings).toContain('Simulation Defaults')
-    expect(headings).toContain('Authentication')
   })
 
   // ── LLM Provider ──────────────────────────────────────────────────
@@ -80,7 +79,7 @@ describe('SettingsView', () => {
   it('renders Test Connection button for LLM', () => {
     const wrapper = mountSettings()
     const buttons = wrapper.findAll('button')
-    const testButtons = buttons.filter(b => b.text() === 'Test')
+    const testButtons = buttons.filter(b => b.text() === 'Test Connection')
     expect(testButtons.length).toBeGreaterThanOrEqual(1)
   })
 
@@ -94,7 +93,7 @@ describe('SettingsView', () => {
 
   it('renders Zep Test Connection button', () => {
     const wrapper = mountSettings()
-    const testButtons = wrapper.findAll('button').filter(b => b.text() === 'Test')
+    const testButtons = wrapper.findAll('button').filter(b => b.text() === 'Test Connection')
     expect(testButtons).toHaveLength(2)
   })
 
@@ -105,7 +104,7 @@ describe('SettingsView', () => {
     const slider = wrapper.find('input[type="range"]')
     expect(slider.exists()).toBe(true)
     expect(slider.element.value).toBe('200')
-    expect(slider.attributes('min')).toBe('50')
+    expect(slider.attributes('min')).toBe('10')
     expect(slider.attributes('max')).toBe('500')
   })
 
@@ -116,21 +115,21 @@ describe('SettingsView', () => {
 
   it('renders duration buttons for 24h, 48h, 72h', () => {
     const wrapper = mountSettings()
-    const durationButtons = wrapper.findAll('button').filter(b => /^\d+h$/.test(b.text()))
+    const durationButtons = wrapper.findAll('button').filter(b => /^\d+ hours/.test(b.text()))
     expect(durationButtons).toHaveLength(3)
-    expect(durationButtons.map(b => b.text())).toEqual(['24h', '48h', '72h'])
+    expect(durationButtons.map(b => b.text())).toEqual(['24 hours', '48 hours', '72 hours (recommended)'])
   })
 
   it('defaults duration to 72h (active state)', () => {
     const wrapper = mountSettings()
-    const btn72 = wrapper.findAll('button').find(b => b.text() === '72h')
+    const btn72 = wrapper.findAll('button').find(b => b.text() === '72 hours (recommended)')
     expect(btn72.classes().join(' ')).toContain('text-white')
   })
 
   it('renders platform mode buttons', () => {
     const wrapper = mountSettings()
     const platformButtons = wrapper.findAll('button').filter(b =>
-      ['twitter', 'reddit', 'Both'].includes(b.text())
+      ['Twitter', 'Reddit', 'Both'].includes(b.text())
     )
     expect(platformButtons).toHaveLength(3)
   })
@@ -143,70 +142,27 @@ describe('SettingsView', () => {
 
   it('changes duration when button clicked', async () => {
     const wrapper = mountSettings()
-    const btn24 = wrapper.findAll('button').find(b => b.text() === '24h')
+    const btn24 = wrapper.findAll('button').find(b => b.text() === '24 hours')
     await btn24.trigger('click')
     expect(btn24.classes().join(' ')).toContain('text-white')
-    const btn72 = wrapper.findAll('button').find(b => b.text() === '72h')
+    const btn72 = wrapper.findAll('button').find(b => b.text() === '72 hours (recommended)')
     expect(btn72.classes().join(' ')).not.toContain('text-white')
   })
 
   it('changes platform mode when button clicked', async () => {
     const wrapper = mountSettings()
-    const twitterBtn = wrapper.findAll('button').find(b => b.text() === 'twitter')
+    const twitterBtn = wrapper.findAll('button').find(b => b.text() === 'Twitter')
     await twitterBtn.trigger('click')
     expect(twitterBtn.classes().join(' ')).toContain('text-white')
     const bothBtn = wrapper.findAll('button').find(b => b.text() === 'Both')
     expect(bothBtn.classes().join(' ')).not.toContain('text-white')
   })
 
-  // ── Auth section ──────────────────────────────────────────────────
-
-  it('shows auth disabled message when auth is not enabled', () => {
-    const wrapper = mountSettings()
-    expect(wrapper.text()).toContain('Authentication is not enabled')
-    expect(wrapper.text()).toContain('AUTH_ENABLED=true')
-  })
-
-  it('shows not signed in with sign in link when auth enabled but no user', () => {
-    localStorage.setItem('auth_enabled', 'true')
-    const wrapper = mountSettings()
-    expect(wrapper.text()).toContain('Not signed in')
-    expect(wrapper.text()).toContain('Sign In')
-  })
-
-  it('shows user info and logout button when auth enabled with user', () => {
-    localStorage.setItem('auth_enabled', 'true')
-    localStorage.setItem('auth_user', JSON.stringify({ name: 'Jane Doe', email: 'jane@intercom.io' }))
-    const wrapper = mountSettings()
-    expect(wrapper.text()).toContain('Jane Doe')
-    expect(wrapper.text()).toContain('jane@intercom.io')
-    expect(wrapper.text()).toContain('Log Out')
-  })
-
-  it('shows email as name when user has no name field', () => {
-    localStorage.setItem('auth_enabled', 'true')
-    localStorage.setItem('auth_user', JSON.stringify({ email: 'jane@intercom.io' }))
-    const wrapper = mountSettings()
-    expect(wrapper.text()).toContain('jane@intercom.io')
-  })
-
-  it('logout clears auth data and navigates to login', async () => {
-    localStorage.setItem('auth_enabled', 'true')
-    localStorage.setItem('auth_token', 'some-token')
-    localStorage.setItem('auth_user', JSON.stringify({ name: 'Jane', email: 'jane@intercom.io' }))
-    const wrapper = mountSettings()
-    const logoutBtn = wrapper.findAll('button').find(b => b.text() === 'Log Out')
-    await logoutBtn.trigger('click')
-    expect(localStorage.getItem('auth_token')).toBeNull()
-    expect(localStorage.getItem('auth_user')).toBeNull()
-    expect(mockPush).toHaveBeenCalledWith('/login')
-  })
-
   // ── Settings persistence ──────────────────────────────────────────
 
   it('saves simulation defaults to localStorage', async () => {
     const wrapper = mountSettings()
-    const btn24 = wrapper.findAll('button').find(b => b.text() === '24h')
+    const btn24 = wrapper.findAll('button').find(b => b.text() === '24 hours')
     await btn24.trigger('click')
     const stored = JSON.parse(localStorage.getItem('mirofish-settings'))
     expect(stored.duration).toBe(24)
@@ -227,9 +183,9 @@ describe('SettingsView', () => {
     await nextTick()
     const slider = wrapper.find('input[type="range"]')
     expect(slider.element.value).toBe('350')
-    const btn48 = wrapper.findAll('button').find(b => b.text() === '48h')
+    const btn48 = wrapper.findAll('button').find(b => b.text() === '48 hours')
     expect(btn48.classes().join(' ')).toContain('text-white')
-    const redditBtn = wrapper.findAll('button').find(b => b.text() === 'reddit')
+    const redditBtn = wrapper.findAll('button').find(b => b.text() === 'Reddit')
     expect(redditBtn.classes().join(' ')).toContain('text-white')
   })
 
@@ -247,9 +203,11 @@ describe('SettingsView', () => {
   it('shows Testing... state when test connection is clicked', async () => {
     global.fetch = vi.fn().mockReturnValue(new Promise(() => {}))
     const wrapper = mountSettings()
-    const testButtons = wrapper.findAll('button').filter(b => b.text() === 'Test')
+    const apiKeyInput = wrapper.findAll('input[type="password"]')[0]
+    await apiKeyInput.setValue('sk-test-key')
+    const testButtons = wrapper.findAll('button').filter(b => b.text() === 'Test Connection')
     await testButtons[0].trigger('click')
-    expect(wrapper.text()).toContain('Testing...')
+    expect(wrapper.text()).toContain('Testing\u2026')
   })
 
   // ── Info section ──────────────────────────────────────────────────

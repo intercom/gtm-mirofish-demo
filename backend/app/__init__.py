@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # CPQ (Configure-Price-Quote) API
+    from .api.cpq import cpq_bp
+    app.register_blueprint(cpq_bp)
     
     # 健康检查
     @app.route('/health')

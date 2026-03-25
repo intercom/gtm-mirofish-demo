@@ -13,3 +13,31 @@ Created frontend/src/components/orders/ProvisioningDashboard.vue with:
 - Uses existing Badge component and Intercom brand tokens
 - Responsive grid layout (2-col mobile, 4-col desktop for stat cards)
 - Build verified: passes vite build with zero errors
+
+## Build report generation wizard component
+
+### Completed — 2026-03-24
+
+**Files created:**
+- `frontend/src/components/report/ReportWizard.vue` — 5-step wizard component
+- `frontend/src/views/ReportWizardView.vue` — View wrapper with page layout
+
+**Files modified:**
+- `frontend/src/router/index.js` — Added `/report/new` route (before `/report/:taskId`)
+
+**What was built:**
+ReportWizard.vue implements a step-by-step wizard for generating reports:
+1. **Select Simulation** — Lists completed simulations from the Pinia simulation store (sessionRuns). Radio-style selection with scenario name, actions count, rounds, and relative timestamp.
+2. **Report Type** — Three card options: Comprehensive Analysis, Executive Summary, Competitive Intelligence. Each with icon and description.
+3. **Customize** — Optional custom instructions textarea, checkbox grid for section inclusion (engagement, sentiment, competitive, recommendations, agent profiles), and chart preference toggle (all/essential/none). Shows summary of all selections.
+4. **Generate** — Calls POST /api/report/generate with customization payload. Progress bar with percentage, live section list as they're generated, shimmer loading states. Polls progress + sections endpoints every 3s. Error state with retry button.
+5. **Review** — Chapter tab navigation, rendered markdown content, chapter prev/next navigation, export markdown button, link to full report view, "generate another" action.
+
+**Additional features:**
+- Stepper navigation bar with completed/active/pending states
+- Back/Next footer navigation (disabled during generation/review)
+- Report preferences saved to localStorage (`mirofish_report_wizard_prefs`)
+- Uses existing composables: useSimulationStore, useToast
+- Uses existing common components: AppButton, ShimmerCard
+- Follows Intercom brand tokens (#2068FF blue, design token CSS vars)
+- Cleanup on unmount (stops polling)

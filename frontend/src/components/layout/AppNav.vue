@@ -1,9 +1,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
 
+const { t } = useI18n()
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
@@ -11,9 +13,9 @@ const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => {
   return [
-    { to: '/', label: 'Home', exact: true },
-    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
-    { to: '/settings', label: 'Settings', exact: false },
+    { to: '/', label: t('nav.home'), exact: true },
+    { to: '/simulations', label: t('nav.simulations'), exact: false, showActiveDot: true },
+    { to: '/settings', label: t('nav.settings'), exact: false },
   ]
 })
 
@@ -35,12 +37,12 @@ watch(() => route.path, () => {
             <path d="M19 10.5C19 10.2239 19.2239 10 19.5 10H20.5C20.7761 10 21 10.2239 21 10.5V17.5C21 17.7761 20.7761 18 20.5 18H19.5C19.2239 18 19 17.7761 19 17.5V10.5Z" fill="white"/>
             <path d="M8 20.5C9.5 22 11.5 23 14 23C16.5 23 18.5 22 20 20.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
-          <span class="text-sm font-semibold tracking-tight">MiroFish</span>
-          <span class="text-xs text-white/40 ml-1 hidden sm:inline">GTM Demo</span>
+          <span class="text-sm font-semibold tracking-tight">{{ t('common.appName') }}</span>
+          <span class="text-xs text-white/40 ml-1 hidden sm:inline">{{ t('common.tagline') }}</span>
           <span
             v-if="isDemoMode"
             class="ml-2 text-xs font-semibold text-white bg-[#2068FF] px-2 py-0.5 rounded-full"
-          >DEMO</span>
+          >{{ t('common.demo') }}</span>
         </router-link>
 
         <div class="hidden md:flex items-center gap-1">
@@ -66,14 +68,14 @@ watch(() => route.path, () => {
       <div class="flex items-center gap-3">
         <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          <span>Local</span>
+          <span>{{ t('common.local') }}</span>
         </div>
 
         <button
           @click="mobileMenuOpen = !mobileMenuOpen"
           class="md:hidden text-white/60 hover:text-white transition-colors"
           :aria-expanded="mobileMenuOpen"
-          aria-label="Toggle navigation menu"
+          :aria-label="t('nav.toggleMenu')"
         >
           <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
@@ -111,7 +113,7 @@ watch(() => route.path, () => {
         </div>
         <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">
           <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          Connected
+          {{ t('common.connected') }}
         </div>
       </div>
     </Transition>

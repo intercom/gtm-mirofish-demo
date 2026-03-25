@@ -28,6 +28,7 @@ from .zep_graph_memory_updater import (
     ZepGraphMemoryManager,
     AgentActivity
 )
+from .zep_entity_extractor import EntityExtractor, ExtractedEntity, EntityMap
 from .simulation_ipc import (
     SimulationIPCClient,
     SimulationIPCServer,
@@ -75,6 +76,9 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'EntityExtractor',
+    'ExtractedEntity',
+    'EntityMap',
     'EnvironmentManager',
     'EnvironmentState',
     'EnvironmentType',

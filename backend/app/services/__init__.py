@@ -36,6 +36,11 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .agent_prompts import (
+    AgentPromptModifier,
+    AgentPromptContext,
+    PersonalityVector,
+)
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +74,8 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'AgentPromptModifier',
+    'AgentPromptContext',
+    'PersonalityVector',
 ]
 

@@ -4,7 +4,9 @@ import { useRoute } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
 import PresenterToolbar from './components/demo/PresenterToolbar.vue'
+import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal.vue'
 import { useTheme } from './composables/useTheme'
+import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
 import { useSimulationStore } from './stores/simulation'
@@ -16,6 +18,7 @@ const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
+useKeyboardShortcuts()
 
 watch(() => route.name, (name) => {
   setRouteDefault(name === 'landing' ? 'dark' : 'light')
@@ -57,5 +60,6 @@ onUnmounted(() => {
     </router-view>
   </AppLayout>
   <ToastContainer />
+  <KeyboardShortcutsModal />
   <PresenterToolbar v-if="isDemoMode" />
 </template>

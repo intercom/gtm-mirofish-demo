@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import * as d3 from 'd3'
+import GraphSearch from './GraphSearch.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -22,6 +23,7 @@ let simulation = null
 let skeletonSim = null
 let svg = null
 let zoomGroup = null
+let zoomBehavior = null
 let resizeObserver = null
 let resizeTimer = null
 let themeObserver = null
@@ -218,12 +220,12 @@ function renderGraph() {
     .attr('width', width)
     .attr('height', height)
 
-  const zoom = d3.zoom()
+  zoomBehavior = d3.zoom()
     .scaleExtent([0.2, 5])
     .on('zoom', (event) => {
       zoomGroup.attr('transform', event.transform)
     })
-  svg.call(zoom)
+  svg.call(zoomBehavior)
 
   zoomGroup = svg.append('g')
 
@@ -372,6 +374,23 @@ function selectNode(d) {
         : graphData.value.nodes.find(n => n.uuid === e.source_node_uuid)?.name || '',
     })),
   }
+}
+
+function handleSearchSelect(uuid) {
+  if (!zoomGroup || !simulation) return
+  const simNodes = simulation.nodes()
+  const target = simNodes.find(n => n.id === uuid)
+  if (!target) {
+    const raw = graphData.value.nodes.find(n => n.uuid === uuid)
+    if (raw) selectNode({ id: raw.uuid, name: raw.name, labels: raw.labels, summary: raw.summary || '', centrality: 0, color: getNodeColor(raw.labels), radius: 10 })
+    return
+  }
+  selectNode(target)
+  if (!containerRef.value || !svg || !zoomBehavior) return
+  const width = containerRef.value.clientWidth
+  const height = containerRef.value.clientHeight
+  const transform = d3.zoomIdentity.translate(width / 2 - target.x, height / 2 - target.y)
+  svg.transition().duration(500).call(zoomBehavior.transform, transform)
 }
 
 // --- Demo Data ---
@@ -656,6 +675,20 @@ onUnmounted(() => {
         <template v-else>Failed</template>
       </span>
     </div>
+
+    <!-- Search (top-right, shown when graph is complete) -->
+    <Transition name="fade">
+      <div
+        v-if="graphStatus === 'complete'"
+        class="absolute top-4 right-4 z-10 w-64"
+      >
+        <GraphSearch
+          :graph-id="graphId"
+          :graph-data="graphData"
+          @select-node="handleSearchSelect"
+        />
+      </div>
+    </Transition>
 
     <!-- Build progress overlay center -->
     <Transition name="fade">

@@ -23,4 +23,8 @@ export const graphApi = {
   // --- Graph data ---
   getData: (graphId) => client.get(`/graph/data/${graphId}`),
   deleteGraph: (graphId) => client.delete(`/graph/delete/${graphId}`),
+
+  // --- Search ---
+  search: (graphId, query, { limit = 10, scope = 'edges' } = {}) =>
+    client.post('/graph/search', { graph_id: graphId, query, limit, scope }),
 }

@@ -11,6 +11,7 @@ import CommandPalette from './components/common/CommandPalette.vue'
 import SystemStatusBar from './components/common/SystemStatusBar.vue'
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal.vue'
 import KeyboardShortcutCard from './components/ui/KeyboardShortcutCard.vue'
+import DemoModeOverlay from './components/common/DemoModeOverlay.vue'
 import { useTheme } from './composables/useTheme'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useIntercom } from './composables/useIntercom'
@@ -121,6 +122,7 @@ onUnmounted(() => {
   <CommandPalette />
   <KeyboardShortcutsModal />
   <KeyboardShortcutCard />
+  <DemoModeOverlay v-if="isDemoMode" />
   <PresenterToolbar v-if="isDemoMode" />
   <SystemStatusBar v-if="showStatusBar" />
 </template>

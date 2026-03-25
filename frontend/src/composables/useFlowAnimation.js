@@ -10,13 +10,17 @@ const FLOW_ANIMATION_KEY = Symbol('flow-animation')
  * @param {number} options.duration - Total animation duration in ms (default 5000)
  * @param {boolean} options.loop - Whether to loop the animation (default false)
  * @param {boolean} options.autoPlay - Start playing immediately (default false)
+ * @param {boolean} options.autoplay - Alias for autoPlay
  */
 export function useFlowAnimation(options = {}) {
   const {
     duration: initialDuration = 5000,
     loop = false,
     autoPlay = false,
+    autoplay = false,
   } = options
+
+  const shouldAutoPlay = autoPlay || autoplay
 
   // --- State ---
   const playing = ref(false)
@@ -125,6 +129,8 @@ export function useFlowAnimation(options = {}) {
   }
 
   function observe(elOrRef) {
+    if (typeof IntersectionObserver === 'undefined') return
+
     if (observer) {
       observer.disconnect()
       observer = null
@@ -162,13 +168,11 @@ export function useFlowAnimation(options = {}) {
   onUnmounted(destroy)
 
   const api = {
-    // State
     playing,
     speed,
     currentTime,
     duration,
     progress,
-    // Methods
     play,
     pause,
     setSpeed,
@@ -180,14 +184,13 @@ export function useFlowAnimation(options = {}) {
 
   provide(FLOW_ANIMATION_KEY, api)
 
-  if (autoPlay) play()
+  if (shouldAutoPlay) play()
 
   return api
 }
 
 /**
  * Inject the animation controller from a parent useFlowAnimation() call.
- * Use in child components that need to subscribe to frame events.
  */
 export function useFlowAnimationContext() {
   const ctx = inject(FLOW_ANIMATION_KEY)
@@ -197,4 +200,12 @@ export function useFlowAnimationContext() {
     )
   }
   return ctx
+}
+
+export function provideFlowAnimation(a) {
+  provide(FLOW_ANIMATION_KEY, a)
+}
+
+export function injectFlowAnimation() {
+  return inject(FLOW_ANIMATION_KEY, null)
 }

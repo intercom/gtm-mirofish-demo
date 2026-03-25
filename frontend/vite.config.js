@@ -2,9 +2,37 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  plugins: [vue(), tailwindcss()],
+  plugins: [
+    vue(),
+    tailwindcss(),
+    VitePWA({
+      registerType: 'prompt',
+      includeAssets: ['favicon.svg'],
+      manifest: {
+        name: 'MiroFish GTM Demo',
+        short_name: 'MiroFish',
+        description: 'Swarm intelligence engine for GTM operations simulation',
+        theme_color: '#050505',
+        background_color: '#ffffff',
+        display: 'standalone',
+        icons: [
+          {
+            src: 'favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        cleanupOutdatedCaches: true,
+      },
+    }),
+  ],
   server: {
     port: 3000,
     host: '0.0.0.0',

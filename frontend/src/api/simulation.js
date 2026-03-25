@@ -48,6 +48,8 @@ export const simulationApi = {
     client.get(`/simulation/${simulationId}/timeline`, { params }),
   getAgentStats: (simulationId) =>
     client.get(`/simulation/${simulationId}/agent-stats`),
+  getAdjacencyMatrix: (simulationId) =>
+    client.get(`/simulation/${simulationId}/adjacency-matrix`),
   getPosts: (simulationId, params) =>
     client.get(`/simulation/${simulationId}/posts`, { params }),
   getComments: (simulationId, params) =>

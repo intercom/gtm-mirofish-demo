@@ -621,6 +621,63 @@ def sim_agent_stats(sim_id):
     return _ok({"stats": []})
 
 
+@app.route("/api/simulation/<sim_id>/adjacency-matrix")
+def sim_adjacency_matrix(sim_id):
+    """Return agent-to-agent interaction matrix for heatmap visualization."""
+    agents = [
+        "Sarah Chen", "Marcus Johnson", "Priya Patel", "David Kim",
+        "Rachel Torres", "James Wright", "Anika Sharma", "Tom O'Brien",
+        "Elena Vasquez", "Michael Chang", "Lisa Park", "Sofia Martinez",
+        "Nathan Lee", "Catherine Hayes", "Robert Williams",
+    ]
+    n = len(agents)
+    rng = random.Random(42)
+
+    # Define clusters: agents in the same cluster interact more
+    clusters = [0, 1, 0, 2, 0, 1, 2, 1, 1, 2, 0, 2, 2, 0, 1]
+
+    # Build symmetric interaction counts
+    matrix = [[0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(i, n):
+            if i == j:
+                # Diagonal = total self-activity (higher for influential agents)
+                matrix[i][j] = rng.randint(40, 120)
+            else:
+                # Same cluster = higher interaction
+                same_cluster = clusters[i] == clusters[j]
+                base = rng.randint(8, 35) if same_cluster else rng.randint(0, 12)
+                matrix[i][j] = base
+                matrix[j][i] = base
+
+    # Normalize to 0-1
+    flat = [v for row in matrix for v in row]
+    max_val = max(flat) or 1
+    values = [[round(v / max_val, 3) for v in row] for row in matrix]
+
+    # Row and column totals (sum of off-diagonal interactions)
+    row_totals = [sum(matrix[i][j] for j in range(n) if j != i) for i in range(n)]
+    col_totals = [sum(matrix[i][j] for i in range(n) if i != j) for j in range(n)]
+
+    # Influence ranking (by total interactions)
+    influence_order = sorted(range(n), key=lambda i: row_totals[i], reverse=True)
+    # Cluster ordering (group by cluster, then by influence within)
+    cluster_order = sorted(range(n), key=lambda i: (clusters[i], -row_totals[i]))
+
+    return _ok({
+        "agents": agents,
+        "values": values,
+        "row_totals": row_totals,
+        "col_totals": col_totals,
+        "clusters": clusters,
+        "sort_orders": {
+            "alphabetical": list(range(n)),
+            "cluster": cluster_order,
+            "influence": influence_order,
+        },
+    })
+
+
 @app.route("/api/simulation/<sim_id>/posts")
 def sim_posts(sim_id):
     return _ok({"posts": []})

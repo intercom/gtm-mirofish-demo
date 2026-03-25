@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import TimelineAnnotations from '../timeline/TimelineAnnotations.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -75,6 +76,14 @@ const metrics = computed(() => {
 const filteredActions = computed(() => {
   if (activePlatform.value === 'all') return polling.recentActions.value
   return polling.recentActions.value.filter(a => a.platform === activePlatform.value)
+})
+
+const actionRounds = computed(() => {
+  const rounds = new Set()
+  for (const a of filteredActions.value) {
+    if (a.round_num != null) rounds.add(a.round_num)
+  }
+  return Array.from(rounds).sort((a, b) => a - b)
 })
 
 const platformTabs = [
@@ -538,6 +547,14 @@ onUnmounted(() => {
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
           :timeline="polling.timeline.value"
+          class="mb-4"
+        />
+
+        <!-- Timeline Annotations -->
+        <TimelineAnnotations
+          v-if="filteredActions.length > 0"
+          :task-id="taskId"
+          :rounds="actionRounds"
           class="mb-8"
         />
 

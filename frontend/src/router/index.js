@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import LandingView from '../views/LandingView.vue'
-
 // Module-level auth state — decoupled from Pinia so the navigation
 // guard works before the Vue app (and stores) are fully initialised.
 let _authEnabled = false
@@ -20,7 +18,7 @@ export const routes = [
   {
     path: '/',
     name: 'landing',
-    component: LandingView,
+    component: () => import('../views/LandingView.vue'),
   },
   {
     path: '/login',

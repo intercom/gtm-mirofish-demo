@@ -85,6 +85,77 @@ def get_scenario_seed_text(scenario_id):
     return jsonify({'error': 'Seed text not found'}), 404
 
 
+# ============== Scenario Comparison ==============
+
+@gtm_bp.route('/scenarios/compare', methods=['GET'])
+def compare_scenarios():
+    """
+    Return all scenarios with normalized comparison metrics.
+
+    Response:
+        {
+            "scenarios": [...full scenario objects...],
+            "dimensions": ["agent_count", "persona_count", ...],
+            "matrix": {
+                "<scenario_id>": { "<dimension>": <normalized 0-1 value>, ... },
+                ...
+            }
+        }
+    """
+    scenarios = []
+    if os.path.exists(SCENARIOS_DIR):
+        for filename in sorted(os.listdir(SCENARIOS_DIR)):
+            if filename.endswith('.json'):
+                data = _load_json(os.path.join(SCENARIOS_DIR, filename))
+                if data:
+                    scenarios.append(data)
+
+    if not scenarios:
+        return jsonify({'scenarios': [], 'dimensions': [], 'matrix': {}})
+
+    dimensions = [
+        'agent_count',
+        'persona_count',
+        'industry_count',
+        'duration_hours',
+        'expected_outputs',
+    ]
+
+    def _extract(s):
+        ac = s.get('agent_config', {})
+        sc = s.get('simulation_config', {})
+        fm = ac.get('firmographic_mix', {})
+        industries = fm.get('industries', []) + fm.get('segments', [])
+        return {
+            'agent_count': ac.get('count', 0),
+            'persona_count': len(ac.get('persona_types', [])),
+            'industry_count': len(industries),
+            'duration_hours': sc.get('total_hours', 0),
+            'expected_outputs': len(s.get('expected_outputs', [])),
+        }
+
+    raw = {s['id']: _extract(s) for s in scenarios}
+
+    # Compute per-dimension max for normalization
+    maxes = {}
+    for dim in dimensions:
+        vals = [v[dim] for v in raw.values()]
+        maxes[dim] = max(vals) if vals else 1
+
+    matrix = {}
+    for sid, vals in raw.items():
+        matrix[sid] = {
+            dim: round(vals[dim] / maxes[dim], 3) if maxes[dim] else 0
+            for dim in dimensions
+        }
+
+    return jsonify({
+        'scenarios': scenarios,
+        'dimensions': dimensions,
+        'matrix': matrix,
+    })
+
+
 # ============== Unified Simulation Endpoint ==============
 
 @gtm_bp.route('/simulate', methods=['POST'])

@@ -61,6 +61,11 @@ export const routes = [
     component: () => import('../views/SimulationsView.vue'),
   },
   {
+    path: '/compare',
+    name: 'compare',
+    component: () => import('../views/CompareView.vue'),
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

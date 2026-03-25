@@ -2,6 +2,8 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import LiveFeed from './LiveFeed.vue'
+import { useSimulationStream } from '../../composables/useSimulationStream'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -12,9 +14,25 @@ const polling = inject('polling')
 const activePlatform = ref('all')
 const chartCanvas = ref(null)
 const heartbeatCanvas = ref(null)
-const feedContainer = ref(null)
-const autoScroll = ref(true)
 const selectedAgent = ref(null)
+
+// SSE live feed stream — merges with polling data for the LiveFeed component
+const stream = useSimulationStream(() => props.taskId)
+
+const feedActions = computed(() => {
+  // Prefer SSE events when connected; fall back to polling data
+  if (stream.events.value.length > 0) return stream.events.value
+  return polling.recentActions.value
+})
+
+const feedConnectionStatus = computed(() => {
+  if (stream.status.value === 'connected') return 'connected'
+  if (stream.status.value === 'connecting') return 'connecting'
+  if (stream.status.value === 'done') return 'done'
+  if (stream.status.value === 'error') return 'error'
+  if (polling.recentActions.value.length > 0) return 'polling'
+  return 'disconnected'
+})
 
 let resizeObserver = null
 let heartbeatAnimId = null
@@ -73,8 +91,8 @@ const metrics = computed(() => {
 })
 
 const filteredActions = computed(() => {
-  if (activePlatform.value === 'all') return polling.recentActions.value
-  return polling.recentActions.value.filter(a => a.platform === activePlatform.value)
+  if (activePlatform.value === 'all') return feedActions.value
+  return feedActions.value.filter(a => a.platform === activePlatform.value)
 })
 
 const platformTabs = [
@@ -288,7 +306,7 @@ function truncate(str, len = 120) {
 }
 
 function selectAgent(action) {
-  const agentActions = polling.recentActions.value.filter(
+  const agentActions = feedActions.value.filter(
     a => a.agent_name === action.agent_name
   )
   const twitterCount = agentActions.filter(a => a.platform === 'twitter').length
@@ -314,18 +332,12 @@ function selectAgent(action) {
   }
 }
 
-// --- Auto-scroll for activity feed ---
-function onFeedScroll() {
-  const el = feedContainer.value
-  if (!el) return
-  autoScroll.value = (el.scrollHeight - el.scrollTop - el.clientHeight) < 50
-}
-
-watch(() => polling.recentActions.value.length, () => {
-  if (autoScroll.value && feedContainer.value) {
-    nextTick(() => {
-      feedContainer.value.scrollTop = feedContainer.value.scrollHeight
-    })
+// Connect SSE stream when simulation starts running
+watch(status, (val) => {
+  if (val === 'running') {
+    stream.connect()
+  } else if (val === 'completed' || val === 'failed') {
+    stream.disconnect()
   }
 })
 
@@ -348,6 +360,10 @@ onMounted(() => {
   if (polling.graphStatus.value === 'building') {
     nextTick(() => startHeartbeat())
   }
+  // Connect SSE if simulation is already running
+  if (status.value === 'running') {
+    stream.connect()
+  }
 })
 
 onUnmounted(() => {
@@ -357,6 +373,7 @@ onUnmounted(() => {
   }
   if (chartRetryTimer) clearTimeout(chartRetryTimer)
   stopHeartbeat()
+  stream.disconnect()
 })
 </script>
 
@@ -488,49 +505,12 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- Agent Activity Feed -->
-          <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-semibold text-[var(--color-text)]">Agent Activity Feed</h3>
-              <span class="text-xs text-[var(--color-text-muted)]">{{ filteredActions.length }} actions</span>
-            </div>
-            <div
-              v-if="filteredActions.length"
-              ref="feedContainer"
-              class="space-y-2 max-h-[240px] overflow-y-auto pr-1"
-              @scroll="onFeedScroll"
-            >
-              <div
-                v-for="(action, idx) in filteredActions.slice(0, 50)"
-                :key="idx"
-                class="flex items-start gap-2.5 py-2 border-b border-[var(--color-border)] last:border-0"
-              >
-                <span class="text-base mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <button class="text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] hover:underline transition-colors text-left" @click.stop="selectAgent(action)">
-                      {{ action.agent_name || `Agent #${action.agent_id}` }}
-                    </button>
-                    <span class="text-xs px-1.5 py-0.5 rounded-full" :class="platformBadge(action.platform).class">
-                      {{ platformBadge(action.platform).label }}
-                    </span>
-                    <span class="text-xs text-[var(--color-text-muted)]">R{{ action.round_num }}</span>
-                  </div>
-                  <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
-                    {{ actionLabel(action.action_type) }}
-                    <span v-if="action.action_args?.content" class="text-[var(--color-text-muted)]">
-                      &mdash; {{ truncate(action.action_args.content) }}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div v-else class="flex flex-col items-center justify-center h-[200px] text-[var(--color-text-muted)]">
-              <p class="text-3xl mb-2">&#x1F426;</p>
-              <p class="text-sm">Real-time agent actions will appear here</p>
-              <p class="text-xs mt-1 text-[var(--color-text-muted)]">Posts, replies, likes, and reposts from simulated agents</p>
-            </div>
-          </div>
+          <!-- Live Agent Activity Feed -->
+          <LiveFeed
+            :actions="feedActions"
+            :connection-status="feedConnectionStatus"
+            @select-agent="selectAgent"
+          />
         </div>
 
         <!-- Sentiment Timeline -->

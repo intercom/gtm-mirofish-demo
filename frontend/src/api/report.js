@@ -31,4 +31,9 @@ export const reportApi = {
     client.get(`/report/${reportId}/console-log`, { params }),
   getConsoleLogStream: (reportId) =>
     client.get(`/report/${reportId}/console-log/stream`),
+
+  // --- Data sources ---
+  listDataSources: () => client.get('/report/data-sources'),
+  previewDataSource: (sourceType, params) =>
+    client.get(`/report/data-sources/${sourceType}/preview`, { params }),
 }

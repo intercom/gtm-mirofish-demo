@@ -12,6 +12,7 @@ from . import report_bp
 from ..config import Config
 from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
 from ..services.simulation_manager import SimulationManager
+from ..services.data_sources import DataSourceService
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
@@ -1013,3 +1014,70 @@ def get_graph_statistics_tool():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Data Source Connector Endpoints ==============
+
+@report_bp.route('/data-sources', methods=['GET'])
+def list_data_sources():
+    """
+    List available report data source types.
+
+    Returns:
+        {
+            "success": true,
+            "data": [
+                {
+                    "id": "simulation",
+                    "name": "Simulation Results",
+                    "description": "...",
+                    "category": "internal",
+                    "icon": "simulation",
+                    "connected": true
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        sources = DataSourceService.list_sources()
+        return jsonify({"success": True, "data": sources})
+    except Exception as e:
+        logger.error(f"Failed to list data sources: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/data-sources/<source_type>/preview', methods=['GET'])
+def preview_data_source(source_type: str):
+    """
+    Get preview data for a data source type.
+
+    Query params:
+        simulation_id: required when source_type is "simulation"
+
+    Returns:
+        {
+            "success": true,
+            "data": {
+                "source_type": "simulation",
+                "is_mock": false,
+                "metrics": [...],
+                "sample_rows": [...]
+            }
+        }
+    """
+    try:
+        source = DataSourceService.get_source(source_type)
+        if not source:
+            return jsonify({
+                "success": False,
+                "error": f"Unknown data source type: {source_type}"
+            }), 404
+
+        simulation_id = request.args.get('simulation_id')
+        preview = DataSourceService.get_preview(source_type, simulation_id=simulation_id)
+
+        return jsonify({"success": True, "data": preview})
+    except Exception as e:
+        logger.error(f"Failed to get data source preview: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

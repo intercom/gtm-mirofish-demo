@@ -3,6 +3,7 @@ MiroFish Backend - Flask应用工厂
 """
 
 import os
+import time
 import warnings
 
 # 抑制 multiprocessing resource_tracker 的警告（来自第三方库如 transformers）
@@ -48,16 +49,23 @@ def create_app(config_class=Config):
     if should_log_startup:
         logger.info("已注册模拟进程清理函数")
     
-    # 请求日志中间件
+    # Health monitoring
+    from .services.health_monitor import health_monitor
+
+    # 请求日志中间件 + health metrics
     @app.before_request
     def log_request():
+        request._health_start = time.monotonic()
+        health_monitor.on_request_start()
         logger = get_logger('mirofish.request')
         logger.debug(f"请求: {request.method} {request.path}")
         if request.content_type and 'json' in request.content_type:
             logger.debug(f"请求体: {request.get_json(silent=True)}")
-    
+
     @app.after_request
     def log_response(response):
+        duration = time.monotonic() - getattr(request, '_health_start', time.monotonic())
+        health_monitor.on_request_end(duration, is_error=response.status_code >= 500)
         logger = get_logger('mirofish.request')
         logger.debug(f"响应: {response.status_code}")
         return response
@@ -75,6 +83,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Health monitoring API
+    from .api.health import health_bp
+    app.register_blueprint(health_bp)
     
     # 健康检查
     @app.route('/health')

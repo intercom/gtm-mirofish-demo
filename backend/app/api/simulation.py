@@ -2709,3 +2709,116 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Anomaly Detection ==============
+
+@simulation_bp.route('/<simulation_id>/anomalies', methods=['GET'])
+def get_anomalies(simulation_id: str):
+    """
+    Detect behavioral anomalies in a simulation.
+
+    Query params:
+        round_num: Filter to specific round (optional)
+
+    Returns:
+        {
+            "success": true,
+            "data": {
+                "anomalies": [...],
+                "total": int,
+                "max_surprise_score": float
+            }
+        }
+    """
+    try:
+        round_num = request.args.get('round_num', type=int)
+
+        # Try to get real simulation actions
+        actions = []
+        try:
+            raw_actions = SimulationRunner.get_actions(
+                simulation_id=simulation_id, limit=10000
+            )
+            actions = [a.to_dict() for a in raw_actions]
+        except Exception:
+            pass
+
+        if actions:
+            from ..services.anomaly_detector import AnomalyDetector
+            detector = AnomalyDetector()
+            anomalies = detector.detect_anomalies(actions, round_num=round_num)
+            anomaly_dicts = [a.to_dict() for a in anomalies]
+        else:
+            # Demo mode — return synthetic anomalies
+            from ..services.anomaly_detector import generate_demo_anomalies
+            anomaly_dicts = generate_demo_anomalies()
+            if round_num is not None:
+                anomaly_dicts = [a for a in anomaly_dicts if a["round_num"] == round_num]
+
+        max_score = max((a["surprise_score"] for a in anomaly_dicts), default=0)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "anomalies": anomaly_dicts,
+                "total": len(anomaly_dicts),
+                "max_surprise_score": max_score,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Anomaly detection failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/anomalies/<anomaly_id>/explanation', methods=['GET'])
+def get_anomaly_explanation(simulation_id: str, anomaly_id: str):
+    """
+    Get LLM-generated explanation for a specific anomaly.
+    Falls back to the anomaly description if LLM is unavailable.
+    """
+    try:
+        # Re-detect to find the specific anomaly
+        actions = []
+        try:
+            raw_actions = SimulationRunner.get_actions(
+                simulation_id=simulation_id, limit=10000
+            )
+            actions = [a.to_dict() for a in raw_actions]
+        except Exception:
+            pass
+
+        if actions:
+            from ..services.anomaly_detector import AnomalyDetector
+            detector = AnomalyDetector()
+            anomalies = detector.detect_anomalies(actions)
+            target = next((a for a in anomalies if a.anomaly_id == anomaly_id), None)
+            if not target:
+                return jsonify({"success": False, "error": "Anomaly not found"}), 404
+            explanation = detector.explain_anomaly(target)
+        else:
+            # Demo mode
+            from ..services.anomaly_detector import generate_demo_anomalies
+            demo = generate_demo_anomalies()
+            target = next((a for a in demo if a["anomaly_id"] == anomaly_id), None)
+            if not target:
+                return jsonify({"success": False, "error": "Anomaly not found"}), 404
+            explanation = target.get("explanation", target.get("description", ""))
+
+        return jsonify({
+            "success": True,
+            "data": {"anomaly_id": anomaly_id, "explanation": explanation}
+        })
+
+    except Exception as e:
+        logger.error(f"Anomaly explanation failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

@@ -62,4 +62,10 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- Anomalies ---
+  getAnomalies: (simulationId, params) =>
+    client.get(`/simulation/${simulationId}/anomalies`, { params }),
+  getAnomalyExplanation: (simulationId, anomalyId) =>
+    client.get(`/simulation/${simulationId}/anomalies/${anomalyId}/explanation`),
 }

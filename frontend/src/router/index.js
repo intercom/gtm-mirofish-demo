@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
 import LandingView from '../views/LandingView.vue'
 
@@ -7,10 +8,13 @@ export const routes = [
     path: '/',
     name: 'landing',
     component: LandingView,
+    meta: { public: true },
   },
   {
     path: '/login',
-    redirect: '/',
+    name: 'login',
+    component: () => import('../views/LoginView.vue'),
+    meta: { public: true, hideNav: true },
   },
   {
     path: '/scenarios/:id',
@@ -70,6 +74,15 @@ export function createAppRouter() {
   const router = createRouter({
     history: createWebHistory(),
     routes,
+  })
+
+  router.beforeEach((to) => {
+    if (to.meta.public) return true
+    const auth = useAuthStore()
+    if (!auth.isAuthenticated) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+    return true
   })
 
   return router

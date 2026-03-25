@@ -2,6 +2,7 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import CollaborationIndicator from './CollaborationIndicator.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -465,6 +466,9 @@ onUnmounted(() => {
             {{ tab.label }}
           </button>
         </div>
+
+        <!-- Collaboration Indicator -->
+        <CollaborationIndicator class="mb-6" />
 
         <!-- Two-column layout: Chart + Activity Feed -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

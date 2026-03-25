@@ -62,4 +62,8 @@ export const simulationApi = {
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),
+
+  // --- Counterfactual analysis ---
+  analyzeCounterfactual: (simulationId, data) =>
+    client.post(`/simulation/${simulationId}/counterfactual`, data),
 }

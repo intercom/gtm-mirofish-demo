@@ -2929,3 +2929,169 @@ def stop_orchestrator(simulation_id: str):
 
     orch.stop()
     return jsonify({"success": True, "data": orch.get_status()})
+
+
+# ============== Coalition Evolution Endpoints ==============
+
+def _generate_demo_coalition_evolution(simulation_id, num_rounds=10, num_agents=12):
+    """Generate realistic demo coalition evolution data."""
+    import random
+    import hashlib
+
+    seed = int(hashlib.md5(simulation_id.encode()).hexdigest()[:8], 16)
+    rng = random.Random(seed)
+
+    agent_names = [
+        "VP Sales", "CTO", "CFO", "Head of Product", "Marketing Lead",
+        "Sales Engineer", "Customer Success", "DevOps Lead", "Data Analyst",
+        "Security Officer", "BD Manager", "Support Lead", "CEO", "COO",
+        "Growth Lead", "UX Director"
+    ][:num_agents]
+
+    coalition_labels = [
+        {"id": "c1", "name": "Innovation Advocates", "color": "#2068FF"},
+        {"id": "c2", "name": "Cost Conservatives", "color": "#ff5600"},
+        {"id": "c3", "name": "Gradual Adopters", "color": "#009900"},
+        {"id": "c4", "name": "Undecided", "color": "#AA00FF"},
+    ]
+
+    # Initial assignment — everyone starts spread across coalitions
+    assignments = {}
+    for agent in agent_names:
+        assignments[agent] = rng.choice(coalition_labels)["id"]
+
+    rounds = []
+    events = []
+
+    for r in range(1, num_rounds + 1):
+        # Some agents switch coalitions each round (probability increases mid-sim)
+        switch_prob = 0.15 if r < num_rounds // 2 else 0.08
+        for agent in agent_names:
+            if rng.random() < switch_prob:
+                old = assignments[agent]
+                new_coalition = rng.choice([c["id"] for c in coalition_labels if c["id"] != old])
+                events.append({
+                    "round": r,
+                    "type": "agent_switched",
+                    "agent": agent,
+                    "from_coalition": old,
+                    "to_coalition": new_coalition,
+                })
+                assignments[agent] = new_coalition
+
+        # Build coalition state for this round
+        coalition_state = {}
+        for cid in [c["id"] for c in coalition_labels]:
+            members = [a for a, c in assignments.items() if c == cid]
+            if members:
+                coalition_state[cid] = members
+
+        rounds.append({
+            "round": r,
+            "coalitions": coalition_state,
+        })
+
+    # Build flows: for each consecutive pair of rounds, track agent movements
+    flows = []
+    for i in range(len(rounds) - 1):
+        curr = rounds[i]
+        nxt = rounds[i + 1]
+        # Invert: agent -> coalition for each round
+        curr_map = {}
+        for cid, members in curr["coalitions"].items():
+            for m in members:
+                curr_map[m] = cid
+        nxt_map = {}
+        for cid, members in nxt["coalitions"].items():
+            for m in members:
+                nxt_map[m] = cid
+
+        # Count flows between coalitions
+        flow_counts = {}
+        for agent in agent_names:
+            src = curr_map.get(agent)
+            dst = nxt_map.get(agent)
+            if src and dst:
+                key = (src, dst)
+                flow_counts[key] = flow_counts.get(key, 0) + 1
+
+        for (src, dst), count in flow_counts.items():
+            flows.append({
+                "from_round": curr["round"],
+                "to_round": nxt["round"],
+                "from_coalition": src,
+                "to_coalition": dst,
+                "count": count,
+            })
+
+    # Coalition formation events (round 1 = all formed)
+    for c in coalition_labels:
+        members_r1 = rounds[0]["coalitions"].get(c["id"], [])
+        if members_r1:
+            events.insert(0, {
+                "round": 1,
+                "type": "coalition_formed",
+                "coalition": c["id"],
+                "members": members_r1,
+            })
+
+    # Summary stats
+    total_switches = sum(1 for e in events if e["type"] == "agent_switched")
+    switch_counts = {}
+    for e in events:
+        if e["type"] == "agent_switched":
+            switch_counts[e["agent"]] = switch_counts.get(e["agent"], 0) + 1
+
+    # Most stable coalition: least total member changes
+    coalition_changes = {c["id"]: 0 for c in coalition_labels}
+    for e in events:
+        if e["type"] == "agent_switched":
+            coalition_changes[e["from_coalition"]] = coalition_changes.get(e["from_coalition"], 0) + 1
+            coalition_changes[e["to_coalition"]] = coalition_changes.get(e["to_coalition"], 0) + 1
+    most_stable = min(coalition_changes, key=coalition_changes.get)
+    most_dynamic = max(switch_counts, key=switch_counts.get) if switch_counts else agent_names[0]
+
+    return {
+        "simulation_id": simulation_id,
+        "coalition_labels": coalition_labels,
+        "rounds": rounds,
+        "flows": flows,
+        "events": events,
+        "summary": {
+            "total_changes": total_switches,
+            "most_stable_coalition": most_stable,
+            "most_dynamic_agent": most_dynamic,
+            "agent_switch_counts": switch_counts,
+        },
+    }
+
+
+@simulation_bp.route('/simulation/<simulation_id>/coalitions/evolution', methods=['GET'])
+def get_coalition_evolution(simulation_id: str):
+    """
+    Get coalition evolution over simulation rounds.
+
+    Returns coalition membership per round, inter-round flows,
+    key events (formed/switched), and summary stats.
+    Falls back to demo data when no real simulation is available.
+    """
+    try:
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+
+        # Always use demo data for now (real coalition detection is a future service)
+        data = _generate_demo_coalition_evolution(
+            simulation_id,
+            num_rounds=int(request.args.get('rounds', 10)),
+            num_agents=int(request.args.get('agents', 12)),
+        )
+
+        return jsonify({"success": True, "data": data})
+
+    except Exception as e:
+        logger.error(f"Failed to get coalition evolution: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500

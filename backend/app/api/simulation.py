@@ -2132,6 +2132,129 @@ def get_simulation_comments(simulation_id: str):
         }), 500
 
 
+# ============== Personality Dynamics 人格动态接口 ==============
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/personality', methods=['GET'])
+def get_agent_personality(simulation_id: str, agent_id: int):
+    """
+    Get the current personality trait vector for a single agent.
+
+    Returns 5 traits (0-100): analytical, creative, assertive, empathetic, risk_tolerant.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_personality(simulation_id, agent_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取Agent人格失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/personality/history', methods=['GET'])
+def get_agent_personality_history(simulation_id: str, agent_id: int):
+    """
+    Get the personality trait evolution across simulation rounds.
+
+    Returns sampled trait vectors (every 6 rounds) showing how the
+    agent's personality shifted over time.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_personality_history(simulation_id, agent_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取Agent人格历史失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/sentiment/history', methods=['GET'])
+def get_agent_sentiment_history(simulation_id: str, agent_id: int):
+    """
+    Get per-round sentiment values for a single agent.
+
+    Sentiment ranges 1-10 with labels: frustrated, cautious, engaged,
+    optimistic, enthusiastic.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_sentiment_history(simulation_id, agent_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取Agent情感历史失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/personality/comparison', methods=['GET'])
+def get_personality_comparison(simulation_id: str):
+    """
+    Get all agents' initial and current personality vectors for
+    side-by-side comparison, including per-trait deltas.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_personality_comparison(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取人格比较失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/mood', methods=['GET'])
+def get_group_mood(simulation_id: str):
+    """
+    Get group mood overview — average sentiment and per-agent breakdown.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_group_mood(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取群体情绪失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/mood-swings', methods=['GET'])
+def get_mood_swings(simulation_id: str):
+    """
+    Detect significant sentiment changes across all agents.
+
+    Query params:
+        threshold: minimum absolute delta to count as a swing (default 2.0)
+    """
+    try:
+        threshold = request.args.get('threshold', 2.0, type=float)
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_mood_swings(simulation_id, threshold=threshold)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取情绪波动失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== Interview 采访接口 ==============
 
 @simulation_bp.route('/interview', methods=['POST'])

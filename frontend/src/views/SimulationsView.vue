@@ -381,10 +381,10 @@ function exportRun(run) {
             Graph
           </router-link>
           <router-link
-            :to="`/workspace/${run.id}?tab=simulation`"
+            :to="`/replay/${run.id}`"
             class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#2068FF]/50 hover:text-[#2068FF] transition-colors no-underline"
           >
-            Simulation
+            Replay
           </router-link>
           <router-link
             :to="`/report/${run.id}`"

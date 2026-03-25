@@ -61,6 +61,12 @@ export const routes = [
     component: () => import('../views/SimulationsView.vue'),
   },
   {
+    path: '/replay/:taskId',
+    name: 'replay',
+    component: () => import('../views/ReplayView.vue'),
+    props: true,
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

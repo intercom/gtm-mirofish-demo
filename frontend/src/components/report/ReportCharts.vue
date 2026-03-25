@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import * as d3 from 'd3'
+import { select, scaleLinear, scaleBand, easeCubicOut, pie, arc, interpolate, hierarchy, treemap, scaleOrdinal } from 'd3'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 
 const props = defineProps({
@@ -34,7 +34,7 @@ function hasChart(index) {
 
 function clearChart() {
   if (!chartRef.value) return
-  d3.select(chartRef.value).selectAll('*').remove()
+  select(chartRef.value).selectAll('*').remove()
 }
 
 function renderActiveChart() {
@@ -68,7 +68,7 @@ function renderPersonaEngagement() {
   const height = data.length * (barHeight + barGap) - barGap
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -102,11 +102,11 @@ function renderPersonaEngagement() {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  const x = d3.scaleLinear()
+  const x = scaleLinear()
     .domain([0, 50])
     .range([0, width])
 
-  const y = d3.scaleBand()
+  const y = scaleBand()
     .domain(data.map(d => d.label))
     .range([0, height])
     .padding(barGap / (barHeight + barGap))
@@ -188,7 +188,7 @@ function renderPersonaEngagement() {
     .transition()
     .duration(600)
     .delay((d, i) => 200 + i * 80)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('width', d => x(d.value))
 
   g.selectAll('.bar-value')
@@ -228,7 +228,7 @@ function renderSubjectLinePerformance() {
   const height = 260
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -262,18 +262,18 @@ function renderSubjectLinePerformance() {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  const x0 = d3.scaleBand()
+  const x0 = scaleBand()
     .domain(data.map(d => d.label))
     .range([0, width])
     .paddingInner(0.3)
     .paddingOuter(0.15)
 
-  const x1 = d3.scaleBand()
+  const x1 = scaleBand()
     .domain(['open', 'spam'])
     .range([0, x0.bandwidth()])
     .padding(0.1)
 
-  const y = d3.scaleLinear()
+  const y = scaleLinear()
     .domain([0, 40])
     .range([height, 0])
 
@@ -325,7 +325,7 @@ function renderSubjectLinePerformance() {
     .transition()
     .duration(600)
     .delay((d, i) => 200 + i * 100)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('y', d => y(d.open))
     .attr('height', d => height - y(d.open))
 
@@ -340,7 +340,7 @@ function renderSubjectLinePerformance() {
     .transition()
     .duration(600)
     .delay((d, i) => 250 + i * 100)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('y', d => y(d.spam))
     .attr('height', d => height - y(d.spam))
 
@@ -383,7 +383,7 @@ function renderSubjectLinePerformance() {
     .attr('fill', c.textMuted)
     .style('opacity', 0)
     .each(function (d) {
-      const el = d3.select(this)
+      const el = select(this)
       const maxWidth = x0.bandwidth() + 10
       const words = d.label.replace(/"/g, '').split(' ')
       let line = ''
@@ -473,7 +473,7 @@ function renderBehavioralClusters() {
   const innerRadius = radius * 0.55
   const totalHeight = size + 60
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -509,17 +509,17 @@ function renderBehavioralClusters() {
   const g = svg.append('g')
     .attr('transform', `translate(${containerWidth / 2},${size / 2 + 50})`)
 
-  const pie = d3.pie()
+  const pie = pie()
     .value(d => d.value)
     .sort(null)
     .padAngle(0.02)
 
-  const arc = d3.arc()
+  const arc = arc()
     .innerRadius(innerRadius)
     .outerRadius(radius)
     .cornerRadius(4)
 
-  const labelArc = d3.arc()
+  const labelArc = arc()
     .innerRadius(radius + 16)
     .outerRadius(radius + 16)
 
@@ -536,10 +536,10 @@ function renderBehavioralClusters() {
   paths.transition()
     .duration(600)
     .delay((d, i) => 200 + i * 80)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attrTween('d', function (d) {
-      const interpolate = d3.interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d)
-      return t => arc(interpolate(t))
+      const interp = interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d)
+      return t => arc(interp(t))
     })
 
   g.append('text')
@@ -573,7 +573,7 @@ function renderBehavioralClusters() {
     .style('opacity', 0)
 
   labelGroups.each(function (d, i) {
-    const group = d3.select(this)
+    const group = select(this)
     const pos = labelArc.centroid(d)
     const midAngle = (d.startAngle + d.endAngle) / 2
     const isRight = midAngle < Math.PI
@@ -670,7 +670,7 @@ function renderTopicTreemap() {
   const height = 360
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -695,18 +695,18 @@ function renderTopicTreemap() {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  const root = d3.hierarchy(treeData)
+  const root = hierarchy(treeData)
     .sum(d => d.value || 0)
     .sort((a, b) => b.value - a.value)
 
-  d3.treemap()
+  treemap()
     .size([width, height])
     .paddingOuter(3)
     .paddingInner(2)
     .paddingTop(22)
     .round(true)(root)
 
-  const categoryColor = d3.scaleOrdinal()
+  const categoryColor = scaleOrdinal()
     .domain(root.children.map(d => d.data.name))
     .range(treemapColors)
 
@@ -753,7 +753,7 @@ function renderTopicTreemap() {
     .transition()
     .duration(500)
     .delay((d, i) => i * 30)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('opacity', 0.75)
 
   cells.append('text')
@@ -835,7 +835,7 @@ function renderCampaignSpendAllocation() {
   const height = 300
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -860,12 +860,12 @@ function renderCampaignSpendAllocation() {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  const root = d3.hierarchy({
+  const root = hierarchy({
     name: 'root',
     children: campaigns.map(c => ({ ...c, value: c.spend })),
   }).sum(d => d.value)
 
-  d3.treemap()
+  treemap()
     .size([width, height])
     .padding(3)
     .round(true)(root)
@@ -886,13 +886,13 @@ function renderCampaignSpendAllocation() {
     .transition()
     .duration(600)
     .delay((d, i) => i * 60)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('opacity', 0.85)
 
   cells.each(function (d, i) {
     const w = d.x1 - d.x0
     const h = d.y1 - d.y0
-    const cell = d3.select(this)
+    const cell = select(this)
     const baseDelay = 600 + i * 60
 
     if (w > 70 && h > 44) {

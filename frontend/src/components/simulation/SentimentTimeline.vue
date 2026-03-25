@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import * as d3 from 'd3'
+import { select, scaleLinear, area as d3Area, line as d3Line, curveMonotoneX, stack as d3Stack, stackOrderNone, easeCubicOut } from 'd3'
 import { useChartEntrance } from '../../composables/useChartEntrance'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 
@@ -101,7 +101,7 @@ const viewMode = ref('trend') // 'trend' | 'distribution'
 
 function clearChart() {
   if (chartRef.value) {
-    d3.select(chartRef.value).selectAll('*').remove()
+    select(chartRef.value).selectAll('*').remove()
   }
 }
 
@@ -128,7 +128,7 @@ function renderTrend(container, data, containerWidth) {
   const height = 180
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -137,11 +137,11 @@ function renderTrend(container, data, containerWidth) {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  const x = d3.scaleLinear()
+  const x = scaleLinear()
     .domain([data[0].round, data[data.length - 1].round])
     .range([0, width])
 
-  const y = d3.scaleLinear()
+  const y = scaleLinear()
     .domain([-0.6, 0.6])
     .range([height, 0])
     .clamp(true)
@@ -201,11 +201,11 @@ function renderTrend(container, data, containerWidth) {
     .delay((_, i) => 80 + i * 20)
     .style('opacity', 1)
 
-  const positiveArea = d3.area()
+  const positiveArea = d3Area()
     .x(d => x(d.round))
     .y0(y(0))
     .y1(d => d.avgSentiment > 0 ? y(d.avgSentiment) : y(0))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
   g.append('path')
     .datum(data)
@@ -217,11 +217,11 @@ function renderTrend(container, data, containerWidth) {
     .delay(100)
     .style('opacity', 1)
 
-  const negativeArea = d3.area()
+  const negativeArea = d3Area()
     .x(d => x(d.round))
     .y0(y(0))
     .y1(d => d.avgSentiment < 0 ? y(d.avgSentiment) : y(0))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
   g.append('path')
     .datum(data)
@@ -233,10 +233,10 @@ function renderTrend(container, data, containerWidth) {
     .delay(100)
     .style('opacity', 1)
 
-  const line = d3.line()
+  const sentimentLine = d3Line()
     .x(d => x(d.round))
     .y(d => y(d.avgSentiment))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
   const gradientId = 'sentiment-gradient'
   const defs = svg.append('defs')
@@ -252,7 +252,7 @@ function renderTrend(container, data, containerWidth) {
 
   const path = g.append('path')
     .datum(data)
-    .attr('d', line)
+    .attr('d', sentimentLine)
     .attr('fill', 'none')
     .attr('stroke', `url(#${gradientId})`)
     .attr('stroke-width', 2.5)
@@ -263,7 +263,7 @@ function renderTrend(container, data, containerWidth) {
     .attr('stroke-dashoffset', totalLength)
     .transition()
     .duration(800)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('stroke-dashoffset', 0)
 
   const dots = g.selectAll('.dot')
@@ -285,7 +285,7 @@ function renderTrend(container, data, containerWidth) {
     .delay((_, i) => 800 + i * 40)
     .attr('r', 4)
 
-  const tooltip = d3.select(container)
+  const tooltip = select(container)
     .append('div')
     .style('position', 'absolute')
     .style('pointer-events', 'none')
@@ -377,7 +377,7 @@ function renderDistribution(container, data, containerWidth) {
   const height = 180
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -393,19 +393,19 @@ function renderDistribution(container, data, containerWidth) {
     negative: d.total ? d.negative / d.total : 0,
   }))
 
-  const x = d3.scaleLinear()
+  const x = scaleLinear()
     .domain([data[0].round, data[data.length - 1].round])
     .range([0, width])
 
-  const y = d3.scaleLinear()
+  const y = scaleLinear()
     .domain([0, 1])
     .range([height, 0])
 
-  const stack = d3.stack()
+  const stackGen = d3Stack()
     .keys(['negative', 'neutral', 'positive'])
-    .order(d3.stackOrderNone)
+    .order(stackOrderNone)
 
-  const series = stack(stackData)
+  const series = stackGen(stackData)
 
   const stackColors = {
     positive: c.stackPositive,
@@ -413,11 +413,11 @@ function renderDistribution(container, data, containerWidth) {
     negative: c.stackNegative,
   }
 
-  const area = d3.area()
+  const areaGen = d3Area()
     .x(d => x(d.data.round))
     .y0(d => y(d[0]))
     .y1(d => y(d[1]))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
   // Clip-path for left-to-right reveal animation
   const clipId = `dist-reveal-${Date.now()}`
@@ -432,7 +432,7 @@ function renderDistribution(container, data, containerWidth) {
     .transition()
     .duration(800)
     .delay(100)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('width', width)
 
   // Stacked areas with clip reveal
@@ -441,7 +441,7 @@ function renderDistribution(container, data, containerWidth) {
     .selectAll('.area')
     .data(series)
     .join('path')
-    .attr('d', area)
+    .attr('d', areaGen)
     .attr('fill', d => stackColors[d.key])
 
   const gridValues = [0, 0.25, 0.5, 0.75, 1.0]

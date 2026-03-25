@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import * as d3 from 'd3'
+import { select, forceSimulation, forceCenter, forceManyBody, forceCollide, forceLink, zoom, drag, easeBackOut, zoomIdentity } from 'd3'
 import GraphSearch from './GraphSearch.vue'
 
 const props = defineProps({
@@ -123,9 +123,9 @@ function renderSkeletonGraph() {
   const height = container.clientHeight
   if (!width || !height) return
 
-  d3.select(svgRef.value).selectAll('*').remove()
+  select(svgRef.value).selectAll('*').remove()
 
-  svg = d3.select(svgRef.value).attr('width', width).attr('height', height)
+  svg = select(svgRef.value).attr('width', width).attr('height', height)
   zoomGroup = svg.append('g')
 
   const baseCount = 4
@@ -156,10 +156,10 @@ function renderSkeletonGraph() {
     .attr('fill', 'rgba(32,104,255,0.15)')
     .attr('class', 'skeleton-pulse')
 
-  skeletonSim = d3.forceSimulation(skeletonNodes)
-    .force('center', d3.forceCenter(width / 2, height / 2).strength(0.02))
-    .force('charge', d3.forceManyBody().strength(-30))
-    .force('collision', d3.forceCollide(20))
+  skeletonSim = forceSimulation(skeletonNodes)
+    .force('center', forceCenter(width / 2, height / 2).strength(0.02))
+    .force('charge', forceManyBody().strength(-30))
+    .force('collision', forceCollide(20))
     .alphaTarget(0.3)
     .on('tick', () => {
       nodeG.attr('cx', d => d.x).attr('cy', d => d.y)
@@ -217,13 +217,13 @@ function renderGraph() {
   nodeCount.value = nodes.length
   edgeCount.value = links.length
 
-  d3.select(svgRef.value).selectAll('*').remove()
+  select(svgRef.value).selectAll('*').remove()
 
-  svg = d3.select(svgRef.value)
+  svg = select(svgRef.value)
     .attr('width', width)
     .attr('height', height)
 
-  zoomBehavior = d3.zoom()
+  zoomBehavior = zoom()
     .scaleExtent([0.2, 5])
     .on('zoom', (event) => {
       zoomGroup.attr('transform', event.transform)
@@ -258,11 +258,11 @@ function renderGraph() {
   glowMerge.append('feMergeNode').attr('in', 'blur')
   glowMerge.append('feMergeNode').attr('in', 'SourceGraphic')
 
-  simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
-    .force('charge', d3.forceManyBody().strength(-300))
-    .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => d.radius + 4))
+  simulation = forceSimulation(nodes)
+    .force('link', forceLink(links).id(d => d.id).distance(120))
+    .force('charge', forceManyBody().strength(-300))
+    .force('center', forceCenter(width / 2, height / 2))
+    .force('collision', forceCollide().radius(d => d.radius + 4))
 
   const link = zoomGroup.append('g')
     .selectAll('line')
@@ -290,7 +290,7 @@ function renderGraph() {
     .join('g')
     .style('cursor', 'grab')
     .style('opacity', 0)
-    .call(d3.drag()
+    .call(drag()
       .on('start', dragstarted)
       .on('drag', dragged)
       .on('end', dragended)
@@ -362,7 +362,7 @@ function dragstarted(event, d) {
   d.fx = d.x
   d.fy = d.y
 
-  const el = d3.select(this)
+  const el = select(this)
   el.raise()
 
   el.select('circle:nth-child(2)')
@@ -407,16 +407,16 @@ function dragended(event, d) {
   d.fx = null
   d.fy = null
 
-  const el = d3.select(this)
+  const el = select(this)
 
   el.select('circle:nth-child(2)')
-    .transition().duration(300).ease(d3.easeBackOut.overshoot(1.5))
+    .transition().duration(300).ease(easeBackOut.overshoot(1.5))
     .attr('r', d.radius)
     .attr('fill-opacity', 0.85)
     .style('filter', null)
 
   el.select('circle:first-child')
-    .transition().duration(300).ease(d3.easeBackOut.overshoot(1.5))
+    .transition().duration(300).ease(easeBackOut.overshoot(1.5))
     .attr('r', d.radius + 4)
     .attr('opacity', 0.2)
 
@@ -476,7 +476,7 @@ function handleSearchSelect(uuid) {
   if (!containerRef.value || !svg || !zoomBehavior) return
   const width = containerRef.value.clientWidth
   const height = containerRef.value.clientHeight
-  const transform = d3.zoomIdentity.translate(width / 2 - target.x, height / 2 - target.y)
+  const transform = zoomIdentity.translate(width / 2 - target.x, height / 2 - target.y)
   svg.transition().duration(500).call(zoomBehavior.transform, transform)
 }
 

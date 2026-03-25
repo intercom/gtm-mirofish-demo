@@ -1,4 +1,7 @@
 <script setup>
+import ShortcutBadge from './ShortcutBadge.vue'
+import { formatShortcutText } from '../../composables/useKeyboardShortcuts'
+
 defineProps({
   variant: {
     type: String,
@@ -16,6 +19,7 @@ defineProps({
     type: String,
     default: 'button',
   },
+  shortcut: String,
 })
 
 defineEmits(['click'])
@@ -25,6 +29,7 @@ defineEmits(['click'])
   <button
     :type="type"
     :disabled="disabled || loading"
+    :title="shortcut ? formatShortcutText(shortcut) : undefined"
     @click="$emit('click', $event)"
     class="inline-flex items-center justify-center font-semibold rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
     style="transition: var(--btn-transition)"
@@ -52,5 +57,10 @@ defineEmits(['click'])
       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
     </svg>
     <slot />
+    <ShortcutBadge
+      v-if="shortcut"
+      :shortcut="shortcut"
+      :variant="variant === 'primary' ? 'light' : 'dark'"
+    />
   </button>
 </template>

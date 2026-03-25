@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import ShortcutBadge from '../common/ShortcutBadge.vue'
 
 const route = useRoute()
 const { isDemoMode } = useDemoMode()
@@ -11,9 +12,9 @@ const mobileMenuOpen = ref(false)
 
 const navLinks = computed(() => {
   return [
-    { to: '/', label: 'Home', exact: true },
-    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
-    { to: '/settings', label: 'Settings', exact: false },
+    { to: '/', label: 'Home', exact: true, shortcut: 'G+D' },
+    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S' },
+    { to: '/settings', label: 'Settings', exact: false, shortcut: 'G+T' },
   ]
 })
 
@@ -58,6 +59,12 @@ watch(() => route.path, () => {
                 v-if="link.showActiveDot && simulationStore.isActive"
                 class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
               ></span>
+              <ShortcutBadge
+                v-if="link.shortcut"
+                :shortcut="link.shortcut"
+                variant="light"
+                class="nav-shortcut"
+              />
             </span>
           </router-link>
         </div>
@@ -142,5 +149,12 @@ watch(() => route.path, () => {
 .nav-link--exact.router-link-exact-active {
   color: white;
   background-color: rgba(255, 255, 255, 0.12);
+}
+.nav-shortcut {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.nav-link:hover .nav-shortcut {
+  opacity: 1;
 }
 </style>

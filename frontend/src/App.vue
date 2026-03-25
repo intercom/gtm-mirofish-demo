@@ -2,6 +2,7 @@
 import { watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppLayout from './components/layout/AppLayout.vue'
+import ErrorBoundary from './components/ui/ErrorBoundary.vue'
 import ToastContainer from './components/ui/ToastContainer.vue'
 import OfflineBanner from './components/common/OfflineBanner.vue'
 import NavigationShortcutIndicator from './components/ui/NavigationShortcutIndicator.vue'
@@ -52,11 +53,13 @@ onUnmounted(() => {
 
 <template>
   <AppLayout>
-    <router-view v-slot="{ Component }">
-      <Transition name="page" mode="out-in">
-        <component :is="Component" />
-      </Transition>
-    </router-view>
+    <ErrorBoundary>
+      <router-view v-slot="{ Component }">
+        <Transition name="page" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </router-view>
+    </ErrorBoundary>
   </AppLayout>
   <OfflineBanner />
   <ToastContainer />

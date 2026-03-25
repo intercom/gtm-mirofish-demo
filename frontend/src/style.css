@@ -11,6 +11,8 @@ body {
   transition: color var(--transition-base), background var(--transition-base);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 h1, h2, h3, h4 {
@@ -20,6 +22,10 @@ h1, h2, h3, h4 {
 
 button, [role="button"], a[href], summary, select, input[type="checkbox"], input[type="radio"] {
   cursor: pointer;
+}
+
+button:active:not(:disabled), [role="button"]:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 #app {

@@ -2709,3 +2709,70 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Agent Interaction Network ==============
+
+@simulation_bp.route('/<simulation_id>/network', methods=['GET'])
+def get_interaction_network(simulation_id: str):
+    """
+    Get agent interaction network graph for a simulation.
+
+    Returns nodes (agents with metrics) and edges (interactions).
+    Optional query param: include_centrality=true, include_clusters=true
+    """
+    try:
+        from ..services.interaction_graph import InteractionGraphBuilder
+
+        actions = SimulationRunner.get_actions(simulation_id=simulation_id)
+        action_dicts = [a.to_dict() for a in actions]
+
+        builder = InteractionGraphBuilder()
+        graph = builder.build_from_simulation(action_dicts)
+
+        if request.args.get('include_centrality', 'false').lower() == 'true':
+            graph['centrality'] = builder.compute_centrality(graph)
+
+        if request.args.get('include_clusters', 'false').lower() == 'true':
+            graph['clusters'] = builder.detect_clusters(graph)
+
+        return jsonify({"success": True, "data": graph})
+
+    except Exception as e:
+        logger.error(f"Failed to build interaction network: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/network/round/<int:round_num>', methods=['GET'])
+def get_interaction_network_at_round(simulation_id: str, round_num: int):
+    """
+    Get agent interaction network graph state at a specific round.
+    """
+    try:
+        from ..services.interaction_graph import InteractionGraphBuilder
+
+        actions = SimulationRunner.get_actions(simulation_id=simulation_id)
+        action_dicts = [a.to_dict() for a in actions]
+
+        builder = InteractionGraphBuilder()
+        graph = builder.build_temporal_graph(action_dicts, round_num)
+
+        if request.args.get('include_centrality', 'false').lower() == 'true':
+            graph['centrality'] = builder.compute_centrality(graph)
+
+        if request.args.get('include_clusters', 'false').lower() == 'true':
+            graph['clusters'] = builder.detect_clusters(graph)
+
+        return jsonify({"success": True, "data": graph})
+
+    except Exception as e:
+        logger.error(f"Failed to build temporal network: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

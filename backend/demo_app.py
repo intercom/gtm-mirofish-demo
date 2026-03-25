@@ -638,6 +638,50 @@ def sim_entities(graph_id):
 
 
 # ---------------------------------------------------------------------------
+# Agent Interaction Network (demo mode)
+# ---------------------------------------------------------------------------
+
+def _get_interaction_builder():
+    """Lazy-import InteractionGraphBuilder without triggering the full app package."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "interaction_graph",
+        Path(__file__).parent / "app" / "services" / "interaction_graph.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.InteractionGraphBuilder()
+
+
+@app.route("/api/simulation/<sim_id>/network")
+def sim_network(sim_id):
+    builder = _get_interaction_builder()
+    actions = _generate_agent_actions(72)
+    graph = builder.build_from_simulation(actions)
+
+    if request.args.get("include_centrality", "false").lower() == "true":
+        graph["centrality"] = builder.compute_centrality(graph)
+    if request.args.get("include_clusters", "false").lower() == "true":
+        graph["clusters"] = builder.detect_clusters(graph)
+
+    return _ok(graph)
+
+
+@app.route("/api/simulation/<sim_id>/network/round/<int:round_num>")
+def sim_network_round(sim_id, round_num):
+    builder = _get_interaction_builder()
+    actions = _generate_agent_actions(max(round_num, 1))
+    graph = builder.build_temporal_graph(actions, round_num)
+
+    if request.args.get("include_centrality", "false").lower() == "true":
+        graph["centrality"] = builder.compute_centrality(graph)
+    if request.args.get("include_clusters", "false").lower() == "true":
+        graph["clusters"] = builder.detect_clusters(graph)
+
+    return _ok(graph)
+
+
+# ---------------------------------------------------------------------------
 # Report API
 # ---------------------------------------------------------------------------
 

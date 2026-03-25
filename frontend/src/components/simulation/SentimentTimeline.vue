@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const { isMobile } = useMobileChart()
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },
@@ -116,9 +119,12 @@ function renderChart() {
 }
 
 function renderTrend(container, data, containerWidth) {
-  const margin = { top: 12, right: 16, bottom: 28, left: 36 }
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 8, right: 12, bottom: 24, left: 30 }
+    : { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
-  const height = 180
+  const height = mobile ? 140 : 180
   const totalHeight = height + margin.top + margin.bottom
 
   const svg = d3.select(container)
@@ -258,10 +264,12 @@ function renderTrend(container, data, containerWidth) {
     .attr('stroke', '#fff')
     .attr('stroke-width', 1.5)
 
+  const dotRadius = mobile ? 6 : 4
+
   dots.transition()
     .duration(300)
     .delay((_, i) => 800 + i * 40)
-    .attr('r', 4)
+    .attr('r', dotRadius)
 
   // Tooltip overlay
   const tooltip = d3.select(container)
@@ -294,7 +302,8 @@ function renderTrend(container, data, containerWidth) {
     .attr('height', height)
     .attr('fill', 'transparent')
     .attr('cursor', 'pointer')
-    .on('mouseenter', (event, d) => {
+    .on('mouseenter touchstart', (event, d) => {
+      if (event.type === 'touchstart') event.preventDefault()
       const sentimentLabel = d.avgSentiment > 0.1 ? 'Positive' : d.avgSentiment < -0.1 ? 'Negative' : 'Neutral'
       const color = d.avgSentiment > 0.1 ? '#009900' : d.avgSentiment < -0.1 ? '#ff5600' : '#2068FF'
       tooltip
@@ -312,10 +321,16 @@ function renderTrend(container, data, containerWidth) {
         `)
         .style('opacity', 1)
 
-      // Highlight the dot
+      const rect = container.getBoundingClientRect()
+      const cx = event.touches ? event.touches[0].clientX : event.clientX
+      const cy = event.touches ? event.touches[0].clientY : event.clientY
+      tooltip
+        .style('left', `${cx - rect.left + 12}px`)
+        .style('top', `${cy - rect.top - 40}px`)
+
       dots.filter(dd => dd.round === d.round)
         .transition().duration(100)
-        .attr('r', 6)
+        .attr('r', dotRadius + 2)
     })
     .on('mousemove', (event) => {
       const rect = container.getBoundingClientRect()
@@ -323,18 +338,21 @@ function renderTrend(container, data, containerWidth) {
         .style('left', `${event.clientX - rect.left + 12}px`)
         .style('top', `${event.clientY - rect.top - 40}px`)
     })
-    .on('mouseleave', (event, d) => {
+    .on('mouseleave touchend', (event, d) => {
       tooltip.style('opacity', 0)
       dots.filter(dd => dd.round === d.round)
         .transition().duration(100)
-        .attr('r', 4)
+        .attr('r', dotRadius)
     })
 }
 
 function renderDistribution(container, data, containerWidth) {
-  const margin = { top: 12, right: 16, bottom: 28, left: 36 }
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 8, right: 12, bottom: 24, left: 30 }
+    : { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
-  const height = 180
+  const height = mobile ? 140 : 180
   const totalHeight = height + margin.top + margin.bottom
 
   const svg = d3.select(container)
@@ -432,7 +450,7 @@ function renderDistribution(container, data, containerWidth) {
 
 // --- Lifecycle ---
 
-watch([() => props.actions.length, () => props.timeline.length, viewMode], () => {
+watch([() => props.actions.length, () => props.timeline.length, viewMode, isMobile], () => {
   nextTick(() => renderChart())
 })
 
@@ -454,9 +472,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-sm font-semibold text-[var(--color-text)]">Sentiment Timeline</h3>
+  <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 sm:p-5">
+    <div class="flex items-center justify-between mb-3 sm:mb-4">
+      <h3 class="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Sentiment Timeline</h3>
       <div v-if="sentimentData.length" class="flex gap-1 bg-[var(--color-tint)] rounded-md p-0.5">
         <button
           class="px-2.5 py-1 text-[11px] rounded font-medium transition-colors"
@@ -479,7 +497,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="sentimentData.length" class="relative" ref="chartRef" style="height: 220px" />
+    <div v-if="sentimentData.length" class="relative" ref="chartRef" :style="{ height: isMobile ? '172px' : '220px' }" />
 
     <div v-else class="flex items-center justify-center h-[180px] text-[var(--color-text-muted)] text-sm">
       <span>Sentiment data will appear as agents interact</span>

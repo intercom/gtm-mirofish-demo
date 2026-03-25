@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import * as d3 from 'd3'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const { isMobile } = useMobileChart()
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -239,11 +242,12 @@ function renderGraph() {
     .attr('d', 'M0,-4L8,0L0,4')
     .attr('fill', dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
 
+  const mobile = isMobile.value
   simulation = d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
-    .force('charge', d3.forceManyBody().strength(-300))
+    .force('link', d3.forceLink(links).id(d => d.id).distance(mobile ? 70 : 120))
+    .force('charge', d3.forceManyBody().strength(mobile ? -150 : -300))
     .force('center', d3.forceCenter(width / 2, height / 2))
-    .force('collision', d3.forceCollide().radius(d => d.radius + 4))
+    .force('collision', d3.forceCollide().radius(d => d.radius + (mobile ? 2 : 4)))
 
   const link = zoomGroup.append('g')
     .selectAll('line')
@@ -302,18 +306,21 @@ function renderGraph() {
     .attr('font-size', '10px')
     .style('pointer-events', 'none')
 
+  const nodeDelay = mobile ? 20 : 60
+  const linkBaseDelay = nodes.length * nodeDelay
+
   node.transition()
-    .delay((d, i) => i * 60)
-    .duration(400)
+    .delay((d, i) => i * nodeDelay)
+    .duration(mobile ? 250 : 400)
     .style('opacity', 1)
 
   link.transition()
-    .delay((d, i) => nodes.length * 60 + i * 30)
+    .delay((d, i) => linkBaseDelay + i * (mobile ? 10 : 30))
     .duration(300)
     .style('opacity', 1)
 
   edgeLabel.transition()
-    .delay((d, i) => nodes.length * 60 + i * 30)
+    .delay((d, i) => linkBaseDelay + i * (mobile ? 10 : 30))
     .duration(300)
     .style('opacity', 1)
 
@@ -661,7 +668,7 @@ onUnmounted(() => {
     <Transition name="fade">
       <div
         v-if="graphStatus === 'building' && !demoMode && !isDemoFallback"
-        class="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/60 dark:bg-black/70 backdrop-blur-sm rounded-xl px-5 py-3 flex items-center gap-4"
+        class="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/60 dark:bg-black/70 backdrop-blur-sm rounded-xl px-3 py-2 sm:px-5 sm:py-3 flex items-center gap-2 sm:gap-4 max-w-[90vw]"
       >
         <svg viewBox="0 0 36 36" class="w-9 h-9 -rotate-90 flex-shrink-0">
           <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
@@ -697,10 +704,10 @@ onUnmounted(() => {
     <!-- SVG canvas -->
     <svg ref="svgRef" class="w-full h-full graph-canvas" />
 
-    <!-- Entity type stats panel bottom-left -->
+    <!-- Entity type stats panel bottom-left (hidden on mobile to avoid overlap) -->
     <div
       v-if="entityTypeStats.length && graphStatus !== 'failed'"
-      class="absolute bottom-6 left-4 z-10 bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-black/10 dark:border-white/10 rounded-lg p-4 max-w-56"
+      class="absolute bottom-6 left-4 z-10 bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-black/10 dark:border-white/10 rounded-lg p-4 max-w-56 hidden sm:block"
     >
       <h3 class="text-[10px] uppercase tracking-widest text-[var(--color-text-muted)] mb-3">Entity Types</h3>
       <div class="space-y-2">
@@ -720,7 +727,7 @@ onUnmounted(() => {
     <Transition name="slide">
       <div
         v-if="selectedNode"
-        class="absolute top-0 right-0 z-20 h-full w-80 bg-white/95 dark:bg-[#0f0f24]/95 backdrop-blur-md border-l border-black/10 dark:border-white/10 overflow-y-auto"
+        class="absolute top-0 right-0 z-20 h-full w-full sm:w-80 bg-white/95 dark:bg-[#0f0f24]/95 backdrop-blur-md border-l border-black/10 dark:border-white/10 overflow-y-auto"
         data-testid="detail-panel"
       >
         <div class="p-5">

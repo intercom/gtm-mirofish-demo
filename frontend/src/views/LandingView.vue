@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useCountUp } from '../composables/useCountUp'
 import { useParallax } from '../composables/useParallax'
+import { useOnboardingTour } from '../composables/useOnboardingTour'
 import { API_BASE } from '../api/client'
 import HeroSwarm from '../components/landing/HeroSwarm.vue'
 import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
@@ -14,6 +15,7 @@ import SkeletonScenarioCard from '../components/ui/SkeletonScenarioCard.vue'
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()
+const { autoStart: autoStartTour } = useOnboardingTour()
 const showSteps = ref(false)
 
 const heroSection = ref(null)
@@ -47,6 +49,7 @@ function onStaggerEnter(el, done) {
 
 onMounted(() => {
   setTimeout(() => { showSteps.value = true }, 200)
+  autoStartTour()
 })
 
 const steps = [
@@ -319,12 +322,14 @@ const year = new Date().getFullYear()
         <HeroSwarm />
       </div>
       <div class="relative max-w-4xl mx-auto text-center" :style="heroContentStyle">
-        <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
-          Intercom GTM Systems
-        </p>
-        <h1 class="text-3xl md:text-6xl font-semibold mb-3 md:mb-4">
-          MiroFish Swarm Intelligence
-        </h1>
+        <div data-tour="hero" class="inline-block">
+          <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
+            Intercom GTM Systems
+          </p>
+          <h1 class="text-3xl md:text-6xl font-semibold mb-3 md:mb-4">
+            MiroFish Swarm Intelligence
+          </h1>
+        </div>
         <p class="text-base md:text-lg text-white/60 max-w-2xl mx-auto" :class="isDemoMode ? 'mb-3' : 'mb-8 md:mb-12'">
           Predict campaign outcomes before they happen. Simulate how prospects react
           to your outbound, signals, and pricing changes.
@@ -340,7 +345,7 @@ const year = new Date().getFullYear()
           </div>
         </div>
 
-        <div v-else class="max-w-2xl mx-auto">
+        <div v-else data-tour="scenarios" class="max-w-2xl mx-auto">
           <ScenarioTemplateGallery
             ref="scenarioSection"
             variant="dark"
@@ -380,7 +385,7 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 3. HOW IT WORKS                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section class="px-4 md:px-6 py-10 md:py-16 bg-[var(--color-bg)]">
+    <section data-tour="how-it-works" class="px-4 md:px-6 py-10 md:py-16 bg-[var(--color-bg)]">
       <div class="max-w-4xl mx-auto text-center">
         <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8">How It Works</h2>
         <TransitionGroup
@@ -404,7 +409,7 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 4. STATS BANNER                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section ref="statsBanner" class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
+    <section ref="statsBanner" data-tour="stats" class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
       <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-center">
         <div>
           <div class="text-2xl font-semibold text-[#2068FF]">{{ agentDisplay >= 1000000 ? `${Math.floor(agentDisplay / 1000000)}M+` : agentDisplay.toLocaleString() }}</div>

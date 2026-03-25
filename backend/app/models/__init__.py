@@ -52,6 +52,16 @@ from .data_pipeline import (
     DbtTest, DbtTestStatus, DbtTestSeverity,
     DataFreshness,
 )
+from .report_builder import (
+    ReportTemplate,
+    ReportSection,
+    GeneratedReport,
+    ReportBuilderManager,
+    SectionType,
+    SectionWidth,
+    GenerationMethod,
+    PageOrientation,
+)
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -80,4 +90,7 @@ __all__ = [
     'DbtModel', 'DbtMaterialization', 'DbtModelStatus',
     'DbtTest', 'DbtTestStatus', 'DbtTestSeverity',
     'DataFreshness',
+    'ReportTemplate', 'ReportSection', 'GeneratedReport',
+    'ReportBuilderManager', 'SectionType', 'SectionWidth',
+    'GenerationMethod', 'PageOrientation',
 ]

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import * as d3 from 'd3'
+import Graph3DPanel from './Graph3DPanel.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -32,6 +33,8 @@ const selectedNode = ref(null)
 const nodeCount = ref(0)
 const edgeCount = ref(0)
 const errorMsg = ref('')
+const viewMode = ref('2d')
+const darkMode = ref(isDarkMode())
 
 // Entity type color mapping
 const TYPE_COLORS = {
@@ -374,6 +377,14 @@ function selectNode(d) {
   }
 }
 
+function handleNode3DSelect(node) {
+  if (!node) {
+    selectedNode.value = null
+    return
+  }
+  selectNode(node)
+}
+
 // --- Demo Data ---
 
 function loadDemoData() {
@@ -612,8 +623,11 @@ onMounted(() => {
 
   themeObserver = new MutationObserver((mutations) => {
     for (const m of mutations) {
-      if (m.attributeName === 'class' && graphData.value.nodes.length) {
-        renderGraph()
+      if (m.attributeName === 'class') {
+        darkMode.value = isDarkMode()
+        if (graphData.value.nodes.length) {
+          renderGraph()
+        }
         break
       }
     }
@@ -694,8 +708,17 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- SVG canvas -->
-    <svg ref="svgRef" class="w-full h-full graph-canvas" />
+    <!-- 2D SVG canvas -->
+    <svg v-show="viewMode === '2d'" ref="svgRef" class="w-full h-full graph-canvas" />
+
+    <!-- 3D WebGL canvas -->
+    <Graph3DPanel
+      v-if="viewMode === '3d' && graphData.nodes.length"
+      :nodes="graphData.nodes"
+      :edges="graphData.edges"
+      :isDark="darkMode"
+      @select-node="handleNode3DSelect"
+    />
 
     <!-- Entity type stats panel bottom-left -->
     <div
@@ -790,13 +813,29 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <!-- Action buttons bottom-right (when graph complete) -->
+    <!-- View mode toggle + stats bottom-right -->
     <Transition name="fade">
       <div
-        v-if="graphStatus === 'complete'"
+        v-if="graphStatus === 'complete' || graphData.nodes.length"
         class="absolute bottom-6 right-6 z-10 flex items-center gap-3"
       >
         <span class="text-xs text-[var(--color-text-muted)]">{{ nodeCount }} nodes, {{ edgeCount }} edges</span>
+        <div class="flex bg-black/10 dark:bg-white/10 rounded-lg p-0.5">
+          <button
+            @click="viewMode = '2d'"
+            class="px-2.5 py-1 rounded-md text-xs font-medium transition-all"
+            :class="viewMode === '2d'
+              ? 'bg-white dark:bg-white/20 text-[var(--color-text)] shadow-sm'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'"
+          >2D</button>
+          <button
+            @click="viewMode = '3d'"
+            class="px-2.5 py-1 rounded-md text-xs font-medium transition-all"
+            :class="viewMode === '3d'
+              ? 'bg-white dark:bg-white/20 text-[var(--color-text)] shadow-sm'
+              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'"
+          >3D</button>
+        </div>
       </div>
     </Transition>
   </div>

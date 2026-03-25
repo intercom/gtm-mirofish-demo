@@ -16,6 +16,7 @@ import ReportCanvas from '../components/report/ReportCanvas.vue'
 import { useReportStore } from '../stores/report'
 import ReportTemplateSelector from '../components/report/ReportTemplateSelector.vue'
 import ReportShareModal from '../components/report/ReportShareModal.vue'
+import ReportPreview from '../components/report-builder/ReportPreview.vue'
 
 const { resolvedTheme, themeStyles } = useReportTheme()
 const showShareModal = ref(false)
@@ -107,6 +108,7 @@ const templateLabel = computed(() => {
   if (reportStore.selectedTemplate) return reportStore.selectedTemplate.name
   return null
 })
+
 
 async function checkAndLoad() {
   try {
@@ -589,6 +591,13 @@ onUnmounted(() => {
           :columns="agentTableColumns"
           :rows="agentTableRows"
           title="Agent Activity Breakdown"
+        />
+
+        <!-- Report Preview & Export -->
+        <ReportPreview
+          v-if="!generating && sections.length > 0"
+          :sections="sections"
+          :reportId="reportId"
         />
       </div>
     </div>

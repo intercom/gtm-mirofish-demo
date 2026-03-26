@@ -248,6 +248,9 @@ def create_app(config_class=Config):
     from .api.api_keys import api_keys_bp
     app.register_blueprint(api_keys_bp)
 
+    # Sessions API
+    from .api.sessions import sessions_bp
+    app.register_blueprint(sessions_bp)
 
     @app.route('/health')
     def health():

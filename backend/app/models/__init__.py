@@ -68,6 +68,7 @@ from .scenario_template import (
     ScenarioDifficulty,
     ScenarioTemplateManager,
 )
+from .session import Session, SessionStatus, SessionManager
 
 __all__ = [
     'TaskManager', 'TaskStatus',
@@ -100,4 +101,5 @@ __all__ = [
     'ReportBuilderManager', 'SectionType', 'SectionWidth',
     'GenerationMethod', 'PageOrientation',
     'ScenarioTemplate', 'ScenarioCategory', 'ScenarioDifficulty', 'ScenarioTemplateManager',
+    'Session', 'SessionStatus', 'SessionManager',
 ]

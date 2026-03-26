@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { API_BASE } from '../api/client'
+import { authApi } from '../api/auth'
 
 const STORAGE_KEY = 'mirofish-auth'
 
@@ -10,6 +10,7 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const token = ref(null)
   const role = ref('admin')
+  const loading = ref(false)
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const userPermissions = computed(() => user.value?.permissions || [])
@@ -64,21 +65,37 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return false
     // When offline, trust cached credentials rather than logging out
     if (!navigator.onLine) return true
+    loading.value = true
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
-        headers: { Authorization: `Bearer ${token.value}` },
-      })
-      if (res.ok) {
-        const data = await res.json()
-        user.value = data.user
-        return true
-      }
-      logout()
-      return false
+      const { data } = await authApi.me()
+      user.value = data.user
+      return true
     } catch {
       // Network error (likely offline) — trust cached auth
       return !!token.value
+    } finally {
+      loading.value = false
     }
+  }
+
+  async function login(credentials) {
+    loading.value = true
+    try {
+      const { data } = await authApi.login(credentials)
+      setAuth(data.user, data.token)
+      return data.user
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function logoutAndNotify() {
+    try {
+      await authApi.logout()
+    } catch {
+      // Server logout is best-effort
+    }
+    logout()
   }
 
   // Load on creation
@@ -88,6 +105,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     token,
     role,
+    loading,
     isAuthenticated,
     userRole,
     userPermissions,
@@ -96,7 +114,9 @@ export const useAuthStore = defineStore('auth', () => {
     hasRole,
     load,
     setAuth,
+    login,
     logout,
+    logoutAndNotify,
     checkAuth,
   }
 })

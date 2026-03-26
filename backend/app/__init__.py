@@ -199,6 +199,10 @@ def create_app(config_class=Config):
     from .api.batch import batch_bp
     app.register_blueprint(batch_bp)
 
+    # Auth API (login, logout, token validation)
+    from .api.auth import auth_bp
+    app.register_blueprint(auth_bp)
+
     @app.route('/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}

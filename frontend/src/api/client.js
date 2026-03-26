@@ -42,6 +42,22 @@ client.defaults.adapter = (config) => {
 
 perfMonitor.createAxiosTimingInterceptors(client)
 
+// Attach Bearer token from localStorage (avoids circular Pinia import)
+client.interceptors.request.use((config) => {
+  try {
+    const saved = localStorage.getItem('mirofish-auth')
+    if (saved) {
+      const { token } = JSON.parse(saved)
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    }
+  } catch {
+    // Corrupted storage — skip
+  }
+  return config
+})
+
 // Normalize errors so callers always get { message, status, data }
 client.interceptors.response.use(
   (response) => response,

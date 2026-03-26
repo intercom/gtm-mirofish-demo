@@ -21,6 +21,7 @@ export function useSimulationPolling(taskIdSource) {
   const recentActions = ref([])
   const timeline = ref([])
   const knowledgeTimeline = ref(null)
+  const branchPoints = ref([])
 
   // --- Error / fallback ---
   const errorMsg = ref('')
@@ -147,6 +148,7 @@ export function useSimulationPolling(taskIdSource) {
           totalActions: json.data.total_actions_count ?? 0,
           twitterActions: json.data.twitter_actions_count ?? 0,
           redditActions: json.data.reddit_actions_count ?? 0,
+          branchCount: branchPoints.value.length,
           status: 'completed',
         })
       } else if (rs === 'failed') {
@@ -211,6 +213,23 @@ export function useSimulationPolling(taskIdSource) {
       }
     } catch {
       // Non-critical
+    }
+  }
+
+  // --- Branch points (fetched once when simulation completes or on initial load) ---
+  async function fetchBranchPoints() {
+    const taskId = resolveTaskId()
+    if (!taskId) return
+
+    try {
+      const res = await client.get(`/simulation/${taskId}/branch-points`)
+      const json = res.data
+      if (json.success) {
+        branchPoints.value = json.data.branch_points || []
+        simStore.setBranchPoints(json.data)
+      }
+    } catch {
+      // Non-critical — branch points just won't show
     }
   }
 
@@ -426,10 +445,42 @@ export function useSimulationPolling(taskIdSource) {
       })
     }
     timeline.value = demoTimeline
+
+    // Generate demo branch points
+    const bpRound1 = Math.max(2, Math.floor(demoRounds * 0.3))
+    const demoBranchPoints = [
+      {
+        id: `bp-${bpRound1}`,
+        round: bpRound1,
+        label: 'Messaging pivot',
+        branches: [
+          { id: `b-${bpRound1}a`, label: 'Original messaging', outcome: 'Moderate engagement, 12% reply rate' },
+          { id: `b-${bpRound1}b`, label: 'Empathy-led messaging', outcome: 'Higher trust signals, 18% reply rate' },
+        ],
+      },
+    ]
+    if (demoRounds >= 6) {
+      const bpRound2 = Math.floor(demoRounds * 0.65)
+      demoBranchPoints.push({
+        id: `bp-${bpRound2}`,
+        round: bpRound2,
+        label: 'Competitive response',
+        branches: [
+          { id: `b-${bpRound2}a`, label: 'Ignore competitor mention', outcome: 'Neutral sentiment maintained' },
+          { id: `b-${bpRound2}b`, label: 'Direct comparison response', outcome: 'Polarized reactions, +25% engagement' },
+        ],
+      })
+    }
+    branchPoints.value = demoBranchPoints
+    simStore.setBranchPoints({
+      branch_points: demoBranchPoints,
+      total_branches: demoBranchPoints.reduce((s, bp) => s + bp.branches.length, 0),
+    })
+    simStore.addSessionRun({ id: taskId, branchCount: demoBranchPoints.length })
   }
 
   async function forceRefresh() {
-    const promises = [fetchGraphTask(), fetchRunStatus(), fetchDetail(), fetchTimeline()]
+    const promises = [fetchGraphTask(), fetchRunStatus(), fetchDetail(), fetchTimeline(), fetchBranchPoints()]
     await Promise.allSettled(promises)
   }
 
@@ -439,6 +490,7 @@ export function useSimulationPolling(taskIdSource) {
       fetchDetail()
       fetchTimeline()
       fetchKnowledgeTimeline()
+      fetchBranchPoints()
       stopSimTimers()
     }
   })
@@ -459,6 +511,7 @@ export function useSimulationPolling(taskIdSource) {
     recentActions,
     timeline,
     knowledgeTimeline,
+    branchPoints,
 
     // Derived
     overallPhase,

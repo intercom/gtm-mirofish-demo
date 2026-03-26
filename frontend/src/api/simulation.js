@@ -108,6 +108,10 @@ export const simulationApi = {
   getInfluence: (simulationId) =>
     client.get(`/simulation/${simulationId}/influence`),
 
+  // --- Branches ---
+  getBranchPoints: (simulationId) =>
+    client.get(`/simulation/${simulationId}/branch-points`),
+
   // --- Environment ---
   envStatus: (data) => client.post('/simulation/env-status', data),
   closeEnv: (data) => client.post('/simulation/close-env', data),

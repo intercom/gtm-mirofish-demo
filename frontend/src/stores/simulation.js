@@ -53,6 +53,10 @@ export const useSimulationStore = defineStore('simulation', () => {
     totalSimulationHours: 0,
   })
 
+  // Branch points for the active simulation
+  const branchPoints = ref([])
+  const totalBranches = ref(0)
+
   const scenarioConfig = ref(active?.scenarioConfig || null)
 
   const sessionRuns = ref(loadStored(STORAGE_KEY, []))
@@ -164,6 +168,11 @@ export const useSimulationStore = defineStore('simulation', () => {
     progress.value.percent = 100
   }
 
+  function setBranchPoints(data) {
+    branchPoints.value = data.branch_points || []
+    totalBranches.value = data.total_branches || 0
+  }
+
   function setScenarioConfig(config) {
     scenarioConfig.value = config
   }
@@ -175,6 +184,7 @@ export const useSimulationStore = defineStore('simulation', () => {
       if (run.totalActions) existing.totalActions = run.totalActions
       if (run.twitterActions) existing.twitterActions = run.twitterActions
       if (run.redditActions) existing.redditActions = run.redditActions
+      if (run.branchCount != null) existing.branchCount = run.branchCount
       if (run.status) existing.status = run.status
       return
     }
@@ -192,6 +202,7 @@ export const useSimulationStore = defineStore('simulation', () => {
       totalActions: run.totalActions || 0,
       twitterActions: run.twitterActions || 0,
       redditActions: run.redditActions || 0,
+      branchCount: run.branchCount || 0,
       status: run.status || 'completed',
       timestamp: Date.now(),
     }
@@ -226,6 +237,8 @@ export const useSimulationStore = defineStore('simulation', () => {
     error.value = null
     mode.value = null
     scenarioConfig.value = null
+    branchPoints.value = []
+    totalBranches.value = 0
     progress.value = { percent: 0, message: '', currentRound: 0, totalRounds: 0 }
     metrics.value = { totalActions: 0, twitterActions: 0, redditActions: 0, simulatedHours: 0, totalSimulationHours: 0 }
     localStorage.removeItem(ACTIVE_STORAGE_KEY)
@@ -241,6 +254,8 @@ export const useSimulationStore = defineStore('simulation', () => {
     mode,
     progress,
     metrics,
+    branchPoints,
+    totalBranches,
     scenarioConfig,
     sessionRuns,
     isActive,
@@ -254,6 +269,7 @@ export const useSimulationStore = defineStore('simulation', () => {
     updateMetrics,
     setError,
     complete,
+    setBranchPoints,
     setScenarioConfig,
     addSessionRun,
     updateSessionRunStatus,

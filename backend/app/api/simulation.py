@@ -3541,7 +3541,6 @@ def close_simulation_env():
         }), 500
 
 
-<<<<<<< HEAD
 # ============== Orchestrator endpoints ==============
 
 # In-memory registry of orchestrator instances (keyed by simulation_id).
@@ -3640,15 +3639,11 @@ def stop_orchestrator(simulation_id: str):
 
 
 # ============== Coalition & Consensus API ==============
-=======
-# ============== Coalition Analysis ==============
->>>>>>> ralphy/agent-250-1774425176036-pbixyz-build-coalition-visualization-component
 
 @simulation_bp.route('/<simulation_id>/coalitions', methods=['GET'])
 def get_coalitions(simulation_id: str):
     """
     Detect and return coalitions for a simulation.
-<<<<<<< HEAD
 
     Returns labeled coalitions with members, shared positions, and strength.
     Works in demo mode when no simulation data exists.
@@ -4577,14 +4572,10 @@ def get_polarization(simulation_id: str):
     Get polarization index timeline.
 
     Returns 0-1 measure per round: 0 = consensus, 1 = fully polarized.
-=======
-    Returns mock data when no real simulation data is available (demo mode).
->>>>>>> ralphy/agent-250-1774425176036-pbixyz-build-coalition-visualization-component
     """
     try:
         from ..services.coalition_detector import CoalitionDetector
 
-<<<<<<< HEAD
         detector = CoalitionDetector()
         timeline = detector.compute_polarization_index(simulation_id)
 
@@ -4873,22 +4864,6 @@ def get_consensus(simulation_id: str):
         if result is None:
             # Demo/fallback mode
             result = _generate_demo_consensus()
-=======
-        actions = None
-        manager = SimulationManager()
-        state = manager.get_simulation(simulation_id)
-
-        if state and state.runner_id:
-            try:
-                runner_result = SimulationRunner.get_actions(state.runner_id)
-                if runner_result.get('success'):
-                    actions = runner_result.get('actions', [])
-            except Exception:
-                pass
-
-        detector = CoalitionDetector()
-        result = detector.detect_coalitions(simulation_id, actions)
->>>>>>> ralphy/agent-250-1774425176036-pbixyz-build-coalition-visualization-component
 
         return jsonify({
             "success": True,
@@ -4896,7 +4871,6 @@ def get_consensus(simulation_id: str):
         })
 
     except Exception as e:
-<<<<<<< HEAD
         logger.error(f"Failed to get consensus data: {str(e)}")
         return jsonify({
             "success": False,
@@ -5977,12 +5951,123 @@ def get_anomaly_explanation(simulation_id: str, anomaly_id: str):
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
-=======
-        logger.error(f"Coalition detection failed: {str(e)}")
-        # Always return mock data on error so the UI works
-        from ..services.coalition_detector import CoalitionDetector
+
+
+# ============== 分支点接口 ==============
+
+@simulation_bp.route('/<simulation_id>/branch-points', methods=['GET'])
+def get_branch_points(simulation_id: str):
+    """
+    获取模拟分支点信息
+
+    Returns branch/fork points for a simulation, used to render inline
+    branch markers on the timeline.  When no real branching data exists
+    (current state), deterministic demo data is returned based on the
+    simulation's timeline so the UI is always functional.
+
+    Response shape:
+        {
+          "success": true,
+          "data": {
+            "branch_points": [
+              {
+                "id": "bp-3",
+                "round": 3,
+                "label": "Messaging pivot",
+                "branches": [
+                  { "id": "b-3a", "label": "Original messaging", "outcome": "..." },
+                  { "id": "b-3b", "label": "Empathy-led messaging", "outcome": "..." }
+                ]
+              }
+            ],
+            "total_branches": 4
+          }
+        }
+    """
+    try:
+        # Try to get real timeline data to create realistic demo branch points
+        timeline = []
+        try:
+            timeline = SimulationRunner.get_timeline(simulation_id=simulation_id)
+        except Exception:
+            pass
+
+        total_rounds = len(timeline) if timeline else 0
+
+        # No real branching infrastructure yet — return demo data
+        branch_points = _generate_demo_branch_points(simulation_id, total_rounds)
+        total_branches = sum(len(bp["branches"]) for bp in branch_points)
+
         return jsonify({
             "success": True,
-            "data": CoalitionDetector()._mock_response(),
+            "data": {
+                "branch_points": branch_points,
+                "total_branches": total_branches,
+            }
         })
->>>>>>> ralphy/agent-250-1774425176036-pbixyz-build-coalition-visualization-component
+
+    except Exception as e:
+        logger.error(f"获取分支点失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+def _generate_demo_branch_points(simulation_id: str, total_rounds: int):
+    """Generate deterministic demo branch points for a simulation."""
+    if total_rounds < 3:
+        return []
+
+    # Use simulation_id hash for deterministic but varied placement
+    seed = sum(ord(c) for c in simulation_id) % 100
+
+    demo_branches = [
+        {
+            "label": "Messaging pivot",
+            "branches": [
+                {"label": "Original messaging", "outcome": "Moderate engagement, 12% reply rate"},
+                {"label": "Empathy-led messaging", "outcome": "Higher trust signals, 18% reply rate"},
+            ],
+        },
+        {
+            "label": "Platform emphasis shift",
+            "branches": [
+                {"label": "Twitter-heavy", "outcome": "Broader reach, lower depth"},
+                {"label": "Reddit-heavy", "outcome": "Deeper threads, niche authority"},
+            ],
+        },
+        {
+            "label": "Competitive response",
+            "branches": [
+                {"label": "Ignore competitor mention", "outcome": "Neutral sentiment maintained"},
+                {"label": "Direct comparison response", "outcome": "Polarized reactions, +25% engagement"},
+                {"label": "Subtle differentiation", "outcome": "Positive shift in brand perception"},
+            ],
+        },
+    ]
+
+    points = []
+    # Place 1-2 branch points depending on how many rounds exist
+    count = 1 if total_rounds < 6 else 2
+    for i in range(min(count, len(demo_branches))):
+        template = demo_branches[(seed + i) % len(demo_branches)]
+        # Place at ~30% and ~65% of the timeline
+        round_num = max(2, int(total_rounds * (0.3 if i == 0 else 0.65)))
+        bp = {
+            "id": f"bp-{round_num}",
+            "round": round_num,
+            "label": template["label"],
+            "branches": [
+                {
+                    "id": f"b-{round_num}{chr(97 + j)}",
+                    "label": b["label"],
+                    "outcome": b["outcome"],
+                }
+                for j, b in enumerate(template["branches"])
+            ],
+        }
+        points.append(bp)
+
+    return points

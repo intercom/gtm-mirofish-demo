@@ -14,7 +14,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.api.cpq')
 
-cpq_bp = Blueprint('cpq', __name__, url_prefix='/api/cpq')
+cpq_bp = Blueprint('cpq', __name__, url_prefix='/api/v1/cpq')
 
 # ---------------------------------------------------------------------------
 # Demo data helpers
@@ -30,6 +30,8 @@ PRODUCTS = [
         'billing_frequency': 'monthly',
         'description': 'Core customer messaging platform for startups and small businesses.',
         'is_active': True,
+        'popular': False,
+        'features': ['Shared Inbox', 'Basic Ticketing', 'Help Center', 'Email Support'],
     },
     {
         'id': 'prod-002',
@@ -40,6 +42,8 @@ PRODUCTS = [
         'billing_frequency': 'monthly',
         'description': 'Automation and AI features for growing support teams.',
         'is_active': True,
+        'popular': True,
+        'features': ['Fin AI Agent', 'Custom Bots', 'Workflows', 'Team Inbox', 'SLA Rules'],
     },
     {
         'id': 'prod-003',
@@ -50,6 +54,8 @@ PRODUCTS = [
         'billing_frequency': 'monthly',
         'description': 'Enterprise-grade collaboration, security, and reporting.',
         'is_active': True,
+        'popular': False,
+        'features': ['Workload Management', 'SSO/SAML', 'Custom Roles', 'Dedicated CSM', 'Priority Support'],
     },
     {
         'id': 'prod-004',
@@ -60,6 +66,8 @@ PRODUCTS = [
         'billing_frequency': 'per_resolution',
         'description': 'AI-powered customer support agent that resolves issues autonomously.',
         'is_active': True,
+        'popular': False,
+        'features': ['Auto-Resolution', 'Multi-Language', 'Content Suggestions', 'Handoff to Human'],
     },
     {
         'id': 'prod-005',
@@ -70,6 +78,8 @@ PRODUCTS = [
         'billing_frequency': 'monthly',
         'description': 'Targeted messaging and onboarding tours to reduce inbound volume.',
         'is_active': True,
+        'popular': False,
+        'features': ['Targeted Messages', 'Product Tours', 'Banners', 'Behavioral Triggers'],
     },
     {
         'id': 'prod-006',
@@ -80,6 +90,8 @@ PRODUCTS = [
         'billing_frequency': 'monthly',
         'description': 'Self-serve knowledge base included with all plans.',
         'is_active': True,
+        'popular': False,
+        'features': ['Knowledge Base', 'Article Search', 'Custom Branding'],
     },
 ]
 
@@ -220,7 +232,17 @@ def list_products():
     results = PRODUCTS
     if family:
         results = [p for p in results if p['family'].lower() == family.lower()]
-    return jsonify({'products': results, 'total': len(results)})
+    families = sorted(set(p['family'] for p in PRODUCTS))
+    return jsonify({'products': results, 'families': families, 'total': len(results)})
+
+
+@cpq_bp.route('/products/<product_id>', methods=['GET'])
+def get_product(product_id):
+    """Return a single product by ID."""
+    product = _PRODUCT_MAP.get(product_id)
+    if not product:
+        return jsonify({'error': f'Product not found: {product_id}'}), 404
+    return jsonify(product)
 
 
 @cpq_bp.route('/quotes', methods=['GET'])

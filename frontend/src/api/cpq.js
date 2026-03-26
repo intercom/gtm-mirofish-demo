@@ -3,6 +3,7 @@ import client from './client'
 export const cpqApi = {
   // --- Products ---
   getProducts: (params) => client.get('/v1/cpq/products', { params }),
+  getProduct: (id) => client.get(`/v1/cpq/products/${id}`),
 
   // --- Quotes ---
   getQuotes: (params) => client.get('/v1/cpq/quotes', { params }),

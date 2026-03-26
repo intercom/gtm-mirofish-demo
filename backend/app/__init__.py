@@ -244,6 +244,10 @@ def create_app(config_class=Config):
     from .api.auth import auth_bp
     app.register_blueprint(auth_bp)
 
+    # API Key management
+    from .api.api_keys import api_keys_bp
+    app.register_blueprint(api_keys_bp)
+
 
     @app.route('/health')
     def health():

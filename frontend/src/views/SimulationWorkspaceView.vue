@@ -23,7 +23,7 @@ import CommunityView from '../components/graph/CommunityView.vue'
 import TimelineScrubber from '../components/simulation/TimelineScrubber.vue'
 import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import RelationshipEvolution from '../components/simulation/RelationshipEvolution.vue'
-import AgentNetworkGraph from '../components/simulation/AgentNetworkGraph.vue'
+import NetworkAnalysisView from './NetworkAnalysisView.vue'
 import CoalitionView from '../components/simulation/CoalitionView.vue'
 
 const props = defineProps({
@@ -266,8 +266,8 @@ onUnmounted(() => {
         </div>
 
         <!-- Network tab -->
-        <div v-show="activeTab === 'network'" class="absolute inset-0">
-          <AgentNetworkGraph :taskId="taskId" />
+        <div v-show="activeTab === 'network'" class="absolute inset-0 overflow-y-auto">
+          <NetworkAnalysisView :taskId="taskId" />
         </div>
         <!-- Coalitions tab -->
         <div v-show="activeTab === 'coalitions'" class="absolute inset-0">

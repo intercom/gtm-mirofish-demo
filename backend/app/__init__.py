@@ -3,13 +3,14 @@ MiroFish Backend - Flask应用工厂
 """
 
 import os
+import time
 import warnings
 
 # 抑制 multiprocessing resource_tracker 的警告（来自第三方库如 transformers）
 # 需要在所有其他导入之前设置
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
-from flask import Flask, g, session
+from flask import Flask, g, request, session
 from flask_cors import CORS
 
 from .config import Config
@@ -62,9 +63,24 @@ def create_app(config_class=Config):
     if should_log_startup:
         logger.info("Rate limiting middleware registered")
 
+    # Health monitoring
+    from .services.health_monitor import health_monitor
+
     # 请求日志中间件
     from .middleware import register_request_logging
     register_request_logging(app)
+
+    # Health metrics tracking
+    @app.before_request
+    def track_health_metrics():
+        request._health_start = time.monotonic()
+        health_monitor.on_request_start()
+
+    @app.after_request
+    def record_health_metrics(response):
+        duration = time.monotonic() - getattr(request, '_health_start', time.monotonic())
+        health_monitor.on_request_end(duration, is_error=response.status_code >= 500)
+        return response
 
     # Populate g.user from session for permission checking
     @app.before_request
@@ -175,7 +191,7 @@ def create_app(config_class=Config):
     from .api.revenue import revenue_bp
     app.register_blueprint(revenue_bp)
 
-    # Health checks (basic, detailed, service degradation)
+    # Health checks (basic, detailed, service degradation, monitoring metrics)
     from .api.health import health_bp
     app.register_blueprint(health_bp)
 
@@ -214,6 +230,7 @@ def create_app(config_class=Config):
     # Auth API (login, logout, token validation)
     from .api.auth import auth_bp
     app.register_blueprint(auth_bp)
+
 
     @app.route('/health')
     def health():

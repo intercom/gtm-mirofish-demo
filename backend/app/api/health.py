@@ -1,7 +1,8 @@
 """
-Health Check API
+Health Check & Monitoring API
 Provides /api/health (basic), /api/health/detailed (dependency status),
-and /api/health/services (external service degradation status).
+/api/health/services (external service degradation status),
+and /api/health/metrics (runtime health metrics from HealthMonitor).
 """
 
 import platform
@@ -70,6 +71,13 @@ def service_health():
         'healthy': all_healthy,
         'services': status,
     })
+
+
+@health_bp.route('/metrics', methods=['GET'])
+def metrics():
+    """Return current health metrics, alerts, and hourly snapshots."""
+    from ..services.health_monitor import health_monitor
+    return jsonify(health_monitor.get_metrics())
 
 
 def _provider_from_url(base_url: str) -> str | None:

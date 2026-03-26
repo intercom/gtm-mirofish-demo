@@ -79,6 +79,10 @@ def create_app(config_class=Config):
     # Temporal memory API (Zep-backed time-travel memory)
     from .api.temporal_memory import temporal_memory_bp
     app.register_blueprint(temporal_memory_bp)
+
+    # Cost model API (campaign cost modeling calculator)
+    from .api.cost_model import cost_model_bp
+    app.register_blueprint(cost_model_bp)
     
     # 健康检查
     @app.route('/health')

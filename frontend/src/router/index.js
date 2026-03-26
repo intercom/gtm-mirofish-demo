@@ -147,7 +147,8 @@ export const routes = [
   },
   {
     path: '/dashboard',
-    redirect: '/simulations',
+    name: 'gtm-dashboard',
+    component: () => import('../views/GtmDashboardView.vue'),
   },
 ]
 

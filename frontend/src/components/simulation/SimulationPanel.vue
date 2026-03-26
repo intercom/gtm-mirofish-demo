@@ -21,6 +21,7 @@ import InfluenceFlow from './InfluenceFlow.vue'
 import SentimentArc from './SentimentArc.vue'
 import RelationshipNetwork from './RelationshipNetwork.vue'
 import { useRelationshipsStore } from '../../stores/relationships'
+import AnomalyHighlights from './AnomalyHighlights.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -691,6 +692,14 @@ onUnmounted(() => {
         <!-- Behavior Patterns -->
         <BehaviorPatterns
           v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Behavior Anomalies -->
+        <AnomalyHighlights
+          v-if="filteredActions.length > 0"
+          :simulationId="taskId"
           :actions="filteredActions"
           class="mb-8"
         />

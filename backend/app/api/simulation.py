@@ -5612,3 +5612,50 @@ def get_simulation_sentiment(simulation_id: str):
             "data": generate_demo_sentiment()
         })
 
+
+@simulation_bp.route('/<simulation_id>/anomalies/<anomaly_id>/explanation', methods=['GET'])
+def get_anomaly_explanation(simulation_id: str, anomaly_id: str):
+    """
+    Get LLM-generated explanation for a specific anomaly.
+    Falls back to the anomaly description if LLM is unavailable.
+    """
+    try:
+        # Re-detect to find the specific anomaly
+        actions = []
+        try:
+            raw_actions = SimulationRunner.get_actions(
+                simulation_id=simulation_id, limit=10000
+            )
+            actions = [a.to_dict() for a in raw_actions]
+        except Exception:
+            pass
+
+        if actions:
+            from ..services.anomaly_detector import AnomalyDetector
+            detector = AnomalyDetector()
+            anomalies = detector.detect_anomalies(actions)
+            target = next((a for a in anomalies if a.anomaly_id == anomaly_id), None)
+            if not target:
+                return jsonify({"success": False, "error": "Anomaly not found"}), 404
+            explanation = detector.explain_anomaly(target)
+        else:
+            # Demo mode
+            from ..services.anomaly_detector import generate_demo_anomalies
+            demo = generate_demo_anomalies()
+            target = next((a for a in demo if a["anomaly_id"] == anomaly_id), None)
+            if not target:
+                return jsonify({"success": False, "error": "Anomaly not found"}), 404
+            explanation = target.get("explanation", target.get("description", ""))
+
+        return jsonify({
+            "success": True,
+            "data": {"anomaly_id": anomaly_id, "explanation": explanation}
+        })
+
+    except Exception as e:
+        logger.error(f"Anomaly explanation failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

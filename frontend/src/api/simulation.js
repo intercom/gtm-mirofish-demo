@@ -153,4 +153,8 @@ export const simulationApi = {
   // --- SSE stream ---
   getProgressStreamUrl: (simulationId, interval = 2) =>
     `${API_BASE}/simulation/${simulationId}/progress/stream?interval=${interval}`,
+
+  // --- Anomaly explanation ---
+  getAnomalyExplanation: (simulationId, anomalyId) =>
+    client.get(`/simulation/${simulationId}/anomalies/${anomalyId}/explanation`),
 }

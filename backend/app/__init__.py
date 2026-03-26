@@ -122,6 +122,10 @@ def create_app(config_class=Config):
     from .api.reconciliation import reconciliation_bp
     app.register_blueprint(reconciliation_bp)
 
+    # Branch comparison API
+    from .api.branches import branches_bp
+    app.register_blueprint(branches_bp)
+
     # Health checks (basic, detailed, service degradation)
     from .api.health import health_bp
     app.register_blueprint(health_bp)

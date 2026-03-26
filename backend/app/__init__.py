@@ -111,6 +111,10 @@ def create_app(config_class=Config):
     # Order-to-Cash API
     from .api.orders import orders_bp
     app.register_blueprint(orders_bp)
+
+    # Personality dynamics API
+    from .api.personality import personality_bp
+    app.register_blueprint(personality_bp)
     
     # 健康检查
     @app.route('/health')

@@ -105,6 +105,11 @@ export const routes = [
     component: () => import('../views/OrgChartView.vue'),
   },
   {
+    path: '/comparison',
+    name: 'comparison',
+    component: () => import('../views/ComparisonView.vue'),
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

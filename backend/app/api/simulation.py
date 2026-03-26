@@ -2526,6 +2526,127 @@ def get_agent_network(simulation_id: str):
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>/replay', methods=['GET'])
+def get_simulation_replay(simulation_id: str):
+    """
+    Get full replay data for a completed simulation.
+
+    Returns all actions grouped by round with per-round summaries,
+    or demo data if no real simulation data exists.
+    """
+    try:
+        run_state = SimulationRunner.get_run_state(simulation_id)
+        all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+
+        if all_actions:
+            # Group actions by round (oldest first for replay)
+            all_actions.sort(key=lambda x: (x.round_num, x.timestamp))
+            rounds_map = {}
+            agents_seen = set()
+            for action in all_actions:
+                rn = action.round_num
+                if rn not in rounds_map:
+                    rounds_map[rn] = {
+                        "round_num": rn,
+                        "actions": [],
+                        "twitter_actions": 0,
+                        "reddit_actions": 0,
+                        "agents": set(),
+                    }
+                r = rounds_map[rn]
+                r["actions"].append(action.to_dict())
+                if action.platform == "twitter":
+                    r["twitter_actions"] += 1
+                else:
+                    r["reddit_actions"] += 1
+                r["agents"].add(action.agent_name or str(action.agent_id))
+                agents_seen.add(action.agent_name or str(action.agent_id))
+
+            rounds = []
+            for rn in sorted(rounds_map.keys()):
+                r = rounds_map[rn]
+                rounds.append({
+                    "round_num": r["round_num"],
+                    "actions": r["actions"],
+                    "twitter_actions": r["twitter_actions"],
+                    "reddit_actions": r["reddit_actions"],
+                    "total_actions": len(r["actions"]),
+                    "active_agents": list(r["agents"]),
+                })
+
+            return jsonify({
+                "success": True,
+                "demo": False,
+                "data": {
+                    "simulation_id": simulation_id,
+                    "total_rounds": len(rounds),
+                    "total_actions": len(all_actions),
+                    "agents": list(agents_seen),
+                    "rounds": rounds,
+                }
+            })
+
+        # No real data — return demo replay data
+        import random
+        demo_agents = [
+            "Sarah Chen", "Marcus Rivera", "Priya Patel", "Alex Thompson",
+            "Jordan Lee", "Maya Williams", "David Kim", "Emma Rodriguez",
+        ]
+        action_types = [
+            "CREATE_POST", "LIKE_POST", "REPLY_TO_POST",
+            "REPOST", "CREATE_COMMENT", "UPVOTE",
+        ]
+        demo_rounds = []
+        for rn in range(1, 13):
+            n_actions = random.randint(3, 8)
+            actions = []
+            for j in range(n_actions):
+                agent = random.choice(demo_agents)
+                platform = random.choice(["twitter", "reddit"])
+                atype = random.choice(action_types)
+                actions.append({
+                    "round_num": rn,
+                    "timestamp": f"2026-03-24T{10 + rn}:{j * 5:02d}:00",
+                    "platform": platform,
+                    "agent_id": demo_agents.index(agent),
+                    "agent_name": agent,
+                    "action_type": atype,
+                    "action_args": {"content": f"Demo {atype.lower().replace('_', ' ')} by {agent} in round {rn}"},
+                    "result": None,
+                    "success": True,
+                })
+            tw = sum(1 for a in actions if a["platform"] == "twitter")
+            rd = len(actions) - tw
+            demo_rounds.append({
+                "round_num": rn,
+                "actions": actions,
+                "twitter_actions": tw,
+                "reddit_actions": rd,
+                "total_actions": len(actions),
+                "active_agents": list({a["agent_name"] for a in actions}),
+            })
+
+        return jsonify({
+            "success": True,
+            "demo": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "total_rounds": len(demo_rounds),
+                "total_actions": sum(r["total_actions"] for r in demo_rounds),
+                "agents": demo_agents,
+                "rounds": demo_rounds,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get replay data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== Agent Journey Sankey ==============
 
 ACTION_CATEGORIES = {

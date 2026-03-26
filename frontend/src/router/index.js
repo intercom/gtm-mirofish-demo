@@ -165,6 +165,12 @@ export const routes = [
     component: () => import('../views/CompareView.vue'),
   },
   {
+    path: '/replay/:taskId',
+    name: 'replay',
+    component: () => import('../views/ReplayView.vue'),
+    props: true,
+  },
+  {
     path: '/dashboard',
     name: 'gtm-dashboard',
     component: () => import('../views/GtmDashboardView.vue'),

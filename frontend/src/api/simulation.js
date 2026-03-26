@@ -69,6 +69,8 @@ export const simulationApi = {
     client.get(`/simulation/${simulationId}/agent-sentiment-timeline`),
   getAgentNetwork: (simulationId) =>
     client.get(`/simulation/${simulationId}/agent-network`),
+  getReplay: (simulationId) =>
+    client.get(`/simulation/${simulationId}/replay`),
   getPosts: (simulationId, params) =>
     client.get(`/simulation/${simulationId}/posts`, { params }),
   getComments: (simulationId, params) =>

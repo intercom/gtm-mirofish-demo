@@ -1,117 +1,162 @@
 """
-Revenue data generator for GTM analytics demo.
+Revenue data generator for demo/mock mode.
+Generates 12 months of realistic SaaS revenue history at Intercom scale.
 
-Generates 12 months of realistic SaaS revenue history at Intercom scale:
-- MRR progression from $1.8M → $2.2M (22% YoY growth)
-- 500 customer records with power-law MRR distribution
-- 60 churn events and 80 expansion events with realistic distributions
-- ±15% monthly variance for realism
-
-All data is deterministic per seed for consistent demo experiences.
+All data is deterministic (seeded random) so repeated calls return consistent results.
 """
 
 import math
-import random as _random_mod
-from datetime import date, timedelta
-from typing import List, Dict, Any, Optional
+import random
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional
 
-from ..models.revenue import RevenueMetric, CustomerRevenue, ChurnEvent, ExpansionEvent
+from ..models.revenue import (
+    ChurnEvent,
+    ChurnReason,
+    CustomerRevenue,
+    ExpansionEvent,
+    ExpansionType,
+    PlanTier,
+    RevenueMetric,
+)
 
-# Company name components for generating realistic account names
+# Seed for reproducibility
+_SEED = 42
+
+# Intercom-scale base numbers
+_BASE_MRR = 1_800_000  # $1.8M starting MRR
+_TARGET_MRR = 2_200_000  # $2.2M after 12 months
+_CUSTOMER_COUNT = 500
+_CHURN_EVENT_COUNT = 60
+_EXPANSION_EVENT_COUNT = 80
+_MONTHS = 12
+
+# Monthly movement baselines
+_NEW_MRR_BASE = 80_000
+_EXPANSION_MRR_BASE = 40_000
+_CONTRACTION_MRR_BASE = 15_000
+_CHURN_MRR_BASE = 30_000
+
+# Variance factor (+-15%)
+_VARIANCE = 0.15
+
+# Churn reason distribution
+_CHURN_REASONS = [
+    (ChurnReason.BUDGET_CUTS, 0.30),
+    (ChurnReason.COMPETITOR, 0.25),
+    (ChurnReason.NOT_USING, 0.20),
+    (ChurnReason.MERGED_ACQUIRED, 0.15),
+    (ChurnReason.OTHER, 0.10),
+]
+
+# Expansion type distribution
+_EXPANSION_TYPES = [
+    (ExpansionType.SEAT_ADD, 0.50),
+    (ExpansionType.UPSELL, 0.30),
+    (ExpansionType.CROSS_SELL, 0.20),
+]
+
+# Plan distribution (weighted)
+_PLAN_DISTRIBUTION = [
+    (PlanTier.ESSENTIAL, 0.50),
+    (PlanTier.ADVANCED, 0.35),
+    (PlanTier.EXPERT, 0.15),
+]
+
+# Company name components for realistic generation
 _PREFIXES = [
-    "Acme", "Nova", "Zenith", "Apex", "Cobalt", "Vertex", "Nimbus", "Axiom",
-    "Prism", "Helix", "Flux", "Orbit", "Qubit", "Forge", "Atlas", "Nexus",
-    "Ember", "Ridge", "Spark", "Drift", "Crest", "Pulse", "Vantage", "Onyx",
-    "Cedar", "Maple", "Iron", "Slate", "Azure", "Coral", "Sage", "Birch",
-    "Pike", "Dune", "Lark", "Fern", "Cove", "Glen", "Vale", "Reef",
+    "Acme", "Nova", "Apex", "Velo", "Flux", "Zeta", "Neon", "Orbit",
+    "Pulse", "Helix", "Prism", "Forge", "Atlas", "Bloom", "Cedar",
+    "Drift", "Echo", "Fable", "Grain", "Haven", "Ionic", "Jade",
+    "Kite", "Lumen", "Maple", "Nexus", "Opal", "Petal", "Quill",
+    "Ridge", "Slate", "Terra", "Unity", "Vivid", "Wave", "Xenon",
 ]
 _SUFFIXES = [
-    "Labs", "Systems", "Tech", "AI", "Cloud", "Digital", "Analytics", "Solutions",
-    "Group", "Corp", "Inc", "Co", "HQ", "Works", "Dynamics", "Ventures",
-    "Software", "Networks", "Data", "Platform", "Health", "Finance", "Media",
-    "Robotics", "Security", "Energy", "Logistics", "Bio", "Space", "Auto",
+    "Labs", "Tech", "AI", "Systems", "Cloud", "Data", "Digital",
+    "Solutions", "Software", "Analytics", "Networks", "Dynamics",
+    "Ventures", "Group", "Co", "Inc", "Corp", "HQ", "IO", "Platform",
 ]
 
-PLANS = ["starter", "growth", "professional", "enterprise"]
-PLAN_WEIGHTS = [0.30, 0.35, 0.25, 0.10]
 
-CHURN_REASONS = ["budget_cuts", "competitor", "not_using", "merged_acquired", "other"]
-CHURN_REASON_WEIGHTS = [0.30, 0.25, 0.20, 0.15, 0.10]
-CHURN_VOLUNTARY = {
-    "budget_cuts": True,
-    "competitor": True,
-    "not_using": True,
-    "merged_acquired": False,
-    "other": True,
-}
+def _vary(base: float, rng: random.Random) -> float:
+    """Apply +-15% random variance to a base value."""
+    return base * (1 + rng.uniform(-_VARIANCE, _VARIANCE))
 
-EXPANSION_TYPES = ["seat_add", "upsell", "cross_sell"]
-EXPANSION_TYPE_WEIGHTS = [0.50, 0.30, 0.20]
+
+def _weighted_choice(choices: list, rng: random.Random):
+    """Pick from weighted choices list of (value, weight) tuples."""
+    roll = rng.random()
+    cumulative = 0.0
+    for value, weight in choices:
+        cumulative += weight
+        if roll <= cumulative:
+            return value
+    return choices[-1][0]
+
+
+def _generate_company_name(idx: int, rng: random.Random) -> str:
+    """Generate a unique company name."""
+    prefix = rng.choice(_PREFIXES)
+    suffix = rng.choice(_SUFFIXES)
+    return f"{prefix} {suffix}"
 
 
 class RevenueDataGenerator:
-    """Generates realistic SaaS revenue demo data."""
+    """Generates deterministic mock revenue data for the GTM demo."""
 
-    def __init__(self, seed: int = 42):
-        self._rng = _random_mod.Random(seed)
-        self._base_date = date(2025, 4, 1)  # 12-month window ending March 2026
-        self._customers: Optional[List[CustomerRevenue]] = None
-        self._metrics: Optional[List[RevenueMetric]] = None
-        self._churn_events: Optional[List[ChurnEvent]] = None
-        self._expansion_events: Optional[List[ExpansionEvent]] = None
+    def __init__(self, seed: int = _SEED):
+        self._seed = seed
+        self._rng = random.Random(seed)
+        self._generated = False
+        self._metrics: List[RevenueMetric] = []
+        self._customers: List[CustomerRevenue] = []
+        self._churn_events: List[ChurnEvent] = []
+        self._expansion_events: List[ExpansionEvent] = []
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+    def _ensure_generated(self):
+        if not self._generated:
+            self._rng = random.Random(self._seed)
+            self._generate_all()
+            self._generated = True
 
-    def generate_monthly_metrics(self, months: int = 12) -> List[RevenueMetric]:
-        if self._metrics is not None and len(self._metrics) == months:
-            return self._metrics
+    def _generate_all(self):
+        self._generate_metrics()
+        self._generate_customers()
+        self._generate_churn_events()
+        self._generate_expansion_events()
 
-        start_mrr = 1_800_000.0
-        target_end_mrr = 2_200_000.0
-        monthly_net_target = (target_end_mrr - start_mrr) / months
+    def _month_str(self, months_ago: int) -> str:
+        """Return YYYY-MM string for N months ago from a fixed reference."""
+        ref = datetime(2026, 3, 1)
+        dt = ref - timedelta(days=30 * months_ago)
+        return dt.strftime("%Y-%m")
 
-        avg_new = 80_000.0
-        avg_expansion = 40_000.0
-        avg_contraction = 15_000.0
-        avg_churn = 30_000.0
+    def _random_date_in_month(self, month_str: str) -> str:
+        """Return a random date within a given YYYY-MM month."""
+        year, month = map(int, month_str.split("-"))
+        day = self._rng.randint(1, 28)
+        return f"{year}-{month:02d}-{day:02d}"
 
-        metrics: List[RevenueMetric] = []
-        current_mrr = start_mrr
+    def _generate_metrics(self):
+        """Generate 12 months of revenue metrics with realistic growth."""
+        self._metrics = []
+        current_mrr = _BASE_MRR
 
-        for i in range(months):
-            month_date = date(self._base_date.year, self._base_date.month + i, 1) if (
-                self._base_date.month + i <= 12
-            ) else date(
-                self._base_date.year + (self._base_date.month + i - 1) // 12,
-                (self._base_date.month + i - 1) % 12 + 1,
-                1,
-            )
-            month_str = month_date.strftime("%Y-%m")
+        for i in range(_MONTHS):
+            month = self._month_str(_MONTHS - 1 - i)
 
-            variance = self._rng.uniform(0.85, 1.15)
-            new_mrr = avg_new * variance
-            expansion_mrr = avg_expansion * self._rng.uniform(0.85, 1.15)
-            contraction_mrr = avg_contraction * self._rng.uniform(0.85, 1.15)
-            churn_mrr = avg_churn * self._rng.uniform(0.85, 1.15)
+            new_mrr = round(_vary(_NEW_MRR_BASE, self._rng), 2)
+            expansion_mrr = round(_vary(_EXPANSION_MRR_BASE, self._rng), 2)
+            contraction_mrr = round(_vary(_CONTRACTION_MRR_BASE, self._rng), 2)
+            churn_mrr = round(_vary(_CHURN_MRR_BASE, self._rng), 2)
+            net_new = round(new_mrr + expansion_mrr - contraction_mrr - churn_mrr, 2)
 
-            net_new = new_mrr + expansion_mrr - contraction_mrr - churn_mrr
-            # Steer toward target trajectory to keep the 12-month arc realistic
-            target_mrr = start_mrr + monthly_net_target * (i + 1)
-            overshoot = (current_mrr + net_new) - target_mrr
-            # Scale new_mrr down/up to compensate for drift
-            adjustment = -overshoot * 0.7
-            new_mrr = max(new_mrr + adjustment, avg_new * 0.4)
-            net_new = new_mrr + expansion_mrr - contraction_mrr - churn_mrr
+            current_mrr = round(current_mrr + net_new, 2)
 
-            current_mrr += net_new
-            arr = current_mrr * 12
-
-            metrics.append(RevenueMetric(
-                month=month_str,
+            self._metrics.append(RevenueMetric(
+                month=month,
                 mrr=current_mrr,
-                arr=arr,
+                arr=round(current_mrr * 12, 2),
                 new_mrr=new_mrr,
                 expansion_mrr=expansion_mrr,
                 contraction_mrr=contraction_mrr,
@@ -119,239 +164,255 @@ class RevenueDataGenerator:
                 net_new_mrr=net_new,
             ))
 
-        self._metrics = metrics
-        return metrics
+    def _generate_customers(self):
+        """Generate 500 customer records with power-law MRR distribution."""
+        self._customers = []
+        used_names = set()
 
-    def generate_customers(self, count: int = 500) -> List[CustomerRevenue]:
-        if self._customers is not None and len(self._customers) == count:
-            return self._customers
+        latest_mrr = self._metrics[-1].mrr if self._metrics else _TARGET_MRR
 
-        target_total_mrr = 2_000_000.0  # ~$2M total across all customers
-        names = self._generate_company_names(count)
+        for i in range(_CUSTOMER_COUNT):
+            name = _generate_company_name(i, self._rng)
+            while name in used_names:
+                name = _generate_company_name(i, self._rng)
+            used_names.add(name)
 
-        # Power-law (Pareto) distribution: alpha=1.5 gives heavy right tail
-        # Cap individual values to prevent a single account dominating total MRR
-        max_single = target_total_mrr * 0.04  # no account > 4% of total (~$80K)
-        raw = [min(self._pareto(1.5), 20.0) for _ in range(count)]
-        total_raw = sum(raw)
-        mrr_values = [min(r / total_raw * target_total_mrr, max_single) for r in raw]
-        mrr_values.sort(reverse=True)
+            # Power-law: rank^(-0.8) gives few large, many small
+            rank = i + 1
+            raw_weight = rank ** (-0.8)
+            plan = _weighted_choice(_PLAN_DISTRIBUTION, self._rng)
 
-        customers: List[CustomerRevenue] = []
-        for i in range(count):
-            mrr = mrr_values[i]
-            plan = self._plan_from_mrr(mrr)
-            seats = self._seats_from_plan(plan, mrr)
-            usage = int(seats * self._rng.uniform(50, 500))
-            start = self._random_start_date()
-            renewal = self._next_renewal(start)
+            # Scale MRR based on plan tier
+            plan_multiplier = {"Essential": 0.6, "Advanced": 1.0, "Expert": 2.5}
+            base_mrr = (latest_mrr / _CUSTOMER_COUNT) * raw_weight * 20
+            mrr = round(base_mrr * plan_multiplier.get(plan, 1.0) * (1 + self._rng.uniform(-0.2, 0.2)), 2)
+            mrr = max(500, mrr)  # minimum $500 MRR
 
-            customers.append(CustomerRevenue(
-                account_id=f"ACC-{i+1:04d}",
-                account_name=names[i],
+            seats = max(5, int(mrr / self._rng.uniform(100, 500)))
+            usage_units = int(seats * self._rng.uniform(50, 300))
+
+            months_as_customer = self._rng.randint(1, 36)
+            start = datetime(2026, 3, 1) - timedelta(days=30 * months_as_customer)
+            last_renewal = start + timedelta(days=365 * (months_as_customer // 12)) if months_as_customer >= 12 else start
+
+            self._customers.append(CustomerRevenue(
+                account_id=f"acc_{i + 1:04d}",
+                account_name=name,
                 mrr=mrr,
                 plan=plan,
                 seats=seats,
-                usage_units=usage,
-                start_date=start.isoformat(),
-                last_renewal=renewal.isoformat(),
+                usage_units=usage_units,
+                start_date=start.strftime("%Y-%m-%d"),
+                last_renewal=last_renewal.strftime("%Y-%m-%d"),
             ))
 
-        self._customers = customers
-        return customers
+    def _generate_churn_events(self):
+        """Generate 60 churn events spread across the 12-month period."""
+        self._churn_events = []
 
-    def generate_churn_events(self, count: int = 60) -> List[ChurnEvent]:
-        if self._churn_events is not None and len(self._churn_events) == count:
-            return self._churn_events
+        for i in range(_CHURN_EVENT_COUNT):
+            month_idx = self._rng.randint(0, _MONTHS - 1)
+            month = self._month_str(_MONTHS - 1 - month_idx)
+            reason = _weighted_choice(_CHURN_REASONS, self._rng)
+            mrr_lost = round(self._rng.uniform(1000, 15000), 2)
+            was_voluntary = reason in (ChurnReason.BUDGET_CUTS, ChurnReason.COMPETITOR, ChurnReason.NOT_USING)
 
-        customers = self.generate_customers()
-        # Pick churn candidates from the lower half of MRR (smaller accounts churn more)
-        sorted_by_mrr = sorted(customers, key=lambda c: c.mrr)
-        candidate_pool = sorted_by_mrr[:len(sorted_by_mrr) * 3 // 4]
-
-        churned = self._rng.sample(candidate_pool, min(count, len(candidate_pool)))
-        events: List[ChurnEvent] = []
-
-        for c in churned:
-            reason = self._weighted_choice(CHURN_REASONS, CHURN_REASON_WEIGHTS)
-            churn_date = self._random_date_in_window()
-
-            events.append(ChurnEvent(
-                account_id=c.account_id,
-                account_name=c.account_name,
-                mrr_lost=c.mrr * self._rng.uniform(0.5, 1.0),
-                reason=reason,
-                churn_date=churn_date.isoformat(),
-                was_voluntary=CHURN_VOLUNTARY[reason],
+            self._churn_events.append(ChurnEvent(
+                account_id=f"churn_{i + 1:04d}",
+                account_name=_generate_company_name(1000 + i, self._rng),
+                mrr_lost=mrr_lost,
+                reason=reason.value,
+                churn_date=self._random_date_in_month(month),
+                was_voluntary=was_voluntary,
             ))
 
-        events.sort(key=lambda e: e.churn_date)
-        self._churn_events = events
-        return events
+    def _generate_expansion_events(self):
+        """Generate 80 expansion events spread across the 12-month period."""
+        self._expansion_events = []
 
-    def generate_expansion_events(self, count: int = 80) -> List[ExpansionEvent]:
-        if self._expansion_events is not None and len(self._expansion_events) == count:
-            return self._expansion_events
+        for i in range(_EXPANSION_EVENT_COUNT):
+            month_idx = self._rng.randint(0, _MONTHS - 1)
+            month = self._month_str(_MONTHS - 1 - month_idx)
+            exp_type = _weighted_choice(_EXPANSION_TYPES, self._rng)
+            previous_mrr = round(self._rng.uniform(2000, 20000), 2)
 
-        customers = self.generate_customers()
-        # Expansion candidates: accounts with moderate-to-high MRR (active, growing)
-        sorted_by_mrr = sorted(customers, key=lambda c: c.mrr, reverse=True)
-        candidate_pool = sorted_by_mrr[:len(sorted_by_mrr) * 2 // 3]
-
-        expanded = self._rng.sample(candidate_pool, min(count, len(candidate_pool)))
-        events: List[ExpansionEvent] = []
-
-        for c in expanded:
-            exp_type = self._weighted_choice(EXPANSION_TYPES, EXPANSION_TYPE_WEIGHTS)
+            # Expansion amount varies by type
             multiplier = {
-                "seat_add": self._rng.uniform(1.05, 1.25),
-                "upsell": self._rng.uniform(1.20, 1.60),
-                "cross_sell": self._rng.uniform(1.10, 1.35),
-            }[exp_type]
+                ExpansionType.SEAT_ADD: self._rng.uniform(1.05, 1.25),
+                ExpansionType.UPSELL: self._rng.uniform(1.3, 2.0),
+                ExpansionType.CROSS_SELL: self._rng.uniform(1.1, 1.5),
+            }
+            new_mrr = round(previous_mrr * multiplier.get(exp_type, 1.2), 2)
 
-            events.append(ExpansionEvent(
-                account_id=c.account_id,
-                account_name=c.account_name,
-                previous_mrr=c.mrr,
-                new_mrr=c.mrr * multiplier,
-                expansion_type=exp_type,
-                date=self._random_date_in_window().isoformat(),
+            self._expansion_events.append(ExpansionEvent(
+                account_id=f"exp_{i + 1:04d}",
+                account_name=_generate_company_name(2000 + i, self._rng),
+                previous_mrr=previous_mrr,
+                new_mrr=new_mrr,
+                expansion_type=exp_type.value,
+                date=self._random_date_in_month(month),
             ))
 
-        events.sort(key=lambda e: e.date)
-        self._expansion_events = events
-        return events
+    # ---- Public API ----
 
-    def generate_summary(self) -> Dict[str, Any]:
-        metrics = self.generate_monthly_metrics()
-        customers = self.generate_customers()
+    def get_metrics(self, months: int = 12) -> List[Dict]:
+        self._ensure_generated()
+        data = self._metrics[-months:]
+        return [m.to_dict() for m in data]
 
-        current = metrics[-1]
-        previous = metrics[-2] if len(metrics) >= 2 else metrics[0]
-        first = metrics[0]
+    def get_customers(
+        self,
+        plan: Optional[str] = None,
+        mrr_min: Optional[float] = None,
+        mrr_max: Optional[float] = None,
+        sort_by: str = "mrr",
+        sort_order: str = "desc",
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Dict:
+        self._ensure_generated()
+        filtered = self._customers
 
-        total_churn_mrr = sum(m.churn_mrr for m in metrics)
-        total_contraction_mrr = sum(m.contraction_mrr for m in metrics)
-        total_expansion_mrr = sum(m.expansion_mrr for m in metrics)
-        beginning_mrr = first.mrr - first.net_new_mrr
+        if plan:
+            filtered = [c for c in filtered if c.plan == plan]
+        if mrr_min is not None:
+            filtered = [c for c in filtered if c.mrr >= mrr_min]
+        if mrr_max is not None:
+            filtered = [c for c in filtered if c.mrr <= mrr_max]
 
-        # Net revenue retention: (beginning + expansion - contraction - churn) / beginning
-        gross_retention = max(0, 1 - (total_churn_mrr + total_contraction_mrr) / (beginning_mrr * len(metrics))) * 100
-        net_retention = max(0, 1 - (total_churn_mrr + total_contraction_mrr - total_expansion_mrr) / (beginning_mrr * len(metrics))) * 100
+        reverse = sort_order == "desc"
+        if sort_by in ("mrr", "seats", "usage_units"):
+            filtered.sort(key=lambda c: getattr(c, sort_by), reverse=reverse)
+        elif sort_by == "account_name":
+            filtered.sort(key=lambda c: c.account_name, reverse=reverse)
+        else:
+            filtered.sort(key=lambda c: c.mrr, reverse=reverse)
 
-        avg_mrr = sum(c.mrr for c in customers) / len(customers) if customers else 0
-        growth_rate = ((current.mrr / (first.mrr - first.net_new_mrr)) - 1) * 100 if first.mrr else 0
-
-        # Simplified LTV and CAC for demo
-        monthly_churn_rate = (total_churn_mrr / len(metrics)) / current.mrr if current.mrr else 0
-        ltv = avg_mrr / monthly_churn_rate if monthly_churn_rate > 0 else avg_mrr * 36
-        cac = avg_mrr * self._rng.uniform(10, 14)  # typical SaaS CAC ~12x MRR
-
+        total = len(filtered)
+        page = filtered[offset: offset + limit]
         return {
-            "current_mrr": round(current.mrr, 2),
-            "current_arr": round(current.arr, 2),
-            "growth_rate": round(growth_rate, 1),
-            "net_retention": round(net_retention, 1),
-            "gross_retention": round(gross_retention, 1),
-            "ltv": round(ltv, 2),
-            "cac": round(cac, 2),
-            "ltv_cac_ratio": round(ltv / cac, 1) if cac > 0 else 0,
-            "total_customers": len(customers),
-            "avg_mrr": round(avg_mrr, 2),
-            "mrr_growth_mom": round(
-                ((current.mrr / previous.mrr) - 1) * 100, 1
-            ) if previous.mrr else 0,
+            "customers": [c.to_dict() for c in page],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
         }
 
-    def generate_cohort_data(self) -> Dict[str, Any]:
-        customers = self.generate_customers()
-        metrics = self.generate_monthly_metrics()
-        months = [m.month for m in metrics]
+    def get_churn_events(
+        self,
+        reason: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> List[Dict]:
+        self._ensure_generated()
+        filtered = self._churn_events
 
-        cohorts: Dict[str, Dict[str, Any]] = {}
-        for month_str in months:
-            # Assign a cohort of customers who "started" in this month
-            cohort_customers = [
-                c for c in customers
-                if c.start_date[:7] == month_str
-            ]
-            if not cohort_customers:
-                # Assign some customers to fill empty cohorts
-                cohort_size = max(5, len(customers) // len(months))
-                cohort_customers = self._rng.sample(customers, min(cohort_size, len(customers)))
+        if reason:
+            filtered = [e for e in filtered if e.reason == reason]
+        if date_from:
+            filtered = [e for e in filtered if e.churn_date >= date_from]
+        if date_to:
+            filtered = [e for e in filtered if e.churn_date <= date_to]
 
-            initial_mrr = sum(c.mrr for c in cohort_customers)
-            month_idx = months.index(month_str)
-            remaining_months = len(months) - month_idx
+        return [e.to_dict() for e in sorted(filtered, key=lambda e: e.churn_date)]
 
+    def get_expansion_events(
+        self,
+        expansion_type: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+    ) -> List[Dict]:
+        self._ensure_generated()
+        filtered = self._expansion_events
+
+        if expansion_type:
+            filtered = [e for e in filtered if e.expansion_type == expansion_type]
+        if date_from:
+            filtered = [e for e in filtered if e.date >= date_from]
+        if date_to:
+            filtered = [e for e in filtered if e.date <= date_to]
+
+        return [e.to_dict() for e in sorted(filtered, key=lambda e: e.date)]
+
+    def get_summary(self) -> Dict:
+        self._ensure_generated()
+        if not self._metrics:
+            return {}
+
+        latest = self._metrics[-1]
+        first = self._metrics[0]
+        growth_rate = round((latest.mrr - first.mrr) / first.mrr * 100, 2) if first.mrr else 0
+
+        total_churn_mrr = sum(m.churn_mrr for m in self._metrics)
+        total_contraction_mrr = sum(m.contraction_mrr for m in self._metrics)
+        total_expansion_mrr = sum(m.expansion_mrr for m in self._metrics)
+        avg_beginning_mrr = sum(m.mrr - m.net_new_mrr for m in self._metrics) / len(self._metrics)
+
+        # Net retention = (beginning MRR + expansion - contraction - churn) / beginning MRR
+        net_retention = round(
+            (avg_beginning_mrr + total_expansion_mrr / _MONTHS - total_contraction_mrr / _MONTHS - total_churn_mrr / _MONTHS)
+            / avg_beginning_mrr * 100, 1
+        ) if avg_beginning_mrr else 0
+
+        # Gross retention = (beginning MRR - contraction - churn) / beginning MRR
+        gross_retention = round(
+            (avg_beginning_mrr - total_contraction_mrr / _MONTHS - total_churn_mrr / _MONTHS)
+            / avg_beginning_mrr * 100, 1
+        ) if avg_beginning_mrr else 0
+
+        avg_customer_mrr = round(latest.mrr / _CUSTOMER_COUNT, 2)
+        ltv = round(avg_customer_mrr / (1 - gross_retention / 100) if gross_retention < 100 else avg_customer_mrr * 36, 2)
+        cac = round(ltv / self._rng.uniform(3, 5), 2)  # LTV:CAC ratio of 3-5x
+
+        return {
+            "current_mrr": latest.mrr,
+            "current_arr": latest.arr,
+            "growth_rate": growth_rate,
+            "net_retention": net_retention,
+            "gross_retention": gross_retention,
+            "ltv": ltv,
+            "cac": cac,
+            "avg_customer_mrr": avg_customer_mrr,
+            "total_customers": _CUSTOMER_COUNT,
+        }
+
+    def get_cohort_data(self) -> Dict:
+        """Generate cohort retention analysis by signup month."""
+        self._ensure_generated()
+
+        cohorts = []
+        for i in range(_MONTHS):
+            month = self._month_str(_MONTHS - 1 - i)
+            months_active = i + 1
             retention = []
-            current_retained = 100.0
-            for j in range(remaining_months):
+
+            for j in range(months_active):
                 if j == 0:
                     retention.append(100.0)
                 else:
                     # Natural decay with some expansion offsetting churn
-                    monthly_decay = self._rng.uniform(1.5, 4.0)
-                    monthly_expansion = self._rng.uniform(0.5, 2.0)
-                    current_retained = current_retained - monthly_decay + monthly_expansion
-                    current_retained = max(current_retained, 60.0)
-                    retention.append(round(current_retained, 1))
+                    base_decay = self._rng.uniform(0.97, 0.995)
+                    expansion_boost = self._rng.uniform(0, 0.015)
+                    prev = retention[-1]
+                    val = round(prev * base_decay + prev * expansion_boost, 1)
+                    retention.append(val)
 
-            cohorts[month_str] = {
-                "month": month_str,
-                "customers": len(cohort_customers),
-                "initial_mrr": round(initial_mrr, 2),
+            cohorts.append({
+                "signup_month": month,
                 "retention": retention,
-            }
+                "starting_customers": self._rng.randint(30, 60),
+                "starting_mrr": round(self._rng.uniform(60000, 120000), 2),
+            })
 
-        return {
-            "months": months,
-            "cohorts": cohorts,
-        }
+        return {"cohorts": cohorts}
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
 
-    def _pareto(self, alpha: float) -> float:
-        """Generate a Pareto-distributed value using inverse transform."""
-        u = self._rng.random()
-        return (1.0 - u) ** (-1.0 / alpha)
+# Module-level singleton for consistent data across requests
+_generator_instance: Optional[RevenueDataGenerator] = None
 
-    def _weighted_choice(self, items: list, weights: list):
-        return self._rng.choices(items, weights=weights, k=1)[0]
 
-    def _generate_company_names(self, count: int) -> List[str]:
-        names = set()
-        while len(names) < count:
-            prefix = self._rng.choice(_PREFIXES)
-            suffix = self._rng.choice(_SUFFIXES)
-            names.add(f"{prefix} {suffix}")
-        return list(names)
-
-    def _plan_from_mrr(self, mrr: float) -> str:
-        if mrr >= 15_000:
-            return "enterprise"
-        elif mrr >= 5_000:
-            return "professional"
-        elif mrr >= 1_500:
-            return "growth"
-        return "starter"
-
-    def _seats_from_plan(self, plan: str, mrr: float) -> int:
-        base = {"starter": 5, "growth": 15, "professional": 40, "enterprise": 100}
-        per_seat = {"starter": 30, "growth": 50, "professional": 80, "enterprise": 120}
-        return max(base[plan], int(mrr / per_seat[plan]))
-
-    def _random_start_date(self) -> date:
-        days_back = self._rng.randint(90, 1095)  # 3 months to 3 years ago
-        return self._base_date - timedelta(days=days_back)
-
-    def _next_renewal(self, start: date) -> date:
-        # Annual renewal cycle
-        years_since = max(1, (self._base_date - start).days // 365)
-        return date(start.year + years_since, start.month, min(start.day, 28))
-
-    def _random_date_in_window(self) -> date:
-        offset = self._rng.randint(0, 364)
-        return self._base_date + timedelta(days=offset)
+def get_revenue_generator() -> RevenueDataGenerator:
+    """Get or create the singleton revenue data generator."""
+    global _generator_instance
+    if _generator_instance is None:
+        _generator_instance = RevenueDataGenerator()
+    return _generator_instance

@@ -4,15 +4,9 @@ Dataclasses representing MRR/ARR metrics, customer revenue,
 churn events, and expansion events at Intercom scale.
 """
 
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, field
-
-
-class ExpansionType(str, Enum):
-    UPSELL = "upsell"
-    CROSS_SELL = "cross_sell"
-    SEAT_ADD = "seat_add"
+from typing import Any, Dict
 
 
 class ChurnReason(str, Enum):
@@ -21,6 +15,12 @@ class ChurnReason(str, Enum):
     NOT_USING = "not_using"
     MERGED_ACQUIRED = "merged_acquired"
     OTHER = "other"
+
+
+class ExpansionType(str, Enum):
+    UPSELL = "upsell"
+    CROSS_SELL = "cross_sell"
+    SEAT_ADD = "seat_add"
 
 
 class PlanTier(str, Enum):
@@ -44,27 +44,14 @@ class RevenueMetric:
     def to_dict(self) -> Dict[str, Any]:
         return {
             "month": self.month,
-            "mrr": round(self.mrr, 2),
-            "arr": round(self.arr, 2),
-            "new_mrr": round(self.new_mrr, 2),
-            "expansion_mrr": round(self.expansion_mrr, 2),
-            "contraction_mrr": round(self.contraction_mrr, 2),
-            "churn_mrr": round(self.churn_mrr, 2),
-            "net_new_mrr": round(self.net_new_mrr, 2),
+            "mrr": self.mrr,
+            "arr": self.arr,
+            "new_mrr": self.new_mrr,
+            "expansion_mrr": self.expansion_mrr,
+            "contraction_mrr": self.contraction_mrr,
+            "churn_mrr": self.churn_mrr,
+            "net_new_mrr": self.net_new_mrr,
         }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'RevenueMetric':
-        return cls(
-            month=data["month"],
-            mrr=data["mrr"],
-            arr=data["arr"],
-            new_mrr=data["new_mrr"],
-            expansion_mrr=data["expansion_mrr"],
-            contraction_mrr=data["contraction_mrr"],
-            churn_mrr=data["churn_mrr"],
-            net_new_mrr=data["net_new_mrr"],
-        )
 
 
 @dataclass
@@ -73,7 +60,7 @@ class CustomerRevenue:
     account_id: str
     account_name: str
     mrr: float
-    plan: PlanTier
+    plan: str
     seats: int
     usage_units: int
     start_date: str
@@ -83,29 +70,13 @@ class CustomerRevenue:
         return {
             "account_id": self.account_id,
             "account_name": self.account_name,
-            "mrr": round(self.mrr, 2),
-            "plan": self.plan.value if isinstance(self.plan, PlanTier) else self.plan,
+            "mrr": self.mrr,
+            "plan": self.plan,
             "seats": self.seats,
             "usage_units": self.usage_units,
             "start_date": self.start_date,
             "last_renewal": self.last_renewal,
         }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'CustomerRevenue':
-        plan = data.get("plan", "Essential")
-        if isinstance(plan, str):
-            plan = PlanTier(plan)
-        return cls(
-            account_id=data["account_id"],
-            account_name=data["account_name"],
-            mrr=data["mrr"],
-            plan=plan,
-            seats=data["seats"],
-            usage_units=data["usage_units"],
-            start_date=data["start_date"],
-            last_renewal=data["last_renewal"],
-        )
 
 
 @dataclass
@@ -114,7 +85,7 @@ class ChurnEvent:
     account_id: str
     account_name: str
     mrr_lost: float
-    reason: ChurnReason
+    reason: str
     churn_date: str
     was_voluntary: bool
 
@@ -122,25 +93,11 @@ class ChurnEvent:
         return {
             "account_id": self.account_id,
             "account_name": self.account_name,
-            "mrr_lost": round(self.mrr_lost, 2),
-            "reason": self.reason.value if isinstance(self.reason, ChurnReason) else self.reason,
+            "mrr_lost": self.mrr_lost,
+            "reason": self.reason,
             "churn_date": self.churn_date,
             "was_voluntary": self.was_voluntary,
         }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ChurnEvent':
-        reason = data.get("reason", "other")
-        if isinstance(reason, str):
-            reason = ChurnReason(reason)
-        return cls(
-            account_id=data["account_id"],
-            account_name=data["account_name"],
-            mrr_lost=data["mrr_lost"],
-            reason=reason,
-            churn_date=data["churn_date"],
-            was_voluntary=data["was_voluntary"],
-        )
 
 
 @dataclass
@@ -150,30 +107,15 @@ class ExpansionEvent:
     account_name: str
     previous_mrr: float
     new_mrr: float
-    expansion_type: ExpansionType
+    expansion_type: str
     date: str
 
     def to_dict(self) -> Dict[str, Any]:
         return {
             "account_id": self.account_id,
             "account_name": self.account_name,
-            "previous_mrr": round(self.previous_mrr, 2),
-            "new_mrr": round(self.new_mrr, 2),
-            "expansion_type": self.expansion_type.value if isinstance(self.expansion_type, ExpansionType) else self.expansion_type,
-            "expansion_mrr": round(self.new_mrr - self.previous_mrr, 2),
+            "previous_mrr": self.previous_mrr,
+            "new_mrr": self.new_mrr,
+            "expansion_type": self.expansion_type,
             "date": self.date,
         }
-
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ExpansionEvent':
-        exp_type = data.get("expansion_type", "upsell")
-        if isinstance(exp_type, str):
-            exp_type = ExpansionType(exp_type)
-        return cls(
-            account_id=data["account_id"],
-            account_name=data["account_name"],
-            previous_mrr=data["previous_mrr"],
-            new_mrr=data["new_mrr"],
-            expansion_type=exp_type,
-            date=data["date"],
-        )

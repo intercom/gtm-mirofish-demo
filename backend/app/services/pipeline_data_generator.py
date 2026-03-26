@@ -1,386 +1,193 @@
 """
-Pipeline Data Generator Service
+Pipeline data generator service.
 
-Generates realistic B2B SaaS pipeline data for demo visualizations:
-- 6 months of monthly FunnelSnapshots with seasonal variance
-- 200 ConversionEvents tracking individual leads through stages
-- Velocity metrics (avg days per stage, total cycle time)
+Generates deterministic demo data for the GTM pipeline analytics:
+- 6 months of monthly FunnelSnapshots
+- 200 ConversionEvents with timestamps
+- Seasonal patterns (Q4 +20%, Q1 -10%)
+- Velocity metrics per stage
 """
 
-import random
 import hashlib
-from dataclasses import dataclass, field, asdict
+import random
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from statistics import median
 
-from ..utils.logger import get_logger
+from ..models.pipeline import (
+    PipelineStage, FunnelSnapshot, ConversionEvent, PIPELINE_STAGES,
+)
 
-logger = get_logger('mirofish.pipeline')
+_SEED = 42
+_BASE_LEADS_PER_MONTH = 1000
+_MONTHS = 6
+_CONVERSION_EVENT_COUNT = 200
 
-# ---------------------------------------------------------------------------
-# Pipeline stage definitions
-# ---------------------------------------------------------------------------
-
-PIPELINE_STAGES = [
-    'Lead',
-    'MQL',
-    'SQL',
-    'Opportunity',
-    'Proposal',
-    'Negotiation',
-    'Closed Won',
+OWNERS = [
+    "Sarah Chen", "Marcus Johnson", "Emily Park", "David Kim",
+    "Rachel Torres", "James Wilson", "Aisha Patel", "Tom Harris",
 ]
 
-# Base conversion rates between consecutive stages
-BASE_CONVERSION_RATES = {
-    'Lead→MQL': 0.30,
-    'MQL→SQL': 0.40,
-    'SQL→Opportunity': 0.60,
-    'Opportunity→Proposal': 0.50,
-    'Proposal→Negotiation': 0.70,
-    'Negotiation→Closed Won': 0.40,
-}
 
-# Average days a lead spends in each stage
-BASE_STAGE_DAYS = {
-    'Lead': 7,
-    'MQL': 12,
-    'SQL': 15,
-    'Opportunity': 20,
-    'Proposal': 10,
-    'Negotiation': 18,
-}
-
-# Company names for generating realistic conversion events
-COMPANY_NAMES = [
-    'Acme Corp', 'TechFlow', 'DataBridge', 'CloudNine Systems', 'Pinnacle AI',
-    'NexGen Labs', 'Velocity SaaS', 'Quantum Digital', 'FusionWorks', 'Apex Analytics',
-    'BlueShift Inc', 'Catalyst IO', 'DriftWave', 'EchoPoint', 'FlareStack',
-    'GreenField Tech', 'HyperLoop Co', 'InnoVate', 'JetStream AI', 'Kinetica',
-    'LightPath', 'MeshLogic', 'NovaStar', 'OmniLayer', 'PulseMetrics',
-    'Radiant Labs', 'SignalHQ', 'TrueNorth', 'UplinkData', 'VortexSystems',
-    'WarpSpeed', 'XenoTech', 'YieldForce', 'ZenithOps', 'AlphaWave',
-    'BrightEdge', 'CoreStack', 'DeepVault', 'ElasticPath', 'ForgeAI',
-]
-
-BASE_LEADS_PER_MONTH = 1000
-
-
-# ---------------------------------------------------------------------------
-# Data classes
-# ---------------------------------------------------------------------------
-
-@dataclass
-class FunnelSnapshot:
-    """Monthly snapshot of the pipeline funnel."""
-    month: str  # YYYY-MM
-    stages: Dict[str, int] = field(default_factory=dict)
-    conversion_rates: Dict[str, float] = field(default_factory=dict)
-    total_leads_in: int = 0
-    cumulative_won: int = 0
-    cumulative_lost: int = 0
-    cumulative_value: float = 0.0
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-
-@dataclass
-class ConversionEvent:
-    """A single lead/opportunity moving between pipeline stages."""
-    event_id: str
-    lead_id: str
-    company_name: str
-    from_stage: str
-    to_stage: str
-    timestamp: str  # ISO 8601
-    days_in_stage: int
-    deal_value: float = 0.0
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-
-@dataclass
-class VelocityMetrics:
-    """Stage-by-stage velocity statistics."""
-    stage_metrics: List[Dict] = field(default_factory=list)
-    total_cycle_days: float = 0.0
-    median_cycle_days: float = 0.0
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-
-# ---------------------------------------------------------------------------
-# Seasonal helpers
-# ---------------------------------------------------------------------------
-
-def _seasonal_lead_multiplier(month: int) -> float:
-    """Q4 (Oct-Dec) gets 20% more leads."""
+def _seasonal_factor(month: int) -> float:
+    """Q4 (Oct-Dec) +20% leads, Q1 (Jan-Mar) -10% conversion."""
     if month in (10, 11, 12):
         return 1.20
-    return 1.0
-
-
-def _seasonal_conversion_multiplier(month: int) -> float:
-    """Q1 (Jan-Mar) has 10% lower conversion rates."""
     if month in (1, 2, 3):
         return 0.90
     return 1.0
 
 
-# ---------------------------------------------------------------------------
-# Generator class
-# ---------------------------------------------------------------------------
+def _seeded_rng(seed: int) -> random.Random:
+    return random.Random(seed)
 
-class PipelineDataGenerator:
-    """Generates deterministic pipeline data for demo/mock mode."""
 
-    def __init__(self, seed: int = 42):
-        self._rng = random.Random(seed)
+def generate_funnel_history(months: int = _MONTHS) -> list[FunnelSnapshot]:
+    """Generate monthly funnel snapshots with realistic progression."""
+    rng = _seeded_rng(_SEED)
+    now = datetime(2026, 3, 1)
+    snapshots = []
 
-    def _vary(self, base: float, pct: float = 0.10) -> float:
-        """Apply ±pct random variance to a base value."""
-        return base * (1 + self._rng.uniform(-pct, pct))
+    for i in range(months):
+        dt = now - timedelta(days=30 * (months - 1 - i))
+        month_num = dt.month
+        season = _seasonal_factor(month_num)
 
-    # ------------------------------------------------------------------
-    # Funnel snapshots
-    # ------------------------------------------------------------------
+        raw_leads = int(_BASE_LEADS_PER_MONTH * season * rng.uniform(0.90, 1.10))
+        stages = []
+        current_count = raw_leads
+        total_value = 0.0
 
-    def generate_funnel_history(self, months: int = 6) -> List[FunnelSnapshot]:
-        """Generate *months* monthly funnel snapshots ending at current month."""
-        now = datetime.utcnow()
-        snapshots: List[FunnelSnapshot] = []
-        cumulative_won = 0
-        cumulative_lost = 0
-        cumulative_value = 0.0
+        for sdef in PIPELINE_STAGES:
+            if sdef["name"] == "Closed Lost":
+                continue
 
-        for i in range(months):
-            # Walk backwards so index 0 is oldest
-            offset = months - 1 - i
-            dt = now - timedelta(days=30 * offset)
-            month_label = dt.strftime('%Y-%m')
-            cal_month = dt.month
+            deal_value = current_count * rng.uniform(8000, 15000) if sdef["order"] >= 2 else 0.0
+            total_value += deal_value
 
-            # Seasonal lead volume
-            raw_leads = int(self._vary(BASE_LEADS_PER_MONTH) * _seasonal_lead_multiplier(cal_month))
-            conv_mult = _seasonal_conversion_multiplier(cal_month)
+            conv_rate = sdef["conversion_rate"]
+            if conv_rate > 0:
+                conv_rate *= rng.uniform(0.90, 1.10)
 
-            # Walk leads through each stage
-            stages: Dict[str, int] = {}
-            rates: Dict[str, float] = {}
-            current_count = raw_leads
+            avg_days = sdef["avg_days"] * rng.uniform(0.85, 1.15) if sdef["avg_days"] > 0 else 0.0
 
-            for idx, stage in enumerate(PIPELINE_STAGES):
-                stages[stage] = current_count
-                if idx < len(PIPELINE_STAGES) - 1:
-                    next_stage = PIPELINE_STAGES[idx + 1]
-                    key = f'{stage}→{next_stage}'
-                    base_rate = BASE_CONVERSION_RATES[key]
-                    rate = min(self._vary(base_rate, 0.10) * conv_mult, 0.99)
-                    rates[key] = round(rate, 4)
-                    current_count = int(current_count * rate)
-
-            won = stages['Closed Won']
-            lost = stages['Negotiation'] - won
-            cumulative_won += won
-            cumulative_lost += lost
-            avg_deal = self._vary(45000, 0.15)
-            cumulative_value += won * avg_deal
-
-            snapshots.append(FunnelSnapshot(
-                month=month_label,
-                stages=stages,
-                conversion_rates=rates,
-                total_leads_in=raw_leads,
-                cumulative_won=cumulative_won,
-                cumulative_lost=cumulative_lost,
-                cumulative_value=round(cumulative_value, 2),
+            stages.append(PipelineStage(
+                name=sdef["name"],
+                order=sdef["order"],
+                count=current_count,
+                value=round(deal_value, 2),
+                conversion_rate_to_next=round(min(conv_rate, 1.0), 4),
+                avg_days_in_stage=round(avg_days, 1),
+                color=sdef["color"],
             ))
 
-        return snapshots
+            if conv_rate > 0:
+                current_count = int(current_count * conv_rate)
 
-    # ------------------------------------------------------------------
-    # Conversion events
-    # ------------------------------------------------------------------
+        snapshots.append(FunnelSnapshot(
+            timestamp=dt.strftime("%Y-%m-%d"),
+            stages=stages,
+            total_leads=raw_leads,
+            total_revenue=round(total_value, 2),
+        ))
 
-    def generate_conversion_events(self, count: int = 200) -> List[ConversionEvent]:
-        """Generate *count* individual conversion events over the past 6 months."""
-        now = datetime.utcnow()
-        six_months_ago = now - timedelta(days=180)
-        events: List[ConversionEvent] = []
+    return snapshots
 
-        # Pre-generate a pool of leads (over-provision to account for
-        # leads whose later transitions get clipped by the `now` boundary)
-        num_leads = count // 2 + 30
-        leads = []
-        for i in range(num_leads):
-            company = self._rng.choice(COMPANY_NAMES)
-            lead_id = f'lead-{i+1:04d}'
-            deal_value = round(self._rng.uniform(15000, 120000), 2)
-            # Random entry point in the 6-month window
-            entry_offset = self._rng.randint(0, 150)
-            entry_date = six_months_ago + timedelta(days=entry_offset)
-            leads.append({
-                'lead_id': lead_id,
-                'company': company,
-                'deal_value': deal_value,
-                'entry_date': entry_date,
-            })
 
-        event_counter = 0
-        for lead in leads:
-            if event_counter >= count:
-                break
+def generate_conversion_events(count: int = _CONVERSION_EVENT_COUNT) -> list[ConversionEvent]:
+    """Generate individual lead conversion events across stages."""
+    rng = _seeded_rng(_SEED + 1)
+    win_stages = [s for s in PIPELINE_STAGES if s["name"] not in ("Closed Won", "Closed Lost")]
+    events = []
+    base_date = datetime(2025, 10, 1)
 
-            current_date = lead['entry_date']
-            # Determine how far this lead progresses (weighted toward earlier drop-off)
-            max_stage_idx = self._rng.choices(
-                range(1, len(PIPELINE_STAGES)),
-                weights=[30, 20, 18, 15, 10, 7],
-                k=1,
-            )[0]
+    for i in range(count):
+        stage_idx = rng.randint(0, len(win_stages) - 2)
+        from_stage = win_stages[stage_idx]
+        to_stage = win_stages[stage_idx + 1]
 
-            for stage_idx in range(max_stage_idx):
-                if event_counter >= count:
-                    break
+        ts = base_date + timedelta(days=rng.randint(0, 180), hours=rng.randint(0, 23))
+        duration = max(1, int(from_stage["avg_days"] * rng.uniform(0.5, 2.0)))
+        entity_id = hashlib.md5(f"lead-{i}".encode()).hexdigest()[:12]
 
-                from_stage = PIPELINE_STAGES[stage_idx]
-                to_stage = PIPELINE_STAGES[stage_idx + 1]
-                days_in = max(1, int(self._vary(BASE_STAGE_DAYS[from_stage], 0.30)))
-                current_date += timedelta(days=days_in)
+        events.append(ConversionEvent(
+            id=f"evt-{i:04d}",
+            entity_id=entity_id,
+            from_stage=from_stage["name"],
+            to_stage=to_stage["name"],
+            timestamp=ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            duration_days=duration,
+            owner=rng.choice(OWNERS),
+        ))
 
-                if current_date > now:
-                    break
+    events.sort(key=lambda e: e.timestamp)
+    return events
 
-                event_id = hashlib.md5(
-                    f'{lead["lead_id"]}-{from_stage}-{to_stage}'.encode()
-                ).hexdigest()[:12]
 
-                events.append(ConversionEvent(
-                    event_id=event_id,
-                    lead_id=lead['lead_id'],
-                    company_name=lead['company'],
-                    from_stage=from_stage,
-                    to_stage=to_stage,
-                    timestamp=current_date.isoformat() + 'Z',
-                    days_in_stage=days_in,
-                    deal_value=lead['deal_value'],
-                ))
-                event_counter += 1
+def compute_velocity_metrics(events: list[ConversionEvent] | None = None) -> list[dict]:
+    """Compute avg and median days per stage transition."""
+    if events is None:
+        events = generate_conversion_events()
 
-        # Sort chronologically
-        events.sort(key=lambda e: e.timestamp)
-        return events
+    buckets: dict[str, list[int]] = {}
+    for evt in events:
+        key = f"{evt.from_stage} → {evt.to_stage}"
+        buckets.setdefault(key, []).append(evt.duration_days)
 
-    # ------------------------------------------------------------------
-    # Velocity metrics
-    # ------------------------------------------------------------------
+    metrics = []
+    for transition, durations in buckets.items():
+        from_s, to_s = transition.split(" → ")
+        metrics.append({
+            "from_stage": from_s,
+            "to_stage": to_s,
+            "avg_days": round(sum(durations) / len(durations), 1),
+            "median_days": round(median(durations), 1),
+            "min_days": min(durations),
+            "max_days": max(durations),
+            "count": len(durations),
+        })
 
-    def generate_velocity_metrics(
-        self, events: Optional[List[ConversionEvent]] = None,
-    ) -> VelocityMetrics:
-        """Calculate velocity metrics from conversion events."""
-        if events is None:
-            events = self.generate_conversion_events()
+    metrics.sort(key=lambda m: PIPELINE_STAGES[[s["name"] for s in PIPELINE_STAGES].index(m["from_stage"])]["order"])
+    return metrics
 
-        # Collect days-in-stage grouped by from_stage
-        stage_days: Dict[str, List[int]] = {s: [] for s in PIPELINE_STAGES[:-1]}
-        lead_total_days: Dict[str, int] = {}
 
-        for ev in events:
-            if ev.from_stage in stage_days:
-                stage_days[ev.from_stage].append(ev.days_in_stage)
-            lead_total_days.setdefault(ev.lead_id, 0)
-            lead_total_days[ev.lead_id] += ev.days_in_stage
+def compute_forecast(snapshot: FunnelSnapshot | None = None) -> dict:
+    """Simple forecast: current pipeline value × stage probability."""
+    if snapshot is None:
+        history = generate_funnel_history()
+        snapshot = history[-1]
 
-        stage_metrics = []
-        for stage in PIPELINE_STAGES[:-1]:
-            days_list = stage_days[stage]
-            if days_list:
-                avg = sum(days_list) / len(days_list)
-                sorted_d = sorted(days_list)
-                median = sorted_d[len(sorted_d) // 2]
-            else:
-                avg = BASE_STAGE_DAYS.get(stage, 0)
-                median = avg
-            stage_metrics.append({
-                'stage': stage,
-                'avg_days': round(avg, 1),
-                'median_days': median,
-                'sample_size': len(days_list),
-            })
+    stage_probs = {
+        "Raw Lead": 0.25 * 0.40 * 0.60 * 0.70 * 0.35,
+        "MQL": 0.40 * 0.60 * 0.70 * 0.35,
+        "SQL": 0.60 * 0.70 * 0.35,
+        "SAO": 0.70 * 0.35,
+        "Proposal": 0.35,
+        "Closed Won": 1.0,
+    }
 
-        all_totals = list(lead_total_days.values()) or [0]
-        total_avg = sum(all_totals) / len(all_totals)
-        sorted_totals = sorted(all_totals)
-        total_median = sorted_totals[len(sorted_totals) // 2]
+    weighted = 0.0
+    unweighted = 0.0
+    by_stage = []
 
-        return VelocityMetrics(
-            stage_metrics=stage_metrics,
-            total_cycle_days=round(total_avg, 1),
-            median_cycle_days=float(total_median),
-        )
+    for stage in snapshot.stages:
+        prob = stage_probs.get(stage.name, 0)
+        w = stage.value * prob
+        weighted += w
+        unweighted += stage.value
+        by_stage.append({
+            "stage": stage.name,
+            "value": stage.value,
+            "probability": round(prob, 4),
+            "weighted_value": round(w, 2),
+        })
 
-    # ------------------------------------------------------------------
-    # Forecast (simple probability-weighted)
-    # ------------------------------------------------------------------
-
-    def generate_forecast(self, snapshot: Optional[FunnelSnapshot] = None) -> Dict:
-        """Simple forecast: current pipeline × stage probability."""
-        if snapshot is None:
-            snapshots = self.generate_funnel_history(months=1)
-            snapshot = snapshots[0]
-
-        # Stage win probabilities (cumulative conversion from stage to Closed Won)
-        stage_probabilities = {
-            'Lead': 0.005,
-            'MQL': 0.017,
-            'SQL': 0.042,
-            'Opportunity': 0.070,
-            'Proposal': 0.140,
-            'Negotiation': 0.400,
-            'Closed Won': 1.0,
-        }
-
-        avg_deal = self._vary(45000, 0.10)
-        forecast_items = []
-        total_weighted = 0.0
-
-        for stage, count in snapshot.stages.items():
-            prob = stage_probabilities.get(stage, 0)
-            weighted = count * prob * avg_deal
-            total_weighted += weighted
-            forecast_items.append({
-                'stage': stage,
-                'count': count,
-                'probability': prob,
-                'weighted_value': round(weighted, 2),
-            })
-
-        return {
-            'month': snapshot.month,
-            'avg_deal_value': round(avg_deal, 2),
-            'total_weighted_pipeline': round(total_weighted, 2),
-            'stages': forecast_items,
-        }
-
-    # ------------------------------------------------------------------
-    # All-in-one convenience
-    # ------------------------------------------------------------------
-
-    def generate_all(self, months: int = 6, event_count: int = 200) -> Dict:
-        """Generate complete pipeline dataset."""
-        snapshots = self.generate_funnel_history(months)
-        events = self.generate_conversion_events(event_count)
-        velocity = self.generate_velocity_metrics(events)
-        forecast = self.generate_forecast(snapshots[-1] if snapshots else None)
-
-        return {
-            'funnel_history': [s.to_dict() for s in snapshots],
-            'conversion_events': [e.to_dict() for e in events],
-            'velocity': velocity.to_dict(),
-            'forecast': forecast,
-            'current_funnel': snapshots[-1].to_dict() if snapshots else None,
-        }
+    confidence = 0.15
+    return {
+        "weighted_forecast": round(weighted, 2),
+        "unweighted_total": round(unweighted, 2),
+        "best_case": round(weighted * (1 + confidence), 2),
+        "expected": round(weighted, 2),
+        "worst_case": round(weighted * (1 - confidence), 2),
+        "by_stage": by_stage,
+        "as_of": snapshot.timestamp,
+    }

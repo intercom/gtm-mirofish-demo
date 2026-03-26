@@ -1,63 +1,74 @@
 """
-Pipeline Funnel API
-Serves GTM pipeline funnel data for dashboard widgets.
-Returns mock data when no simulation is active — always works in demo mode.
+Pipeline API
+GTM funnel analytics: snapshots, conversions, velocity, and forecast.
 """
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
-pipeline_bp = Blueprint('pipeline', __name__, url_prefix='/api/v1/pipeline')
+from ..services.pipeline_data_generator import (
+    generate_funnel_history,
+    generate_conversion_events,
+    compute_velocity_metrics,
+    compute_forecast,
+)
 
-MOCK_FUNNEL_STAGES = [
-    {
-        "name": "MQL",
-        "count": 1284,
-        "value": 6420000,
-        "color": "#2068FF",
-    },
-    {
-        "name": "SQL",
-        "count": 514,
-        "value": 3854000,
-        "color": "#4D8AFF",
-    },
-    {
-        "name": "Opportunity",
-        "count": 308,
-        "value": 2772000,
-        "color": "#ff5600",
-    },
-    {
-        "name": "Closed Won",
-        "count": 108,
-        "value": 1620000,
-        "color": "#009900",
-    },
-]
-
-
-def _compute_conversion_rates(stages):
-    """Compute conversion rates between consecutive stages."""
-    rates = []
-    for i in range(len(stages) - 1):
-        current = stages[i]["count"]
-        next_count = stages[i + 1]["count"]
-        rate = round((next_count / current) * 100, 1) if current else 0
-        rates.append({
-            "from": stages[i]["name"],
-            "to": stages[i + 1]["name"],
-            "rate": rate,
-        })
-    return rates
+pipeline_bp = Blueprint('pipeline', __name__, url_prefix='/api/pipeline')
 
 
 @pipeline_bp.route('/funnel', methods=['GET'])
-def get_funnel():
-    """Return current pipeline funnel snapshot with all stages and conversion rates."""
-    stages = MOCK_FUNNEL_STAGES
-    conversion_rates = _compute_conversion_rates(stages)
+def funnel():
+    """Current funnel snapshot with all stages."""
+    history = generate_funnel_history()
+    latest = history[-1]
+    return jsonify({"success": True, "data": latest.to_dict()})
+
+
+@pipeline_bp.route('/funnel/history', methods=['GET'])
+def funnel_history():
+    """Monthly funnel snapshots for trend analysis."""
+    months = request.args.get('months', 6, type=int)
+    months = max(1, min(months, 12))
+    history = generate_funnel_history(months=months)
+    return jsonify({
+        "success": True,
+        "data": {
+            "months": months,
+            "snapshots": [s.to_dict() for s in history],
+        },
+    })
+
+
+@pipeline_bp.route('/conversions', methods=['GET'])
+def conversions():
+    """Conversion events with optional date range filter."""
+    events = generate_conversion_events()
+
+    start = request.args.get('start')
+    end = request.args.get('end')
+
+    if start:
+        events = [e for e in events if e.timestamp >= start]
+    if end:
+        events = [e for e in events if e.timestamp <= end]
 
     return jsonify({
-        "stages": stages,
-        "conversion_rates": conversion_rates,
+        "success": True,
+        "data": {
+            "total": len(events),
+            "events": [e.to_dict() for e in events],
+        },
     })
+
+
+@pipeline_bp.route('/velocity', methods=['GET'])
+def velocity():
+    """Stage-by-stage velocity metrics (avg days, median days)."""
+    metrics = compute_velocity_metrics()
+    return jsonify({"success": True, "data": {"stages": metrics}})
+
+
+@pipeline_bp.route('/forecast', methods=['GET'])
+def forecast():
+    """Revenue forecast based on current pipeline × probability."""
+    data = compute_forecast()
+    return jsonify({"success": True, "data": data})

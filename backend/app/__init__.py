@@ -191,7 +191,9 @@ def create_app(config_class=Config):
     from .api.analytics import analytics_bp
     app.register_blueprint(analytics_bp)
 
-    # Root-level liveness check (for load balancers / infrastructure)
+    # Data Pipeline API (connector health, sync status)
+    from .api.data_pipeline import data_pipeline_bp
+    app.register_blueprint(data_pipeline_bp)
     @app.route('/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}

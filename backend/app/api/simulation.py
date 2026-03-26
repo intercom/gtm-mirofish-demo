@@ -5133,3 +5133,148 @@ def simulation_feed(simulation_id: str):
             'Connection': 'keep-alive',
         }
     )
+
+
+# ============== Sentiment Dynamics ==============
+
+# Module-level cache of SentimentDynamics engines per simulation
+_sentiment_engines: dict[str, dict] = {}
+
+
+def _get_or_build_sentiment_engine(simulation_id: str):
+    """Build a SentimentDynamics engine from a simulation's action history.
+
+    The engine is cached per simulation_id so repeated calls are fast.
+    If new actions exist, it rebuilds from scratch (simple & correct).
+    """
+    from ..services.sentiment_dynamics import SentimentDynamics
+
+    # Fetch all actions for this simulation (no pagination)
+    actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+    action_count = len(actions)
+
+    cached = _sentiment_engines.get(simulation_id)
+    if cached and cached.get('action_count') == action_count:
+        return cached['engine']
+
+    engine = SentimentDynamics()
+
+    # Group actions by (agent, round)
+    rounds_by_agent: dict[str, dict[int, list]] = {}
+    for action in actions:
+        a = action.to_dict()
+        aid = str(a.get('agent_id', ''))
+        aname = a.get('agent_name', '')
+        rnd = a.get('round_num', 0)
+        if aid not in rounds_by_agent:
+            engine.register_agent(aid, aname)
+            rounds_by_agent[aid] = {}
+        rounds_by_agent[aid].setdefault(rnd, []).append(a)
+
+    # Process rounds in order for each agent
+    for aid, round_map in rounds_by_agent.items():
+        for rnd in sorted(round_map.keys()):
+            engine.update_sentiment(aid, round_map[rnd], round_num=rnd)
+
+    _sentiment_engines[simulation_id] = {
+        'engine': engine,
+        'action_count': action_count,
+    }
+    return engine
+
+
+@simulation_bp.route('/<simulation_id>/sentiment-dynamics', methods=['GET'])
+def get_sentiment_dynamics(simulation_id: str):
+    """Return dynamic sentiment data for all agents in a simulation.
+
+    Query params:
+        agent_id: filter to a single agent (optional)
+
+    Response:
+        {
+            "success": true,
+            "data": {
+                "agents": [{ agent_id, agent_name, sentiment, description, rounds_tracked }],
+                "group_mood": { average, min, max, count, description },
+                "history": { "<agent_id>": [{ round_num, sentiment, delta }] },
+                "mood_swings": { "<agent_id>": [{ round_num, delta, from_sentiment, to_sentiment }] }
+            }
+        }
+    """
+    try:
+        engine = _get_or_build_sentiment_engine(simulation_id)
+        agent_filter = request.args.get('agent_id')
+
+        agents = engine.get_all_agents_snapshot()
+        history = {}
+        mood_swings = {}
+
+        for agent in agents:
+            aid = agent['agent_id']
+            if agent_filter and aid != agent_filter:
+                continue
+            history[aid] = engine.get_agent_sentiment_history(aid)
+            swings = engine.detect_mood_swings(aid)
+            if swings:
+                mood_swings[aid] = swings
+
+        if agent_filter:
+            agents = [a for a in agents if a['agent_id'] == agent_filter]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "agents": agents,
+                "group_mood": engine.get_group_mood(),
+                "history": history,
+                "mood_swings": mood_swings,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to compute sentiment dynamics: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/sentiment-dynamics/prompt', methods=['GET'])
+def get_sentiment_prompt(simulation_id: str):
+    """Return prompt injection strings for all (or one) agent(s).
+
+    Query params:
+        agent_id: filter to a single agent (optional)
+
+    Response:
+        {
+            "success": true,
+            "data": {
+                "prompts": { "<agent_id>": "Your current mood is ..." }
+            }
+        }
+    """
+    try:
+        engine = _get_or_build_sentiment_engine(simulation_id)
+        agent_filter = request.args.get('agent_id')
+
+        prompts = {}
+        for agent in engine.get_all_agents_snapshot():
+            aid = agent['agent_id']
+            if agent_filter and aid != agent_filter:
+                continue
+            prompts[aid] = engine.get_prompt_injection(aid)
+
+        return jsonify({
+            "success": True,
+            "data": {"prompts": prompts}
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to generate sentiment prompts: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

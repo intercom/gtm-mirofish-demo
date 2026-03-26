@@ -10,6 +10,7 @@ import UserMenu from '../common/UserMenu.vue'
 import ShortcutBadge from '../common/ShortcutBadge.vue'
 import PresenceIndicator from '../common/PresenceIndicator.vue'
 import ServiceStatus from '../common/ServiceStatus.vue'
+import ThemeSwitcher from '../common/ThemeSwitcher.vue'
 import { useTutorialStore } from '../../stores/tutorial'
 
 const { isDemoMode } = useDemoMode()
@@ -97,6 +98,7 @@ const navLinks = computed(() => {
       </div>
 
       <div class="flex items-center gap-3">
+        <ThemeSwitcher compact class="hidden sm:inline-flex" />
         <ServiceStatus mode="compact" class="hidden sm:flex" />
         <PresenceIndicator v-if="settingsStore.showPresence" />
         <NotificationCenter />
@@ -207,6 +209,7 @@ const navLinks = computed(() => {
         <div class="px-4 pb-3 border-t border-white/10 pt-3 space-y-3">
           <ServiceStatus mode="compact" />
           <UserMenu />
+          <ThemeSwitcher compact />
         </div>
       </div>
     </Transition>

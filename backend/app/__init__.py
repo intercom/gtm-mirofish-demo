@@ -271,6 +271,10 @@ def create_app(config_class=Config):
     from .api.agent_prompts import agent_prompts_bp
     app.register_blueprint(agent_prompts_bp)
 
+    # Simulation result cache (offline replay)
+    from .api.cache import cache_bp
+    app.register_blueprint(cache_bp)
+
     # Error handling middleware
     register_error_handlers(app)
 

@@ -173,4 +173,10 @@ export const simulationApi = {
   // --- Anomaly explanation ---
   getAnomalyExplanation: (simulationId, anomalyId) =>
     client.get(`/simulation/${simulationId}/anomalies/${anomalyId}/explanation`),
+
+  // --- Cache (offline replay) ---
+  cacheResult: (simulationId) => client.post(`/v1/cache/simulations/${simulationId}`),
+  getCached: (simulationId) => client.get(`/v1/cache/simulations/${simulationId}`),
+  listCached: () => client.get('/v1/cache/simulations'),
+  deleteCached: (simulationId) => client.delete(`/v1/cache/simulations/${simulationId}`),
 }

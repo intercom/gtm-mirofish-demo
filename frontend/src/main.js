@@ -4,7 +4,10 @@ import App from './App.vue'
 import router from './router'
 import { useServiceWorker } from './composables/useServiceWorker'
 import i18n from './i18n'
+import { perfMonitor } from './lib/perfMonitor'
 import './style.css'
+
+perfMonitor.trackRouteNavigation(router)
 
 const app = createApp(App)
 app.use(createPinia())
@@ -16,3 +19,5 @@ if (import.meta.env.PROD) {
   const { register } = useServiceWorker()
   register()
 }
+
+window.addEventListener('load', () => perfMonitor.recordPageLoad())

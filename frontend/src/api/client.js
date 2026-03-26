@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { perfMonitor } from '../lib/perfMonitor'
 
 export const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
@@ -38,6 +39,8 @@ client.defaults.adapter = (config) => {
   inflight.set(key, promise)
   return promise
 }
+
+perfMonitor.createAxiosTimingInterceptors(client)
 
 // Normalize errors so callers always get { message, status, data }
 client.interceptors.response.use(

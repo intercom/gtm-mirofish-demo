@@ -1,13 +1,24 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
+import { perfMonitor } from '../../lib/perfMonitor'
 import NotificationCenter from '../ui/NotificationCenter.vue'
 import UserMenu from '../common/UserMenu.vue'
 
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
 const mobileMenuOpen = ref(false)
+const avgApiMs = ref(0)
+
+let perfInterval
+onMounted(() => {
+  perfInterval = setInterval(() => {
+    avgApiMs.value = Math.round(perfMonitor.avg('apiResponse'))
+  }, 3000)
+})
+onUnmounted(() => clearInterval(perfInterval))
 
 const navLinks = computed(() => {
   return [
@@ -61,9 +72,18 @@ const navLinks = computed(() => {
 
       <div class="flex items-center gap-3">
         <NotificationCenter />
-        <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          <span>Local</span>
+        <div class="hidden sm:flex items-center gap-3 text-xs text-white/40">
+          <span v-if="avgApiMs" class="flex items-center gap-1" :title="`Avg API response: ${avgApiMs}ms`">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="opacity-60">
+              <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
+              <path d="M6 3v3.5l2 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            <span :class="avgApiMs > 2000 ? 'text-[#ff5600]' : ''">{{ avgApiMs }}ms</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            Local
+          </span>
         </div>
 
         <UserMenu />

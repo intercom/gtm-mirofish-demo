@@ -194,6 +194,10 @@ def create_app(config_class=Config):
     # Data Pipeline API (connector health, sync status)
     from .api.data_pipeline import data_pipeline_bp
     app.register_blueprint(data_pipeline_bp)
+
+    # Batch API (multi-request batching)
+    from .api.batch import batch_bp
+    app.register_blueprint(batch_bp)
     @app.route('/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}

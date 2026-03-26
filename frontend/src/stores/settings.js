@@ -15,6 +15,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const apiKey = ref('')
   const zepKey = ref('')
   const statusBarEnabled = ref(false)
+  const showPresence = ref(true)
   const connectionStatus = ref({ llm: null, zep: null })
 
   function load() {
@@ -26,6 +27,7 @@ export const useSettingsStore = defineStore('settings', () => {
         apiKey.value = s.apiKey || ''
         zepKey.value = s.zepKey || ''
         statusBarEnabled.value = !!s.statusBarEnabled
+        showPresence.value = s.showPresence !== false
       }
     } catch {
       // Corrupted data — reset to defaults
@@ -38,11 +40,12 @@ export const useSettingsStore = defineStore('settings', () => {
       apiKey: apiKey.value,
       zepKey: zepKey.value,
       statusBarEnabled: statusBarEnabled.value,
+      showPresence: showPresence.value,
     }))
   }
 
   // Auto-persist on changes
-  watch([provider, apiKey, zepKey, statusBarEnabled], save, { flush: 'post' })
+  watch([provider, apiKey, zepKey, statusBarEnabled, showPresence], save, { flush: 'post' })
 
   async function testConnection(service) {
     if (!navigator.onLine) {
@@ -66,6 +69,7 @@ export const useSettingsStore = defineStore('settings', () => {
     apiKey,
     zepKey,
     statusBarEnabled,
+    showPresence,
     connectionStatus,
     providers: PROVIDERS,
     load,

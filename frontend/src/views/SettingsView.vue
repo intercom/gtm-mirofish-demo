@@ -3,8 +3,11 @@ import { ref, watch, onMounted } from 'vue'
 import { useTheme } from '../composables/useTheme'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
+import { useSettingsStore } from '../stores/settings'
 import { API_BASE } from '../api/client'
 import ThemeEditor from '../components/settings/ThemeEditor.vue'
+
+const settingsStore = useSettingsStore()
 
 const { preference: themePreference, systemPreference, setTheme } = useTheme()
 const toast = useToast()
@@ -24,6 +27,7 @@ const zepKey = ref('')
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
+const showPresence = ref(true)
 const connectionStatus = ref({ llm: null, zep: null })
 const connectionError = ref({ llm: '', zep: '' })
 
@@ -59,6 +63,7 @@ function load() {
     agentCount.value = s.agentCount ?? 200
     duration.value = s.duration ?? 72
     platformMode.value = s.platformMode || 'parallel'
+    showPresence.value = s.showPresence !== false
   } catch {
     toast.error('Failed to load saved settings')
   }
@@ -73,6 +78,7 @@ function save() {
       agentCount: agentCount.value,
       duration: duration.value,
       platformMode: platformMode.value,
+      showPresence: showPresence.value,
     }))
     saved.value = true
     clearTimeout(savedTimer)
@@ -82,7 +88,11 @@ function save() {
   }
 }
 
-watch([provider, apiKey, zepKey, agentCount, duration, platformMode], save, { deep: true })
+watch([provider, apiKey, zepKey, agentCount, duration, platformMode, showPresence], save, { deep: true })
+
+watch(showPresence, (val) => {
+  settingsStore.showPresence = val
+})
 
 async function testConnection(service) {
   connectionStatus.value[service] = 'testing'
@@ -326,6 +336,27 @@ onMounted(() => {
       <p class="text-xs text-[var(--color-text-muted)] mt-4">
         These defaults pre-fill the Scenario Builder. You can override them per-simulation.
       </p>
+    </section>
+
+    <!-- Demo Features -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Demo Features</h2>
+      <label class="flex items-center justify-between p-3 md:p-4 rounded-lg border border-[var(--color-border)] cursor-pointer transition-colors hover:border-[#2068FF]/50">
+        <div>
+          <div class="text-sm font-medium text-[var(--color-text)]">Show Collaboration Presence</div>
+          <div class="text-xs text-[var(--color-text-muted)] mt-0.5">Simulates other team members viewing the app</div>
+        </div>
+        <div
+          class="relative w-10 h-6 rounded-full transition-colors shrink-0 ml-4"
+          :class="showPresence ? 'bg-[#2068FF]' : 'bg-[var(--color-border-strong)]'"
+        >
+          <input type="checkbox" v-model="showPresence" class="sr-only" />
+          <div
+            class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+            :class="{ 'translate-x-4': showPresence }"
+          />
+        </div>
+      </label>
     </section>
 
     <!-- Info -->

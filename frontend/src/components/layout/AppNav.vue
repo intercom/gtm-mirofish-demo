@@ -4,12 +4,15 @@ import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { useSimulationStore } from '../../stores/simulation'
 import { perfMonitor } from '../../lib/perfMonitor'
+import { useSettingsStore } from '../../stores/settings'
 import NotificationCenter from '../ui/NotificationCenter.vue'
 import UserMenu from '../common/UserMenu.vue'
 import ShortcutBadge from '../common/ShortcutBadge.vue'
+import PresenceIndicator from '../common/PresenceIndicator.vue'
 
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
+const settingsStore = useSettingsStore()
 const mobileMenuOpen = ref(false)
 const avgApiMs = ref(0)
 
@@ -78,6 +81,7 @@ const navLinks = computed(() => {
       </div>
 
       <div class="flex items-center gap-3">
+        <PresenceIndicator v-if="settingsStore.showPresence" />
         <NotificationCenter />
         <div class="hidden sm:flex items-center gap-3 text-xs text-white/40">
           <span v-if="avgApiMs" class="flex items-center gap-1" :title="`Avg API response: ${avgApiMs}ms`">

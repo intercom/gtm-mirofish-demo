@@ -11,4 +11,7 @@ export const analyticsApi = {
 
   getSegmentAccounts: (segmentType, segmentName) =>
     client.get(`/v1/analytics/segments/${segmentType}/${encodeURIComponent(segmentName)}/accounts`),
+
+  // --- Anomaly detection ---
+  getAnomalies: (params = {}) => client.get('/v1/analytics/anomalies', { params }),
 }

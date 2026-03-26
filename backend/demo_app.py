@@ -1563,6 +1563,152 @@ def sim_close_env():
 
 
 # ---------------------------------------------------------------------------
+# Analytics — anomaly detection (demo data)
+# ---------------------------------------------------------------------------
+
+_METRIC_DEFS = {
+    "revenue": {
+        "label": "Revenue",
+        "metrics": [
+            {"key": "mrr", "label": "MRR", "unit": "$", "baseline": 125000, "noise": 3000},
+            {"key": "arr", "label": "ARR", "unit": "$", "baseline": 1500000, "noise": 25000},
+            {"key": "expansion_revenue", "label": "Expansion Revenue", "unit": "$", "baseline": 18000, "noise": 4000},
+            {"key": "churn_revenue", "label": "Churn Revenue", "unit": "$", "baseline": 8000, "noise": 2000},
+        ],
+    },
+    "pipeline": {
+        "label": "Pipeline",
+        "metrics": [
+            {"key": "deal_velocity", "label": "Deal Velocity", "unit": "days", "baseline": 32, "noise": 4},
+            {"key": "conversion_rate", "label": "Conversion Rate", "unit": "%", "baseline": 24, "noise": 3},
+            {"key": "new_opps", "label": "New Opportunities", "unit": "", "baseline": 85, "noise": 12},
+            {"key": "pipeline_value", "label": "Pipeline Value", "unit": "$", "baseline": 450000, "noise": 45000},
+        ],
+    },
+    "sync": {
+        "label": "Data Sync",
+        "metrics": [
+            {"key": "sync_success_rate", "label": "Sync Success Rate", "unit": "%", "baseline": 98.5, "noise": 0.8},
+            {"key": "sync_latency", "label": "Sync Latency", "unit": "ms", "baseline": 240, "noise": 50},
+            {"key": "records_synced", "label": "Records Synced", "unit": "", "baseline": 15000, "noise": 2000},
+        ],
+    },
+    "billing": {
+        "label": "Billing",
+        "metrics": [
+            {"key": "payment_failure_rate", "label": "Payment Failure Rate", "unit": "%", "baseline": 2.1, "noise": 0.6},
+            {"key": "invoice_count", "label": "Invoices Sent", "unit": "", "baseline": 320, "noise": 30},
+            {"key": "overdue_amount", "label": "Overdue Amount", "unit": "$", "baseline": 12000, "noise": 3500},
+        ],
+    },
+}
+
+
+def _generate_anomaly_data(days=90, cat_filter=None, sev_filter=None):
+    """Generate deterministic anomaly detection data for demo mode."""
+    import hashlib
+    from datetime import datetime, timedelta
+
+    today = datetime.utcnow().date()
+    seed_base = int(hashlib.md5(today.isoformat().encode()).hexdigest()[:8], 16)
+
+    all_anomalies = []
+    heatmap = {}
+    timeseries = {}
+
+    for cat_key, cat_def in _METRIC_DEFS.items():
+        if cat_filter and cat_key != cat_filter:
+            continue
+        heatmap[cat_key] = {}
+        for mdef in cat_def["metrics"]:
+            rng = random.Random(seed_base + hash(mdef["key"]))
+            baseline = mdef["baseline"]
+            noise = mdef["noise"]
+            start = today - timedelta(days=days - 1)
+
+            num_anomalies = rng.randint(3, 5)
+            anomaly_days = sorted(rng.sample(range(5, days - 2), num_anomalies))
+
+            values = []
+            for i in range(days):
+                date = start + timedelta(days=i)
+                trend = baseline * 0.0005 * i
+                val = baseline + trend + rng.gauss(0, noise)
+                if i in anomaly_days:
+                    direction = rng.choice([-1, 1])
+                    magnitude = rng.uniform(3.0, 5.5) * noise
+                    val += direction * magnitude
+                values.append({"date": date.isoformat(), "value": round(val, 2)})
+
+            timeseries[mdef["key"]] = values
+
+            # Z-score anomaly detection
+            nums = [v["value"] for v in values]
+            mean = sum(nums) / len(nums)
+            variance = sum((x - mean) ** 2 for x in nums) / len(nums)
+            std = math.sqrt(variance) if variance > 0 else 1.0
+
+            heatmap_row = []
+            for v in values:
+                z = (v["value"] - mean) / std
+                heatmap_row.append({"date": v["date"], "z_score": round(z, 2)})
+                if abs(z) >= 2.0:
+                    dev_pct = ((v["value"] - mean) / mean) * 100 if mean != 0 else 0
+                    severity = "critical" if abs(z) >= 4.0 else "high" if abs(z) >= 3.0 else "medium"
+                    if sev_filter and severity != sev_filter:
+                        continue
+                    all_anomalies.append({
+                        "id": f"{mdef['key']}_{v['date']}",
+                        "category": cat_key,
+                        "metric": mdef["key"],
+                        "metric_label": mdef["label"],
+                        "date": v["date"],
+                        "expected": round(mean, 2),
+                        "actual": v["value"],
+                        "deviation": round(dev_pct, 1),
+                        "z_score": round(z, 2),
+                        "severity": severity,
+                        "direction": "spike" if z > 0 else "drop",
+                    })
+
+            heatmap[cat_key][mdef["key"]] = heatmap_row
+
+    all_anomalies.sort(key=lambda a: abs(a["z_score"]), reverse=True)
+
+    summary = {
+        "total": len(all_anomalies),
+        "critical": sum(1 for a in all_anomalies if a["severity"] == "critical"),
+        "high": sum(1 for a in all_anomalies if a["severity"] == "high"),
+        "medium": sum(1 for a in all_anomalies if a["severity"] == "medium"),
+        "by_category": {},
+    }
+    for cat_key in _METRIC_DEFS:
+        summary["by_category"][cat_key] = sum(
+            1 for a in all_anomalies if a["category"] == cat_key
+        )
+
+    return {
+        "anomalies": all_anomalies,
+        "heatmap": heatmap,
+        "timeseries": timeseries,
+        "summary": summary,
+        "meta": {
+            "days": days,
+            "threshold": 2.0,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+        },
+    }
+
+
+@app.route("/api/v1/analytics/anomalies")
+def analytics_anomalies():
+    days = min(request.args.get("days", 90, type=int), 365)
+    cat_filter = request.args.get("category")
+    sev_filter = request.args.get("severity")
+    return _ok(_generate_anomaly_data(days, cat_filter, sev_filter))
+
+
+# ---------------------------------------------------------------------------
 # Auth stubs
 # ---------------------------------------------------------------------------
 

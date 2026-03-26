@@ -20,6 +20,7 @@ export function useSimulationPolling(taskIdSource) {
   const simStatus = ref('idle') // 'idle' | 'building' | 'running' | 'completed' | 'failed'
   const recentActions = ref([])
   const timeline = ref([])
+  const knowledgeTimeline = ref(null)
 
   // --- Error / fallback ---
   const errorMsg = ref('')
@@ -30,6 +31,7 @@ export function useSimulationPolling(taskIdSource) {
   let runStatusTimer = null
   let detailTimer = null
   let timelineTimer = null
+  let knowledgeTimelineTimer = null
 
   // --- Computed ---
   const overallPhase = computed(() => {
@@ -196,6 +198,22 @@ export function useSimulationPolling(taskIdSource) {
     }
   }
 
+  // --- Knowledge timeline polling ---
+  async function fetchKnowledgeTimeline() {
+    const taskId = resolveTaskId()
+    if (!taskId) return
+
+    try {
+      const res = await client.get(`/simulation/${taskId}/knowledge-timeline`)
+      const json = res.data
+      if (json.success) {
+        knowledgeTimeline.value = json.data
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
   // --- SSE bridge ---
   // When SSE connects, sync its data into our refs and pause redundant polling.
   // When SSE drops, resume polling automatically.
@@ -245,12 +263,17 @@ export function useSimulationPolling(taskIdSource) {
       fetchTimeline()
       timelineTimer = setInterval(fetchTimeline, 5000)
     }
+    if (!knowledgeTimelineTimer) {
+      fetchKnowledgeTimeline()
+      knowledgeTimelineTimer = setInterval(fetchKnowledgeTimeline, 8000)
+    }
   }
 
   function stopSimTimers() {
     runStatusTimer = clearTimer(runStatusTimer)
     detailTimer = clearTimer(detailTimer)
     timelineTimer = clearTimer(timelineTimer)
+    knowledgeTimelineTimer = clearTimer(knowledgeTimelineTimer)
     sse.disconnect()
   }
 
@@ -415,6 +438,7 @@ export function useSimulationPolling(taskIdSource) {
     if (val === 'completed' || val === 'failed') {
       fetchDetail()
       fetchTimeline()
+      fetchKnowledgeTimeline()
       stopSimTimers()
     }
   })
@@ -434,6 +458,7 @@ export function useSimulationPolling(taskIdSource) {
     simStatus,
     recentActions,
     timeline,
+    knowledgeTimeline,
 
     // Derived
     overallPhase,

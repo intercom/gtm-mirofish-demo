@@ -23,6 +23,7 @@ import RelationshipNetwork from './RelationshipNetwork.vue'
 import { useRelationshipsStore } from '../../stores/relationships'
 import AnomalyHighlights from './AnomalyHighlights.vue'
 import AgentSentimentTimeline from './AgentSentimentTimeline.vue'
+import KnowledgeTimeline from './KnowledgeTimeline.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -741,6 +742,13 @@ onUnmounted(() => {
         <!-- Belief Evolution -->
         <BeliefEvolution
           :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Knowledge Timeline -->
+        <KnowledgeTimeline
+          v-if="polling.knowledgeTimeline.value?.timeline?.length > 0"
+          :data="polling.knowledgeTimeline.value"
           class="mb-8"
         />
 

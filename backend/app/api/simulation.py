@@ -2263,11 +2263,41 @@ def get_simulation_timeline(simulation_id: str):
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>/knowledge-timeline', methods=['GET'])
+def get_knowledge_timeline(simulation_id: str):
+    """
+    Temporal knowledge timeline — categorised topic mentions per round.
+
+    Query params:
+        start_round: starting round (default 0)
+        end_round:   ending round (default all)
+    """
+    try:
+        start_round = request.args.get('start_round', 0, type=int)
+        end_round = request.args.get('end_round', type=int)
+
+        data = SimulationRunner.get_knowledge_timeline(
+            simulation_id=simulation_id,
+            start_round=start_round,
+            end_round=end_round,
+        )
+
+        return jsonify({"success": True, "data": data})
+
+    except Exception as e:
+        logger.error(f"Failed to get knowledge timeline: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
 @simulation_bp.route('/<simulation_id>/agent-stats', methods=['GET'])
 def get_agent_stats(simulation_id: str):
     """
     获取每个Agent的统计信息
-    
+
     用于前端展示Agent活跃度排行、动作分布等
     """
     try:

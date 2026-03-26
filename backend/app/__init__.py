@@ -170,6 +170,10 @@ def create_app(config_class=Config):
     from .api.agents import agents_bp
     app.register_blueprint(agents_bp)
 
+    # Frontend error tracking
+    from .api.errors import errors_bp
+    app.register_blueprint(errors_bp)
+
     # Root-level liveness check (for load balancers / infrastructure)
     @app.route('/health')
     def health():

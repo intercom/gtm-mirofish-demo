@@ -130,7 +130,7 @@ def create_app(config_class=Config):
     from .api.reconciliation import reconciliation_bp
     app.register_blueprint(reconciliation_bp)
 
-    # Branch comparison API
+    # Branch comparison & insights API
     from .api.branches import branches_bp
     app.register_blueprint(branches_bp)
 

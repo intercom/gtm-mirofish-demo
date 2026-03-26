@@ -24,6 +24,7 @@ from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
 from ..utils.pagination import paginate
+from ..services.permissions import inject_permissions, inject_permissions_list
 
 logger = get_logger('mirofish.api.report')
 
@@ -104,13 +105,13 @@ def generate_report():
             if existing_report and existing_report.status == ReportStatus.COMPLETED:
                 return jsonify({
                     "success": True,
-                    "data": {
+                    "data": inject_permissions({
                         "simulation_id": simulation_id,
                         "report_id": existing_report.report_id,
                         "status": "completed",
                         "message": "报告已存在",
                         "already_generated": True
-                    }
+                    }, 'report')
                 })
 
         import uuid
@@ -245,7 +246,7 @@ def generate_report():
 
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "simulation_id": simulation_id,
                 "report_id": report_id,
                 "task_id": task_id,
@@ -253,7 +254,7 @@ def generate_report():
                 "message": "报告生成任务已启动",
                 "demo_mode": False,
                 "already_generated": False,
-            }
+            }, 'report')
         })
 
     except Exception as e:
@@ -482,9 +483,9 @@ def get_report(report_id: str):
         
         return jsonify({
             "success": True,
-            "data": report.to_dict()
+            "data": inject_permissions(report.to_dict(), 'report')
         })
-        
+
     except Exception as e:
         logger.error(f"获取报告失败: {str(e)}")
         return jsonify({
@@ -520,7 +521,7 @@ def get_report_by_simulation(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": report.to_dict(),
+            "data": inject_permissions(report.to_dict(), 'report'),
             "has_report": True
         })
         
@@ -555,7 +556,7 @@ def list_reports():
 
         return jsonify({
             "success": True,
-            "data": result["items"],
+            "data": inject_permissions_list(result["items"], 'report'),
             "pagination": {
                 "page": result["page"],
                 "per_page": result["per_page"],
@@ -1014,13 +1015,13 @@ def check_report_status(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "simulation_id": simulation_id,
                 "has_report": has_report,
                 "report_status": report_status,
                 "report_id": report_id,
                 "interview_unlocked": interview_unlocked
-            }
+            }, 'report')
         })
         
     except Exception as e:

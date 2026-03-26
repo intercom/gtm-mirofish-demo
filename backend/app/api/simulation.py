@@ -21,6 +21,7 @@ from ..services.simulation_registry import SimulationRegistry
 from ..utils.logger import get_logger
 from ..utils.pagination import paginate
 from ..models.project import ProjectManager
+from ..services.permissions import inject_permissions, inject_permissions_list
 
 logger = get_logger('mirofish.api.simulation')
 
@@ -83,9 +84,9 @@ def get_graph_entities(graph_id: str):
         
         return jsonify({
             "success": True,
-            "data": result.to_dict()
+            "data": inject_permissions(result.to_dict(), 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取图谱实体失败: {str(e)}")
         return jsonify({
@@ -116,9 +117,9 @@ def get_entity_detail(graph_id: str, entity_uuid: str):
         
         return jsonify({
             "success": True,
-            "data": entity.to_dict()
+            "data": inject_permissions(entity.to_dict(), 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取实体详情失败: {str(e)}")
         return jsonify({
@@ -149,13 +150,13 @@ def get_entities_by_type(graph_id: str, entity_type: str):
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "entity_type": entity_type,
                 "count": len(entities),
                 "entities": [e.to_dict() for e in entities]
-            }
+            }, 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取实体失败: {str(e)}")
         return jsonify({
@@ -230,9 +231,9 @@ def create_simulation():
         
         return jsonify({
             "success": True,
-            "data": state.to_dict()
+            "data": inject_permissions(state.to_dict(), 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"创建模拟失败: {str(e)}")
         return jsonify({
@@ -774,9 +775,9 @@ def get_simulation(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": result
+            "data": inject_permissions(result, 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取模拟状态失败: {str(e)}")
         return jsonify({
@@ -805,7 +806,7 @@ def list_simulations():
 
         return jsonify({
             "success": True,
-            "data": result["items"],
+            "data": inject_permissions_list(result["items"], 'simulation'),
             "pagination": {
                 "page": result["page"],
                 "per_page": result["per_page"],

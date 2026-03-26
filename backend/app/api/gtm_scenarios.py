@@ -23,6 +23,7 @@ from ..services.scenario_templates import ScenarioTemplateService
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..services.permissions import inject_permissions, inject_permissions_list, compute_permissions
 
 logger = get_logger('mirofish.gtm')
 
@@ -100,7 +101,7 @@ def list_scenarios():
                         'category': data.get('category', 'general'),
                         'icon': data.get('icon', ''),
                     })
-    return _json_response({'scenarios': scenarios}, etag)
+    return _json_response({'scenarios': scenarios, 'permissions': compute_permissions('scenario')}, etag)
 
 
 @gtm_bp.route('/scenarios/<scenario_id>', methods=['GET'])
@@ -117,6 +118,7 @@ def get_scenario(scenario_id):
         return cached
 
     data = _load_json(filepath)
+    data['permissions'] = compute_permissions('scenario')
     return _json_response(data, etag)
 
 
@@ -1028,10 +1030,10 @@ def simulate():
 
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "task_id": task_id,
                 "project_id": project_id,
-            },
+            }, 'scenario'),
         })
 
     except Exception as e:

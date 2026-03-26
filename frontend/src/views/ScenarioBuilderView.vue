@@ -5,8 +5,10 @@ import SkeletonFormLayout from '../components/ui/SkeletonFormLayout.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import TeamComposer from '../components/simulation/TeamComposer.vue'
 import { RichTextEditor } from '../components/common'
+import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import { useToast } from '../composables/useToast'
 import { useAutoSave } from '../composables/useAutoSave'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import { graphApi } from '../api/graph'
@@ -69,6 +71,23 @@ const { saveStatus, hasDraft, load: loadDraft, clear: clearDraft } = useAutoSave
   },
   [seedText, agentCount, selectedPersonas, selectedIndustries, selectedCompanySizes, selectedRegions, duration, minutesPerRound, platformMode],
 )
+
+const builderShortcuts = [
+  { key: 'Enter', mod: true, global: true, label: 'Run simulation', display: '↵', action: () => { if (canRun.value) runSimulation() } },
+  { key: '1', label: 'Template 1', action: () => { if (isCustom.value && scenarioTemplates[0]) applyTemplate(scenarioTemplates[0]) } },
+  { key: '2', label: 'Template 2', action: () => { if (isCustom.value && scenarioTemplates[1]) applyTemplate(scenarioTemplates[1]) } },
+  { key: '3', label: 'Template 3', action: () => { if (isCustom.value && scenarioTemplates[2]) applyTemplate(scenarioTemplates[2]) } },
+  { key: '4', label: 'Template 4', action: () => { if (isCustom.value && scenarioTemplates[3]) applyTemplate(scenarioTemplates[3]) } },
+  { key: 'Escape', label: 'Go back', global: true, display: 'Esc', action: () => {
+    const tag = document.activeElement?.tagName?.toLowerCase()
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+      document.activeElement.blur()
+    } else {
+      router.push('/')
+    }
+  }},
+]
+const { showHelp, modLabel } = useKeyboardShortcuts(builderShortcuts)
 
 const canRun = computed(() =>
   seedText.value.trim().length > 0 && selectedPersonas.value.length > 0 && !running.value,
@@ -752,5 +771,21 @@ async function runSimulation() {
       <p class="text-[var(--color-text-muted)]">Scenario not found</p>
       <router-link to="/" class="text-[var(--color-primary)] text-sm mt-2 inline-block hover:underline">Back to Home</router-link>
     </div>
+
+    <!-- Shortcuts hint -->
+    <button
+      @click="showHelp = true"
+      class="fixed bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
+    >
+      <kbd class="inline-flex items-center justify-center w-5 h-5 text-[10px] font-medium bg-[var(--color-tint)] border border-[var(--color-border)] rounded">?</kbd>
+      Shortcuts
+    </button>
+
+    <KeyboardShortcutsHelp
+      :open="showHelp"
+      :shortcuts="builderShortcuts"
+      :modLabel="modLabel"
+      @close="showHelp = false"
+    />
   </div>
 </template>

@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import draggable from 'vuedraggable'
 import { useSimulationStore } from '../stores/simulation'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useStaggerAnimation } from '../composables/useStaggerAnimation'
 import { getAllCachedTaskIds } from '../composables/useReportCache'
@@ -10,10 +11,11 @@ import DashboardMiniChart from '../components/dashboard/DashboardMiniChart.vue'
 import { useLocale } from '../composables/useLocale'
 import { useDashboardLayout } from '../composables/useDashboardLayout'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
+import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
 
-const store = useSimulationStore()
 const router = useRouter()
+const store = useSimulationStore()
 const { formatRelativeTime, formatShortDateTime, formatNumber } = useLocale()
 const { customOrder, saveOrder, clearOrder, applyOrder } = useDashboardLayout()
 
@@ -31,6 +33,7 @@ const showClearDialog = ref(false)
 const pendingDeleteRun = ref(null)
 
 const searchQuery = ref('')
+const searchInput = ref(null)
 const sortBy = ref('newest')
 
 const statusOptions = ['all', 'completed', 'in_progress', 'failed']
@@ -56,6 +59,20 @@ const sortOptions = computed(() => {
 })
 
 // --- KPI computations (prioritized: most important first) ---
+
+const simulationsShortcuts = [
+  { key: '/', label: 'Focus search', action: () => searchInput.value?.focus() },
+  { key: 'n', label: 'New simulation', action: () => router.push('/') },
+  { key: 'Escape', label: 'Clear search', global: true, display: 'Esc', action: () => {
+    const tag = document.activeElement?.tagName?.toLowerCase()
+    if (tag === 'input' || tag === 'select') {
+      document.activeElement.blur()
+      searchQuery.value = ''
+      filterStatus.value = 'all'
+    }
+  }},
+]
+const { showHelp, modLabel } = useKeyboardShortcuts(simulationsShortcuts)
 
 const totalActions = computed(() =>
   store.sessionRuns.reduce((sum, r) => sum + (r.totalActions || 0), 0),
@@ -644,6 +661,22 @@ function exportRun(run) {
       confirmLabel="Clear All"
       :destructive="true"
       @confirm="confirmClearAll"
+    />
+
+    <!-- Shortcuts hint -->
+    <button
+      @click="showHelp = true"
+      class="fixed bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
+    >
+      <kbd class="inline-flex items-center justify-center w-5 h-5 text-[10px] font-medium bg-[var(--color-tint)] border border-[var(--color-border)] rounded">?</kbd>
+      Shortcuts
+    </button>
+
+    <KeyboardShortcutsHelp
+      :open="showHelp"
+      :shortcuts="simulationsShortcuts"
+      :modLabel="modLabel"
+      @close="showHelp = false"
     />
   </div>
 </template>

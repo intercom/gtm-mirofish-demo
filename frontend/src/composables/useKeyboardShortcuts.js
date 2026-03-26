@@ -185,10 +185,11 @@ function close() {
   showHelp.value = false
 }
 
-export function useKeyboardShortcuts() {
+export function useKeyboardShortcuts(initialShortcuts) {
   attachListener()
 
   const platform = computed(() => (isMac ? 'mac' : 'other'))
+  const modLabel = isMac ? '⌘' : 'Ctrl'
   const localKeys = []
 
   function register(shortcut, handler, options = {}) {
@@ -216,9 +217,17 @@ export function useKeyboardShortcuts() {
     localKeys.length = 0
   }
 
+  if (Array.isArray(initialShortcuts)) {
+    for (const s of initialShortcuts) {
+      const key = s.mod ? `mod+${s.key.toLowerCase()}` : s.key.toLowerCase()
+      register(key, s.action, { description: s.label || '' })
+    }
+    register('?', toggle, { description: 'Show keyboard shortcuts' })
+  }
+
   if (getCurrentInstance()) {
     onUnmounted(unregisterAll)
   }
 
-  return { register, unregister, unregisterAll, getAll, formatKey, formatShortcut, formatShortcutText, isMac, platform, gModeActive, registry, showHelp, visible: showHelp, shortcuts, toggle, close }
+  return { register, unregister, unregisterAll, getAll, formatKey, formatShortcut, formatShortcutText, isMac, modLabel, platform, gModeActive, registry, showHelp, visible: showHelp, shortcuts, toggle, close }
 }

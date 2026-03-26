@@ -19,6 +19,7 @@ import SimulationProgressBar from '../components/simulation/SimulationProgressBa
 import GtmContextPanel from '../components/scenarios/GtmContextPanel.vue'
 import CommunityView from '../components/graph/CommunityView.vue'
 import TimelineScrubber from '../components/simulation/TimelineScrubber.vue'
+import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -63,6 +64,14 @@ const currentScenarioId = computed(() =>
   simulationStore.scenarioConfig?.scenarioId || '',
 )
 
+const workspaceShortcuts = [
+  { key: '1', label: 'Graph tab' },
+  { key: '2', label: 'Simulation tab' },
+  { key: '3', label: 'Communities tab' },
+  { key: 'r', label: 'View report' },
+  { key: 'Escape', label: 'Go back', display: 'Esc' },
+]
+
 watch(() => route.query.tab, (tab) => {
   if (VALID_TABS.includes(tab)) {
     activeTab.value = tab
@@ -75,13 +84,13 @@ watch(activeTab, (tab) => {
   }
 })
 
-// Tab-switching shortcuts via global registry
-const { register } = useKeyboardShortcuts()
+const { register, showHelp, toggle, isMac: isMacPlatform } = useKeyboardShortcuts()
 register('1', () => { activeTab.value = 'graph' }, { description: 'Switch to Graph tab', category: 'Workspace' })
 register('2', () => { activeTab.value = 'simulation' }, { description: 'Switch to Simulation tab', category: 'Workspace' })
 register('3', () => { activeTab.value = 'communities' }, { description: 'Switch to Communities tab', category: 'Workspace' })
+register('r', () => router.push(`/report/${props.taskId}`), { description: 'View report', category: 'Workspace' })
+register('?', toggle, { description: 'Show keyboard shortcuts', category: 'General' })
 
-// Simulation-specific shortcuts (auto-unregistered on unmount)
 const {
   playbackSpeed,
   showMetrics,
@@ -90,6 +99,7 @@ const {
 } = useSimulationShortcuts()
 
 provide('simShortcuts', { playbackSpeed, showMetrics, showThinking, isFullscreen })
+
 
 watch(() => polling.simStatus.value, (status, oldStatus) => {
   if (status === 'completed' && oldStatus !== 'completed') {
@@ -255,6 +265,22 @@ onUnmounted(() => {
 
     <!-- Timeline Scrubber -->
     <TimelineScrubber v-if="showTimeline" />
+
+    <!-- Shortcuts hint -->
+    <button
+      @click="showHelp = true"
+      class="fixed bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors z-10"
+    >
+      <kbd class="inline-flex items-center justify-center w-5 h-5 text-[10px] font-medium bg-[var(--color-tint)] border border-[var(--color-border)] rounded">?</kbd>
+      Shortcuts
+    </button>
+
+    <KeyboardShortcutsHelp
+      :open="showHelp"
+      :shortcuts="workspaceShortcuts"
+      :modLabel="isMacPlatform ? '⌘' : 'Ctrl'"
+      @close="showHelp = false"
+    />
   </div>
 </template>
 

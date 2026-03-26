@@ -76,6 +76,10 @@ def create_app(config_class=Config):
     from .api.aggregation import aggregation_bp
     app.register_blueprint(aggregation_bp)
 
+    # Attribution analysis API
+    from .api.attribution import attribution_bp
+    app.register_blueprint(attribution_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

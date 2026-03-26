@@ -104,6 +104,7 @@ from .agent_intelligence import AgentIntelligence
 from .coalition_detector import CoalitionDetector
 from .sensitivity_analyzer import SensitivityAnalyzer
 from .activity_feed import ActivityFeedService, ACTIVITY_TYPES
+from .interaction_graph import InteractionGraphBuilder
 
 __all__ = [
     'OntologyGenerator',
@@ -194,4 +195,5 @@ __all__ = [
     'SensitivityAnalyzer',
     'ActivityFeedService',
     'ACTIVITY_TYPES',
+    'InteractionGraphBuilder',
 ]

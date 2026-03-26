@@ -11,6 +11,7 @@ from typing import List, Dict, Any
 
 from ..models.data_pipeline import SyncJob, DbtModel, DbtTest, DataFreshness
 
+
 # ---------------------------------------------------------------------------
 # Connector definitions
 # ---------------------------------------------------------------------------

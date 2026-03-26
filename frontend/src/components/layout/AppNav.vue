@@ -50,6 +50,7 @@ const navLinks = computed(() => {
     { to: '/visualizations', label: 'Visualizations', exact: false },
     { to: '/analytics', label: 'Analytics', exact: false },
     { to: '/charts', label: 'Charts', exact: false },
+    { to: '/api-docs', label: 'API Docs', exact: false },
   ]
   if (hasRole('viewer')) {
     links.push({ to: '/settings', label: 'Settings', exact: false, shortcut: 'G+T', tutorial: 'settings' })

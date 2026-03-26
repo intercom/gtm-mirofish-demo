@@ -136,6 +136,11 @@ export const routes = [
     component: () => import('../views/VisualizationsView.vue'),
   },
   {
+    path: '/api-docs',
+    name: 'api-docs',
+    component: () => import('../views/ApiDocsView.vue'),
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

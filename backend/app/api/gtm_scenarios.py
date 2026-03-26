@@ -82,7 +82,7 @@ def _json_response(data, etag, max_age=300):
 @gtm_bp.route('/scenarios', methods=['GET'])
 @cached_response(ttl=600)
 def list_scenarios():
-    """List all available GTM scenario templates."""
+    """List all available GTM scenario templates with marketplace metadata."""
     etag = _dir_etag(SCENARIOS_DIR)
     cached = _check_etag(etag)
     if cached:
@@ -94,12 +94,20 @@ def list_scenarios():
             if filename.endswith('.json'):
                 data = _load_json(os.path.join(SCENARIOS_DIR, filename))
                 if data:
+                    agent_cfg = data.get('agent_config', {})
+                    sim_cfg = data.get('simulation_config', {})
                     scenarios.append({
                         'id': data.get('id', filename.replace('.json', '')),
                         'name': data.get('name', ''),
                         'description': data.get('description', ''),
                         'category': data.get('category', 'general'),
                         'icon': data.get('icon', ''),
+                        'agent_count': agent_cfg.get('count', 0),
+                        'persona_types': agent_cfg.get('persona_types', []),
+                        'industries': agent_cfg.get('firmographic_mix', {}).get('industries',
+                                      agent_cfg.get('firmographic_mix', {}).get('segments', [])),
+                        'duration_hours': sim_cfg.get('total_hours', 0),
+                        'expected_outputs': data.get('expected_outputs', []),
                     })
     return _json_response({'scenarios': scenarios, 'permissions': compute_permissions('scenario')}, etag)
 

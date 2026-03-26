@@ -6,6 +6,7 @@ const STORAGE_KEY = 'mirofish_nav_order'
 const DEFAULT_NAV_LINKS = [
   { id: 'home', to: '/', label: 'Home', exact: true, shortcut: 'G+D', tutorial: 'scenarios' },
   { id: 'dashboard', to: '/dashboard', label: 'Dashboard', exact: false },
+  { id: 'marketplace', to: '/marketplace', label: 'Marketplace', exact: false },
   { id: 'scenarios', to: '/scenarios', label: 'Scenarios', exact: true },
   { id: 'knowledge-graph', to: '/knowledge-graph', label: 'Knowledge Graph', exact: false },
   { id: 'simulations', to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },

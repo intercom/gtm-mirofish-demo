@@ -114,6 +114,11 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/marketplace',
+    name: 'marketplace',
+    component: () => import('../views/ScenarioMarketplaceView.vue'),
+  },
+  {
     path: '/simulations',
     name: 'simulations',
     component: () => import('../views/SimulationsView.vue'),

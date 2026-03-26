@@ -111,3 +111,42 @@ def delete_user(user_id):
 
     logger.info(f"Deleted user {user_id}")
     return jsonify({"success": True})
+
+
+@users_bp.route("/roles", methods=["GET"])
+def list_roles():
+    """List available roles."""
+    roles = [{"id": r.value, "label": r.value.title(), "description": ""} for r in UserRole]
+    return jsonify({"success": True, "data": roles})
+
+
+@users_bp.route("/invite", methods=["POST"])
+def invite_user():
+    """Invite a new user by email (creates with 'invited' status)."""
+    data = request.get_json() or {}
+    email = (data.get("email") or "").strip().lower()
+    name = (data.get("name") or "").strip()
+    role = data.get("role", "viewer")
+
+    if not email or "@" not in email:
+        return jsonify({"success": False, "error": "Valid email is required"}), 400
+
+    if role not in [r.value for r in UserRole]:
+        return jsonify({"success": False, "error": f"Invalid role: {role}"}), 400
+
+    existing = UserManager.get_user_by_email(email)
+    if existing:
+        return jsonify({"success": False, "error": "User already exists"}), 409
+
+    try:
+        user = UserManager.create_user(
+            email=email,
+            name=name or email.split("@")[0].title(),
+            role=role,
+            status="invited",
+        )
+        logger.info(f"Invited user {user.user_id} ({email})")
+        return jsonify({"success": True, "data": user.to_dict()}), 201
+    except Exception as e:
+        logger.error(f"Error inviting user: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

@@ -12,6 +12,7 @@ import ServiceStatus from '../components/common/ServiceStatus.vue'
 import ThemeSwitcher from '../components/common/ThemeSwitcher.vue'
 import AuditLogViewer from '../components/settings/AuditLogViewer.vue'
 import ApiKeyManagement from '../components/settings/ApiKeyManagement.vue'
+import UserManagement from '../components/settings/UserManagement.vue'
 
 const settingsStore = useSettingsStore()
 
@@ -400,6 +401,11 @@ onMounted(() => {
           />
         </div>
       </label>
+    </section>
+
+    <!-- User Management -->
+    <section class="mb-8 md:mb-10">
+      <UserManagement />
     </section>
 
     <!-- Security & Audit Log -->

@@ -60,6 +60,11 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/knowledge-graph',
+    name: 'knowledge-graph',
+    component: () => import('../views/KnowledgeGraphView.vue'),
+  },
+  {
     path: '/graph/:taskId',
     name: 'graph',
     component: () => import('../views/SimulationWorkspaceView.vue'),

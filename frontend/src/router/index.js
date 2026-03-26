@@ -150,6 +150,11 @@ export const routes = [
     component: () => import('../views/ApiDocsView.vue'),
   },
   {
+    path: '/agents',
+    name: 'agents',
+    component: () => import('../views/AgentsView.vue'),
+  },
+  {
     path: '/dashboard',
     name: 'gtm-dashboard',
     component: () => import('../views/GtmDashboardView.vue'),

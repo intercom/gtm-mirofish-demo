@@ -49,6 +49,7 @@ const navLinks = computed(() => {
     { to: '/scenarios', label: 'Scenarios', exact: true },
     { to: '/knowledge-graph', label: 'Knowledge Graph', exact: false },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },
+    { to: '/agents', label: 'Agents', exact: false },
     { to: '/visualizations', label: 'Visualizations', exact: false },
     { to: '/analytics', label: 'Analytics', exact: false },
     { to: '/charts', label: 'Charts', exact: false },

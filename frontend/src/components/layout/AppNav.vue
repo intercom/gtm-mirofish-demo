@@ -9,6 +9,7 @@ import NotificationCenter from '../ui/NotificationCenter.vue'
 import UserMenu from '../common/UserMenu.vue'
 import ShortcutBadge from '../common/ShortcutBadge.vue'
 import PresenceIndicator from '../common/PresenceIndicator.vue'
+import ServiceStatus from '../common/ServiceStatus.vue'
 import { useTutorialStore } from '../../stores/tutorial'
 
 const { isDemoMode } = useDemoMode()
@@ -96,6 +97,7 @@ const navLinks = computed(() => {
       </div>
 
       <div class="flex items-center gap-3">
+        <ServiceStatus mode="compact" class="hidden sm:flex" />
         <PresenceIndicator v-if="settingsStore.showPresence" />
         <NotificationCenter />
 
@@ -202,7 +204,8 @@ const navLinks = computed(() => {
             ></span>
           </router-link>
         </div>
-        <div class="px-4 pb-3 border-t border-white/10 pt-3">
+        <div class="px-4 pb-3 border-t border-white/10 pt-3 space-y-3">
+          <ServiceStatus mode="compact" />
           <UserMenu />
         </div>
       </div>

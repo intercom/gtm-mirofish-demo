@@ -6,6 +6,7 @@ import { useDemoMode } from '../composables/useDemoMode'
 import { useSettingsStore } from '../stores/settings'
 import { API_BASE } from '../api/client'
 import ThemeEditor from '../components/settings/ThemeEditor.vue'
+import ServiceStatus from '../components/common/ServiceStatus.vue'
 
 const settingsStore = useSettingsStore()
 
@@ -165,6 +166,11 @@ onMounted(() => {
       <p class="text-sm text-[var(--color-text-secondary)]">
         <span class="font-semibold text-[var(--color-text)]">Demo Mode</span> — Using simulated data. API keys are not required.
       </p>
+    </section>
+
+    <!-- Service Status -->
+    <section class="mb-8 md:mb-10">
+      <ServiceStatus mode="expanded" />
     </section>
 
     <!-- Theme -->

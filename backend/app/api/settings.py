@@ -54,6 +54,46 @@ def test_zep():
         return jsonify({'ok': False, 'error': str(e)}), 400
 
 
+@settings_bp.route('/service-status', methods=['GET'])
+def service_status():
+    """Return connectivity status of backend services (cheap check, no API calls)."""
+    import os
+    from ..config import Config
+
+    llm_provider = os.environ.get('LLM_PROVIDER', '').lower()
+    llm_key_set = bool(Config.LLM_API_KEY)
+    zep_key_set = bool(Config.ZEP_API_KEY)
+
+    llm_status = 'connected' if llm_key_set else 'demo'
+    zep_status = 'connected' if zep_key_set else 'demo'
+
+    overall = 'healthy'
+    if not llm_key_set and not zep_key_set:
+        overall = 'demo'
+    elif not llm_key_set or not zep_key_set:
+        overall = 'degraded'
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'overall': overall,
+            'services': {
+                'llm': {
+                    'status': llm_status,
+                    'provider': llm_provider or 'none',
+                    'model': Config.LLM_MODEL_NAME if llm_key_set else None,
+                },
+                'zep': {
+                    'status': zep_status,
+                },
+                'oasis': {
+                    'status': 'connected',
+                },
+            },
+        },
+    })
+
+
 @settings_bp.route('/auth-status', methods=['GET'])
 def auth_status():
     """Return current auth configuration and user info."""

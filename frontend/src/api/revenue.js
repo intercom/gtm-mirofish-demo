@@ -6,5 +6,6 @@ export const revenueApi = {
   getChurnEvents: (params) => client.get('/revenue/churn', { params }),
   getExpansionEvents: (params) => client.get('/revenue/expansion', { params }),
   getSummary: () => client.get('/revenue/summary'),
-  getCohortData: () => client.get('/revenue/cohort'),
+  getCohortRetention: (months = 12) =>
+    client.get('/revenue/cohort', { params: { months } }),
 }

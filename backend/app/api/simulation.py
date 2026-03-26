@@ -4624,6 +4624,138 @@ def get_personality_evolution(simulation_id: str):
         }), 500
 
 
+# ============== Influence Flow API ==============
+
+def _infer_persona_type(agent_name: str) -> str:
+    lower = (agent_name or "").lower()
+    if any(kw in lower for kw in ("vp", "director", "head")):
+        return "leader"
+    if any(kw in lower for kw in ("manager", "lead")):
+        return "manager"
+    return "contributor"
+
+
+@simulation_bp.route('/<simulation_id>/influence', methods=['GET'])
+def get_influence_graph(simulation_id: str):
+    """
+    Compute influence flow graph from simulation actions.
+
+    Returns nodes (agents with influence scores) and directed edges
+    (who influenced whom, with type and weight).
+
+    Edge types:
+        - reply: opinion change (agent replied/commented on another's post)
+        - topic_adoption: decision impact (agent reposted/shared another's content)
+        - sentiment_alignment: sentiment alignment (agent liked/upvoted another's content)
+    """
+    try:
+        run_state = SimulationRunner.get_run_state(simulation_id)
+
+        if not run_state:
+            return jsonify({
+                "success": True,
+                "data": {"nodes": [], "edges": [], "max_round": 0}
+            })
+
+        all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+        actions = [a.to_dict() for a in all_actions]
+
+        if not actions:
+            return jsonify({
+                "success": True,
+                "data": {"nodes": [], "edges": [], "max_round": 0}
+            })
+
+        # Group actions by round
+        round_actions = {}
+        agents = {}
+        max_round = 0
+
+        for action in actions:
+            rn = action.get("round_num")
+            if rn is None:
+                continue
+            max_round = max(max_round, rn)
+            round_actions.setdefault(rn, []).append(action)
+
+            agent_id = action.get("agent_name") or f"Agent #{action.get('agent_id', '?')}"
+            if agent_id not in agents:
+                agents[agent_id] = {
+                    "id": agent_id,
+                    "name": agent_id.split(",")[0].strip(),
+                    "influence_score": 0,
+                    "action_count": 0,
+                    "persona_type": _infer_persona_type(agent_id),
+                }
+            agents[agent_id]["action_count"] += 1
+
+        # Build edges
+        edge_map = {}
+        for rn, acts in round_actions.items():
+            at = lambda a: (a.get("action_type") or "").upper()
+            posters = [a for a in acts if "POST" in at(a) or "THREAD" in at(a)]
+            repliers = [a for a in acts if "REPLY" in at(a) or "COMMENT" in at(a)]
+            engagers = [a for a in acts if "LIKE" in at(a) or "UPVOTE" in at(a)]
+            sharers = [a for a in acts if "REPOST" in at(a) or "RETWEET" in at(a) or "SHARE" in at(a)]
+
+            if not posters:
+                continue
+
+            def _add(src_action, tgt_action, etype, weight):
+                src = src_action.get("agent_name") or f"Agent #{src_action.get('agent_id', '?')}"
+                tgt = tgt_action.get("agent_name") or f"Agent #{tgt_action.get('agent_id', '?')}"
+                if src == tgt:
+                    return
+                key = f"{src}→{tgt}→{etype}"
+                if key not in edge_map:
+                    edge_map[key] = {"source": src, "target": tgt, "type": etype, "weight": 0, "rounds": []}
+                edge_map[key]["weight"] += weight
+                if rn not in edge_map[key]["rounds"]:
+                    edge_map[key]["rounds"].append(rn)
+
+            for i, r in enumerate(repliers):
+                _add(posters[i % len(posters)], r, "reply", 3)
+            for i, e in enumerate(engagers):
+                _add(posters[i % len(posters)], e, "sentiment_alignment", 1)
+            for i, s in enumerate(sharers):
+                _add(posters[i % len(posters)], s, "topic_adoption", 2)
+
+        # Compute influence scores (direct + 0.5*indirect)
+        direct = {}
+        for edge in edge_map.values():
+            direct.setdefault(edge["source"], set()).add(edge["target"])
+
+        for aid, targets in direct.items():
+            if aid in agents:
+                agents[aid]["influence_score"] = len(targets)
+
+        for aid, targets in direct.items():
+            indirect = set()
+            for t in targets:
+                for s in direct.get(t, set()):
+                    if s != aid and s not in targets:
+                        indirect.add(s)
+            if aid in agents:
+                agents[aid]["influence_score"] += len(indirect) * 0.5
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": list(agents.values()),
+                "edges": list(edge_map.values()),
+                "max_round": max_round,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to compute influence graph: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== 反事实分析接口 ==============
 
 @simulation_bp.route('/<simulation_id>/counterfactual', methods=['POST'])

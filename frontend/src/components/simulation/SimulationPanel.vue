@@ -17,6 +17,7 @@ import LiveFeed from './LiveFeed.vue'
 import RichTextEditor from '../common/RichTextEditor.vue'
 import { useSimulationStream } from '../../composables/useSimulationStream'
 import { useTransparency } from '../../composables/useTransparency'
+import InfluenceFlow from './InfluenceFlow.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -664,6 +665,13 @@ onUnmounted(() => {
 
         <!-- Behavior Patterns -->
         <BehaviorPatterns
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Influence Flow -->
+        <InfluenceFlow
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
           class="mb-8"

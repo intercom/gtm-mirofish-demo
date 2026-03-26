@@ -59,4 +59,7 @@ export const reconciliationApi = {
   // --- Rules & stats ---
   getRules: () => client.get('/reconciliation/rules'),
   getStats: () => client.get('/reconciliation/stats'),
+
+  // --- Trend chart ---
+  getTrend: (params) => client.get('/reconciliation/trend', { params }),
 }

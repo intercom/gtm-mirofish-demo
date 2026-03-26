@@ -112,6 +112,7 @@ from .sensitivity_analyzer import SensitivityAnalyzer
 from .activity_feed import ActivityFeedService, ACTIVITY_TYPES
 from .interaction_graph import InteractionGraphBuilder
 from .sentiment_dynamics import SentimentDynamics, AgentSentimentState
+from .agent_memory import AgentMemory as AgentMemoryService, MemoryMessage, MemorySearchResult
 
 __all__ = [
     'OntologyGenerator',
@@ -211,4 +212,7 @@ __all__ = [
     'InteractionGraphBuilder',
     'SentimentDynamics',
     'AgentSentimentState',
+    'AgentMemoryService',
+    'MemoryMessage',
+    'MemorySearchResult',
 ]

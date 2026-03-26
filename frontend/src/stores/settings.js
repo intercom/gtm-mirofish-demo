@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { API_BASE } from '../api/client'
+import { useServiceStatus } from '../composables/useServiceStatus'
 
 const STORAGE_KEY = 'mirofish-settings'
 
@@ -54,8 +54,10 @@ export const useSettingsStore = defineStore('settings', () => {
     }
     connectionStatus.value[service] = 'testing'
     try {
-      const res = await fetch(`${API_BASE}/health`)
-      connectionStatus.value[service] = res.ok ? 'success' : 'error'
+      const { services, check } = useServiceStatus()
+      await check()
+      const result = services.value[service]
+      connectionStatus.value[service] = result?.status === 'ok' ? 'success' : 'error'
     } catch {
       connectionStatus.value[service] = navigator.onLine ? 'error' : 'offline'
     }

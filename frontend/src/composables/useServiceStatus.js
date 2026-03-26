@@ -1,26 +1,32 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import client from '../api/client'
 
 const POLL_INTERVAL = 60_000
 
-const status = ref(null)
+const services = ref({
+  backend: { status: 'unknown' },
+  llm: { status: 'unknown' },
+  zep: { status: 'unknown' },
+})
 const loading = ref(false)
-const error = ref(null)
 const lastChecked = ref(null)
 
 let timer = null
 let subscribers = 0
 
-async function fetch_status() {
+async function check() {
   loading.value = true
-  error.value = null
   try {
-    const { data: res } = await client.get('/settings/service-status')
-    status.value = res.data
-    lastChecked.value = new Date()
-  } catch (e) {
-    error.value = e.message || 'Backend unreachable'
-    status.value = { overall: 'unreachable', services: {} }
+    const { data } = await client.get('/api/v1/services/status')
+    services.value = data.services
+    lastChecked.value = Date.now()
+  } catch {
+    services.value = {
+      backend: { status: 'error', message: 'Backend unreachable' },
+      llm: { status: 'unknown' },
+      zep: { status: 'unknown' },
+    }
+    lastChecked.value = Date.now()
   } finally {
     loading.value = false
   }
@@ -28,8 +34,8 @@ async function fetch_status() {
 
 function startPolling() {
   if (timer) return
-  fetch_status()
-  timer = setInterval(fetch_status, POLL_INTERVAL)
+  check()
+  timer = setInterval(check, POLL_INTERVAL)
 }
 
 function stopPolling() {
@@ -40,6 +46,16 @@ function stopPolling() {
 }
 
 export function useServiceStatus() {
+  const isAllOk = computed(() =>
+    Object.values(services.value).every((s) => s.status === 'ok'),
+  )
+
+  const isDemoMode = computed(() =>
+    Object.values(services.value).some((s) => s.status === 'unconfigured'),
+  )
+
+  const isBackendReachable = computed(() => services.value.backend.status === 'ok')
+
   onMounted(() => {
     subscribers++
     if (subscribers === 1) startPolling()
@@ -53,5 +69,13 @@ export function useServiceStatus() {
     }
   })
 
-  return { status, loading, error, lastChecked, refresh: fetch_status }
+  return {
+    services,
+    loading,
+    lastChecked,
+    isAllOk,
+    isDemoMode,
+    isBackendReachable,
+    check,
+  }
 }

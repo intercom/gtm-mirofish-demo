@@ -158,6 +158,10 @@ def create_app(config_class=Config):
     from .api.health import health_bp
     app.register_blueprint(health_bp)
 
+    # Unified service availability checker
+    from .api.services import services_bp
+    app.register_blueprint(services_bp)
+
     # Root-level liveness check (for load balancers / infrastructure)
     @app.route('/health')
     def health():

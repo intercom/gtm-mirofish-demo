@@ -6,11 +6,13 @@ import ErrorState from '../components/ui/ErrorState.vue'
 import TeamComposer from '../components/simulation/TeamComposer.vue'
 import { RichTextEditor } from '../components/common'
 import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
+import MemoryConfig from '../components/simulation/MemoryConfig.vue'
 import { useToast } from '../composables/useToast'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
+import { useSettingsStore } from '../stores/settings'
 import { graphApi } from '../api/graph'
 
 const props = defineProps({ id: String })
@@ -19,6 +21,7 @@ const route = useRoute()
 const toast = useToast()
 const scenariosStore = useScenariosStore()
 const simulationStore = useSimulationStore()
+const settingsStore = useSettingsStore()
 
 const isRerun = computed(() => route.query.rerun === 'true')
 
@@ -56,6 +59,12 @@ function togglePersona(persona) {
 }
 
 const importFileInput = ref(null)
+const memoryConfig = ref({
+  windowSize: 5,
+  searchDepth: 10,
+  extractionLevel: 'medium',
+  crossSimulation: false,
+})
 
 const isCustom = computed(() => props.id === 'custom')
 
@@ -422,6 +431,7 @@ async function runSimulation() {
       duration_hours: duration.value,
       minutes_per_round: minutesPerRound.value,
       platform_mode: platformMode.value,
+      memory_config: memoryConfig.value,
     })
     const taskId = data.task_id
     simulationStore.setScenarioConfig({
@@ -437,6 +447,7 @@ async function runSimulation() {
       duration: duration.value,
       minutesPerRound: minutesPerRound.value,
       platformMode: platformMode.value,
+      memoryConfig: memoryConfig.value,
     })
     simulationStore.startGraphBuild(taskId)
     simulationStore.addSessionRun({
@@ -785,6 +796,15 @@ async function runSimulation() {
                 {{ mode === 'parallel' ? 'Both' : mode }}
               </button>
             </div>
+          </div>
+
+          <!-- Agent Memory -->
+          <div class="border-t border-[var(--color-border)] pt-5">
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Agent Memory</label>
+            <MemoryConfig
+              v-model="memoryConfig"
+              :zep-key="settingsStore.zepKey"
+            />
           </div>
 
           <!-- Error display -->

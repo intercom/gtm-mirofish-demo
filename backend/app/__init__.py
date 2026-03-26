@@ -263,6 +263,10 @@ def create_app(config_class=Config):
     from .api.report_builder import report_builder_bp
     app.register_blueprint(report_builder_bp)
 
+    # Memory configuration API
+    from .api.memory import memory_config_bp
+    app.register_blueprint(memory_config_bp)
+
     # Error handling middleware
     register_error_handlers(app)
 

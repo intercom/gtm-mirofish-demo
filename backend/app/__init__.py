@@ -10,13 +10,16 @@ import warnings
 # 需要在所有其他导入之前设置
 warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
-from flask import Flask, g, request, session
+from flask import Flask, g, jsonify, request, session
 from flask_cors import CORS
 from flask_compress import Compress
+from flask_wtf.csrf import CSRFProtect, generate_csrf
 
 from .config import Config
 from .utils.logger import setup_logger, get_logger
 from .middleware.error_handler import register_error_handlers
+
+csrf = CSRFProtect()
 
 
 def create_app(config_class=Config):
@@ -45,10 +48,13 @@ def create_app(config_class=Config):
     # CORS — parse comma-separated origins from config, or allow all with "*"
     raw_origins = app.config.get('CORS_ORIGINS', '*')
     origins = [o.strip() for o in raw_origins.split(',')] if raw_origins != '*' else '*'
-    CORS(app, resources={r"/api/*": {"origins": origins}})
+    CORS(app, resources={r"/api/*": {"origins": origins}}, supports_credentials=True)
 
     # 启用GZIP压缩
     Compress(app)
+
+    # 启用CSRF保护
+    csrf.init_app(app)
 
     # Auth middleware (loads g.user from JWT when AUTH_ENABLED=true)
     from auth.middleware import init_auth_middleware
@@ -99,6 +105,21 @@ def create_app(config_class=Config):
     def load_user_context():
         g.user = session.get('user')
 
+    @app.after_request
+    def set_csrf_cookie(response):
+        response.set_cookie(
+            'csrf_token',
+            generate_csrf(),
+            samesite=app.config.get('SESSION_COOKIE_SAMESITE', 'Lax'),
+            secure=app.config.get('SESSION_COOKIE_SECURE', False),
+            httponly=False,
+        )
+        return response
+
+    # CSRF token endpoint for SPA clients
+    @app.route('/api/csrf-token', methods=['GET'])
+    def csrf_token():
+        return jsonify({'csrf_token': generate_csrf()})
 
     # Register blueprints
     from .api import graph_bp, simulation_bp, report_bp, memory_transfer_bp

@@ -56,6 +56,18 @@ class Config:
     DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
     JSON_AS_ASCII = False
 
+    # CSRF Protection (Flask-WTF)
+    WTF_CSRF_TIME_LIMIT = 3600
+    WTF_CSRF_HEADERS = ['X-CSRFToken']
+
+    # CORS origins (comma-separated for multiple origins)
+    CORS_ORIGINS = os.environ.get('CORS_ORIGINS', 'http://localhost:3000')
+
+    # Session cookie configuration for CSRF token storage
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'None' if os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true' else 'Lax'
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
+
     # LLM Configuration (resolved from provider)
     _llm = get_llm_config()
     LLM_API_KEY = _llm['api_key']

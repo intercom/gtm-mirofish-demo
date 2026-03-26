@@ -6,6 +6,7 @@ import AppNav from './AppNav.vue'
 import AppFooter from './AppFooter.vue'
 import MobileNav from './MobileNav.vue'
 import GuestBanner from './GuestBanner.vue'
+import AiAnalyst from '../insights/AiAnalyst.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -23,5 +24,6 @@ const showFooter = computed(() => !hideChrome.value && !isLanding.value)
     </main>
     <AppFooter v-if="showFooter" />
     <MobileNav v-if="showFooter" />
+    <AiAnalyst :context="{ page: route.name }" />
   </div>
 </template>

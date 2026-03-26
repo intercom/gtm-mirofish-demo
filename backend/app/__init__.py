@@ -198,6 +198,7 @@ def create_app(config_class=Config):
     # Batch API (multi-request batching)
     from .api.batch import batch_bp
     app.register_blueprint(batch_bp)
+
     @app.route('/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}

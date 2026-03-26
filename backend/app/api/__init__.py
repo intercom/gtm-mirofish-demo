@@ -16,4 +16,5 @@ from . import predictions  # noqa: E402, F401
 from . import report  # noqa: E402, F401
 from . import memory  # noqa: E402, F401
 from . import memory_transfer  # noqa: E402, F401
+from .revenue import revenue_bp  # noqa: E402, F401
 

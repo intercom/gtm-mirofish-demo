@@ -5,6 +5,7 @@ Enable via AUTH_ENABLED=true in .env
 
 import functools
 from flask import current_app, redirect, request, session, jsonify
+from auth.audit_log import log_event
 
 
 def require_auth(f):
@@ -15,6 +16,12 @@ def require_auth(f):
             return f(*args, **kwargs)
 
         if 'user' not in session:
+            log_event(
+                action='permission_denied',
+                actor_email='anonymous',
+                target=request.path,
+                details={'reason': 'no_session'},
+            )
             if request.is_json or request.headers.get('Accept') == 'application/json':
                 return jsonify({'error': 'Authentication required'}), 401
             return redirect('/login')
@@ -29,4 +36,11 @@ def validate_email_domain(email):
         return False
     allowed = current_app.config.get('AUTH_ALLOWED_DOMAIN', '')
     domain = email.split('@')[-1] if '@' in email else ''
-    return domain == allowed
+    result = domain == allowed
+    if not result and email:
+        log_event(
+            action='permission_denied',
+            actor_email=email,
+            details={'reason': 'invalid_domain', 'domain': domain},
+        )
+    return result

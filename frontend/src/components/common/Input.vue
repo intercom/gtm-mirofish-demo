@@ -25,7 +25,7 @@ const props = defineProps({
 defineEmits(['update:modelValue'])
 
 const inputClasses =
-  'input-interactive w-full border border-[var(--input-border)] rounded-[var(--input-radius)] px-4 py-2 text-sm bg-[var(--input-bg)] text-[var(--input-text)] placeholder-[var(--input-placeholder)] focus:ring-2 focus:ring-[var(--input-ring)] focus:border-transparent outline-none disabled:opacity-50 disabled:cursor-not-allowed'
+  'input-interactive w-full border border-[var(--input-border)] rounded-[var(--input-radius)] px-4 py-2 text-sm bg-[var(--input-bg)] text-[var(--input-text)] placeholder-[var(--input-placeholder)] focus:ring-2 focus:ring-[var(--input-ring)] focus:border-transparent outline-none focus-ring-pulse disabled:opacity-50 disabled:cursor-not-allowed'
 </script>
 
 <template>

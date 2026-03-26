@@ -1,6 +1,8 @@
 <script setup>
+import { ref } from 'vue'
 import ShortcutBadge from './ShortcutBadge.vue'
 import { formatShortcutText } from '../../composables/useKeyboardShortcuts'
+import { useRipple } from '../../composables/useMicroInteractions'
 
 defineProps({
   variant: {
@@ -23,15 +25,19 @@ defineProps({
 })
 
 defineEmits(['click'])
+
+const btnRef = ref(null)
+useRipple(btnRef)
 </script>
 
 <template>
   <button
+    ref="btnRef"
     :type="type"
     :disabled="disabled || loading"
     :title="shortcut ? formatShortcutText(shortcut) : undefined"
     @click="$emit('click', $event)"
-    class="btn-interactive inline-flex items-center justify-center font-semibold rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+    class="btn-interactive ripple-container inline-flex items-center justify-center font-semibold rounded-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
     :class="[
       {
         'bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-bg-hover)] active:bg-[var(--btn-primary-bg-active)] text-[var(--btn-primary-text)] hover:shadow-md hover:-translate-y-px': variant === 'primary',

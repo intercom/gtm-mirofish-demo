@@ -884,18 +884,20 @@ const year = new Date().getFullYear()
             >
               <span class="text-sm font-semibold text-[var(--color-text)] pr-4">{{ faq.q }}</span>
               <svg
-                class="w-5 h-5 shrink-0 text-[var(--color-text-muted)] transition-transform duration-200"
-                :class="{ 'rotate-180': openFaq === i }"
+                class="chevron-rotate w-5 h-5 shrink-0 text-[var(--color-text-muted)]"
+                :data-open="openFaq === i"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
               >
                 <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
               </svg>
             </button>
-            <Transition name="faq">
-              <div v-if="openFaq === i" class="px-5 pb-4">
-                <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ faq.a }}</p>
+            <div class="accordion-body" :data-open="openFaq === i">
+              <div>
+                <div class="px-5 pb-4">
+                  <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ faq.a }}</p>
+                </div>
               </div>
-            </Transition>
+            </div>
           </div>
         </div>
       </div>

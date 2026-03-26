@@ -30,7 +30,7 @@ watch(() => props.error, (val, oldVal) => {
 })
 
 const inputClasses =
-  'input-interactive w-full bg-[--color-surface] border border-[--color-border] rounded-lg px-3 py-2 text-sm text-[--color-text] placeholder:text-[--color-text-muted] focus:outline-none focus:border-[--color-primary] focus:ring-1 focus:ring-[--color-primary]'
+  'input-interactive w-full bg-[--color-surface] border border-[--color-border] rounded-lg px-3 py-2 text-sm text-[--color-text] placeholder:text-[--color-text-muted] focus:outline-none focus:border-[--color-primary] focus:ring-1 focus:ring-[--color-primary] focus-ring-pulse'
 </script>
 
 <template>

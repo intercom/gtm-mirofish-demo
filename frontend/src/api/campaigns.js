@@ -6,5 +6,10 @@ export const campaignsApi = {
   stats: () => client.get('/campaigns/stats'),
   roiComparison: () => client.get('/campaigns/roi-comparison'),
   attribution: (model) => client.get(`/campaigns/attribution/${model}`),
+  attributionComparison: () => client.get('/campaigns/attribution'),
   budgetEfficiency: () => client.get('/campaigns/budget-efficiency'),
+}
+
+export function fetchAttributionComparison() {
+  return client.get('/campaigns/attribution')
 }

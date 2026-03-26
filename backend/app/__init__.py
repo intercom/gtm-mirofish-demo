@@ -151,6 +151,10 @@ def create_app(config_class=Config):
     from .api.team import team_bp
     app.register_blueprint(team_bp)
 
+    # Comparison API (comparative chart overlays)
+    from .api.comparison import comparison_bp
+    app.register_blueprint(comparison_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

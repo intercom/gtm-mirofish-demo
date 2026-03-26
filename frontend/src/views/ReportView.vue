@@ -21,6 +21,7 @@ import ReportTemplateSelector from '../components/report/ReportTemplateSelector.
 import ReportShareModal from '../components/report/ReportShareModal.vue'
 import ReportPreview from '../components/report-builder/ReportPreview.vue'
 import RichTextEditor from '../components/report/RichTextEditor.vue'
+import ComparisonOverlay from '../components/report/ComparisonOverlay.vue'
 
 const ReportCharts = defineAsyncComponent({
   loader: () => import('../components/report/ReportCharts.vue'),
@@ -754,6 +755,9 @@ onUnmounted(() => {
             :isGenerating="generating"
           />
         </div>
+
+        <!-- Comparative Chart Overlay -->
+        <ComparisonOverlay v-if="!generating && sections.length > 0" />
 
         <!-- Key Findings Summary -->
         <div v-if="keyFindings.length > 0" class="space-y-3">

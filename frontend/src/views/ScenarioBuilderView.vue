@@ -40,6 +40,20 @@ const selectedCompanySizes = ref([])
 const selectedRegions = ref([])
 const minutesPerRound = ref(30)
 const showAdvanced = ref(false)
+const useTeamComposer = ref(false)
+
+function onTeamUpdate(roles) {
+  selectedPersonas.value = [...roles]
+}
+
+function togglePersona(persona) {
+  const idx = selectedPersonas.value.indexOf(persona)
+  if (idx === -1) {
+    selectedPersonas.value.push(persona)
+  } else {
+    selectedPersonas.value.splice(idx, 1)
+  }
+}
 
 const importFileInput = ref(null)
 
@@ -587,12 +601,38 @@ async function runSimulation() {
             placeholder="Describe your scenario: What campaign are you testing? What messaging will prospects see? Include email copy, target audience details, and any competitive context. The more realistic the seed document, the more useful the simulation results will be."
           />
 
-          <!-- Team Composer (drag-and-drop persona selection) -->
+          <!-- Persona Types -->
           <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">
-            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Team Composition</label>
+            <div class="flex items-center justify-between mb-3">
+              <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)]">Persona Types</label>
+              <button
+                @click="useTeamComposer = !useTeamComposer"
+                class="text-[11px] text-[var(--color-primary)] hover:underline"
+              >
+                {{ useTeamComposer ? 'Simple mode' : 'Team composer' }}
+              </button>
+            </div>
+
+            <!-- Simple toggle mode -->
+            <div v-if="!useTeamComposer" class="flex flex-wrap gap-2">
+              <button
+                v-for="persona in scenario.agent_config.persona_types"
+                :key="persona"
+                @click="togglePersona(persona)"
+                class="px-3 py-1.5 text-xs rounded-full border transition-colors"
+                :class="selectedPersonas.includes(persona)
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border-[var(--color-border)] hover:border-[var(--color-primary)]'"
+              >
+                {{ persona }}
+              </button>
+            </div>
+
+            <!-- Team Composer mode -->
             <TeamComposer
-              :available-personas="scenario.agent_config.persona_types"
-              v-model="selectedPersonas"
+              v-else
+              :scenario-personas="scenario.agent_config.persona_types"
+              @update:team="onTeamUpdate"
             />
           </div>
 

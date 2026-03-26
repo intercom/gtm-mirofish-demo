@@ -140,6 +140,10 @@ def create_app(config_class=Config):
     from .api.personas import personas_bp
     app.register_blueprint(personas_bp)
 
+    # Team composition API
+    from .api.team import team_bp
+    app.register_blueprint(team_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

@@ -10,6 +10,8 @@ import { getAllCachedTaskIds } from '../composables/useReportCache'
 import DashboardMiniChart from '../components/dashboard/DashboardMiniChart.vue'
 import { useLocale } from '../composables/useLocale'
 import { useDashboardLayout } from '../composables/useDashboardLayout'
+import { usePagination } from '../composables/usePagination'
+import Pagination from '../components/common/Pagination.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
@@ -189,9 +191,15 @@ const filteredRuns = computed(() => {
   return result
 })
 
+const {
+  currentPage,
+  totalPages,
+  paginatedItems: paginatedRuns,
+} = usePagination(filteredRuns, { perPage: 10 })
+
 const displayRuns = ref([])
 
-watch(filteredRuns, (runs) => {
+watch(paginatedRuns, (runs) => {
   displayRuns.value = [...runs]
 }, { immediate: true })
 
@@ -654,6 +662,15 @@ function exportRun(run) {
         </draggable>
       </div>
     </div>
+
+    <!-- Pagination -->
+    <Pagination
+      v-if="filteredRuns.length > 0"
+      :current-page="currentPage"
+      :total-pages="totalPages"
+      :total="filteredRuns.length"
+      @update:current-page="currentPage = $event"
+    />
 
     <!-- Confirmation Dialogs -->
     <ConfirmDialog

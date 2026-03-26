@@ -18,6 +18,7 @@ from ..services.text_processor import TextProcessor
 from ..services.community_detection import CommunityDetector
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
+from ..utils.pagination import paginate
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
 
@@ -138,14 +139,23 @@ def get_project(project_id: str):
 def list_projects():
     """
     列出所有项目
+
+    Query参数：
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
-    limit = request.args.get('limit', 50, type=int)
-    projects = ProjectManager.list_projects(limit=limit)
-    
+    projects = ProjectManager.list_projects(limit=9999)
+    result = paginate([p.to_dict() for p in projects])
+
     return jsonify({
         "success": True,
-        "data": [p.to_dict() for p in projects],
-        "count": len(projects)
+        "data": result["items"],
+        "pagination": {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "total_pages": result["total_pages"],
+        },
     })
 
 
@@ -632,13 +642,23 @@ def get_task(task_id: str):
 def list_tasks():
     """
     列出所有任务
+
+    Query参数：
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
     tasks = TaskManager().list_tasks()
-    
+    result = paginate([t.to_dict() for t in tasks])
+
     return jsonify({
         "success": True,
-        "data": [t.to_dict() for t in tasks],
-        "count": len(tasks)
+        "data": result["items"],
+        "pagination": {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "total_pages": result["total_pages"],
+        },
     })
 
 

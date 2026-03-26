@@ -19,6 +19,7 @@ from ..services.whatif_engine import WhatIfEngine
 from ..services.sensitivity_analyzer import SensitivityAnalyzer
 from ..services.simulation_registry import SimulationRegistry
 from ..utils.logger import get_logger
+from ..utils.pagination import paginate
 from ..models.project import ProjectManager
 
 logger = get_logger('mirofish.api.simulation')
@@ -789,22 +790,30 @@ def get_simulation(simulation_id: str):
 def list_simulations():
     """
     列出所有模拟
-    
+
     Query参数：
         project_id: 按项目ID过滤（可选）
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
     try:
         project_id = request.args.get('project_id')
-        
+
         manager = SimulationManager()
         simulations = manager.list_simulations(project_id=project_id)
-        
+        result = paginate([s.to_dict() for s in simulations])
+
         return jsonify({
             "success": True,
-            "data": [s.to_dict() for s in simulations],
-            "count": len(simulations)
+            "data": result["items"],
+            "pagination": {
+                "page": result["page"],
+                "per_page": result["per_page"],
+                "total": result["total"],
+                "total_pages": result["total_pages"],
+            },
         })
-        
+
     except Exception as e:
         logger.error(f"列出模拟失败: {str(e)}")
         return jsonify({

@@ -33,6 +33,9 @@ def main():
             print(f"  - {err}")
         sys.exit(1)
 
+    for warn in Config.warnings():
+        print(f"  ⚠ {warn}")
+
     # 创建应用
     app = create_app()
 

@@ -23,6 +23,7 @@ from .simulation_runner import (
     AgentAction,
     RoundSummary
 )
+from .zep_client import get_zep_client, is_zep_available, require_zep_client, reset_client
 from .zep_graph_memory_updater import (
     ZepGraphMemoryUpdater,
     ZepGraphMemoryManager,
@@ -127,6 +128,10 @@ __all__ = [
     'RunnerStatus',
     'AgentAction',
     'RoundSummary',
+    'get_zep_client',
+    'is_zep_available',
+    'require_zep_client',
+    'reset_client',
     'ZepGraphMemoryUpdater',
     'ZepGraphMemoryManager',
     'AgentActivity',

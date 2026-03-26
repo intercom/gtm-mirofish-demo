@@ -101,10 +101,20 @@ class Config:
 
     @classmethod
     def validate(cls):
-        """Validate required configuration"""
+        """Validate required configuration.
+
+        Returns a list of hard errors. Missing ZEP_API_KEY is only a
+        warning (the app runs in demo mode without it).
+        """
         errors = []
         if not cls.LLM_API_KEY:
             errors.append("LLM_API_KEY not configured")
-        if not cls.ZEP_API_KEY:
-            errors.append("ZEP_API_KEY not configured")
         return errors
+
+    @classmethod
+    def warnings(cls):
+        """Return non-fatal configuration warnings."""
+        warns = []
+        if not cls.ZEP_API_KEY:
+            warns.append("ZEP_API_KEY not configured — Zep features disabled (demo mode)")
+        return warns

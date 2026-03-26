@@ -38,7 +38,7 @@ def test_llm():
 
 @settings_bp.route('/test-zep', methods=['POST'])
 def test_zep():
-    """Test Zep Cloud connection."""
+    """Test Zep Cloud connection using the SDK."""
     data = request.get_json() or {}
     api_key = data.get('apiKey', '')
 
@@ -46,16 +46,10 @@ def test_zep():
         return jsonify({'ok': False, 'error': 'API key is required'}), 400
 
     try:
-        import httpx
-        resp = httpx.get(
-            'https://api.getzep.com/api/v2/users',
-            headers={'Authorization': f'Api-Key {api_key}'},
-            timeout=15,
-            params={'limit': 1},
-        )
-        if resp.status_code in (200, 404):
-            return jsonify({'ok': True})
-        return jsonify({'ok': False, 'error': f'HTTP {resp.status_code}'}), 400
+        from zep_cloud.client import Zep
+        client = Zep(api_key=api_key)
+        client.user.list(limit=1)
+        return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
 

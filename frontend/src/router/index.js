@@ -160,6 +160,11 @@ export const routes = [
     component: () => import('../views/AgentsView.vue'),
   },
   {
+    path: '/compare',
+    name: 'compare',
+    component: () => import('../views/CompareView.vue'),
+  },
+  {
     path: '/dashboard',
     name: 'gtm-dashboard',
     component: () => import('../views/GtmDashboardView.vue'),

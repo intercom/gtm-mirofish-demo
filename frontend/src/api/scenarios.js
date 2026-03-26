@@ -15,4 +15,5 @@ export const scenariosApi = {
     client.get(`/gtm/scenarios/${scenarioId}/context`),
   getWalkthrough: (scenarioId) =>
     client.get(`/gtm/scenarios/${scenarioId}/walkthrough`),
+  compare: () => client.get('/gtm/scenarios/compare'),
 }

@@ -180,6 +180,11 @@ export const routes = [
     name: 'permission-denied',
     component: () => import('../views/PermissionDeniedView.vue'),
   },
+  {
+    path: '/dashboard-builder',
+    name: 'dashboard-builder',
+    component: () => import('../views/DashboardBuilderView.vue'),
+  },
 ]
 
 export function createAppRouter() {

@@ -209,6 +209,10 @@ export function getWidgetType(type) {
   return widgetRegistry[type] || null
 }
 
+export function getWidgetDef(type) {
+  return widgetRegistry[type] || null
+}
+
 export function getWidgetComponent(type) {
   return widgetRegistry[type]?.component ?? null
 }

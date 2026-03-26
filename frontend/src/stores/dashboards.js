@@ -131,6 +131,33 @@ export const useDashboardStore = defineStore('dashboards', () => {
     }
   }
 
+  function createDashboard(name = 'Untitled Dashboard') {
+    const dashboard = {
+      id: `dashboard_${Date.now()}`,
+      name,
+      widgets: [],
+      layout: [],
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+    dashboards.value.push(dashboard)
+    activeDashboard.value = dashboard
+    snapshot()
+    persist({ dashboards: dashboards.value })
+    return dashboard
+  }
+
+  function renameDashboard(id, name) {
+    const dash = dashboards.value.find((d) => d.id === id)
+    if (!dash) return
+    dash.name = name
+    dash.updatedAt = Date.now()
+    if (activeDashboard.value?.id === id) {
+      activeDashboard.value.name = name
+    }
+    persist({ dashboards: dashboards.value })
+  }
+
   async function deleteDashboard(id) {
     loading.value = true
     error.value = null
@@ -243,6 +270,8 @@ export const useDashboardStore = defineStore('dashboards', () => {
     fetchDashboards,
     fetchDashboard,
     saveDashboard,
+    createDashboard,
+    renameDashboard,
     deleteDashboard,
     duplicateDashboard,
     setEditMode,

@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch, nextTick } from 'vue'
 import { GridLayout, GridItem } from 'grid-layout-plus'
+import { getWidgetDef } from './WidgetRegistry.js'
 
 const props = defineProps({
   layout: {
@@ -25,6 +26,7 @@ const emit = defineEmits(['update:layout', 'remove-widget', 'select-widget'])
 
 const isDragging = ref(false)
 const isResizing = ref(false)
+const isDragOver = ref(false)
 const activeItemId = ref(null)
 
 const internalLayout = computed({
@@ -56,12 +58,61 @@ function onResizeEnd() {
   activeItemId.value = null
 }
 
+// --- Drop from WidgetPicker ---
+
+function onDragOver(e) {
+  if (!props.editMode) return
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'copy'
+  isDragOver.value = true
+}
+
+function onDragLeave() {
+  isDragOver.value = false
+}
+
+function onDrop(e) {
+  isDragOver.value = false
+  if (!props.editMode) return
+
+  const widgetType = e.dataTransfer.getData('application/widget-type')
+  if (!widgetType) return
+  e.preventDefault()
+
+  const def = getWidgetDef(widgetType)
+  if (!def) return
+
+  // Find lowest open Y position
+  const maxY = props.layout.reduce((max, item) => Math.max(max, item.y + item.h), 0)
+
+  const newItem = {
+    i: `widget-${Date.now()}`,
+    x: 0,
+    y: maxY,
+    w: def.defaultSize.width ?? def.defaultSize.w ?? 4,
+    h: def.defaultSize.height ?? def.defaultSize.h ?? 3,
+    type: widgetType,
+    config: { ...def.defaultConfig },
+  }
+
+  emit('update:layout', [...props.layout, newItem])
+  nextTick(() => {
+    activeItemId.value = newItem.i
+  })
+}
+
 function removeWidget(id) {
   emit('remove-widget', id)
 }
 
 function selectWidget(id) {
+  activeItemId.value = id
   emit('select-widget', id)
+}
+
+function widgetLabel(item) {
+  const def = getWidgetDef(item.type)
+  return def ? def.label : item.type
 }
 </script>
 
@@ -72,7 +123,11 @@ function selectWidget(id) {
       'dashboard-grid--edit': editMode,
       'dashboard-grid--dragging': isDragging,
       'dashboard-grid--resizing': isResizing,
+      'dashboard-grid--drag-over': isDragOver,
     }"
+    @dragover="onDragOver"
+    @dragleave.self="onDragLeave"
+    @drop="onDrop"
   >
     <!-- Edit mode grid background -->
     <div v-if="editMode" class="dashboard-grid__bg" />
@@ -124,6 +179,7 @@ function selectWidget(id) {
                 <circle cx="5" cy="13" r="1.2" />
                 <circle cx="11" cy="13" r="1.2" />
               </svg>
+              <span class="widget-drag-label">{{ widgetLabel(item) }}</span>
             </div>
             <button
               class="widget-remove-btn"
@@ -141,13 +197,29 @@ function selectWidget(id) {
           <div class="widget-content">
             <slot :name="`widget-${item.i}`" :item="item">
               <div class="widget-placeholder">
-                <span class="text-sm text-[var(--color-text-muted)]">Widget {{ item.i }}</span>
+                <span class="text-sm text-[var(--color-text-muted)]">{{ widgetLabel(item) }}</span>
               </div>
             </slot>
           </div>
         </div>
       </GridItem>
     </GridLayout>
+
+    <!-- Empty state / drop zone hint -->
+    <div v-if="layout.length === 0" class="empty-state">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <rect x="3" y="3" width="7" height="7" rx="1" />
+          <rect x="14" y="3" width="7" height="7" rx="1" />
+          <rect x="3" y="14" width="7" height="7" rx="1" />
+          <rect x="14" y="14" width="7" height="7" rx="1" />
+        </svg>
+      </div>
+      <p class="empty-title">{{ editMode ? 'Drag widgets here' : 'No widgets yet' }}</p>
+      <p class="empty-desc">
+        {{ editMode ? 'Open the widget picker and drag items onto this grid' : 'Switch to edit mode to add widgets' }}
+      </p>
+    </div>
   </div>
 </template>
 
@@ -181,6 +253,12 @@ function selectWidget(id) {
   background-size: calc(100% / 12) 92px; /* colNum=12, rowHeight+margin */
   border-radius: var(--radius-lg);
   opacity: 0.6;
+}
+
+.dashboard-grid--drag-over {
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -2px;
+  background-color: var(--color-primary-lighter);
 }
 
 .dashboard-grid__item {
@@ -226,6 +304,9 @@ function selectWidget(id) {
 }
 
 .widget-drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   cursor: grab;
   color: var(--color-text-muted);
   padding: 2px 4px;
@@ -240,6 +321,12 @@ function selectWidget(id) {
 
 .widget-drag-handle:active {
   cursor: grabbing;
+}
+
+.widget-drag-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
 }
 
 .widget-remove-btn {
@@ -297,6 +384,35 @@ function selectWidget(id) {
 /* Resize cursor overrides */
 .dashboard-grid--resizing {
   cursor: nwse-resize;
+}
+
+/* Empty state */
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.empty-icon {
+  color: var(--color-text-muted);
+  opacity: 0.3;
+  margin-bottom: var(--space-4);
+}
+
+.empty-title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.empty-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
 }
 
 /* grid-layout-plus default styles need slight overrides */

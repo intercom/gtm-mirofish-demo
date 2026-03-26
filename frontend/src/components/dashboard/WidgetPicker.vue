@@ -36,6 +36,20 @@ const sortedCategories = computed(() =>
 
 const hasResults = computed(() => sortedCategories.value.length > 0)
 
+function onDragStart(e, widgetDef) {
+  e.dataTransfer.effectAllowed = 'copy'
+  e.dataTransfer.setData('application/widget-type', widgetDef.type)
+
+  // Create a compact drag ghost
+  const ghost = document.createElement('div')
+  ghost.textContent = widgetDef.label
+  ghost.style.cssText =
+    'position:absolute;top:-9999px;padding:8px 16px;background:#2068FF;color:#fff;border-radius:8px;font-size:14px;font-weight:600;white-space:nowrap;'
+  document.body.appendChild(ghost)
+  e.dataTransfer.setDragImage(ghost, 0, 0)
+  requestAnimationFrame(() => ghost.remove())
+}
+
 function addWidget(widgetDef) {
   emit('add-widget', {
     type: widgetDef.type,
@@ -129,6 +143,8 @@ const WIDGET_PREVIEWS = {
                     v-for="widget in cat.widgets"
                     :key="widget.type"
                     class="widget-card w-full text-left bg-[--color-bg] hover:bg-[--card-highlight-bg] border border-[--color-border] hover:border-[--color-primary-border] rounded-lg p-3 transition-all cursor-pointer group"
+                    draggable="true"
+                    @dragstart="onDragStart($event, widget)"
                     @click="addWidget(widget)"
                   >
                     <div class="flex items-start gap-3">
@@ -137,7 +153,7 @@ const WIDGET_PREVIEWS = {
                         <svg
                           class="w-6 h-6"
                           viewBox="0 0 24 24"
-                          v-html="WIDGET_ICONS[widget.icon]"
+                          v-html="WIDGET_ICONS[widget.type]"
                         />
                       </div>
 

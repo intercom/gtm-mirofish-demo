@@ -1267,6 +1267,196 @@ def org_chart():
     })
 
 
+def _build_persona_traits(role):
+    role_lower = (role or "").lower()
+    if "vp" in role_lower or "director" in role_lower:
+        return {
+            "seniority": "Executive",
+            "priorities": "ROI and cost efficiency, team productivity, vendor consolidation",
+            "communication_style": "Executive — concise, data-driven, focused on business outcomes",
+            "objections": "Migration risk and downtime, contract lock-in concerns, integration complexity",
+            "decision_factors": "TCO comparison, peer references, pilot program availability",
+        }
+    if "it" in role_lower or "engineer" in role_lower or "cto" in role_lower:
+        return {
+            "seniority": "Technical Leader",
+            "priorities": "Security and compliance, API quality and documentation, integration ecosystem",
+            "communication_style": "Technical — detail-oriented, skeptical of marketing claims",
+            "objections": "Data migration complexity, SSO/SAML requirements, scalability concerns",
+            "decision_factors": "Technical documentation, API capabilities, security certifications",
+        }
+    if "ops" in role_lower or "operations" in role_lower:
+        return {
+            "seniority": "Operations Leader",
+            "priorities": "Process efficiency, cross-team alignment, reporting and analytics",
+            "communication_style": "Process-oriented — systematic, focused on workflows and metrics",
+            "objections": "Change management overhead, training requirements, workflow disruption",
+            "decision_factors": "Implementation timeline, training resources, workflow customization",
+        }
+    if "cfo" in role_lower or "finance" in role_lower:
+        return {
+            "seniority": "Finance Executive",
+            "priorities": "Cost reduction, headcount efficiency, ROI with clear timeframes",
+            "communication_style": "Numbers-focused — needs quantified business case and payback period",
+            "objections": "Total cost of ownership uncertainty, hidden fees, switching costs",
+            "decision_factors": "ROI calculations, payback period, board-presentable business case",
+        }
+    return {
+        "seniority": "Senior Stakeholder",
+        "priorities": "Customer satisfaction, team enablement, platform reliability",
+        "communication_style": "Balanced — open to evaluation, values peer recommendations",
+        "objections": "Learning curve, feature parity, support responsiveness",
+        "decision_factors": "Product demos, case studies, free trial experience",
+    }
+
+
+@app.route("/api/simulation/interview", methods=["POST"])
+def sim_interview():
+    body = request.get_json(silent=True) or {}
+    agent_name = body.get("agent_name", "Agent")
+    agent_role = body.get("agent_role", "")
+    agent_company = body.get("agent_company", "")
+    prompt = body.get("prompt", "")
+    chat_history = body.get("chat_history") or []
+
+    traits = _build_persona_traits(agent_role)
+
+    system_prompt = f"""You are {agent_name}, {agent_role}{(' at ' + agent_company) if agent_company else ''}.
+
+Your persona:
+- Seniority: {traits['seniority']}
+- Priorities: {traits['priorities']}
+- Communication style: {traits['communication_style']}
+- Likely objections: {traits['objections']}
+- Decision factors: {traits['decision_factors']}
+
+You participated in a simulated outbound campaign evaluation where Intercom targeted mid-market companies currently using Zendesk. The simulation ran 200 AI agents for 72 hours across Twitter and Reddit.
+
+Key simulation findings you experienced:
+- ROI-driven messaging (40% cost savings) was compelling but you need proof
+- Fin AI agent's 50% resolution rate claim was the most persuasive data point
+- Subject line "Your Zendesk bill is 3x what it should be" got your attention but felt aggressive
+- You engaged on Twitter/Reddit sharing industry perspectives with peers
+- Multi-threading (multiple people at your company being contacted) influenced your evaluation
+
+Stay in character. Answer from your professional perspective.
+Reference specific data points when relevant.
+Be opinionated — you have real preferences and concerns.
+Keep responses conversational, 2-4 paragraphs."""
+
+    llm_messages = [{"role": "system", "content": system_prompt}]
+    for msg in chat_history:
+        if msg.get("role") in ("user", "assistant"):
+            llm_messages.append({"role": msg["role"], "content": msg["content"]})
+    llm_messages.append({"role": "user", "content": prompt})
+
+    llm_response = chat_completion(llm_messages, max_tokens=1024)
+
+    if llm_response:
+        return _ok({"response": llm_response})
+
+    # Fallback: keyword matching
+    return _ok({"response": _interview_keyword_fallback(prompt, agent_role)})
+
+
+@app.route("/api/simulation/interview/batch", methods=["POST"])
+def sim_interview_batch():
+    return _ok({"responses": []})
+
+
+@app.route("/api/simulation/interview/all", methods=["POST"])
+def sim_interview_all():
+    return _ok({"responses": []})
+
+
+@app.route("/api/simulation/interview/history", methods=["POST"])
+def sim_interview_history():
+    return _ok({"history": []})
+
+
+@app.route("/api/simulation/env-status", methods=["POST"])
+def sim_env_status():
+    return _ok({"status": "active"})
+
+
+@app.route("/api/simulation/close-env", methods=["POST"])
+def sim_close_env():
+    return _ok({"closed": True})
+
+
+# ---------------------------------------------------------------------------
+# Auth stubs
+# ---------------------------------------------------------------------------
+
+@app.route("/api/auth/logout")
+def auth_logout():
+    return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Demo Speed Control
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Activity Feed
+# ---------------------------------------------------------------------------
+
+from app.services.activity_feed import ActivityFeedService
+
+
+@app.route("/api/activity")
+def activity_feed():
+    limit = request.args.get("limit", 20, type=int)
+    limit = max(1, min(limit, 100))
+
+    types_param = request.args.get("types", "")
+    types = [t.strip() for t in types_param.split(",") if t.strip()] or None
+
+    since = request.args.get("since")
+
+    items = ActivityFeedService.get_recent(limit=limit, types=types, since=since)
+    return _ok({"items": items, "count": len(items)})
+
+
+@app.route("/api/demo/speed", methods=["GET", "POST"])
+def demo_speed():
+    global _demo_speed
+    if request.method == "POST":
+        body = request.get_json(silent=True) or {}
+        _demo_speed = max(0.1, float(body.get("speed", 1.0)))
+        return _ok({"speed": _demo_speed})
+    return _ok({"speed": _demo_speed})
+
+
+@app.route("/api/demo/skip/<phase>", methods=["POST"])
+def demo_skip(phase):
+    """Instantly complete a phase by backdating its start time."""
+    if phase == "graph":
+        for task_id in _graph_tasks:
+            _graph_tasks[task_id]["start"] = 0
+        return _ok({"skipped": "graph"})
+    elif phase == "simulation":
+        for sim_id in _simulations:
+            _simulations[sim_id]["start"] = 0
+        return _ok({"skipped": "simulation"})
+    elif phase == "report":
+        for report_id in _reports:
+            _reports[report_id]["start"] = 0
+        return _ok({"skipped": "report"})
+    return _err(f"Unknown phase: {phase}")
+
+
+@app.route("/api/demo/reset", methods=["POST"])
+def demo_reset():
+    """Clear all in-memory state for a fresh demo."""
+    global _demo_speed
+    _graph_tasks.clear()
+    _simulations.clear()
+    _reports.clear()
+    _demo_speed = 1.0
+    return _ok({"reset": True})
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------

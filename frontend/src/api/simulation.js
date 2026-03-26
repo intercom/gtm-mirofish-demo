@@ -114,4 +114,14 @@ export const simulationApi = {
   // --- Counterfactual analysis ---
   analyzeCounterfactual: (simulationId, data) =>
     client.post(`/simulation/${simulationId}/counterfactual`, data),
+
+  // --- Coalitions ---
+  getCoalitions: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions`),
+  getCoalitionEvolution: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions/evolution`),
+  getPolarization: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions/polarization`),
+  getSwingAgents: (simulationId) =>
+    client.get(`/simulation/${simulationId}/coalitions/swing-agents`),
 }

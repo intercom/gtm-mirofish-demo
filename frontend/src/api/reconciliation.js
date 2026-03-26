@@ -62,4 +62,8 @@ export const reconciliationApi = {
 
   // --- Trend chart ---
   getTrend: (params) => client.get('/reconciliation/trend', { params }),
+
+  // --- Discrepancy distribution histogram ---
+  getDiscrepancyDistribution: (params) =>
+    client.get('/reconciliation/discrepancy-distribution', { params }),
 }

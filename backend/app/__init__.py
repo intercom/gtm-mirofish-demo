@@ -86,6 +86,10 @@ def create_app(config_class=Config):
     from .api.deals import deals_bp
     app.register_blueprint(deals_bp)
 
+    # GTM dashboard API
+    from .api.gtm_dashboard import gtm_dashboard_bp
+    app.register_blueprint(gtm_dashboard_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

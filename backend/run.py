@@ -2,6 +2,7 @@
 MiroFish Backend 启动入口
 """
 
+import logging
 import os
 import sys
 
@@ -46,6 +47,8 @@ def main():
 
     # 启动服务
     app.run(host=host, port=port, debug=debug, threaded=True)
+
+    logging.getLogger('mirofish.shutdown').info("Server stopped — shutdown complete")
 
 
 if __name__ == '__main__':

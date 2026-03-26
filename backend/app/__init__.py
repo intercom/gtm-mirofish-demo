@@ -16,6 +16,7 @@ from flask_compress import Compress
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 
 from .config import Config
+from .shutdown import is_shutting_down
 from .utils.logger import setup_logger, get_logger
 from .middleware.error_handler import register_error_handlers
 
@@ -307,10 +308,12 @@ def create_app(config_class=Config):
     # Error handling middleware
     register_error_handlers(app)
 
-    # 健康检查 (both paths for docker-compose and direct access)
+    # 健康检查 — returns 503 during shutdown for load balancer draining
     @app.route('/health')
     @app.route('/api/health')
     def health():
+        if is_shutting_down():
+            return {'status': 'shutting_down', 'service': 'MiroFish Backend'}, 503
         return {'status': 'ok', 'service': 'MiroFish Backend'}
     
     if should_log_startup:

@@ -7,9 +7,10 @@ services:
       - .env
     ports:
       - "${BACKEND_PORT:-5001}:5001"
+    stop_grace_period: 15s
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/api/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -25,6 +26,7 @@ services:
     container_name: gtm-mirofish-frontend
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
+    stop_grace_period: 5s
     depends_on:
       backend:
         condition: service_healthy

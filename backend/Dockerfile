@@ -16,4 +16,7 @@ COPY run.py .
 ENV PORT=5001
 EXPOSE 5001
 
+STOPSIGNAL SIGTERM
+
+# Exec form ensures Python is PID 1 and receives SIGTERM directly
 CMD ["python", "run.py"]

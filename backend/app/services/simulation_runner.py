@@ -1517,6 +1517,10 @@ class SimulationRunner:
         
         def cleanup_handler(signum=None, frame=None):
             """信号处理器：先清理模拟进程，再调用原处理器"""
+            # Signal shutdown to health endpoint (load balancer draining)
+            from ..shutdown import begin_shutdown
+            begin_shutdown()
+
             # 只有在有进程需要清理时才打印日志
             if cls._processes or cls._graph_memory_enabled:
                 logger.info(f"收到信号 {signum}，开始清理...")

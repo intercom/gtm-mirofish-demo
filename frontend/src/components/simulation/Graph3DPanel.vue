@@ -1,11 +1,16 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ForceGraph3D from '3d-force-graph'
+import { DEMO_NODES, DEMO_EDGES } from '../../data/demoGraphData'
 
 const props = defineProps({
   taskId: { type: String, required: true },
   demoMode: { type: Boolean, default: false },
 })
+
+function isDarkMode() {
+  return document.documentElement.classList.contains('dark')
+}
 
 const polling = inject('polling')
 const { graphStatus, graphProgress, graphData, graphTask, isDemoFallback } = polling
@@ -14,10 +19,13 @@ const containerRef = ref(null)
 const selectedNode = ref(null)
 const nodeCount = ref(0)
 const edgeCount = ref(0)
+const errorMsg = ref('')
 
 let graph = null
 let resizeObserver = null
 let zoomTimer = null
+let demoBuildTimer = null
+let themeObserver = null
 
 const TYPE_COLORS = {
   persona: '#ff5600', person: '#ff5600', agent: '#ff5600', user: '#ff5600',
@@ -29,6 +37,15 @@ const TYPE_COLORS = {
 }
 const DEFAULT_COLOR = '#667'
 const GENERIC_LABELS = new Set(['Entity', 'Node'])
+
+const BUILD_MESSAGES = [
+  'Parsing seed document...',
+  'Extracting entities...',
+  'Building persona nodes...',
+  'Mapping topic clusters...',
+  'Computing relationships...',
+  'Finalizing graph...',
+]
 
 function getNodeColor(labels) {
   const meaningful = (labels || []).filter(l => !GENERIC_LABELS.has(l))
@@ -61,10 +78,6 @@ function computeCentrality(nodes, edges) {
   return result
 }
 
-function isDarkMode() {
-  return document.documentElement.classList.contains('dark')
-}
-
 const entityTypeStats = computed(() => {
   const counts = {}
   for (const n of graphData.value.nodes) {
@@ -81,14 +94,6 @@ const entityTypeStats = computed(() => {
 })
 
 const buildMessage = computed(() => {
-  const BUILD_MESSAGES = [
-    'Parsing seed document...',
-    'Extracting entities...',
-    'Building persona nodes...',
-    'Mapping topic clusters...',
-    'Computing relationships...',
-    'Finalizing graph...',
-  ]
   const p = graphProgress.value
   const msgIdx = Math.min(
     Math.floor((p / 100) * BUILD_MESSAGES.length),
@@ -208,13 +213,66 @@ function selectNode(d) {
   }
 }
 
-watch([graphData, graphStatus], () => {
-  if (graphData.value.nodes.length) {
+function loadDemoData() {
+  if (demoBuildTimer) clearInterval(demoBuildTimer)
+
+  graphStatus.value = 'building'
+  graphProgress.value = 0
+  graphData.value = { nodes: [], edges: [] }
+  nodeCount.value = 0
+  edgeCount.value = 0
+
+  let idx = 0
+  const BATCH = 3
+  const INTERVAL = 200
+
+  demoBuildTimer = setInterval(() => {
+    if (idx >= DEMO_NODES.length) {
+      clearInterval(demoBuildTimer)
+      demoBuildTimer = null
+      graphStatus.value = 'complete'
+      graphProgress.value = 100
+      return
+    }
+
+    const end = Math.min(idx + BATCH, DEMO_NODES.length)
+    graphData.value.nodes.push(...DEMO_NODES.slice(idx, end))
+
+    const nodeIds = new Set(graphData.value.nodes.map(n => n.uuid))
+    graphData.value.edges = DEMO_EDGES.filter(
+      e => nodeIds.has(e.source_node_uuid) && nodeIds.has(e.target_node_uuid),
+    )
+
+    idx = end
+    graphProgress.value = Math.round((idx / DEMO_NODES.length) * 100)
+    nodeCount.value = graphData.value.nodes.length
+    edgeCount.value = graphData.value.edges.length
+
+    const msgIdx = Math.min(
+      Math.floor((idx / DEMO_NODES.length) * BUILD_MESSAGES.length),
+      BUILD_MESSAGES.length - 1,
+    )
+    graphTask.value = { message: BUILD_MESSAGES[msgIdx] }
+  }, INTERVAL)
+}
+
+watch(graphData, () => {
+  if (graphStatus.value === 'complete' && graphData.value.nodes.length) {
     nextTick(() => renderGraph())
   }
 }, { deep: true })
 
-let themeObserver = null
+watch(graphStatus, (val) => {
+  if (val === 'complete' && graphData.value.nodes.length) {
+    nextTick(() => renderGraph())
+  }
+  if (val === 'failed') {
+    errorMsg.value = graphTask.value?.message || 'Build failed'
+  }
+})
+
+watch(() => props.demoMode, (val) => { if (val) loadDemoData() })
+watch(isDemoFallback, (val) => { if (val) loadDemoData() })
 
 onMounted(() => {
   if (graphData.value.nodes.length) {
@@ -242,10 +300,19 @@ onMounted(() => {
     }
   })
   themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
+
+  if (props.demoMode || isDemoFallback.value) {
+    loadDemoData()
+  }
+
+  if (graphStatus.value === 'complete' && graphData.value.nodes.length) {
+    nextTick(() => renderGraph())
+  }
 })
 
 onUnmounted(() => {
   if (zoomTimer) clearTimeout(zoomTimer)
+  if (demoBuildTimer) clearInterval(demoBuildTimer)
   if (graph) {
     graph.pauseAnimation()
     graph._destructor()
@@ -309,6 +376,7 @@ onUnmounted(() => {
           </svg>
         </div>
         <p class="text-[var(--color-text)] text-sm font-medium mb-2">Graph build failed</p>
+        <p class="text-[var(--color-text-muted)] text-xs mb-6">{{ errorMsg }}</p>
       </div>
     </div>
 
@@ -386,7 +454,7 @@ onUnmounted(() => {
               >
                 <div class="flex items-center gap-1.5 mb-1">
                   <span class="text-[10px]" :class="conn.direction === 'outgoing' ? 'text-[#2068FF]' : 'text-[#ff5600]'">
-                    {{ conn.direction === 'outgoing' ? '\u2192' : '\u2190' }}
+                    {{ conn.direction === 'outgoing' ? '→' : '←' }}
                   </span>
                   <span class="text-xs text-[var(--color-text-muted)]">{{ conn.name }}</span>
                   <span class="text-xs text-[var(--color-text)] font-medium">{{ conn.target }}</span>
@@ -399,12 +467,13 @@ onUnmounted(() => {
       </div>
     </Transition>
 
-    <!-- Node/edge count bottom-right -->
+    <!-- Controls hint + count bottom-right -->
     <Transition name="fade">
       <div
         v-if="graphStatus === 'complete'"
-        class="absolute bottom-6 right-6 z-10 flex items-center gap-3"
+        class="absolute bottom-6 right-6 z-10 flex flex-col items-end gap-1"
       >
+        <span class="text-[10px] text-[var(--color-text-muted)] opacity-60">Drag to rotate &middot; Scroll to zoom</span>
         <span class="text-xs text-[var(--color-text-muted)]">{{ nodeCount }} nodes, {{ edgeCount }} edges</span>
       </div>
     </Transition>

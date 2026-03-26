@@ -27,7 +27,7 @@ from ..services.permissions import inject_permissions, inject_permissions_list, 
 
 logger = get_logger('mirofish.gtm')
 
-gtm_bp = Blueprint('gtm', __name__, url_prefix='/api/gtm')
+gtm_bp = Blueprint('gtm', __name__, url_prefix='/api/v1/gtm')
 
 SCENARIOS_DIR = os.path.join(os.path.dirname(__file__), '../../gtm_scenarios')
 SEED_DATA_DIR = os.path.join(os.path.dirname(__file__), '../../gtm_seed_data')

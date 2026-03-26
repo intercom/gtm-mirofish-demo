@@ -8,7 +8,7 @@ from openai import OpenAI
 
 from ..services.permissions import compute_permissions
 
-settings_bp = Blueprint('settings', __name__, url_prefix='/api/settings')
+settings_bp = Blueprint('settings', __name__, url_prefix='/api/v1/settings')
 
 
 @settings_bp.route('/test-llm', methods=['POST'])

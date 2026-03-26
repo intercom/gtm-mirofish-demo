@@ -124,10 +124,10 @@ def create_app(config_class=Config):
 
     # Register blueprints
     from .api import graph_bp, simulation_bp, report_bp, memory_transfer_bp
-    app.register_blueprint(graph_bp, url_prefix='/api/graph')
-    app.register_blueprint(simulation_bp, url_prefix='/api/simulation')
-    app.register_blueprint(report_bp, url_prefix='/api/report')
-    app.register_blueprint(memory_transfer_bp, url_prefix='/api/memory')
+    app.register_blueprint(graph_bp, url_prefix='/api/v1/graph')
+    app.register_blueprint(simulation_bp, url_prefix='/api/v1/simulation')
+    app.register_blueprint(report_bp, url_prefix='/api/v1/report')
+    app.register_blueprint(memory_transfer_bp, url_prefix='/api/v1/memory')
 
     # GTM scenario extensions
     from .api.gtm_scenarios import gtm_bp

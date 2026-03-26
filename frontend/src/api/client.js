@@ -1,7 +1,7 @@
 import axios from 'axios'
 import { perfMonitor } from '../lib/perfMonitor'
 
-export const API_BASE = import.meta.env.VITE_API_URL || '/api'
+export const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
 
 function getCookie(name) {
   const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))

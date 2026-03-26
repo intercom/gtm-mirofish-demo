@@ -227,20 +227,20 @@ Set `LLM_PROVIDER` in `.env` to switch providers:
 ## API Endpoints
 
 ### MiroFish Core
-- `POST /api/graph/build` — Build knowledge graph from seed text
-- `GET /api/graph/project/<id>` — Get project details
-- `GET /api/graph/project/list` — List all projects
-- `POST /api/simulation/start` — Start OASIS simulation
-- `GET /api/simulation/<id>/run-status` — Check simulation progress
-- `POST /api/report/generate` — Generate predictive report
-- `POST /api/report/chat` — Chat with simulated world
+- `POST /api/v1/graph/build` — Build knowledge graph from seed text
+- `GET /api/v1/graph/project/<id>` — Get project details
+- `GET /api/v1/graph/project/list` — List all projects
+- `POST /api/v1/simulation/start` — Start OASIS simulation
+- `GET /api/v1/simulation/<id>/run-status` — Check simulation progress
+- `POST /api/v1/report/generate` — Generate predictive report
+- `POST /api/v1/report/chat` — Chat with simulated world
 
 ### GTM Extensions
-- `GET /api/gtm/scenarios` — List GTM scenario templates
-- `GET /api/gtm/scenarios/:id` — Get scenario with seed data
-- `GET /api/gtm/scenarios/:id/seed-text` — Get scenario seed text
-- `GET /api/gtm/seed-data/:type` — Get seed data by type
+- `GET /api/v1/gtm/scenarios` — List GTM scenario templates
+- `GET /api/v1/gtm/scenarios/:id` — Get scenario with seed data
+- `GET /api/v1/gtm/scenarios/:id/seed-text` — Get scenario seed text
+- `GET /api/v1/gtm/seed-data/:type` — Get seed data by type
 
 ### Utility
 - `GET /health` — Health check
-- `GET /api/settings/test-connection` — Test LLM/Zep connectivity
+- `GET /api/v1/settings/test-connection` — Test LLM/Zep connectivity

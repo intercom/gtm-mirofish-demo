@@ -35,6 +35,12 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/scenarios/:id/walkthrough',
+    name: 'scenario-walkthrough',
+    component: () => import('../views/ScenarioWalkthroughView.vue'),
+    props: true,
+  },
+  {
     path: '/workspace/:taskId/agent/:agentId',
     name: 'agent-profile',
     component: () => import('../views/AgentProfileView.vue'),

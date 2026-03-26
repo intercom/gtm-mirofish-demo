@@ -176,6 +176,128 @@ def export_scenario(scenario_id):
     )
 
 
+
+WALKTHROUGH_TIPS = {
+    'outbound': {
+        'seed': 'Outbound seed documents should include specific messaging angles, subject lines, and pain points. The richer the detail, the more nuanced agent reactions will be.',
+        'personas': 'For outbound campaigns, include a mix of decision-makers (VP/Director) and evaluators (IT/Technical) to capture both strategic and tactical objections.',
+        'config': 'Parallel platform mode lets you compare how the same message lands on Twitter vs Reddit — useful for multi-channel outbound strategy.',
+        'outcomes': 'Watch for which subject line variants trigger engagement vs spam perception across different persona types.',
+    },
+    'inbound': {
+        'seed': 'Inbound scenarios work best with real product copy or feature announcements that prospects would encounter organically.',
+        'personas': 'Include end users alongside decision-makers — inbound motions often start bottom-up with champions who discover the product.',
+        'config': 'Longer durations (72h+) reveal how inbound interest compounds or decays over time.',
+        'outcomes': 'Look for which personas become champions and how word-of-mouth spreads through the simulated population.',
+    },
+    'product': {
+        'seed': 'Include specific feature details and pricing context. Vague announcements produce vague reactions.',
+        'personas': 'Product launches benefit from a broad persona mix — existing customers, prospects, and competitive users all react differently.',
+        'config': 'Both platforms capture different conversation styles: Twitter for quick reactions, Reddit for deeper discussion threads.',
+        'outcomes': 'Pay attention to feature adoption signals and which segments show the strongest upgrade intent.',
+    },
+    'signal': {
+        'seed': 'Signal definitions should be specific and measurable. Include the behavioral triggers you expect to correlate with buying intent.',
+        'personas': 'Technical evaluators and data-driven personas will stress-test signal accuracy more rigorously.',
+        'config': 'More agents (300+) produce statistically significant signal validation across diverse firmographics.',
+        'outcomes': 'The simulation reveals which signals actually predict engagement vs which are noise.',
+    },
+    'pricing': {
+        'seed': 'Include current pricing, proposed changes, and the rationale. Agents react to perceived value, not just numbers.',
+        'personas': 'CFOs and budget holders are critical for pricing simulations — they evaluate total cost of ownership differently than end users.',
+        'config': 'Shorter durations capture immediate reactions; longer durations reveal churn risk and competitive switching behavior.',
+        'outcomes': 'Watch for price sensitivity thresholds by segment and which packaging changes reduce objections.',
+    },
+}
+
+DEFAULT_TIPS = {
+    'seed': 'A detailed seed document produces more realistic and nuanced agent reactions.',
+    'personas': 'Select persona types that match your real target audience for the most actionable insights.',
+    'config': 'Default settings work well for most scenarios. Adjust agent count and duration based on how much statistical confidence you need.',
+    'outcomes': 'The simulation generates multi-chapter reports with engagement predictions, objection analysis, and segment-specific insights.',
+}
+
+
+def _build_walkthrough(data):
+    """Build walkthrough steps from scenario data."""
+    category = data.get('category', 'general')
+    tips = WALKTHROUGH_TIPS.get(category, DEFAULT_TIPS)
+    agent_config = data.get('agent_config', {})
+    sim_config = data.get('simulation_config', {})
+    firmographics = agent_config.get('firmographic_mix', {})
+
+    total_hours = sim_config.get('total_hours', 72)
+    mins_per_round = sim_config.get('minutes_per_round', 30)
+    total_rounds = int(total_hours * 60 / mins_per_round) if mins_per_round else 144
+
+    return {
+        'scenario_id': data.get('id'),
+        'scenario_name': data.get('name'),
+        'total_steps': 5,
+        'steps': [
+            {
+                'step': 1,
+                'key': 'overview',
+                'title': 'What This Scenario Tests',
+                'description': data.get('description', ''),
+                'detail': f"This {category} scenario simulates how {agent_config.get('count', 200)} AI agents — each with a unique professional persona — react to your GTM content. The agents interact on simulated social platforms, producing realistic engagement data you can analyze before going live.",
+                'tip': f"Category: {category.replace('_', ' ').title()}. {tips.get('seed', DEFAULT_TIPS['seed'])}",
+            },
+            {
+                'step': 2,
+                'key': 'seed_document',
+                'title': 'The Seed Document',
+                'description': 'This is the campaign content that feeds the simulation. Agents read, interpret, and react to this document based on their persona.',
+                'seed_text': data.get('seed_text', ''),
+                'seed_preview': data.get('seed_text', '')[:300] + ('...' if len(data.get('seed_text', '')) > 300 else ''),
+                'word_count': len(data.get('seed_text', '').split()),
+                'tip': tips.get('seed', DEFAULT_TIPS['seed']),
+            },
+            {
+                'step': 3,
+                'key': 'agent_population',
+                'title': 'Agent Population',
+                'description': f"{agent_config.get('count', 200)} AI agents will be generated with unique professional profiles drawn from your configured persona types and firmographic mix.",
+                'personas': agent_config.get('persona_types', []),
+                'industries': firmographics.get('industries', []),
+                'company_sizes': firmographics.get('company_sizes', []),
+                'regions': firmographics.get('regions', []),
+                'agent_count': agent_config.get('count', 200),
+                'tip': tips.get('personas', DEFAULT_TIPS['personas']),
+            },
+            {
+                'step': 4,
+                'key': 'simulation_config',
+                'title': 'Simulation Settings',
+                'description': f"The simulation runs for {total_hours} simulated hours across {total_rounds} rounds, with agents posting on {'Twitter and Reddit simultaneously' if sim_config.get('platform_mode') == 'parallel' else sim_config.get('platform_mode', 'parallel').title()}.",
+                'duration_hours': total_hours,
+                'minutes_per_round': mins_per_round,
+                'total_rounds': total_rounds,
+                'platform_mode': sim_config.get('platform_mode', 'parallel'),
+                'tip': tips.get('config', DEFAULT_TIPS['config']),
+            },
+            {
+                'step': 5,
+                'key': 'expected_outcomes',
+                'title': 'What You\'ll Learn',
+                'description': 'After the simulation completes, MiroFish generates a multi-chapter predictive report with these insights:',
+                'outcomes': data.get('expected_outputs', []),
+                'tip': tips.get('outcomes', DEFAULT_TIPS['outcomes']),
+            },
+        ],
+    }
+
+
+@gtm_bp.route('/scenarios/<scenario_id>/walkthrough', methods=['GET'])
+def get_scenario_walkthrough(scenario_id):
+    """Get structured walkthrough steps for a guided scenario tour."""
+    filepath = os.path.join(SCENARIOS_DIR, f'{scenario_id}.json')
+    data = _load_json(filepath)
+    if not data:
+        return jsonify({'error': f'Scenario {scenario_id} not found'}), 404
+    return jsonify(_build_walkthrough(data))
+
+
 REQUIRED_SCENARIO_FIELDS = {'id', 'name', 'seed_text', 'agent_config', 'simulation_config'}
 SAFE_ID_RE = re.compile(r'^[a-z0-9][a-z0-9_-]{0,62}$')
 

@@ -4895,3 +4895,159 @@ def get_agent_beliefs_history(simulation_id, agent_id):
             "success": False,
             "error": str(e),
         }), 500
+
+# ============== Live Simulation Feed (SSE) ==============
+
+@simulation_bp.route('/<simulation_id>/feed', methods=['GET'])
+def simulation_feed(simulation_id: str):
+    """
+    Server-Sent Events stream of simulation actions for the live feed.
+
+    Streams new actions as they appear during simulation, sending each
+    action as a JSON-encoded SSE 'action' event. Also emits 'status'
+    events when runner state changes and periodic heartbeats.
+
+    Falls back to mock events when no real simulation is running (demo mode).
+
+    Query params:
+        from_index: start streaming from this action index (default 0)
+    """
+    import json
+    import time
+    import hashlib
+    from flask import Response
+
+    from_index = request.args.get('from_index', 0, type=int)
+
+    # Mock agent data for demo mode
+    MOCK_AGENTS = [
+        'Sarah Chen, VP Support @ Acme SaaS',
+        'James Wright, CX Director @ Retail Plus',
+        'Robert Williams, IT Director @ EduSpark',
+        'Michael Chang, Head of Ops @ FinEdge',
+        'Anika Sharma, Head of Support Engineering @ DevStack',
+        'Sofia Martinez, Support Manager @ QuickShip',
+        'Rachel Torres, VP Support @ CloudOps Inc',
+        'David Park, CX Lead @ HealthFirst',
+        'Emily Watson, IT Manager @ DataPulse',
+        'Carlos Rivera, Director of Operations @ NovaPay',
+    ]
+    MOCK_ACTIONS = ['CREATE_POST', 'REPLY', 'LIKE', 'REPOST', 'COMMENT', 'CREATE_THREAD']
+    MOCK_PLATFORMS = ['twitter', 'reddit']
+    MOCK_CONTENT = [
+        'The ROI claims are compelling but I need to see case studies from our vertical.',
+        'Has anyone actually migrated from Zendesk to Intercom? What was the timeline like?',
+        'AI-first resolution sounds great in theory. Concerned about edge cases.',
+        'Just saw the Fin AI demo — the intent understanding is genuinely impressive.',
+        '40% cost reduction is bold. We spend $15K/mo on Zendesk, so that would be significant.',
+        'Shared this with our CX team. The personalization capabilities are worth evaluating.',
+        'Interesting that they position against Zendesk directly. Shows confidence in the product.',
+        'We tested Freshdesk last quarter. If Intercom can beat that, I am interested.',
+        'The compliance angle is missing from their messaging. Critical for healthcare clients.',
+        'The AI agent concept is the future. Question is whether Fin is production-ready today.',
+        'Support automation has been on our roadmap for Q3. This timeline could work.',
+        'Our support costs went up 60% last year. Open to alternatives that can scale better.',
+    ]
+
+    def _seeded_choice(choices, seed_val):
+        idx = int(hashlib.md5(str(seed_val).encode()).hexdigest(), 16) % len(choices)
+        return choices[idx]
+
+    def generate():
+        last_count = from_index
+        last_status = None
+        heartbeat_interval = 15
+        last_heartbeat = time.time()
+        mock_round = 1
+        mock_idx = 0
+
+        yield f"event: connected\ndata: {json.dumps({'simulation_id': simulation_id})}\n\n"
+
+        while True:
+            try:
+                run_state = SimulationRunner.get_run_state(simulation_id)
+
+                if run_state and run_state.runner_status in ('running', 'starting', 'paused'):
+                    # Real simulation — stream actual actions
+                    current_status = run_state.runner_status
+                    if current_status != last_status:
+                        last_status = current_status
+                        yield f"event: status\ndata: {json.dumps({'status': current_status, 'current_round': getattr(run_state, 'current_round', 0), 'total_rounds': getattr(run_state, 'total_rounds', 0), 'progress_percent': getattr(run_state, 'progress_percent', 0)})}\n\n"
+
+                    all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+                    current_count = len(all_actions) if all_actions else 0
+
+                    if current_count > last_count:
+                        new_actions = all_actions[last_count:current_count]
+                        for action in new_actions:
+                            yield f"event: action\ndata: {json.dumps(action)}\n\n"
+                        last_count = current_count
+
+                    time.sleep(1)
+
+                elif run_state and run_state.runner_status in ('completed', 'stopped'):
+                    # Simulation finished — send remaining actions then done
+                    all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+                    current_count = len(all_actions) if all_actions else 0
+                    if current_count > last_count:
+                        for action in all_actions[last_count:]:
+                            yield f"event: action\ndata: {json.dumps(action)}\n\n"
+
+                    yield f"event: status\ndata: {json.dumps({'status': run_state.runner_status})}\n\n"
+                    yield f"event: done\ndata: {json.dumps({'reason': run_state.runner_status})}\n\n"
+                    break
+
+                elif run_state and run_state.runner_status == 'failed':
+                    yield f"event: status\ndata: {json.dumps({'status': 'failed', 'error': getattr(run_state, 'error', '')})}\n\n"
+                    yield f"event: done\ndata: {json.dumps({'reason': 'failed'})}\n\n"
+                    break
+
+                else:
+                    # No real simulation — demo/mock mode
+                    if mock_round <= 12:
+                        actions_in_round = 2 + (mock_idx % 3)
+                        for j in range(actions_in_round):
+                            seed = f"{simulation_id}_{mock_round}_{j}"
+                            agent_name = _seeded_choice(MOCK_AGENTS, seed + '_agent')
+                            agent_idx = MOCK_AGENTS.index(agent_name)
+                            action = {
+                                'round_num': mock_round,
+                                'platform': _seeded_choice(MOCK_PLATFORMS, seed + '_plat'),
+                                'agent_id': agent_idx,
+                                'agent_name': agent_name,
+                                'action_type': _seeded_choice(MOCK_ACTIONS, seed + '_act'),
+                                'action_args': {'content': _seeded_choice(MOCK_CONTENT, seed + '_content')},
+                            }
+                            yield f"event: action\ndata: {json.dumps(action)}\n\n"
+                            mock_idx += 1
+
+                        yield f"event: status\ndata: {json.dumps({'status': 'running', 'current_round': mock_round, 'total_rounds': 12, 'progress_percent': round(mock_round / 12 * 100, 1)})}\n\n"
+                        mock_round += 1
+                        time.sleep(1.5)
+                    else:
+                        yield f"event: status\ndata: {json.dumps({'status': 'completed'})}\n\n"
+                        yield f"event: done\ndata: {json.dumps({'reason': 'completed'})}\n\n"
+                        break
+
+                # Heartbeat
+                now = time.time()
+                if now - last_heartbeat > heartbeat_interval:
+                    yield f"event: heartbeat\ndata: {json.dumps({'time': int(now)})}\n\n"
+                    last_heartbeat = now
+
+            except GeneratorExit:
+                break
+            except Exception as e:
+                logger.error(f"Feed stream error: {e}")
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                break
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        }
+    )

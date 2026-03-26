@@ -19,6 +19,8 @@ import { useSimulationStream } from '../../composables/useSimulationStream'
 import { useTransparency } from '../../composables/useTransparency'
 import InfluenceFlow from './InfluenceFlow.vue'
 import SentimentArc from './SentimentArc.vue'
+import RelationshipNetwork from './RelationshipNetwork.vue'
+import { useRelationshipsStore } from '../../stores/relationships'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -27,6 +29,7 @@ const props = defineProps({
 const polling = inject('polling')
 const simShortcuts = inject('simShortcuts', null)
 const { showThinking, hasAgentFilter, toggleThinking, toggleAgent, isAgentTransparent, clearAgentFilter } = useTransparency()
+const relationshipsStore = useRelationshipsStore()
 
 const activePlatform = ref('all')
 const chartViewMode = ref('detail') // 'detail' | 'overview'
@@ -426,6 +429,22 @@ watch(() => polling.recentActions.value.length, () => {
   }
 })
 
+// Fetch relationship data when actions accumulate or simulation completes
+let relFetchTimer = null
+watch(() => polling.recentActions.value.length, (len) => {
+  if (len > 0 && len % 20 === 0) {
+    clearTimeout(relFetchTimer)
+    relFetchTimer = setTimeout(() => {
+      relationshipsStore.fetchRelationships(props.taskId)
+    }, 500)
+  }
+})
+watch(() => polling.simStatus.value, (val) => {
+  if (val === 'completed') {
+    relationshipsStore.fetchRelationships(props.taskId)
+  }
+})
+
 // Redraw chart when timeline updates
 watch(() => polling.timeline.value, () => {
   nextTick(() => drawChart())
@@ -449,6 +468,10 @@ onMounted(() => {
   if (status.value === 'running') {
     stream.connect()
   }
+  // Fetch relationships for existing/completed simulations
+  if (props.taskId) {
+    relationshipsStore.fetchRelationships(props.taskId)
+  }
 })
 
 onUnmounted(() => {
@@ -457,6 +480,7 @@ onUnmounted(() => {
     resizeObserver = null
   }
   if (chartRetryTimer) clearTimeout(chartRetryTimer)
+  if (relFetchTimer) clearTimeout(relFetchTimer)
   stopHeartbeat()
   stream.disconnect()
 })
@@ -682,6 +706,18 @@ onUnmounted(() => {
         <InfluenceFlow
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Agent Relationships -->
+        <RelationshipNetwork
+          v-if="relationshipsStore.hasData || filteredActions.length > 0"
+          :agents="relationshipsStore.agents"
+          :relationships="relationshipsStore.relationships"
+          :alliances="relationshipsStore.alliances"
+          :conflicts="relationshipsStore.conflicts"
+          :isDemo="relationshipsStore.isDemo"
+          :loading="relationshipsStore.loading"
           class="mb-8"
         />
 

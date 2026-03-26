@@ -142,6 +142,14 @@ export const simulationApi = {
   getSwingAgents: (simulationId) =>
     client.get(`/simulation/${simulationId}/coalitions/swing-agents`),
 
+  // --- Relationship tracker ---
+  getAgentRelationships: (simulationId, agentId) =>
+    client.get(`/simulation/${simulationId}/agents/${agentId}/relationships`),
+  getAlliances: (simulationId) =>
+    client.get(`/simulation/${simulationId}/alliances`),
+  getConflicts: (simulationId) =>
+    client.get(`/simulation/${simulationId}/conflicts`),
+
   // --- SSE stream ---
   getProgressStreamUrl: (simulationId, interval = 2) =>
     `${API_BASE}/simulation/${simulationId}/progress/stream?interval=${interval}`,

@@ -15,7 +15,8 @@ from flask_cors import CORS
 from flask_compress import Compress
 
 from .config import Config
-from .utils.logger import setup_logger
+from .utils.logger import setup_logger, get_logger
+from .middleware.error_handler import register_error_handlers
 
 
 def create_app(config_class=Config):
@@ -41,8 +42,10 @@ def create_app(config_class=Config):
         logger.info("MiroFish Backend 启动中...")
         logger.info("=" * 50)
     
-    # 启用CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # CORS — parse comma-separated origins from config, or allow all with "*"
+    raw_origins = app.config.get('CORS_ORIGINS', '*')
+    origins = [o.strip() for o in raw_origins.split(',')] if raw_origins != '*' else '*'
+    CORS(app, resources={r"/api/*": {"origins": origins}})
 
     # 启用GZIP压缩
     Compress(app)
@@ -259,6 +262,10 @@ def create_app(config_class=Config):
     # Report Builder API (templates + generated reports)
     from .api.report_builder import report_builder_bp
     app.register_blueprint(report_builder_bp)
+
+    # Error handling middleware
+    register_error_handlers(app)
+
 
     @app.route('/health')
     def health():

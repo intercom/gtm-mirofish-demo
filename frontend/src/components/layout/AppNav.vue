@@ -46,6 +46,7 @@ const navLinks = computed(() => {
   const links = [
     { to: '/', label: 'Home', exact: true, shortcut: 'G+D', tutorial: 'scenarios' },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },
+    { to: '/charts', label: 'Charts', exact: false },
   ]
   if (hasRole('viewer')) {
     links.push({ to: '/settings', label: 'Settings', exact: false, shortcut: 'G+T', tutorial: 'settings' })

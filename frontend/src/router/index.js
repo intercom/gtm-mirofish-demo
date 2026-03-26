@@ -116,6 +116,11 @@ export const routes = [
     component: () => import('../views/ComparisonView.vue'),
   },
   {
+    path: '/charts',
+    name: 'charts-gallery',
+    component: () => import('../views/ChartsGalleryView.vue'),
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

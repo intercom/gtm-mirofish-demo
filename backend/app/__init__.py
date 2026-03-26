@@ -43,6 +43,10 @@ def create_app(config_class=Config):
     # 启用CORS
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+    # Auth middleware (loads g.user from JWT when AUTH_ENABLED=true)
+    from auth.middleware import init_auth_middleware
+    init_auth_middleware(app)
+
     # Graceful degradation middleware (service health + error handlers)
     from .utils.degradation import register_degradation_middleware
     register_degradation_middleware(app)
@@ -50,6 +54,7 @@ def create_app(config_class=Config):
     # Security headers on all responses
     from .middleware import init_security_headers
     init_security_headers(app)
+
 
     # 注册模拟进程清理函数（确保服务器关闭时终止所有模拟进程）
     from .services.simulation_runner import SimulationRunner

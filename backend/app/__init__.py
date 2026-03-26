@@ -61,10 +61,11 @@ def create_app(config_class=Config):
     register_request_logging(app)
     
     # Register blueprints
-    from .api import graph_bp, simulation_bp, report_bp
+    from .api import graph_bp, simulation_bp, report_bp, memory_transfer_bp
     app.register_blueprint(graph_bp, url_prefix='/api/graph')
     app.register_blueprint(simulation_bp, url_prefix='/api/simulation')
     app.register_blueprint(report_bp, url_prefix='/api/report')
+    app.register_blueprint(memory_transfer_bp, url_prefix='/api/memory')
 
     # GTM scenario extensions
     from .api.gtm_scenarios import gtm_bp

@@ -6,6 +6,7 @@ import { useSimulationStore } from '../../stores/simulation'
 import { perfMonitor } from '../../lib/perfMonitor'
 import NotificationCenter from '../ui/NotificationCenter.vue'
 import UserMenu from '../common/UserMenu.vue'
+import ShortcutBadge from '../common/ShortcutBadge.vue'
 
 const { isDemoMode } = useDemoMode()
 const simulationStore = useSimulationStore()
@@ -22,9 +23,9 @@ onUnmounted(() => clearInterval(perfInterval))
 
 const navLinks = computed(() => {
   return [
-    { to: '/', label: 'Home', exact: true },
-    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
-    { to: '/settings', label: 'Settings', exact: false },
+    { to: '/', label: 'Home', exact: true, shortcut: 'G+D' },
+    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S' },
+    { to: '/settings', label: 'Settings', exact: false, shortcut: 'G+T' },
   ]
 })
 </script>
@@ -65,6 +66,12 @@ const navLinks = computed(() => {
                 v-if="link.showActiveDot && simulationStore.isActive"
                 class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
               ></span>
+              <ShortcutBadge
+                v-if="link.shortcut"
+                :shortcut="link.shortcut"
+                variant="light"
+                class="nav-shortcut"
+              />
             </span>
           </router-link>
         </div>
@@ -160,5 +167,12 @@ const navLinks = computed(() => {
 .nav-link--exact.router-link-exact-active {
   color: white;
   background-color: rgba(255, 255, 255, 0.12);
+}
+.nav-shortcut {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.nav-link:hover .nav-shortcut {
+  opacity: 1;
 }
 </style>

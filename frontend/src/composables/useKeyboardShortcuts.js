@@ -1,4 +1,4 @@
-import { ref, getCurrentInstance, onUnmounted } from 'vue'
+import { ref, computed, getCurrentInstance, onUnmounted } from 'vue'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform)
 const registry = new Map()
@@ -30,6 +30,27 @@ const shortcuts = [
     ],
   },
 ]
+
+const modSymbols = {
+  mod: isMac ? '⌘' : 'Ctrl',
+  ctrl: isMac ? '⌃' : 'Ctrl',
+  alt: isMac ? '⌥' : 'Alt',
+  shift: '⇧',
+  meta: isMac ? '⌘' : 'Win',
+}
+
+const keySymbols = {
+  enter: '↵',
+  escape: 'Esc',
+  backspace: '⌫',
+  delete: '⌦',
+  arrowup: '↑',
+  arrowdown: '↓',
+  arrowleft: '←',
+  arrowright: '→',
+  space: '␣',
+  tab: '⇥',
+}
 
 function isInputFocused() {
   const el = document.activeElement
@@ -142,6 +163,20 @@ function formatKey(shortcut) {
     .join(isMac ? '' : '+')
 }
 
+export function formatShortcut(shortcut) {
+  if (!shortcut) return []
+  return shortcut.split('+').map((key) => {
+    const lower = key.trim().toLowerCase()
+    if (modSymbols[lower]) return modSymbols[lower]
+    if (keySymbols[lower]) return keySymbols[lower]
+    return key.trim().toUpperCase()
+  })
+}
+
+export function formatShortcutText(shortcut) {
+  return formatShortcut(shortcut).join('')
+}
+
 function toggle() {
   showHelp.value = !showHelp.value
 }
@@ -153,6 +188,7 @@ function close() {
 export function useKeyboardShortcuts() {
   attachListener()
 
+  const platform = computed(() => (isMac ? 'mac' : 'other'))
   const localKeys = []
 
   function register(shortcut, handler, options = {}) {
@@ -184,5 +220,5 @@ export function useKeyboardShortcuts() {
     onUnmounted(unregisterAll)
   }
 
-  return { register, unregister, unregisterAll, getAll, formatKey, isMac, gModeActive, registry, showHelp, visible: showHelp, shortcuts, toggle, close }
+  return { register, unregister, unregisterAll, getAll, formatKey, formatShortcut, formatShortcutText, isMac, platform, gModeActive, registry, showHelp, visible: showHelp, shortcuts, toggle, close }
 }

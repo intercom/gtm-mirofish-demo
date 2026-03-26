@@ -91,6 +91,10 @@ def create_app(config_class=Config):
     # Decision explanation API
     from .api.decisions import decisions_bp
     app.register_blueprint(decisions_bp)
+
+    # OASIS Metrics API
+    from .api.metrics import metrics_bp
+    app.register_blueprint(metrics_bp)
     
     # 健康检查
     @app.route('/health')

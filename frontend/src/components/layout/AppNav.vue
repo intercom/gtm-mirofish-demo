@@ -1,11 +1,13 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { VueDraggable } from 'vue-draggable-plus'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { usePermissions } from '../../composables/usePermissions'
 import { useSimulationStore } from '../../stores/simulation'
 import { perfMonitor } from '../../lib/perfMonitor'
 import { useSettingsStore } from '../../stores/settings'
+import { useNavigationStore } from '../../stores/navigation'
 import NotificationCenter from '../ui/NotificationCenter.vue'
 import UserMenu from '../common/UserMenu.vue'
 import ShortcutBadge from '../common/ShortcutBadge.vue'
@@ -19,6 +21,8 @@ const { hasRole } = usePermissions()
 const simulationStore = useSimulationStore()
 const settingsStore = useSettingsStore()
 const tutorial = useTutorialStore()
+const navigationStore = useNavigationStore()
+const route = useRoute()
 const mobileMenuOpen = ref(false)
 const avgApiMs = ref(0)
 const helpMenuOpen = ref(false)
@@ -42,23 +46,8 @@ onUnmounted(() => {
   document.removeEventListener('click', onClickOutsideHelp)
 })
 
-const navLinks = computed(() => {
-  const links = [
-    { to: '/', label: 'Home', exact: true, shortcut: 'G+D', tutorial: 'scenarios' },
-    { to: '/dashboard', label: 'Dashboard', exact: false },
-    { to: '/scenarios', label: 'Scenarios', exact: true },
-    { to: '/knowledge-graph', label: 'Knowledge Graph', exact: false },
-    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },
-    { to: '/agents', label: 'Agents', exact: false },
-    { to: '/visualizations', label: 'Visualizations', exact: false },
-    { to: '/analytics', label: 'Analytics', exact: false },
-    { to: '/charts', label: 'Charts', exact: false },
-    { to: '/api-docs', label: 'API Docs', exact: false },
-  ]
-  if (hasRole('viewer')) {
-    links.push({ to: '/settings', label: 'Settings', exact: false, shortcut: 'G+T', tutorial: 'settings' })
-  }
-  return links
+watch(() => route.path, () => {
+  mobileMenuOpen.value = false
 })
 </script>
 
@@ -83,16 +72,30 @@ const navLinks = computed(() => {
           >DEMO</span>
         </router-link>
 
-        <div class="hidden md:flex items-center gap-1">
+        <VueDraggable
+          v-model="navigationStore.navLinks"
+          :animation="200"
+          ghost-class="nav-link--ghost"
+          drag-class="nav-link--drag"
+          handle=".nav-drag-handle"
+          class="hidden md:flex items-center gap-1"
+        >
           <router-link
-            v-for="link in navLinks"
-            :key="link.to"
+            v-for="link in navigationStore.navLinks"
+            :key="link.id"
             :to="link.to"
             :exact="link.exact"
             :data-tutorial="link.tutorial"
-            class="nav-link"
+            class="nav-link group"
             :class="{ 'nav-link--exact': link.exact }"
           >
+            <span class="nav-drag-handle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <circle cx="4" cy="3" r="1" /><circle cx="8" cy="3" r="1" />
+                <circle cx="4" cy="6" r="1" /><circle cx="8" cy="6" r="1" />
+                <circle cx="4" cy="9" r="1" /><circle cx="8" cy="9" r="1" />
+              </svg>
+            </span>
             <span class="flex items-center gap-1.5">
               {{ link.label }}
               <span
@@ -107,7 +110,7 @@ const navLinks = computed(() => {
               />
             </span>
           </router-link>
-        </div>
+        </VueDraggable>
       </div>
 
       <div class="flex items-center gap-3">
@@ -207,8 +210,8 @@ const navLinks = computed(() => {
       <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
         <div class="px-4 py-3 space-y-1">
           <router-link
-            v-for="link in navLinks"
-            :key="link.to"
+            v-for="link in navigationStore.navLinks"
+            :key="link.id"
             :to="link.to"
             class="flex items-center gap-1.5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
           >
@@ -231,12 +234,16 @@ const navLinks = computed(() => {
 
 <style scoped>
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast), background-color var(--transition-fast);
+  cursor: default;
 }
 .nav-link:hover {
   color: white;
@@ -260,5 +267,31 @@ const navLinks = computed(() => {
 }
 .nav-link:hover .nav-shortcut {
   opacity: 1;
+}
+
+.nav-drag-handle {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.15);
+  transition: color var(--transition-fast);
+  padding: 0.125rem;
+}
+.nav-link:hover .nav-drag-handle {
+  color: rgba(255, 255, 255, 0.5);
+}
+.nav-drag-handle:active {
+  cursor: grabbing;
+}
+
+.nav-link--ghost {
+  opacity: 0.4;
+  background-color: rgba(32, 104, 255, 0.15);
+  border-radius: var(--radius-sm);
+}
+.nav-link--drag {
+  opacity: 0.9;
+  background-color: rgba(32, 104, 255, 0.25);
+  border-radius: var(--radius-sm);
 }
 </style>

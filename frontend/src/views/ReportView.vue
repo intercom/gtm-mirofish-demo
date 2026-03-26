@@ -582,7 +582,7 @@ onUnmounted(() => {
           v-for="(chapter, i) in chapters"
           :key="'tab-' + i"
           @click="activeChapter = i"
-          class="px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors"
+          class="px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-colors"
           :class="activeChapter === i ? 'bg-[#2068FF] text-white' : 'bg-[var(--color-tint)] text-[var(--color-text-secondary)] hover:bg-[var(--color-border)]'"
         >
           {{ chapter.title }}

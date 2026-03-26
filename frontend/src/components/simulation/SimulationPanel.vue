@@ -582,7 +582,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Platform Tabs -->
-        <div class="flex gap-1 mb-6 bg-[var(--color-tint)] rounded-lg p-1 w-fit">
+        <div class="flex gap-1 mb-6 bg-[var(--color-tint)] rounded-lg p-1 w-fit max-w-full overflow-x-auto">
           <button
             v-for="tab in platformTabs"
             :key="tab.key"

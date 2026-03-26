@@ -151,7 +151,7 @@ function formatToolName(name) {
 
 <template>
   <!-- Fin.ai Landing (when Intercom is configured) -->
-  <div v-if="isIntercomEnabled" class="flex flex-col h-[calc(100vh-120px)] items-center justify-center px-4">
+  <div v-if="isIntercomEnabled" class="flex flex-col h-[calc(100dvh-120px)] items-center justify-center px-4">
     <AppBreadcrumb :crumbs="crumbs" class="self-start w-full mb-4" />
     <div class="max-w-lg w-full text-center">
       <div class="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-[#2068FF] to-[#1a5ae0] flex items-center justify-center shadow-lg">
@@ -188,11 +188,11 @@ function formatToolName(name) {
   </div>
 
   <!-- Mock Chat Fallback (no Intercom App ID) -->
-  <div v-else class="flex flex-col h-[calc(100vh-120px)]">
+  <div v-else class="flex flex-col h-[calc(100dvh-120px)]">
     <AppBreadcrumb :crumbs="crumbs" />
     <!-- Context Bar -->
     <div
-      class="flex items-center justify-between px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]"
+      class="flex items-center justify-between px-4 md:px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]"
     >
       <div class="flex items-center gap-3">
         <h1 class="text-base font-semibold text-[var(--color-text)]">Chat with Simulation</h1>
@@ -202,8 +202,8 @@ function formatToolName(name) {
           </span>
         </StatusIndicator>
       </div>
-      <div class="flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
-        <span v-if="simulationId">ID: {{ simulationId }}</span>
+      <div class="hidden sm:flex items-center gap-2 text-xs text-[var(--color-text-muted)]">
+        <span v-if="simulationId" class="truncate max-w-[160px]">ID: {{ simulationId }}</span>
         <span v-if="messages.length">&middot; {{ messages.filter((m) => m.role === 'user').length }} messages</span>
       </div>
     </div>

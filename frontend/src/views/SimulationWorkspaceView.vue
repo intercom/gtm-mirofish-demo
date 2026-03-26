@@ -162,7 +162,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-[calc(100vh-56px)]">
+  <div class="flex flex-col h-[calc(100dvh-56px)]">
     <!-- Breadcrumbs + Mini-map -->
     <div class="flex items-center justify-between px-4 md:px-6 pt-3">
       <AppBreadcrumb :crumbs="crumbs" />

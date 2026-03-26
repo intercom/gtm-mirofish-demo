@@ -1,6 +1,11 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { select, forceSimulation, forceCenter, forceManyBody, forceCollide, forceLink, zoom, drag, easeBackOut, zoomIdentity } from 'd3'
+import { select } from 'd3-selection'
+import { forceSimulation, forceCenter, forceManyBody, forceCollide, forceLink } from 'd3-force'
+import { zoom as d3zoom, zoomIdentity } from 'd3-zoom'
+import { drag as d3drag } from 'd3-drag'
+import { easeBackOut } from 'd3-ease'
+import 'd3-transition'
 import GraphSearch from './GraphSearch.vue'
 import Graph3DPanel from './Graph3DPanel.vue'
 import { useMobileChart } from '../../composables/useMobileChart'
@@ -233,7 +238,7 @@ function renderGraph() {
       .attr('width', width)
       .attr('height', height)
 
-    zoomBehavior = zoom()
+    zoomBehavior = d3zoom()
       .scaleExtent([0.2, 5])
       .on('zoom', (event) => {
         zoomGroup.attr('transform', event.transform)
@@ -301,7 +306,7 @@ function renderGraph() {
       .join('g')
       .style('cursor', 'grab')
       .style('opacity', 0)
-      .call(drag()
+      .call(d3drag()
         .on('start', dragstarted)
         .on('drag', dragged)
         .on('end', dragended)

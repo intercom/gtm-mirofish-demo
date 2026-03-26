@@ -1,6 +1,10 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { select, scaleLinear, area as d3Area, line as d3Line, curveMonotoneX, stack as d3Stack, stackOrderNone, easeCubicOut } from 'd3'
+import { select } from 'd3-selection'
+import { scaleLinear } from 'd3-scale'
+import { area as d3Area, line as d3Line, curveMonotoneX, stack as d3Stack, stackOrderNone } from 'd3-shape'
+import { easeCubicOut } from 'd3-ease'
+import 'd3-transition'
 import { useChartEntrance } from '../../composables/useChartEntrance'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 import { useMobileChart } from '../../composables/useMobileChart'

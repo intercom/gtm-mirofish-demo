@@ -1,6 +1,12 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { select, scaleLinear, scaleBand, easeCubicOut, pie as d3Pie, arc as d3Arc, interpolate, hierarchy, treemap, scaleOrdinal } from 'd3'
+import { select } from 'd3-selection'
+import { scaleLinear, scaleBand, scaleOrdinal } from 'd3-scale'
+import { easeCubicOut } from 'd3-ease'
+import { pie as d3Pie, arc as d3Arc } from 'd3-shape'
+import { interpolate as d3Interpolate } from 'd3-interpolate'
+import { hierarchy, treemap } from 'd3-hierarchy'
+import 'd3-transition'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 import { useMobileChart } from '../../composables/useMobileChart'
 import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
@@ -564,7 +570,7 @@ function renderBehavioralClusters() {
     .delay((d, i) => 200 + i * 80)
     .ease(easeCubicOut)
     .attrTween('d', function (d) {
-      const interp = interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d)
+      const interp = d3Interpolate({ startAngle: d.startAngle, endAngle: d.startAngle }, d)
       return t => arc(interp(t))
     })
 

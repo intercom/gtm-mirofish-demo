@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { forceSimulation, forceX, forceY, forceManyBody, forceCollide } from 'd3'
+import { forceSimulation, forceX, forceY, forceManyBody, forceCollide } from 'd3-force'
 import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
 
 const { measure, trackFrame } = useD3PerfMonitor()

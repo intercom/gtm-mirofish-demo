@@ -1,10 +1,11 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
 import { useI18n } from 'vue-i18n'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { usePermissions } from '../../composables/usePermissions'
+import { useLanguage } from '../../composables/useLanguage'
 import { useSimulationStore } from '../../stores/simulation'
 import { perfMonitor } from '../../lib/perfMonitor'
 import { useSettingsStore } from '../../stores/settings'
@@ -22,6 +23,7 @@ import { useTutorialStore } from '../../stores/tutorial'
 const { t } = useI18n()
 const { isDemoMode } = useDemoMode()
 const { hasRole } = usePermissions()
+const { locale, languages, setLanguage } = useLanguage()
 const simulationStore = useSimulationStore()
 const settingsStore = useSettingsStore()
 const tutorial = useTutorialStore()
@@ -32,10 +34,24 @@ const mobileMenuOpen = ref(false)
 const avgApiMs = ref(0)
 const helpMenuOpen = ref(false)
 const helpMenuRef = ref(null)
+const langMenuOpen = ref(false)
+
+const currentLang = computed(() => languages.find((l) => l.code === locale.value) || languages[0])
 
 function onClickOutsideHelp(e) {
   if (helpMenuRef.value && !helpMenuRef.value.contains(e.target)) {
     helpMenuOpen.value = false
+  }
+}
+
+function selectLanguage(code) {
+  setLanguage(code)
+  langMenuOpen.value = false
+}
+
+function onClickOutside(e) {
+  if (langMenuOpen.value && !e.target.closest('[aria-label="Switch language"]')?.parentElement) {
+    langMenuOpen.value = false
   }
 }
 
@@ -45,14 +61,17 @@ onMounted(() => {
     avgApiMs.value = Math.round(perfMonitor.avg('apiResponse'))
   }, 3000)
   document.addEventListener('click', onClickOutsideHelp)
+  document.addEventListener('click', onClickOutside)
 })
 onUnmounted(() => {
   clearInterval(perfInterval)
   document.removeEventListener('click', onClickOutsideHelp)
+  document.removeEventListener('click', onClickOutside)
 })
 
 watch(() => route.path, () => {
   mobileMenuOpen.value = false
+  langMenuOpen.value = false
 })
 </script>
 
@@ -125,6 +144,49 @@ watch(() => route.path, () => {
       <div class="flex items-center gap-3">
         <RoleBadge v-if="auth.isAuthenticated" :role="auth.userRole" size="xs" class="hidden sm:inline-flex !bg-white/10 !text-white/70" />
         <ThemeSwitcher compact class="hidden sm:inline-flex" />
+
+        <!-- Language Switcher -->
+        <div class="relative">
+          <button
+            @click="langMenuOpen = !langMenuOpen"
+            class="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-sm px-2 py-1 rounded-md hover:bg-white/8 cursor-pointer"
+            :aria-expanded="langMenuOpen"
+            aria-label="Switch language"
+          >
+            <span>{{ currentLang.flag }}</span>
+            <span class="hidden sm:inline text-xs">{{ currentLang.code.toUpperCase() }}</span>
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition duration-100 ease-in"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95"
+          >
+            <div
+              v-if="langMenuOpen"
+              class="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-lg py-1 z-50 min-w-[140px]"
+            >
+              <button
+                v-for="lang in languages"
+                :key="lang.code"
+                @click="selectLanguage(lang.code)"
+                class="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors cursor-pointer"
+                :class="locale === lang.code
+                  ? 'text-white bg-[rgba(32,104,255,0.15)]'
+                  : 'text-white/60 hover:text-white hover:bg-white/5'"
+              >
+                <span>{{ lang.flag }}</span>
+                <span>{{ lang.label }}</span>
+              </button>
+            </div>
+          </Transition>
+        </div>
+
         <ServiceStatus mode="compact" class="hidden sm:flex" />
         <PresenceIndicator v-if="settingsStore.showPresence" />
         <NotificationCenter />

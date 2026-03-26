@@ -1,0 +1,107 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "simulations": "Simulacoes",
+    "settings": "Configuracoes",
+    "connected": "Conectado",
+    "local": "Local"
+  },
+  "landing": {
+    "tagline": "Intercom GTM Systems",
+    "title": "Inteligencia de Enxame MiroFish",
+    "subtitle": "Preveja resultados de campanhas antes que acontecam. Simule como prospects reagem aos seus emails, sinais e mudancas de precos.",
+    "demoNote": "Demo interativa com inteligencia de enxame simulada",
+    "failedToLoad": "Falha ao carregar cenarios",
+    "tryAgain": "Tentar Novamente",
+    "noScenarios": "Nenhum cenario disponivel",
+    "noScenariosHint": "Volte em breve — cenarios estao sendo configurados.",
+    "customSimulation": "Simulacao Personalizada",
+    "customSimulationDesc": "Traga seu proprio documento semente e configure uma simulacao do zero.",
+    "builtFor": "Feito para times GTM que entregam",
+    "howItWorks": "Como Funciona",
+    "steps": {
+      "seed": "1. Configure Seu Cenario",
+      "seedDesc": "Envie textos de campanha, definicoes de sinais ou cenarios de precos como informacao semente.",
+      "simulate": "2. Simule o Enxame",
+      "simulateDesc": "Centenas de agentes IA com personas unicas interagem, debatem e reagem em plataformas sociais simuladas.",
+      "report": "3. Obtenha Relatorios Preditivos",
+      "reportDesc": "Analise multi-capitulo revela padroes de engajamento, objecoes e insights por segmento."
+    },
+    "stats": {
+      "maxAgents": "Agentes Max",
+      "actionTypes": "Tipos de Acao",
+      "analysisTools": "Ferramentas de Analise",
+      "platforms": "Plataformas"
+    },
+    "meetTheSwarm": "Conheca o Enxame",
+    "meetTheSwarmDesc": "Cada agente e um perfil de comprador unico com dados demograficos, motivacoes e padroes de objecao realistas extraidos do seu ICP.",
+    "plusThousands": "+ milhares gerados a partir da sua distribuicao ICP",
+    "whatYouCanSimulate": "O Que Voce Pode Simular",
+    "capabilities": {
+      "outbound": "Teste de Email Outbound",
+      "outboundDesc": "Teste linhas de assunto, angulos de mensagem e sequencias contra centenas de personas IA antes de enviar um unico email real.",
+      "signal": "Validacao de Sinais",
+      "signalDesc": "Verifique se seus sinais de vendas realmente preveem comportamento de compra. Identifique falsos positivos antes de encaminhar aos reps.",
+      "pricing": "Impacto em Precos",
+      "pricingDesc": "Preveja risco de churn, mudanca para concorrentes e sentimento antes de implementar mudancas de precos com clientes reais.",
+      "personalization": "Ranking de Personalizacao",
+      "personalizationDesc": "Classifique variantes de mensagem por engajamento simulado, nao por auto-avaliacao do LLM. Encontre o melhor tom, comprimento e CTA para cada segmento."
+    },
+    "useCases": "Casos de Uso por Equipe",
+    "pipeline": "Pipeline Ponta a Ponta",
+    "faq": "Perguntas Frequentes",
+    "cta": {
+      "title": "Pronto para simular seu proximo movimento GTM?",
+      "subtitle": "Escolha um cenario acima ou crie uma simulacao personalizada.",
+      "button": "Comecar"
+    }
+  },
+  "settings": {
+    "title": "Configuracoes",
+    "saved": "Salvo",
+    "demoMode": "Modo Demo",
+    "demoModeDesc": "Usando dados simulados. Chaves API nao sao necessarias.",
+    "theme": "Tema",
+    "themeSystem": "Sistema",
+    "themeLight": "Claro",
+    "themeDark": "Escuro",
+    "language": "Idioma",
+    "llmProvider": "Provedor LLM",
+    "apiKey": "Chave API",
+    "apiKeyPlaceholder": "Insira sua chave API",
+    "apiKeyDemoPlaceholder": "Nao necessario no modo demo",
+    "simulated": "Simulado",
+    "testConnection": "Testar Conexao",
+    "testing": "Testando…",
+    "connected": "Conectado",
+    "failed": "Falhou",
+    "zepCloud": "Zep Cloud (Grafo de Conhecimento)",
+    "zepPlaceholder": "Insira a chave API do Zep",
+    "zepDemoPlaceholder": "Nao necessario no modo demo",
+    "zepSignup": "Cadastre-se em",
+    "zepFree": "— o nivel gratuito e suficiente para PoC.",
+    "simulationDefaults": "Padroes de Simulacao",
+    "agentCount": "Quantidade de Agentes",
+    "duration": "Duracao",
+    "platform": "Plataforma",
+    "defaultsHint": "Estes padroes pre-preenchem o Construtor de Cenarios. Voce pode alterá-los por simulacao.",
+    "demoInfo": "Em modo demo com dados de simulacao pre-gerados. Mude para modo producao configurando",
+    "demoInfoEnd": "e configurando chaves API.",
+    "storageInfo": "Configuracoes sao armazenadas localmente no navegador. Para implantacoes Docker, configure via",
+    "storageInfoEnd": "arquivo."
+  },
+  "footer": {
+    "poweredBy": "Powered by",
+    "swarmEngine": "Motor de Inteligencia de Enxame",
+    "intercomGtm": "Intercom GTM Systems"
+  },
+  "common": {
+    "loading": "Carregando…",
+    "error": "Erro",
+    "retry": "Tentar novamente",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "hours": "horas",
+    "recommended": "recomendado"
+  }
+}

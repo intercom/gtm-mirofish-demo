@@ -1,0 +1,107 @@
+{
+  "nav": {
+    "home": "ホーム",
+    "simulations": "シミュレーション",
+    "settings": "設定",
+    "connected": "接続済み",
+    "local": "ローカル"
+  },
+  "landing": {
+    "tagline": "Intercom GTM Systems",
+    "title": "MiroFish スウォームインテリジェンス",
+    "subtitle": "キャンペーン結果を事前に予測。見込み客がアウトバウンド、シグナル、価格変更にどう反応するかシミュレートします。",
+    "demoNote": "シミュレートされたスウォームインテリジェンスのインタラクティブデモ",
+    "failedToLoad": "シナリオの読み込みに失敗しました",
+    "tryAgain": "再試行",
+    "noScenarios": "利用可能なシナリオがありません",
+    "noScenariosHint": "まもなく — シナリオは構成中です。",
+    "customSimulation": "カスタムシミュレーション",
+    "customSimulationDesc": "独自のシードドキュメントを持ち込み、ゼロからシミュレーションを構成します。",
+    "builtFor": "実行するGTMチームのために構築",
+    "howItWorks": "仕組み",
+    "steps": {
+      "seed": "1. シナリオを設定",
+      "seedDesc": "キャンペーンコピー、シグナル定義、または価格シナリオをシード情報としてアップロードします。",
+      "simulate": "2. スウォームをシミュレート",
+      "simulateDesc": "独自のペルソナを持つ数百のAIエージェントが、シミュレートされたソーシャルプラットフォーム上で対話、議論、反応します。",
+      "report": "3. 予測レポートを取得",
+      "reportDesc": "マルチチャプター分析がエンゲージメントパターン、異議、セグメント別のインサイトを明らかにします。"
+    },
+    "stats": {
+      "maxAgents": "最大エージェント数",
+      "actionTypes": "アクションタイプ",
+      "analysisTools": "分析ツール",
+      "platforms": "プラットフォーム"
+    },
+    "meetTheSwarm": "スウォームを紹介",
+    "meetTheSwarmDesc": "各エージェントは、ICPから抽出されたリアルな人口統計、動機、異議パターンを持つユニークなバイヤーペルソナです。",
+    "plusThousands": "+ ICPの分布からさらに数千体を生成",
+    "whatYouCanSimulate": "シミュレーション可能な項目",
+    "capabilities": {
+      "outbound": "アウトバウンドメールテスト",
+      "outboundDesc": "実際のメールを1通送る前に、件名、メッセージの角度、ケイデンスシーケンスを数百のAIペルソナに対してテストします。",
+      "signal": "シグナル検証",
+      "signalDesc": "セールスシグナルが実際に購買行動を予測するかテストします。担当者に渡す前に偽陽性を特定します。",
+      "pricing": "価格影響",
+      "pricingDesc": "実際の顧客に価格変更を展開する前に、解約リスク、競合への切り替え、センチメントを予測します。",
+      "personalization": "パーソナライゼーションランキング",
+      "personalizationDesc": "LLMの自己評価ではなく、シミュレートされたエンゲージメントでメッセージバリアントをランク付け。各セグメントに最適なトーン、長さ、CTAを見つけます。"
+    },
+    "useCases": "チーム別ユースケース",
+    "pipeline": "エンドツーエンドパイプライン",
+    "faq": "よくある質問",
+    "cta": {
+      "title": "次のGTMモーションをシミュレートする準備はできましたか？",
+      "subtitle": "上からシナリオを選択するか、カスタムシミュレーションを作成してください。",
+      "button": "始める"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "saved": "保存済み",
+    "demoMode": "デモモード",
+    "demoModeDesc": "シミュレートデータを使用中。APIキーは不要です。",
+    "theme": "テーマ",
+    "themeSystem": "システム",
+    "themeLight": "ライト",
+    "themeDark": "ダーク",
+    "language": "言語",
+    "llmProvider": "LLMプロバイダー",
+    "apiKey": "APIキー",
+    "apiKeyPlaceholder": "APIキーを入力",
+    "apiKeyDemoPlaceholder": "デモモードでは不要",
+    "simulated": "シミュレート済み",
+    "testConnection": "接続テスト",
+    "testing": "テスト中…",
+    "connected": "接続済み",
+    "failed": "失敗",
+    "zepCloud": "Zep Cloud（ナレッジグラフ）",
+    "zepPlaceholder": "Zep APIキーを入力",
+    "zepDemoPlaceholder": "デモモードでは不要",
+    "zepSignup": "登録先：",
+    "zepFree": "— 無料プランでPoC十分です。",
+    "simulationDefaults": "シミュレーションのデフォルト",
+    "agentCount": "エージェント数",
+    "duration": "期間",
+    "platform": "プラットフォーム",
+    "defaultsHint": "これらのデフォルト値はシナリオビルダーに事前入力されます。シミュレーションごとに変更できます。",
+    "demoInfo": "事前生成されたシミュレーションデータのデモモードで実行中。本番モードに切り替えるには",
+    "demoInfoEnd": "を設定し、APIキーを構成してください。",
+    "storageInfo": "設定はブラウザにローカル保存されます。Dockerデプロイメントの場合は",
+    "storageInfoEnd": "ファイルで構成してください。"
+  },
+  "footer": {
+    "poweredBy": "Powered by",
+    "swarmEngine": "スウォームインテリジェンスエンジン",
+    "intercomGtm": "Intercom GTM Systems"
+  },
+  "common": {
+    "loading": "読み込み中…",
+    "error": "エラー",
+    "retry": "再試行",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "hours": "時間",
+    "recommended": "推奨"
+  }
+}

@@ -15,13 +15,68 @@
     "error": "Error",
     "success": "Success",
     "simulated": "Simulated",
-    "model": "Model: {model}"
+    "model": "Model: {model}",
+    "retry": "Retry",
+    "hours": "hours",
+    "recommended": "recommended"
   },
   "nav": {
     "home": "Home",
     "simulations": "Simulations",
     "settings": "Settings",
-    "toggleMenu": "Toggle navigation menu"
+    "toggleMenu": "Toggle navigation menu",
+    "connected": "Connected",
+    "local": "Local"
+  },
+  "landing": {
+    "tagline": "Intercom GTM Systems",
+    "title": "MiroFish Swarm Intelligence",
+    "subtitle": "Predict campaign outcomes before they happen. Simulate how prospects react to your outbound, signals, and pricing changes.",
+    "demoNote": "Interactive demo with simulated swarm intelligence",
+    "failedToLoad": "Failed to load scenarios",
+    "tryAgain": "Try Again",
+    "noScenarios": "No scenarios available",
+    "noScenariosHint": "Check back soon — scenarios are being configured.",
+    "customSimulation": "Custom Simulation",
+    "customSimulationDesc": "Bring your own seed document and configure a simulation from scratch.",
+    "builtFor": "Built for GTM teams who ship",
+    "howItWorks": "How It Works",
+    "steps": {
+      "seed": "1. Seed Your Scenario",
+      "seedDesc": "Upload campaign copy, signal definitions, or pricing scenarios as seed information.",
+      "simulate": "2. Simulate the Swarm",
+      "simulateDesc": "Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.",
+      "report": "3. Get Predictive Reports",
+      "reportDesc": "Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights."
+    },
+    "stats": {
+      "maxAgents": "Max Agents",
+      "actionTypes": "Action Types",
+      "analysisTools": "Analysis Tools",
+      "platforms": "Platforms"
+    },
+    "meetTheSwarm": "Meet the Swarm",
+    "meetTheSwarmDesc": "Every agent is a unique buyer persona with realistic demographics, motivations, and objection patterns drawn from your ICP.",
+    "plusThousands": "+ thousands more generated from your ICP distribution",
+    "whatYouCanSimulate": "What You Can Simulate",
+    "capabilities": {
+      "outbound": "Outbound Email Testing",
+      "outboundDesc": "Test subject lines, messaging angles, and cadence sequences against hundreds of AI personas before sending a single real email.",
+      "signal": "Signal Validation",
+      "signalDesc": "Test whether your sales signals actually predict buying behavior. Identify false positives before routing them to reps.",
+      "pricing": "Pricing Impact",
+      "pricingDesc": "Predict churn risk, competitive switching, and sentiment before rolling out pricing changes to real customers.",
+      "personalization": "Personalization Ranking",
+      "personalizationDesc": "Rank message variants by simulated engagement, not LLM self-assessment. Find the best tone, length, and CTA for each segment."
+    },
+    "useCases": "Use Cases by Team",
+    "pipeline": "End-to-End Pipeline",
+    "faq": "Frequently Asked Questions",
+    "cta": {
+      "title": "Ready to simulate your next GTM motion?",
+      "subtitle": "Choose a scenario above or create a custom simulation.",
+      "button": "Get Started"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -29,6 +84,7 @@
     "themeSystem": "System",
     "themeLight": "Light",
     "themeDark": "Dark",
+    "language": "Language",
     "llmProvider": "LLM Provider",
     "apiKey": "API Key",
     "apiKeyPlaceholder": "Enter your API key",
@@ -61,7 +117,11 @@
     "demoProdHint": "Running in demo mode with pre-generated simulation data. Switch to production mode by setting {code} and configuring API keys.",
     "localStorageHint": "Settings are stored locally in your browser. For Docker deployments, configure via {code} file instead.",
     "loadError": "Failed to load saved settings",
-    "saveError": "Failed to save settings",
-    "language": "Language"
+    "saveError": "Failed to save settings"
+  },
+  "footer": {
+    "poweredBy": "Powered by",
+    "swarmEngine": "Swarm Intelligence Engine",
+    "intercomGtm": "Intercom GTM Systems"
   }
 }

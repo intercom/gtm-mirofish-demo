@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useLanguage } from '../composables/useLanguage'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useSettingsStore } from '../stores/settings'
@@ -12,8 +13,8 @@ import ThemeSwitcher from '../components/common/ThemeSwitcher.vue'
 
 const settingsStore = useSettingsStore()
 
-
 const { t } = useI18n()
+const { locale, languages, setLanguage } = useLanguage()
 const toast = useToast()
 const { isDemoMode } = useDemoMode()
 const { isReadOnly, can } = usePermissions()
@@ -192,6 +193,25 @@ onMounted(() => {
     <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Custom Themes</h2>
       <ThemeEditor />
+    </section>
+
+    <!-- Language -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.language') }}</h2>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="lang in languages"
+          :key="lang.code"
+          @click="setLanguage(lang.code)"
+          class="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors cursor-pointer"
+          :class="locale === lang.code
+            ? 'border-[#2068FF] bg-[rgba(32,104,255,0.08)] text-[var(--color-text)]'
+            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#2068FF]/50'"
+        >
+          <span>{{ lang.flag }}</span>
+          <span>{{ lang.label }}</span>
+        </button>
+      </div>
     </section>
 
     <!-- LLM Provider -->

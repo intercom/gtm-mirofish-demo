@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useDemoPreset } from '../composables/useDemoPreset'
 import { useCountUp } from '../composables/useCountUp'
@@ -22,6 +23,7 @@ const HeroSwarm = defineAsyncComponent({
 })
 
 const router = useRouter()
+const { t } = useI18n()
 const { isDemoMode } = useDemoMode()
 const { autoStart: autoStartTour } = useOnboardingTour()
 const { available: presetAvailable, loaded: presetLoaded, loading: presetLoading, loadPreset, checkStatus: checkPresetStatus } = useDemoPreset()
@@ -63,26 +65,26 @@ onMounted(() => {
   autoStartTour()
 })
 
-const steps = [
+const steps = computed(() => [
   {
     icon: '🧠',
     bgClass: 'bg-[rgba(32,104,255,0.1)]',
-    title: '1. Seed Your Scenario',
-    description: 'Upload campaign copy, signal definitions, or pricing scenarios as seed information.',
+    title: t('landing.steps.seed'),
+    description: t('landing.steps.seedDesc'),
   },
   {
     icon: '🐟',
     bgClass: 'bg-[rgba(255,86,0,0.1)]',
-    title: '2. Simulate the Swarm',
-    description: 'Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.',
+    title: t('landing.steps.simulate'),
+    description: t('landing.steps.simulateDesc'),
   },
   {
     icon: '📊',
     bgClass: 'bg-[rgba(170,0,255,0.1)]',
-    title: '3. Get Predictive Reports',
-    description: 'Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.',
+    title: t('landing.steps.report'),
+    description: t('landing.steps.reportDesc'),
   },
-]
+])
 
 const ICON_MAP = {
   mail: '📧',
@@ -347,18 +349,17 @@ const year = new Date().getFullYear()
       <div class="relative max-w-4xl mx-auto text-center" :style="heroContentStyle">
         <div data-tour="hero" class="inline-block">
           <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
-            Intercom GTM Systems
+            {{ t('landing.tagline') }}
           </p>
           <h1 class="text-3xl md:text-6xl font-semibold mb-3 md:mb-4">
-            MiroFish Swarm Intelligence
+            {{ t('landing.title') }}
           </h1>
         </div>
         <p class="text-base md:text-lg text-white/60 max-w-2xl mx-auto" :class="isDemoMode ? 'mb-3' : 'mb-8 md:mb-12'">
-          Predict campaign outcomes before they happen. Simulate how prospects react
-          to your outbound, signals, and pricing changes.
+          {{ t('landing.subtitle') }}
         </p>
         <p v-if="isDemoMode" class="text-sm text-white/35 mb-8 md:mb-12">
-          Interactive demo with simulated swarm intelligence
+          {{ t('landing.demoNote') }}
         </p>
 
         <!-- Demo Preset CTA -->
@@ -412,7 +413,7 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="bg-[#050505] border-t border-b border-white/5 px-4 md:px-6 py-6">
       <div class="max-w-5xl mx-auto">
-        <p class="text-[10px] uppercase tracking-[2px] text-white/30 text-center mb-4">Built for GTM teams who ship</p>
+        <p class="text-[10px] uppercase tracking-[2px] text-white/30 text-center mb-4">{{ t('landing.builtFor') }}</p>
         <div class="flex flex-wrap justify-center gap-3 md:gap-4">
           <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50">
             <span class="w-1.5 h-1.5 rounded-full bg-[#2068FF]"></span> Sales Development
@@ -438,7 +439,7 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section data-tour="how-it-works" class="px-4 md:px-6 py-10 md:py-16 bg-[var(--color-bg)]">
       <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8">How It Works</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8">{{ t('landing.howItWorks') }}</h2>
         <TransitionGroup
           tag="div"
           class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
@@ -464,19 +465,19 @@ const year = new Date().getFullYear()
       <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-center">
         <div>
           <div class="text-2xl font-semibold text-[#2068FF]">{{ formatCompactNumber(agentDisplay) }}</div>
-          <div class="text-xs text-white/40 mt-1">Max Agents</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.maxAgents') }}</div>
         </div>
         <div>
           <div class="text-2xl font-semibold text-[#ff5600]">{{ actionDisplay > 0 ? `${actionDisplay}` : '0' }}</div>
-          <div class="text-xs text-white/40 mt-1">Action Types</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.actionTypes') }}</div>
         </div>
         <div>
           <div class="text-2xl font-semibold text-[#A0F]">{{ toolDisplay > 0 ? `${toolDisplay}` : '0' }}</div>
-          <div class="text-xs text-white/40 mt-1">Analysis Tools</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.analysisTools') }}</div>
         </div>
         <div>
           <div class="text-2xl font-semibold text-[#090]">{{ platformDisplay > 0 ? `${platformDisplay}` : '0' }}</div>
-          <div class="text-xs text-white/40 mt-1">Platforms</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.platforms') }}</div>
         </div>
       </div>
     </section>
@@ -488,9 +489,9 @@ const year = new Date().getFullYear()
       <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
         <div class="max-w-5xl mx-auto">
           <div class="text-center mb-10 md:mb-14">
-            <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Meet the Swarm</h2>
+            <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">{{ t('landing.meetTheSwarm') }}</h2>
             <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
-              Every agent is a unique buyer persona with realistic demographics, motivations, and objection patterns drawn from your ICP.
+              {{ t('landing.meetTheSwarmDesc') }}
             </p>
           </div>
           <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -506,7 +507,7 @@ const year = new Date().getFullYear()
             </div>
           </div>
           <p class="text-center text-xs text-[var(--color-text-muted)] mt-6">
-            + thousands more generated from your ICP distribution
+            {{ t('landing.plusThousands') }}
           </p>
         </div>
       </section>
@@ -518,15 +519,15 @@ const year = new Date().getFullYear()
     <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
       <div class="max-w-5xl mx-auto">
-        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10 md:mb-14">What You Can Simulate</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10 md:mb-14">{{ t('landing.whatYouCanSimulate') }}</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           <div class="flex gap-4">
             <div class="shrink-0 w-10 h-10 rounded-lg bg-[rgba(32,104,255,0.1)] flex items-center justify-center">
               <svg class="w-5 h-5 text-[#2068FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Outbound Email Testing</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Test subject lines, messaging angles, and cadence sequences against hundreds of AI personas before sending a single real email.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.outbound') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.outboundDesc') }}</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -534,8 +535,8 @@ const year = new Date().getFullYear()
               <svg class="w-5 h-5 text-[#ff5600]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Signal Validation</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Test whether your sales signals actually predict buying behavior. Identify false positives before routing them to reps.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.signal') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.signalDesc') }}</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -543,8 +544,8 @@ const year = new Date().getFullYear()
               <svg class="w-5 h-5 text-[#A0F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Pricing Impact</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Predict churn risk, competitive switching, and sentiment before rolling out pricing changes to real customers.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.pricing') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.pricingDesc') }}</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -552,8 +553,8 @@ const year = new Date().getFullYear()
               <svg class="w-5 h-5 text-[#090]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Personalization Ranking</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Rank message variants by simulated engagement, not LLM self-assessment. Find the best tone, length, and CTA for each segment.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.personalization') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.personalizationDesc') }}</p>
             </div>
           </div>
         </div>
@@ -877,7 +878,7 @@ const year = new Date().getFullYear()
     <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg-alt)]">
       <div class="max-w-3xl mx-auto">
-        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10">Frequently Asked Questions</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10">{{ t('landing.faq') }}</h2>
         <div class="space-y-3">
           <div
             v-for="(faq, i) in faqs"
@@ -915,15 +916,15 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-16 md:py-24">
       <div class="max-w-2xl mx-auto text-center">
-        <h2 class="text-2xl md:text-3xl font-semibold mb-4">Stop guessing. Start simulating.</h2>
+        <h2 class="text-2xl md:text-3xl font-semibold mb-4">{{ t('landing.cta.title') }}</h2>
         <p class="text-sm md:text-base text-white/50 mb-8 max-w-lg mx-auto">
-          Every campaign is a production deployment today. MiroFish gives you a staging environment for your GTM strategy.
+          {{ t('landing.cta.subtitle') }}
         </p>
         <button
           @click="scrollToScenarios"
           class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-semibold px-8 py-3.5 rounded-lg transition-colors cursor-pointer"
         >
-          Try a Scenario
+          {{ t('landing.cta.button') }}
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
         </button>
       </div>

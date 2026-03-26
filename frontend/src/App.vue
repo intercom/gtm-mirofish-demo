@@ -16,6 +16,9 @@ import SystemStatusBar from './components/common/SystemStatusBar.vue'
 import KeyboardShortcutsModal from './components/common/KeyboardShortcutsModal.vue'
 import KeyboardShortcutCard from './components/ui/KeyboardShortcutCard.vue'
 import DemoModeOverlay from './components/common/DemoModeOverlay.vue'
+import TutorialSystem from './components/tutorial/TutorialSystem.vue'
+import ScenarioWalkthrough from './components/tutorial/ScenarioWalkthrough.vue'
+import ShortcutQuickRef from './components/common/ShortcutQuickRef.vue'
 import { useTheme } from './composables/useTheme'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useIntercom } from './composables/useIntercom'
@@ -26,6 +29,7 @@ import { usePageTransition } from './composables/usePageTransition'
 import { useSimulationStore } from './stores/simulation'
 import { useScenariosStore } from './stores/scenarios'
 import { useSettingsStore } from './stores/settings'
+import { useTutorialStore } from './stores/tutorial'
 
 const route = useRoute()
 const router = useRouter()
@@ -39,6 +43,7 @@ const { transitionName } = usePageTransition()
 const simulation = useSimulationStore()
 const scenarios = useScenariosStore()
 const settings = useSettingsStore()
+const tutorial = useTutorialStore()
 
 const isDev = import.meta.env.DEV
 const showStatusBar = computed(() => isDev || settings.statusBarEnabled)
@@ -88,6 +93,7 @@ watch(() => route.name, (name) => {
 onMounted(() => {
   intercom.install()
   intercom.boot()
+  tutorial.checkFirstVisit()
 })
 
 watch(
@@ -135,4 +141,7 @@ onUnmounted(() => {
   <D3PerfOverlay />
   <PresenterToolbar v-if="isDemoMode" />
   <SystemStatusBar v-if="showStatusBar" />
+  <TutorialSystem />
+  <ScenarioWalkthrough />
+  <ShortcutQuickRef />
 </template>

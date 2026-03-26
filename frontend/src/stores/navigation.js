@@ -10,6 +10,7 @@ const DEFAULT_NAV_LINKS = [
   { id: 'scenarios', to: '/scenarios', label: 'Scenarios', exact: true },
   { id: 'knowledge-graph', to: '/knowledge-graph', label: 'Knowledge Graph', exact: false },
   { id: 'simulations', to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },
+  { id: 'comparison', to: '/comparison', label: 'Comparison', exact: false },
   { id: 'agents', to: '/agents', label: 'Agents', exact: false },
   { id: 'visualizations', to: '/visualizations', label: 'Visualizations', exact: false },
   { id: 'analytics', to: '/analytics', label: 'Analytics', exact: false },

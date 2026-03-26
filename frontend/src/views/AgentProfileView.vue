@@ -5,6 +5,7 @@ import { marked } from 'marked'
 import client from '../api/client'
 import { AppBreadcrumb } from '../components/common'
 import { useBreadcrumbs } from '../composables/useBreadcrumbs'
+import RichTextEditor from '../components/common/RichTextEditor.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -45,6 +46,9 @@ const agentCompany = computed(() => {
 })
 
 const initial = computed(() => (agentName.value || '?')[0].toUpperCase())
+
+const backstory = ref('')
+const editingBackstory = ref(false)
 
 function generatePersonaTraits(role, company) {
   const traits = {
@@ -283,6 +287,33 @@ async function sendMessage() {
           <div class="text-2xl font-bold text-[#FF4500]">{{ stats.reddit }}</div>
           <div class="text-xs text-[var(--color-text-muted)] mt-1">Reddit</div>
         </div>
+      </div>
+
+      <!-- Backstory -->
+      <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-[var(--color-text)]">Backstory</h3>
+          <button
+            @click="editingBackstory = !editingBackstory"
+            class="text-xs font-medium text-[var(--color-primary)] hover:underline"
+          >
+            {{ editingBackstory ? 'Done' : (backstory ? 'Edit' : 'Add backstory') }}
+          </button>
+        </div>
+        <RichTextEditor
+          v-if="editingBackstory"
+          v-model="backstory"
+          placeholder="Describe this agent's background, experience, and perspective..."
+          :char-limit="500"
+        />
+        <div
+          v-else-if="backstory"
+          class="text-sm text-[var(--color-text-secondary)] leading-relaxed prose prose-sm max-w-none"
+          v-html="backstory"
+        />
+        <p v-else class="text-sm text-[var(--color-text-muted)] italic">
+          No backstory added yet. Click "Add backstory" to describe this agent's background.
+        </p>
       </div>
 
       <!-- Persona traits -->

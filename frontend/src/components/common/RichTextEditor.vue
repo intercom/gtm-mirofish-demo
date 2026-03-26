@@ -1,206 +1,75 @@
 <script setup>
-import { watch, onBeforeUnmount } from 'vue'
+import { watch, onBeforeUnmount, computed } from 'vue'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import CharacterCount from '@tiptap/extension-character-count'
+import EditorToolbar from './EditorToolbar.vue'
 
 const props = defineProps({
-  modelValue: {
-    type: String,
-    default: '',
-  },
-  placeholder: {
-    type: String,
-    default: 'Start typing...',
-  },
-  editable: {
-    type: Boolean,
-    default: true,
-  },
+  modelValue: { type: String, default: '' },
+  placeholder: { type: String, default: 'Start typing...' },
+  charLimit: { type: Number, default: 0 },
+  editable: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['update:modelValue'])
 
+const extensions = [
+  StarterKit.configure({
+    heading: { levels: [2, 3] },
+  }),
+  Link.configure({
+    openOnClick: false,
+    HTMLAttributes: { class: 'editor-link' },
+  }),
+  Placeholder.configure({ placeholder: props.placeholder }),
+  ...(props.charLimit > 0
+    ? [CharacterCount.configure({ limit: props.charLimit })]
+    : []),
+]
+
 const editor = useEditor({
-  extensions: [
-    StarterKit.configure({
-      heading: { levels: [2, 3] },
-    }),
-    Link.configure({
-      openOnClick: false,
-      HTMLAttributes: { class: 'editor-link' },
-    }),
-    Placeholder.configure({ placeholder: props.placeholder }),
-  ],
   content: props.modelValue,
+  extensions,
   editable: props.editable,
-  onUpdate({ editor }) {
-    emit('update:modelValue', editor.getHTML())
+  onUpdate: ({ editor: e }) => {
+    emit('update:modelValue', e.getHTML())
   },
 })
 
-watch(() => props.modelValue, (value) => {
-  if (!editor.value) return
-  const current = editor.value.getHTML()
-  if (current === value) return
-  editor.value.commands.setContent(value, false)
+const charCount = computed(() => {
+  if (!editor.value) return 0
+  return editor.value.storage.characterCount?.characters() ?? 0
 })
 
-watch(() => props.editable, (value) => {
-  editor.value?.setEditable(value)
+const isOverLimit = computed(() => props.charLimit > 0 && charCount.value > props.charLimit)
+
+watch(() => props.modelValue, (val) => {
+  if (!editor.value) return
+  const current = editor.value.getHTML()
+  if (val !== current) {
+    editor.value.commands.setContent(val, false)
+  }
+})
+
+watch(() => props.editable, (val) => {
+  editor.value?.setEditable(val)
 })
 
 onBeforeUnmount(() => {
   editor.value?.destroy()
 })
-
-function toggleMark(mark) {
-  editor.value?.chain().focus().toggleMark(mark).run()
-}
-
-function toggleNode(type, attrs) {
-  if (type === 'bulletList') {
-    editor.value?.chain().focus().toggleBulletList().run()
-  } else if (type === 'orderedList') {
-    editor.value?.chain().focus().toggleOrderedList().run()
-  } else if (type === 'blockquote') {
-    editor.value?.chain().focus().toggleBlockquote().run()
-  } else if (type === 'codeBlock') {
-    editor.value?.chain().focus().toggleCodeBlock().run()
-  } else if (type === 'heading') {
-    editor.value?.chain().focus().toggleHeading(attrs).run()
-  }
-}
-
-function toggleLink() {
-  if (!editor.value) return
-  if (editor.value.isActive('link')) {
-    editor.value.chain().focus().unsetLink().run()
-    return
-  }
-  const url = window.prompt('Enter URL')
-  if (url) {
-    editor.value.chain().focus().setLink({ href: url }).run()
-  }
-}
-
-function isActive(type, attrs) {
-  return editor.value?.isActive(type, attrs) ?? false
-}
 </script>
 
 <template>
   <div class="rich-text-editor" :class="{ 'is-readonly': !editable }">
-    <div v-if="editable && editor" class="toolbar">
-      <div class="toolbar-group">
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('bold') }]"
-          title="Bold"
-          @click="toggleMark('bold')"
-        >
-          <strong>B</strong>
-        </button>
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('italic') }]"
-          title="Italic"
-          @click="toggleMark('italic')"
-        >
-          <em>I</em>
-        </button>
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('strike') }]"
-          title="Strikethrough"
-          @click="toggleMark('strike')"
-        >
-          <s>S</s>
-        </button>
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('code') }]"
-          title="Inline code"
-          @click="toggleMark('code')"
-        >
-          &lt;/&gt;
-        </button>
-      </div>
-
-      <div class="toolbar-divider" />
-
-      <div class="toolbar-group">
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('heading', { level: 2 }) }]"
-          title="Heading"
-          @click="toggleNode('heading', { level: 2 })"
-        >
-          H2
-        </button>
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('heading', { level: 3 }) }]"
-          title="Subheading"
-          @click="toggleNode('heading', { level: 3 })"
-        >
-          H3
-        </button>
-      </div>
-
-      <div class="toolbar-divider" />
-
-      <div class="toolbar-group">
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('bulletList') }]"
-          title="Bullet list"
-          @click="toggleNode('bulletList')"
-        >
-          &#8226;
-        </button>
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('orderedList') }]"
-          title="Numbered list"
-          @click="toggleNode('orderedList')"
-        >
-          1.
-        </button>
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('blockquote') }]"
-          title="Quote"
-          @click="toggleNode('blockquote')"
-        >
-          &#x201C;
-        </button>
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('codeBlock') }]"
-          title="Code block"
-          @click="toggleNode('codeBlock')"
-        >
-          { }
-        </button>
-      </div>
-
-      <div class="toolbar-divider" />
-
-      <div class="toolbar-group">
-        <button
-          type="button"
-          :class="['toolbar-btn', { active: isActive('link') }]"
-          title="Link"
-          @click="toggleLink"
-        >
-          &#x1F517;
-        </button>
-      </div>
-    </div>
-
+    <EditorToolbar v-if="editable" :editor="editor" />
     <EditorContent :editor="editor" class="editor-content" />
+    <div v-if="editable && charLimit > 0" class="char-counter" :class="{ over: isOverLimit }">
+      {{ charCount }} / {{ charLimit }}
+    </div>
   </div>
 </template>
 
@@ -226,53 +95,6 @@ function isActive(type, attrs) {
 .is-readonly:focus-within {
   border-color: transparent;
   box-shadow: none;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg);
-}
-
-.toolbar-group {
-  display: flex;
-  gap: 1px;
-}
-
-.toolbar-divider {
-  width: 1px;
-  height: 20px;
-  margin: 0 4px;
-  background: var(--color-border);
-}
-
-.toolbar-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: var(--text-xs);
-  font-family: var(--font-family);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.toolbar-btn:hover {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.toolbar-btn.active {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
 }
 
 .editor-content {
@@ -382,5 +204,17 @@ function isActive(type, attrs) {
   color: var(--color-primary);
   text-decoration: underline;
   cursor: pointer;
+}
+
+.char-counter {
+  padding: 4px 14px 8px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.char-counter.over {
+  color: var(--color-error);
+  font-weight: 500;
 }
 </style>

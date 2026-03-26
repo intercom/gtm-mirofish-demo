@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "3d-force-graph": "1.79.1",
+    "@tiptap/extension-character-count": "^3.20.5",
     "@tiptap/extension-link": "^3.20.5",
     "@tiptap/extension-placeholder": "^3.20.5",
     "@tiptap/extension-underline": "^3.20.5",

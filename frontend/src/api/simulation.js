@@ -1,4 +1,5 @@
 import client from './client'
+import { API_BASE } from './client'
 
 export const simulationApi = {
   // --- Entities ---
@@ -124,4 +125,8 @@ export const simulationApi = {
     client.get(`/simulation/${simulationId}/coalitions/polarization`),
   getSwingAgents: (simulationId) =>
     client.get(`/simulation/${simulationId}/coalitions/swing-agents`),
+
+  // --- SSE stream ---
+  getProgressStreamUrl: (simulationId, interval = 2) =>
+    `${API_BASE}/simulation/${simulationId}/progress/stream?interval=${interval}`,
 }

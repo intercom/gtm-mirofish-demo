@@ -4,8 +4,10 @@ Step2: Zep实体读取与过滤、OASIS模拟准备与运行（全程自动化�
 """
 
 import os
+import json
+import time
 import traceback
-from flask import request, jsonify, send_file
+from flask import request, jsonify, send_file, Response
 
 from . import simulation_bp
 from ..config import Config
@@ -2052,7 +2054,104 @@ def get_simulation_metrics(simulation_id: str):
         }), 500
 
 
+# ============== SSE Progress Stream ==============
+
+@simulation_bp.route('/<simulation_id>/progress/stream', methods=['GET'])
+def stream_simulation_progress(simulation_id: str):
+    """
+    SSE stream for real-time simulation progress updates.
+
+    Streams events:
+        status   — runner status changes (idle/running/completed/failed)
+        progress — round/action count updates (only when changed)
+        actions  — new agent actions since last push
+        heartbeat — keep-alive every 15s
+
+    Query params:
+        interval: polling interval in seconds (default 2, min 1, max 10)
+    """
+    interval = max(1, min(10, int(request.args.get('interval', 2))))
+
+    def generate():
+        last_snapshot = None
+        last_actions_count = 0
+
+        while True:
+            try:
+                run_state = SimulationRunner.get_run_state(simulation_id)
+
+                if not run_state:
+                    payload = {
+                        "simulation_id": simulation_id,
+                        "runner_status": "idle",
+                        "current_round": 0,
+                        "total_rounds": 0,
+                        "progress_percent": 0,
+                        "twitter_actions_count": 0,
+                        "reddit_actions_count": 0,
+                        "total_actions_count": 0,
+                    }
+                    snapshot_key = "idle:0:0"
+                else:
+                    payload = run_state.to_dict()
+                    total = payload.get("total_actions_count", 0)
+                    snapshot_key = (
+                        f"{payload['runner_status']}:"
+                        f"{payload['current_round']}:"
+                        f"{total}"
+                    )
+
+                # Emit progress only when state actually changed
+                if snapshot_key != last_snapshot:
+                    yield f"event: progress\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+                    # If status changed, emit a dedicated status event too
+                    if last_snapshot is None or snapshot_key.split(':')[0] != (last_snapshot or '').split(':')[0]:
+                        yield f"event: status\ndata: {json.dumps({'runner_status': payload['runner_status']}, ensure_ascii=False)}\n\n"
+
+                    last_snapshot = snapshot_key
+
+                # Stream new actions incrementally
+                if run_state:
+                    current_total = run_state.twitter_actions_count + run_state.reddit_actions_count
+                    if current_total > last_actions_count:
+                        new_actions = [
+                            a.to_dict() for a in run_state.recent_actions
+                            if (run_state.twitter_actions_count + run_state.reddit_actions_count) > last_actions_count
+                        ][:20]
+                        if new_actions:
+                            yield f"event: actions\ndata: {json.dumps(new_actions, ensure_ascii=False)}\n\n"
+                        last_actions_count = current_total
+
+                    # Stop streaming on terminal states
+                    if run_state.runner_status in (RunnerStatus.COMPLETED, RunnerStatus.STOPPED, RunnerStatus.FAILED):
+                        yield f"event: complete\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                        return
+
+                # Heartbeat (always sent to prevent proxy timeouts)
+                yield f"event: heartbeat\ndata: {json.dumps({'ts': time.time()})}\n\n"
+
+            except GeneratorExit:
+                return
+            except Exception as e:
+                logger.error(f"SSE stream error for {simulation_id}: {e}")
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+            time.sleep(interval)
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        },
+    )
+
+
 # ============== Agent动作与结果接口 ==============
+
 
 @simulation_bp.route('/<simulation_id>/actions', methods=['GET'])
 def get_simulation_actions(simulation_id: str):

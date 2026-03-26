@@ -10,14 +10,14 @@ import json
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 
 
 VALID_COMMUNICATION_STYLES = (
     'formal', 'casual', 'data_driven', 'storytelling', 'diplomatic'
 )
+COMMUNICATION_STYLES = VALID_COMMUNICATION_STYLES
 
-# Resolve storage path relative to this file: backend/app/models/ -> backend/data/agents/
 AGENTS_DATA_DIR = os.path.join(
     os.path.dirname(__file__), '..', '..', 'data', 'agents'
 )
@@ -36,8 +36,8 @@ class PersonalityVector:
         errors = []
         for attr in ('analytical', 'creative', 'assertive', 'empathetic', 'risk_tolerant'):
             val = getattr(self, attr)
-            if not isinstance(val, int):
-                errors.append(f"personality.{attr} must be an integer")
+            if not isinstance(val, (int, float)):
+                errors.append(f"personality.{attr} must be a number")
             elif not 0 <= val <= 100:
                 errors.append(f"personality.{attr} must be between 0 and 100")
         return errors
@@ -68,8 +68,8 @@ class CustomAgentConfig:
     id: str
     name: str
     role: str
-    department: str
-    personality: PersonalityVector
+    department: str = ""
+    personality: PersonalityVector = field(default_factory=PersonalityVector)
     expertise_areas: List[str] = field(default_factory=list)
     communication_style: str = 'formal'
     biases: List[str] = field(default_factory=list)
@@ -77,6 +77,7 @@ class CustomAgentConfig:
     backstory: str = ''
     avatar_color: str = '#2068FF'
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    updated_at: str = ''
 
     def validate(self) -> List[str]:
         """Return a list of validation error strings (empty = valid)."""
@@ -106,6 +107,7 @@ class CustomAgentConfig:
             "backstory": self.backstory,
             "avatar_color": self.avatar_color,
             "created_at": self.created_at,
+            "updated_at": self.updated_at,
         }
 
     @classmethod
@@ -129,6 +131,7 @@ class CustomAgentConfig:
             backstory=data.get('backstory', ''),
             avatar_color=data.get('avatar_color', '#2068FF'),
             created_at=data.get('created_at', datetime.now().isoformat()),
+            updated_at=data.get('updated_at', ''),
         )
 
 
@@ -147,14 +150,23 @@ class CustomAgentManager:
         return os.path.join(AGENTS_DATA_DIR, f"{agent_id}.json")
 
     @classmethod
+    def _save(cls, agent: CustomAgentConfig) -> None:
+        cls._ensure_dir()
+        path = cls._agent_path(agent.id)
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(agent.to_dict(), f, ensure_ascii=False, indent=2)
+
+    @classmethod
     def create(cls, data: Dict[str, Any]) -> CustomAgentConfig:
         """Create a new agent from a dict (assigns a fresh id)."""
         cls._ensure_dir()
+        now = datetime.now().isoformat()
         agent_id = f"agent_{uuid.uuid4().hex[:12]}"
         data['id'] = agent_id
-        data.setdefault('created_at', datetime.now().isoformat())
+        data['created_at'] = now
+        data['updated_at'] = now
         agent = CustomAgentConfig.from_dict(data)
-        cls._write(agent)
+        cls._save(agent)
         return agent
 
     @classmethod
@@ -166,7 +178,7 @@ class CustomAgentManager:
             return CustomAgentConfig.from_dict(json.load(f))
 
     @classmethod
-    def list_all(cls, limit: int = 100) -> List[CustomAgentConfig]:
+    def list_agents(cls, limit: int = 100) -> List[CustomAgentConfig]:
         cls._ensure_dir()
         agents = []
         for fname in os.listdir(AGENTS_DATA_DIR):
@@ -183,16 +195,18 @@ class CustomAgentManager:
 
     @classmethod
     def update(cls, agent_id: str, data: Dict[str, Any]) -> Optional[CustomAgentConfig]:
-        """Merge *data* into an existing agent. Returns None if not found."""
-        existing = cls.get(agent_id)
-        if existing is None:
+        """Merge data into an existing agent. Returns None if not found."""
+        agent = cls.get(agent_id)
+        if not agent:
             return None
-        merged = existing.to_dict()
+        data.pop('id', None)
+        data.pop('created_at', None)
+        data['updated_at'] = datetime.now().isoformat()
+        merged = agent.to_dict()
         merged.update(data)
-        merged['id'] = agent_id  # prevent id override
-        agent = CustomAgentConfig.from_dict(merged)
-        cls._write(agent)
-        return agent
+        updated = CustomAgentConfig.from_dict(merged)
+        cls._save(updated)
+        return updated
 
     @classmethod
     def delete(cls, agent_id: str) -> bool:
@@ -203,8 +217,10 @@ class CustomAgentManager:
         return True
 
     @classmethod
-    def _write(cls, agent: CustomAgentConfig) -> None:
-        cls._ensure_dir()
-        path = cls._agent_path(agent.id)
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(agent.to_dict(), f, ensure_ascii=False, indent=2)
+    def clone(cls, agent_id: str) -> Optional[CustomAgentConfig]:
+        agent = cls.get(agent_id)
+        if not agent:
+            return None
+        clone_data = agent.to_dict()
+        clone_data['name'] = f"{agent.name} (Copy)"
+        return cls.create(clone_data)

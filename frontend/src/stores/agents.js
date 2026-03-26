@@ -194,6 +194,7 @@ export const useAgentsStore = defineStore('agents', () => {
     return agents.value.find(a => a.id === id) || TEMPLATE_AGENTS.find(t => t.id === id) || null
   }
 
+  // --- API-backed actions ---
   async function fetchAgents() {
     loading.value = true
     error.value = null
@@ -204,6 +205,35 @@ export const useAgentsStore = defineStore('agents', () => {
       }
     } catch {
       // Backend not available — use localStorage agents
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteAgent(agentId) {
+    loading.value = true
+    error.value = null
+    try {
+      await agentsApi.delete(agentId)
+      agents.value = agents.value.filter((a) => a.id !== agentId)
+      return true
+    } catch (e) {
+      error.value = e.message
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function generateAgent(description) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await agentsApi.generate({ description })
+      return res.data?.data || null
+    } catch (e) {
+      error.value = e.message
+      return null
     } finally {
       loading.value = false
     }
@@ -307,6 +337,9 @@ export const useAgentsStore = defineStore('agents', () => {
     cloneAgent,
     getAgent,
     fetchAgents,
+    // API CRUD
+    deleteAgent,
+    generateAgent,
     // Factory actions
     fetchArchetypes,
     createAgentFromArchetype,

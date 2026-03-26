@@ -27,25 +27,25 @@ def create_app(config_class=Config):
     """Flask应用工厂函数"""
     app = Flask(__name__)
     app.config.from_object(config_class)
-    
+
     # 设置JSON编码：确保中文直接显示（而不是 \uXXXX 格式）
     # Flask >= 2.3 使用 app.json.ensure_ascii，旧版本使用 JSON_AS_ASCII 配置
     if hasattr(app, 'json') and hasattr(app.json, 'ensure_ascii'):
         app.json.ensure_ascii = False
-    
+
     # 设置日志
     logger = setup_logger('mirofish')
-    
+
     # 只在 reloader 子进程中打印启动信息（避免 debug 模式下打印两次）
     is_reloader_process = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
     debug_mode = app.config.get('DEBUG', False)
     should_log_startup = not debug_mode or is_reloader_process
-    
+
     if should_log_startup:
         logger.info("=" * 50)
         logger.info("MiroFish Backend 启动中...")
         logger.info("=" * 50)
-    
+
     # CORS — parse comma-separated origins from config, or allow all with "*"
     raw_origins = app.config.get('CORS_ORIGINS', '*')
     origins = [o.strip() for o in raw_origins.split(',')] if raw_origins != '*' else '*'
@@ -78,7 +78,7 @@ def create_app(config_class=Config):
     SimulationRunner.register_cleanup()
     if should_log_startup:
         logger.info("已注册模拟进程清理函数")
-    
+
     # Rate limiting middleware (must be registered before request logging)
     from .middleware.rate_limit import init_rate_limiter
     init_rate_limiter(app)
@@ -326,9 +326,8 @@ def create_app(config_class=Config):
         if is_shutting_down():
             return {'status': 'shutting_down', 'service': 'MiroFish Backend'}, 503
         return {'status': 'ok', 'service': 'MiroFish Backend'}
-    
+
     if should_log_startup:
         logger.info("MiroFish Backend 启动完成")
-    
-    return app
 
+    return app

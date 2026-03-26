@@ -8,12 +8,14 @@ import { useSimulationStore } from '../../stores/simulation'
 import { perfMonitor } from '../../lib/perfMonitor'
 import { useSettingsStore } from '../../stores/settings'
 import { useNavigationStore } from '../../stores/navigation'
+import { useAuthStore } from '../../stores/auth'
 import NotificationCenter from '../ui/NotificationCenter.vue'
 import UserMenu from '../common/UserMenu.vue'
 import ShortcutBadge from '../common/ShortcutBadge.vue'
 import PresenceIndicator from '../common/PresenceIndicator.vue'
 import ServiceStatus from '../common/ServiceStatus.vue'
 import ThemeSwitcher from '../common/ThemeSwitcher.vue'
+import RoleBadge from '../common/RoleBadge.vue'
 import { useTutorialStore } from '../../stores/tutorial'
 
 const { isDemoMode } = useDemoMode()
@@ -22,6 +24,7 @@ const simulationStore = useSimulationStore()
 const settingsStore = useSettingsStore()
 const tutorial = useTutorialStore()
 const navigationStore = useNavigationStore()
+const auth = useAuthStore()
 const route = useRoute()
 const mobileMenuOpen = ref(false)
 const avgApiMs = ref(0)
@@ -70,6 +73,10 @@ watch(() => route.path, () => {
             v-if="isDemoMode"
             class="ml-2 text-xs font-semibold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full"
           >DEMO</span>
+          <span
+            v-if="auth.isAdmin"
+            class="ml-2 text-[10px] font-semibold text-white/80 bg-white/15 px-1.5 py-px rounded-full"
+          >Admin</span>
         </router-link>
 
         <VueDraggable
@@ -114,6 +121,7 @@ watch(() => route.path, () => {
       </div>
 
       <div class="flex items-center gap-3">
+        <RoleBadge v-if="auth.isAuthenticated" :role="auth.userRole" size="xs" class="hidden sm:inline-flex !bg-white/10 !text-white/70" />
         <ThemeSwitcher compact class="hidden sm:inline-flex" />
         <ServiceStatus mode="compact" class="hidden sm:flex" />
         <PresenceIndicator v-if="settingsStore.showPresence" />

@@ -159,6 +159,11 @@ export const routes = [
     name: 'gtm-dashboard',
     component: () => import('../views/GtmDashboardView.vue'),
   },
+  {
+    path: '/permission-denied',
+    name: 'permission-denied',
+    component: () => import('../views/PermissionDeniedView.vue'),
+  },
 ]
 
 export function createAppRouter() {

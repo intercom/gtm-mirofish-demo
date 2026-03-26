@@ -4,14 +4,29 @@ import { API_BASE } from '../api/client'
 
 const STORAGE_KEY = 'mirofish-auth'
 
+const ROLE_HIERARCHY = ['guest', 'viewer', 'editor', 'admin']
+
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
   const token = ref(null)
   const role = ref('admin')
 
   const isAuthenticated = computed(() => !!token.value && !!user.value)
-  const userRole = computed(() => user.value?.role || 'guest')
   const userPermissions = computed(() => user.value?.permissions || [])
+
+  const userRole = computed(() => {
+    if (user.value?.role && ROLE_HIERARCHY.includes(user.value.role)) {
+      return user.value.role
+    }
+    return isAuthenticated.value ? 'editor' : 'editor'
+  })
+
+  const isAdmin = computed(() => userRole.value === 'admin')
+  const isGuest = computed(() => userRole.value === 'guest')
+
+  function hasRole(minimumRole) {
+    return ROLE_HIERARCHY.indexOf(userRole.value) >= ROLE_HIERARCHY.indexOf(minimumRole)
+  }
 
   function load() {
     try {
@@ -76,6 +91,9 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     userRole,
     userPermissions,
+    isAdmin,
+    isGuest,
+    hasRole,
     load,
     setAuth,
     logout,

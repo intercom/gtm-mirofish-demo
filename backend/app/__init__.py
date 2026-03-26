@@ -150,6 +150,10 @@ def create_app(config_class=Config):
     from .api.users import users_bp
     app.register_blueprint(users_bp)
 
+    # Revenue analytics API
+    from .api.revenue import revenue_bp
+    app.register_blueprint(revenue_bp)
+
     # Health checks (basic, detailed, service degradation)
     from .api.health import health_bp
     app.register_blueprint(health_bp)

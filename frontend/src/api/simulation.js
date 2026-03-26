@@ -76,6 +76,10 @@ export const simulationApi = {
   getSentimentPrompts: (simulationId, params) =>
     client.get(`/simulation/${simulationId}/sentiment-dynamics/prompt`, { params }),
 
+  // --- Relationships ---
+  getRelationships: (simulationId) =>
+    client.get(`/simulation/${simulationId}/relationships`),
+
   // --- Interviews ---
   interview: (data) => client.post('/simulation/interview', data),
   interviewBatch: (data) => client.post('/simulation/interview/batch', data),

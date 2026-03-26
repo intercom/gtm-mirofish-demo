@@ -1462,6 +1462,157 @@ def activity_feed():
     return _ok({"items": items, "count": len(items)})
 
 
+# ---------------------------------------------------------------------------
+# Relationship network evolution
+# ---------------------------------------------------------------------------
+
+_RELATIONSHIP_AGENTS = [
+    {"id": "a0", "name": "Sarah Chen", "role": "VP Support", "company": "Acme SaaS", "group": "support"},
+    {"id": "a1", "name": "Marcus Johnson", "role": "CX Director", "company": "MedFirst", "group": "cx"},
+    {"id": "a2", "name": "Priya Patel", "role": "Head of Ops", "company": "PayStream", "group": "ops"},
+    {"id": "a3", "name": "David Kim", "role": "IT Leader", "company": "ShopNova", "group": "it"},
+    {"id": "a4", "name": "Rachel Torres", "role": "VP Support", "company": "CloudOps", "group": "support"},
+    {"id": "a5", "name": "James Wright", "role": "CX Director", "company": "Retail Plus", "group": "cx"},
+    {"id": "a6", "name": "Anika Sharma", "role": "Support Eng Lead", "company": "DevStack", "group": "support"},
+    {"id": "a7", "name": "Tom O'Brien", "role": "VP CS", "company": "GrowthLoop", "group": "cx"},
+    {"id": "a8", "name": "Elena Vasquez", "role": "Dir Digital", "company": "HealthBridge", "group": "ops"},
+    {"id": "a9", "name": "Michael Chang", "role": "Head of Ops", "company": "FinEdge", "group": "ops"},
+    {"id": "a10", "name": "Lisa Park", "role": "VP CX", "company": "TravelNow", "group": "cx"},
+    {"id": "a11", "name": "Sofia Martinez", "role": "Support Mgr", "company": "QuickShip", "group": "support"},
+    {"id": "a12", "name": "Nathan Lee", "role": "CTO", "company": "DataPulse", "group": "it"},
+    {"id": "a13", "name": "Catherine Hayes", "role": "CFO", "company": "ScaleUp Corp", "group": "finance"},
+    {"id": "a14", "name": "Robert Williams", "role": "IT Director", "company": "EduSpark", "group": "it"},
+]
+
+# Predefined relationship seeds: (source_idx, target_idx, initial_affinity, drift_direction)
+# drift_direction: 1 = grows positive, -1 = grows negative, 0 = stays near initial
+_RELATIONSHIP_SEEDS = [
+    (0, 4, 0.3, 1), (0, 6, 0.1, 1), (0, 11, 0.2, 1),    # Support cluster
+    (1, 5, 0.2, 1), (1, 7, 0.1, 1), (1, 10, 0.3, 1),     # CX cluster
+    (2, 8, 0.2, 1), (2, 9, 0.3, 1),                        # Ops cluster
+    (3, 12, 0.4, 1), (3, 14, 0.3, 1), (12, 14, 0.2, 1),   # IT cluster
+    (0, 1, 0.0, 1), (4, 5, -0.1, -1),                      # Cross-cluster
+    (6, 12, 0.0, 1), (7, 8, 0.1, 1),                       # Bridge links
+    (2, 13, -0.1, -1), (9, 13, -0.2, -1),                  # Finance tension
+    (0, 3, 0.0, 0), (1, 2, 0.0, 0),                        # Neutral links
+    (5, 9, 0.0, -1), (10, 14, 0.1, 1),                     # Mixed
+    (11, 7, 0.0, 1), (6, 5, -0.1, 0),                      # Late emergers
+    (8, 14, 0.0, 1), (4, 13, 0.0, -1),                     # More cross-cluster
+]
+
+_INTERACTION_TEMPLATES = [
+    "Shared insights on AI resolution rates",
+    "Debated cost-per-ticket metrics",
+    "Agreed on pilot deployment strategy",
+    "Disagreed on vendor evaluation criteria",
+    "Collaborated on ROI analysis",
+    "Exchanged knowledge base best practices",
+    "Discussed integration requirements",
+    "Aligned on customer satisfaction goals",
+    "Conflicted over budget allocation priorities",
+    "Co-evaluated competitive alternatives",
+]
+
+
+def _compute_relationship_snapshots():
+    """Generate relationship state for each round bucket (every 6 rounds)."""
+    rng = random.Random(7777)
+    bucket_size = 6
+    num_buckets = TOTAL_ROUNDS // bucket_size  # 24 buckets
+
+    snapshots = []
+    for bucket in range(num_buckets):
+        round_num = (bucket + 1) * bucket_size
+        progress = round_num / TOTAL_ROUNDS  # 0.0 to 1.0
+        edges = []
+
+        for src, tgt, initial, drift in _RELATIONSHIP_SEEDS:
+            # Edges appear progressively — not all visible from round 1
+            appear_bucket = rng.randint(0, max(0, num_buckets // 3))
+            if bucket < appear_bucket:
+                continue
+
+            time_factor = (bucket - appear_bucket) / max(1, num_buckets - appear_bucket)
+            noise = rng.gauss(0, 0.05)
+            affinity = initial + drift * time_factor * 0.6 + noise
+            affinity = max(-1.0, min(1.0, round(affinity, 3)))
+            strength = min(1.0, round(0.1 + time_factor * 0.7 + abs(affinity) * 0.2, 3))
+
+            edges.append({
+                "source": _RELATIONSHIP_AGENTS[src]["id"],
+                "target": _RELATIONSHIP_AGENTS[tgt]["id"],
+                "affinity": affinity,
+                "strength": strength,
+            })
+
+        # Detect alliances: groups with all pairwise affinity > 0.2
+        alliances = []
+        groups = {"support": [], "cx": [], "ops": [], "it": [], "finance": []}
+        for agent in _RELATIONSHIP_AGENTS:
+            groups[agent["group"]].append(agent["id"])
+
+        edge_map = {}
+        for e in edges:
+            edge_map[(e["source"], e["target"])] = e["affinity"]
+            edge_map[(e["target"], e["source"])] = e["affinity"]
+
+        for group_name, members in groups.items():
+            if len(members) < 2:
+                continue
+            avg_aff = 0
+            count = 0
+            for i, a in enumerate(members):
+                for b in members[i + 1:]:
+                    if (a, b) in edge_map:
+                        avg_aff += edge_map[(a, b)]
+                        count += 1
+            if count > 0 and avg_aff / count > 0.15:
+                alliances.append({"members": members, "label": group_name})
+
+        # Detect conflicts: edges with affinity < -0.15
+        conflicts = [
+            {"agents": [e["source"], e["target"]], "intensity": round(abs(e["affinity"]), 2)}
+            for e in edges if e["affinity"] < -0.15
+        ]
+
+        snapshots.append({
+            "round": round_num,
+            "edges": edges,
+            "alliances": alliances,
+            "conflicts": conflicts,
+        })
+
+    return snapshots
+
+
+@app.route("/api/simulation/<sim_id>/relationships")
+def sim_relationships(sim_id):
+    if sim_id not in _simulations:
+        _simulations[sim_id] = {"start": time.time()}
+
+    snapshots = _compute_relationship_snapshots()
+
+    # Build per-edge history for the side panel
+    edge_history = {}
+    rng = random.Random(8888)
+    for snap in snapshots:
+        for e in snap["edges"]:
+            key = f"{e['source']}-{e['target']}"
+            if key not in edge_history:
+                edge_history[key] = []
+            edge_history[key].append({
+                "round": snap["round"],
+                "affinity": e["affinity"],
+                "interaction": rng.choice(_INTERACTION_TEMPLATES),
+            })
+
+    return _ok({
+        "nodes": _RELATIONSHIP_AGENTS,
+        "snapshots": snapshots,
+        "edge_history": edge_history,
+    })
+
+
 @app.route("/api/demo/speed", methods=["GET", "POST"])
 def demo_speed():
     global _demo_speed

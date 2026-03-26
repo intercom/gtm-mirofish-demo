@@ -10,6 +10,7 @@ import { API_BASE } from '../api/client'
 import ThemeEditor from '../components/settings/ThemeEditor.vue'
 import ServiceStatus from '../components/common/ServiceStatus.vue'
 import ThemeSwitcher from '../components/common/ThemeSwitcher.vue'
+import AuditLogViewer from '../components/settings/AuditLogViewer.vue'
 
 const settingsStore = useSettingsStore()
 
@@ -389,6 +390,11 @@ onMounted(() => {
           />
         </div>
       </label>
+    </section>
+
+    <!-- Security & Audit Log -->
+    <section class="mb-8 md:mb-10">
+      <AuditLogViewer />
     </section>
 
     <!-- Info -->

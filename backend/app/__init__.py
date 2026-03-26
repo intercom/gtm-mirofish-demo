@@ -188,6 +188,10 @@ def create_app(config_class=Config):
     from .api.audit import audit_bp
     app.register_blueprint(audit_bp)
 
+    # Audit log viewer API
+    from .api.audit_log import audit_log_bp
+    app.register_blueprint(audit_log_bp)
+
     # User management API
     from .api.users import users_bp
     app.register_blueprint(users_bp)

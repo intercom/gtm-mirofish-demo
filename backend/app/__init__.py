@@ -80,6 +80,10 @@ def create_app(config_class=Config):
     from .api.attribution import attribution_bp
     app.register_blueprint(attribution_bp)
 
+    # Scenario template CRUD API
+    from .api.templates import templates_bp
+    app.register_blueprint(templates_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

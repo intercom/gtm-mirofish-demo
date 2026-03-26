@@ -24,6 +24,7 @@ import TimelineScrubber from '../components/simulation/TimelineScrubber.vue'
 import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import RelationshipEvolution from '../components/simulation/RelationshipEvolution.vue'
 import AgentNetworkGraph from '../components/simulation/AgentNetworkGraph.vue'
+import CoalitionView from '../components/simulation/CoalitionView.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -40,7 +41,7 @@ provide('polling', polling)
 const scrubber = useTimelineScrubber(polling)
 provideTimelineScrubber(scrubber)
 
-const VALID_TABS = ['graph', 'simulation', 'communities', 'relationships', 'network']
+const VALID_TABS = ['graph', 'simulation', 'communities', 'relationships', 'network', 'coalitions']
 const initialTab = VALID_TABS.includes(route.query.tab) ? route.query.tab : 'graph'
 const activeTab = ref(initialTab)
 const demoMode = ref(false)
@@ -74,6 +75,7 @@ const workspaceShortcuts = [
   { key: '3', label: 'Communities tab' },
   { key: '4', label: 'Relationships tab' },
   { key: '5', label: 'Network tab' },
+  { key: '6', label: 'Coalitions tab' },
   { key: 'r', label: 'View report' },
   { key: 'Escape', label: 'Go back', display: 'Esc' },
 ]
@@ -101,6 +103,7 @@ register('2', () => { activeTab.value = 'simulation' }, { description: 'Switch t
 register('3', () => { activeTab.value = 'communities' }, { description: 'Switch to Communities tab', category: 'Workspace' })
 register('4', () => { activeTab.value = 'relationships' }, { description: 'Switch to Relationships tab', category: 'Workspace' })
 register('5', () => { activeTab.value = 'network' }, { description: 'Switch to Network tab', category: 'Workspace' })
+register('6', () => { activeTab.value = 'coalitions' }, { description: 'Switch to Coalitions tab', category: 'Workspace' })
 register('r', () => router.push(`/report/${props.taskId}`), { description: 'View report', category: 'Workspace' })
 register('?', toggle, { description: 'Show keyboard shortcuts', category: 'General' })
 
@@ -265,6 +268,10 @@ onUnmounted(() => {
         <!-- Network tab -->
         <div v-show="activeTab === 'network'" class="absolute inset-0">
           <AgentNetworkGraph :taskId="taskId" />
+        </div>
+        <!-- Coalitions tab -->
+        <div v-show="activeTab === 'coalitions'" class="absolute inset-0">
+          <CoalitionView :simulationId="simulationStore.simulationId || taskId" />
         </div>
       </div>
 

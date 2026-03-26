@@ -73,6 +73,11 @@ const tabs = computed(() => {
       label: 'Network',
       metric: null,
     },
+    {
+      key: 'coalitions',
+      label: 'Coalitions',
+      metric: null,
+    },
   ]
 })
 </script>

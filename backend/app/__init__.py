@@ -175,7 +175,7 @@ def create_app(config_class=Config):
     from .api.campaigns import campaigns_bp
     app.register_blueprint(campaigns_bp)
 
-    # Agents API (wizard creation, preview)
+    # Agents API (wizard creation, preview, OASIS agent factory)
     from .api.agents import agents_bp
     app.register_blueprint(agents_bp)
 

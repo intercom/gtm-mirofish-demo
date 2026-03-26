@@ -128,6 +128,10 @@ def create_app(config_class=Config):
     from .api.debate import debate_bp
     app.register_blueprint(debate_bp)
 
+    # Reconciliation API (three-way MRR reconciliation)
+    from .api.reconciliation import reconciliation_bp
+    app.register_blueprint(reconciliation_bp)
+
     # Health checks (basic, detailed, service degradation)
     from .api.health import health_bp
     app.register_blueprint(health_bp)

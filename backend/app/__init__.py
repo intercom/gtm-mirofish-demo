@@ -187,7 +187,7 @@ def create_app(config_class=Config):
     from .api.salesforce import salesforce_bp
     app.register_blueprint(salesforce_bp)
 
-    # Analytics API (cohort analysis, attribution)
+    # Analytics API (cohort analysis, segment performance)
     from .api.analytics import analytics_bp
     app.register_blueprint(analytics_bp)
 

@@ -4682,3 +4682,117 @@ def get_simulation_anomalies(simulation_id: str):
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+# ============== Belief Evolution API ==============
+
+def _generate_demo_belief_history(agent_id):
+    """Generate deterministic demo belief history for visualization."""
+    import hashlib
+
+    seed = int(hashlib.md5((agent_id or 'demo').encode()).hexdigest()[:8], 16)
+
+    topics = [
+        'Product Quality', 'Market Timing', 'Competitive Position',
+        'Value Proposition', 'Adoption Readiness',
+    ]
+    triggers = [
+        'Competitor launched new feature',
+        'Positive customer testimonial shared',
+        'Market analyst published bearish report',
+        'Successful product demo to key account',
+        'Team raised budget concerns',
+        'Industry event generated buzz',
+        'Customer churn data surfaced',
+        'New partnership announced',
+    ]
+    patterns = [
+        {'start': 0.6, 'trend': 0.04, 'vol': 0.10, 'flip': 7},
+        {'start': -0.2, 'trend': 0.10, 'vol': 0.15, 'flip': 4},
+        {'start': -0.4, 'trend': -0.03, 'vol': 0.20, 'flip': 5},
+        {'start': 0.5, 'trend': 0.02, 'vol': 0.08, 'flip': None},
+        {'start': 0.1, 'trend': 0.08, 'vol': 0.12, 'flip': 6},
+    ]
+
+    def lcg(s):
+        s = (s * 1664525 + 1013904223) & 0xFFFFFFFF
+        return s, (s >> 0) / 0xFFFFFFFF
+
+    result = []
+    for ti, topic in enumerate(topics):
+        p = patterns[ti]
+        current = p['start']
+        conf = 0.6
+        s = seed + ti
+        history = []
+        for r in range(1, 11):
+            s, rv = lcg(s)
+            noise = (rv - 0.5) * p['vol'] * 2
+            if p['flip'] and r == p['flip']:
+                current = -current * 0.7
+                conf = max(0.3, conf - 0.2)
+            else:
+                current += p['trend'] + noise
+            current = max(-1.0, min(1.0, current))
+            s, rv2 = lcg(s)
+            conf = max(0.2, min(1.0, conf + (rv2 - 0.5) * 0.1))
+
+            prev_val = history[-1]['value'] if history else None
+            changed = (
+                prev_val is not None
+                and (prev_val > 0) != (current > 0)
+                and abs(current) > 0.12
+            )
+
+            s, rv3 = lcg(s)
+            history.append({
+                'round': r,
+                'value': round(current, 3),
+                'confidence': round(conf, 3),
+                'trigger': triggers[int(rv3 * len(triggers))] if changed else None,
+                'changed': changed,
+            })
+        result.append({'topic': topic, 'history': history})
+
+    return result
+
+
+@simulation_bp.route('/<simulation_id>/agents/<agent_id>/beliefs/history', methods=['GET'])
+def get_agent_beliefs_history(simulation_id, agent_id):
+    """
+    Get belief evolution history for an agent across simulation rounds.
+
+    Returns demo data when no belief tracker service is available.
+    Will integrate with BeliefTracker service when implemented.
+    """
+    try:
+        beliefs = _generate_demo_belief_history(agent_id)
+
+        total_changes = sum(
+            1 for t in beliefs for d in t['history'] if d['changed']
+        )
+        change_counts = {
+            t['topic']: sum(1 for d in t['history'] if d['changed'])
+            for t in beliefs
+        }
+        most_volatile = max(change_counts, key=change_counts.get) if change_counts else None
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "agent_id": agent_id,
+                "beliefs": beliefs,
+                "summary": {
+                    "total_changes": total_changes,
+                    "most_volatile_topic": most_volatile,
+                },
+                "demo": True,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get belief history: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+        }), 500

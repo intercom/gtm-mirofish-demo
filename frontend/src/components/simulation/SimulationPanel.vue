@@ -12,6 +12,7 @@ import LiveMetrics from './LiveMetrics.vue'
 import PredictionDashboard from './PredictionDashboard.vue'
 import SyncedChart from '../timeline/SyncedChart.vue'
 import MultiMetricView from './MultiMetricView.vue'
+import BeliefEvolution from './BeliefEvolution.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -642,6 +643,12 @@ onUnmounted(() => {
         <!-- Behavior Patterns -->
         <BehaviorPatterns
           v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Belief Evolution -->
+        <BeliefEvolution
           :actions="filteredActions"
           class="mb-8"
         />

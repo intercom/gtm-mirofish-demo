@@ -53,6 +53,12 @@ export const useSalesforceStore = defineStore('salesforce', () => {
     return total / accounts.value.length
   })
 
+  const totalAccounts = computed(() => stats.value?.total_accounts ?? 0)
+  const totalArr = computed(() => stats.value?.total_arr ?? 0)
+  const pipelineValue = computed(() => stats.value?.pipeline_value ?? 0)
+  const industryBreakdown = computed(() => stats.value?.industry_breakdown ?? [])
+  const stageDistribution = computed(() => stats.value?.stage_distribution ?? [])
+
   // --- Actions ---
 
   async function fetchAccounts(filters = {}) {
@@ -121,7 +127,7 @@ export const useSalesforceStore = defineStore('salesforce', () => {
     error.value = null
     try {
       const res = await client.get('/salesforce/stats')
-      stats.value = res.data || {}
+      stats.value = res.data?.data || res.data || {}
       return stats.value
     } catch (e) {
       error.value = e.message
@@ -144,6 +150,11 @@ export const useSalesforceStore = defineStore('salesforce', () => {
     leadsByStatus,
     totalPipelineValue,
     avgHealthScore,
+    totalAccounts,
+    totalArr,
+    pipelineValue,
+    industryBreakdown,
+    stageDistribution,
     fetchAccounts,
     fetchOpportunities,
     fetchContacts,

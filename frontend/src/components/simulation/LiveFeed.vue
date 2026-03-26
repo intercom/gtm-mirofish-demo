@@ -5,9 +5,14 @@ const props = defineProps({
   actions: { type: Array, default: () => [] },
   connectionStatus: { type: String, default: 'polling' },
   maxVisible: { type: Number, default: 100 },
+  showThinking: { type: Boolean, default: false },
+  hasAgentFilter: { type: Boolean, default: false },
+  isAgentTransparent: { type: Function, default: () => false },
+  llmModel: { type: String, default: '' },
+  llmProvider: { type: String, default: '' },
 })
 
-const emit = defineEmits(['select-agent'])
+const emit = defineEmits(['select-agent', 'toggle-thinking', 'toggle-agent', 'clear-agent-filter'])
 
 const feedContainer = ref(null)
 const autoScroll = ref(true)
@@ -194,6 +199,20 @@ watch(() => props.actions.length, () => {
             {{ feedStats.filtered }}<span v-if="feedStats.filtered !== feedStats.total"> / {{ feedStats.total }}</span> events
           </span>
           <button
+            class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors border"
+            :class="showThinking
+              ? 'bg-[rgba(32,104,255,0.1)] text-[var(--color-primary)] border-[var(--color-primary)]'
+              : 'bg-[var(--color-tint)] text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-secondary)]'"
+            @click="emit('toggle-thinking')"
+            :title="showThinking ? 'Hide agent reasoning' : 'Show agent reasoning'"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a8 8 0 0 0-8 8c0 3.4 2.1 6.3 5 7.4V20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-2.6c2.9-1.1 5-4 5-7.4a8 8 0 0 0-8-8z"/>
+              <line x1="10" y1="22" x2="14" y2="22"/>
+            </svg>
+            {{ showThinking ? 'Thinking On' : 'Show Thinking' }}
+          </button>
+          <button
             v-if="!autoScroll"
             class="text-[11px] px-2 py-0.5 rounded bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] transition-colors"
             @click="scrollToBottom"
@@ -237,6 +256,23 @@ watch(() => props.actions.length, () => {
             class="w-full text-[11px] bg-[var(--color-tint)] border-none rounded-md px-2.5 py-1.5 text-[var(--color-text)] placeholder-[var(--color-text-muted)] outline-none focus:ring-1 focus:ring-[var(--color-primary)]"
           />
         </div>
+      </div>
+
+      <!-- LLM model badge when transparency is on -->
+      <div v-if="showThinking && llmModel" class="flex items-center gap-2 mt-2.5 px-2.5 py-1.5 rounded-md bg-[rgba(32,104,255,0.05)] border border-[rgba(32,104,255,0.1)]">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        <span class="text-[10px] text-[var(--color-primary)] font-medium">
+          {{ llmProvider || 'LLM' }} &middot; {{ llmModel }}
+        </span>
+        <button
+          v-if="hasAgentFilter"
+          class="ml-auto text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+          @click="emit('clear-agent-filter')"
+        >
+          Clear agent filter
+        </button>
       </div>
     </div>
 
@@ -288,7 +324,19 @@ watch(() => props.actions.length, () => {
                 >
                   {{ platformBadge(action.platform).label }}
                 </span>
-                <span class="text-[10px] text-[var(--color-text-muted)] ml-auto shrink-0">R{{ action.round_num }}</span>
+                <span class="text-[10px] text-[var(--color-text-muted)]" :class="showThinking ? '' : 'ml-auto'" >R{{ action.round_num }}</span>
+                <!-- Per-agent transparency toggle -->
+                <button
+                  v-if="showThinking"
+                  class="ml-auto text-[10px] px-1.5 py-0.5 rounded transition-colors shrink-0"
+                  :class="isAgentTransparent(action.agent_id)
+                    ? 'text-[var(--color-primary)] bg-[rgba(32,104,255,0.08)]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+                  @click.stop="emit('toggle-agent', action.agent_id)"
+                  :title="isAgentTransparent(action.agent_id) ? 'Hide thinking for this agent' : 'Show thinking for this agent'"
+                >
+                  &#x1F4A1;
+                </button>
               </div>
 
               <!-- Agent role subtitle -->
@@ -301,10 +349,31 @@ watch(() => props.actions.length, () => {
                 v-if="action.action_args?.content"
                 class="text-xs text-[var(--color-text-secondary)] mt-1 leading-relaxed"
               >
-                {{ truncate(action.action_args.content) }}
+                {{ showThinking && isAgentTransparent(action.agent_id) ? action.action_args.content : truncate(action.action_args.content) }}
               </p>
             </div>
           </div>
+
+          <!-- Reasoning trace (visible when transparency is on for this agent) -->
+          <Transition name="reasoning">
+            <div
+              v-if="showThinking && isAgentTransparent(action.agent_id) && action.reasoning"
+              class="ml-10 mt-2 pl-3 border-l-2 border-[rgba(32,104,255,0.2)] space-y-1.5"
+            >
+              <div class="flex items-start gap-1.5">
+                <span class="text-[10px] font-semibold text-[var(--color-primary)] uppercase tracking-wider shrink-0 mt-px">Thought</span>
+                <p class="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{{ action.reasoning.thought }}</p>
+              </div>
+              <div class="flex items-start gap-1.5">
+                <span class="text-[10px] font-semibold text-[#8b5cf6] uppercase tracking-wider shrink-0 mt-px">Action</span>
+                <p class="text-[11px] text-[var(--color-text-muted)] leading-relaxed font-mono">{{ action.reasoning.action }}</p>
+              </div>
+              <div class="flex items-start gap-1.5">
+                <span class="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider shrink-0 mt-px">Result</span>
+                <p class="text-[11px] text-[var(--color-text-muted)] leading-relaxed">{{ action.reasoning.observation }}</p>
+              </div>
+            </div>
+          </Transition>
         </div>
       </TransitionGroup>
     </div>
@@ -341,5 +410,20 @@ watch(() => props.actions.length, () => {
 }
 .feed-item-move {
   transition: transform 0.2s ease;
+}
+.reasoning-enter-active {
+  transition: all 0.2s ease-out;
+}
+.reasoning-leave-active {
+  transition: all 0.15s ease-in;
+}
+.reasoning-enter-from, .reasoning-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-4px);
+}
+.reasoning-enter-to, .reasoning-leave-from {
+  opacity: 1;
+  max-height: 200px;
 }
 </style>

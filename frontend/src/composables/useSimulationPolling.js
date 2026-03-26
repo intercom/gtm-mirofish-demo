@@ -297,6 +297,8 @@ export function useSimulationPolling(taskIdSource) {
       total_actions_count: demoActions,
       twitter_actions_count: twitterShare,
       reddit_actions_count: redditShare,
+      llm_provider: 'anthropic',
+      llm_model: 'claude-sonnet-4-20250514',
     }
     simStatus.value = 'completed'
     stopSimTimers()
@@ -347,19 +349,43 @@ export function useSimulationPolling(taskIdSource) {
       'Reposting — our ops team should see the pricing comparison data.',
       'Support automation has been on our roadmap for Q3. This timeline could work.',
     ]
+    const sampleThoughts = [
+      'The discussion thread has gained traction. My persona is skeptical about migration costs — I should engage with a cost-focused response.',
+      'Several agents have shared positive experiences. As a decision-maker, I should ask for concrete evidence before endorsing.',
+      'This post resonates with my industry vertical. Sharing it with my network would be in character.',
+      'The original poster raised valid concerns about compliance. I should amplify this since my persona works in healthcare.',
+      'Engagement on this thread is high. A supportive reaction aligns with my persona\'s general positivity toward innovation.',
+      'My persona has been quiet this round. A new post about our evaluation timeline would add value to the conversation.',
+      'The sentiment is shifting positive. As a cautious buyer persona, I should introduce a counterpoint about implementation risk.',
+      'This comparison data is exactly what my persona would find valuable. Reposting fits my knowledge-sharing behavior pattern.',
+    ]
+    const sampleObservations = [
+      'Post published successfully. Expected to generate 2-4 follow-up interactions based on thread momentum.',
+      'Reply added to thread with 12 existing responses. Position in thread should get moderate visibility.',
+      'Engagement registered. This increases the post\'s visibility score in the platform algorithm.',
+      'Content shared to followers. Estimated reach: 150-300 impressions based on persona\'s follower count.',
+      'Thread created in subreddit with active discussion. Should attract attention from other agents monitoring this topic.',
+    ]
 
     const demoActionsList = []
     for (let round = 1; round <= demoRounds; round++) {
       const actionsInRound = Math.floor(Math.random() * 8) + 3
       for (let j = 0; j < actionsInRound; j++) {
+        const actionType = actionTypes[Math.floor(Math.random() * actionTypes.length)]
+        const content = sampleContent[Math.floor(Math.random() * sampleContent.length)]
         demoActionsList.push({
           agent_id: Math.floor(Math.random() * agentNames.length),
           agent_name: agentNames[Math.floor(Math.random() * agentNames.length)],
-          action_type: actionTypes[Math.floor(Math.random() * actionTypes.length)],
+          action_type: actionType,
           platform: platforms[Math.floor(Math.random() * platforms.length)],
           round_num: round,
-          action_args: {
-            content: sampleContent[Math.floor(Math.random() * sampleContent.length)],
+          timestamp: new Date(Date.now() - (demoRounds - round) * 60000 + j * 5000).toISOString(),
+          success: true,
+          action_args: { content },
+          reasoning: {
+            thought: sampleThoughts[Math.floor(Math.random() * sampleThoughts.length)],
+            action: `${actionType}${content ? ': "' + content.slice(0, 60) + '..."' : ''}`,
+            observation: sampleObservations[Math.floor(Math.random() * sampleObservations.length)],
           },
         })
       }

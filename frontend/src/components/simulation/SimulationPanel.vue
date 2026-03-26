@@ -15,6 +15,7 @@ import MultiMetricView from './MultiMetricView.vue'
 import BeliefEvolution from './BeliefEvolution.vue'
 import LiveFeed from './LiveFeed.vue'
 import { useSimulationStream } from '../../composables/useSimulationStream'
+import { useTransparency } from '../../composables/useTransparency'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -22,6 +23,7 @@ const props = defineProps({
 
 const polling = inject('polling')
 const simShortcuts = inject('simShortcuts', null)
+const { showThinking, hasAgentFilter, toggleThinking, toggleAgent, isAgentTransparent, clearAgentFilter } = useTransparency()
 
 const activePlatform = ref('all')
 const chartViewMode = ref('detail') // 'detail' | 'overview'
@@ -350,6 +352,16 @@ function truncate(str, len = 120) {
   return str.slice(0, len) + '\u2026'
 }
 
+function formatTimestamp(ts) {
+  if (!ts) return ''
+  try {
+    const d = new Date(ts)
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return ts
+  }
+}
+
 function selectAgent(action) {
   const agentActions = feedActions.value.filter(
     a => a.agent_name === action.agent_name
@@ -590,7 +602,15 @@ onUnmounted(() => {
           <LiveFeed
             :actions="feedActions"
             :connection-status="feedConnectionStatus"
+            :show-thinking="showThinking"
+            :has-agent-filter="hasAgentFilter"
+            :is-agent-transparent="isAgentTransparent"
+            :llm-model="polling.runStatus.value?.llm_model"
+            :llm-provider="polling.runStatus.value?.llm_provider"
             @select-agent="selectAgent"
+            @toggle-thinking="toggleThinking"
+            @toggle-agent="toggleAgent"
+            @clear-agent-filter="clearAgentFilter"
           />
         </div>
 
@@ -795,3 +815,17 @@ onUnmounted(() => {
   </div>
 </template>
 
+<style scoped>
+.slide-right-enter-active, .slide-right-leave-active {
+  transition: transform 0.25s ease;
+}
+.slide-right-enter-from, .slide-right-leave-to {
+  transform: translateX(100%);
+}
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+</style>

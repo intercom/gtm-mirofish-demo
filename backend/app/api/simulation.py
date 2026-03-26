@@ -1783,6 +1783,8 @@ def get_run_status(simulation_id: str):
 
         data = run_state.to_dict()
         data['mode'] = mode or "oasis"
+        data["llm_provider"] = os.environ.get('LLM_PROVIDER', 'unknown')
+        data["llm_model"] = Config.LLM_MODEL_NAME or 'unknown'
 
         return jsonify({
             "success": True,
@@ -1884,7 +1886,11 @@ def get_run_status_detail(simulation_id: str):
         result["rounds_count"] = len(run_state.rounds)
         # recent_actions 只展示当前最新一轮两个平台的内容
         result["recent_actions"] = [a.to_dict() for a in recent_actions]
-        
+
+        # LLM transparency metadata
+        result["llm_provider"] = os.environ.get('LLM_PROVIDER', 'unknown')
+        result["llm_model"] = Config.LLM_MODEL_NAME or 'unknown'
+
         return jsonify({
             "success": True,
             "data": result

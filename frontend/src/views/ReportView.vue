@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } from 'vue'
 import { marked } from 'marked'
 import { API_BASE } from '../api/client'
 import { useReportShortcuts } from '../composables/useReportShortcuts'
@@ -10,7 +10,6 @@ import { AppBreadcrumb } from '../components/common'
 import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
-import ReportCharts from '../components/report/ReportCharts.vue'
 import ToolCallLog from '../components/report/ToolCallLog.vue'
 import ReportSummaryCards from '../components/report/ReportSummaryCards.vue'
 import DataTable from '../components/report/DataTable.vue'
@@ -22,6 +21,12 @@ import ReportTemplateSelector from '../components/report/ReportTemplateSelector.
 import ReportShareModal from '../components/report/ReportShareModal.vue'
 import ReportPreview from '../components/report-builder/ReportPreview.vue'
 import RichTextEditor from '../components/report/RichTextEditor.vue'
+
+const ReportCharts = defineAsyncComponent({
+  loader: () => import('../components/report/ReportCharts.vue'),
+  loadingComponent: ShimmerCard,
+  delay: 200,
+})
 
 const { resolvedTheme, themeStyles } = useReportTheme()
 const showShareModal = ref(false)

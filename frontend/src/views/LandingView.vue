@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDemoMode } from '../composables/useDemoMode'
 import { useDemoPreset } from '../composables/useDemoPreset'
@@ -8,12 +8,18 @@ import { useParallax } from '../composables/useParallax'
 import { useOnboardingTour } from '../composables/useOnboardingTour'
 import { useLocale } from '../composables/useLocale'
 import { API_BASE } from '../api/client'
-import HeroSwarm from '../components/landing/HeroSwarm.vue'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
 import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
 import GtmScenarioLauncher from '../components/scenarios/GtmScenarioLauncher.vue'
 import LazyComponent from '../components/ui/LazyComponent.vue'
 import SkeletonScenarioCard from '../components/ui/SkeletonScenarioCard.vue'
+
+const HeroSwarm = defineAsyncComponent({
+  loader: () => import('../components/landing/HeroSwarm.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 200,
+})
 
 const router = useRouter()
 const { isDemoMode } = useDemoMode()

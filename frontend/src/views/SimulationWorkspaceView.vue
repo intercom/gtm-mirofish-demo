@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, provide, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, defineAsyncComponent, provide, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSimulationPolling } from '../composables/useSimulationPolling'
 import { useTimelineScrubber, provideTimelineScrubber } from '../composables/useTimelineScrubber'
@@ -9,10 +9,9 @@ import { useToast } from '../composables/useToast'
 import { useSimulationStore } from '../stores/simulation'
 import { AppBreadcrumb } from '../components/common'
 import { useBreadcrumbs } from '../composables/useBreadcrumbs'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
-import GraphPanel from '../components/simulation/GraphPanel.vue'
 import Graph3DPanel from '../components/simulation/Graph3DPanel.vue'
-import SimulationPanel from '../components/simulation/SimulationPanel.vue'
 import NavigationMiniMap from '../components/navigation/NavigationMiniMap.vue'
 import LiveFeed from '../components/simulation/LiveFeed.vue'
 import SimulationControls from '../components/simulation/SimulationControls.vue'
@@ -25,6 +24,18 @@ import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import RelationshipEvolution from '../components/simulation/RelationshipEvolution.vue'
 import NetworkAnalysisView from './NetworkAnalysisView.vue'
 import CoalitionView from '../components/simulation/CoalitionView.vue'
+
+const GraphPanel = defineAsyncComponent({
+  loader: () => import('../components/simulation/GraphPanel.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 200,
+})
+
+const SimulationPanel = defineAsyncComponent({
+  loader: () => import('../components/simulation/SimulationPanel.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 200,
+})
 
 const props = defineProps({
   taskId: { type: String, required: true },

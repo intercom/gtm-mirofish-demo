@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useDemoMode } from '../../composables/useDemoMode'
+import { usePermissions } from '../../composables/usePermissions'
 import { useSimulationStore } from '../../stores/simulation'
 import { perfMonitor } from '../../lib/perfMonitor'
 import { useSettingsStore } from '../../stores/settings'
@@ -14,6 +15,7 @@ import ThemeSwitcher from '../common/ThemeSwitcher.vue'
 import { useTutorialStore } from '../../stores/tutorial'
 
 const { isDemoMode } = useDemoMode()
+const { hasRole } = usePermissions()
 const simulationStore = useSimulationStore()
 const settingsStore = useSettingsStore()
 const tutorial = useTutorialStore()
@@ -41,11 +43,14 @@ onUnmounted(() => {
 })
 
 const navLinks = computed(() => {
-  return [
+  const links = [
     { to: '/', label: 'Home', exact: true, shortcut: 'G+D', tutorial: 'scenarios' },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },
-    { to: '/settings', label: 'Settings', exact: false, shortcut: 'G+T', tutorial: 'settings' },
   ]
+  if (hasRole('viewer')) {
+    links.push({ to: '/settings', label: 'Settings', exact: false, shortcut: 'G+T', tutorial: 'settings' })
+  }
+  return links
 })
 </script>
 

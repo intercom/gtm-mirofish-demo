@@ -1,36 +1,32 @@
 import { ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 
-/**
- * Role hierarchy and permission mapping — mirrors backend/auth/rbac.py.
- * Keep these in sync when roles or permissions change.
- */
-
 const ROLE_HIERARCHY = ['guest', 'viewer', 'editor', 'admin']
 
 const ROLE_PERMISSIONS = {
-  guest: ['view_simulations', 'view_reports'],
-  viewer: ['view_simulations', 'view_reports'],
+  admin: [
+    'view_simulations', 'create_simulations', 'edit_simulations', 'delete_simulations',
+    'view_reports', 'create_reports',
+    'manage_agents', 'manage_templates', 'manage_settings', 'manage_users', 'manage_api_keys',
+  ],
   editor: [
     'view_simulations', 'create_simulations', 'edit_simulations', 'delete_simulations',
     'view_reports', 'create_reports',
     'manage_agents', 'manage_templates',
   ],
-  admin: [
-    'view_simulations', 'create_simulations', 'edit_simulations', 'delete_simulations',
-    'view_reports', 'create_reports',
-    'manage_agents', 'manage_templates',
-    'manage_settings', 'manage_users', 'manage_api_keys',
-  ],
+  viewer: ['view_simulations', 'view_reports'],
+  guest: ['view_simulations', 'view_reports'],
 }
 
 export function usePermissions() {
   const auth = useAuthStore()
 
-  const role = computed(() => auth.user?.role || 'guest')
+  const role = computed(() => {
+    if (!auth.user) return 'admin'
+    return auth.user.role || 'guest'
+  })
 
   const permissions = computed(() => {
-    // Prefer server-provided permissions, fall back to local mapping
     if (auth.user?.permissions?.length) return auth.user.permissions
     return ROLE_PERMISSIONS[role.value] || []
   })
@@ -46,23 +42,11 @@ export function usePermissions() {
   const isAdmin = computed(() => role.value === 'admin')
   const isEditor = computed(() => hasRole('editor'))
   const isViewer = computed(() => hasRole('viewer'))
+  const isReadOnly = computed(() => !hasRole('editor'))
 
-  return { role, permissions, can, hasRole, isAdmin, isEditor, isViewer }
+  return { role, permissions, can, hasRole, isAdmin, isEditor, isViewer, isReadOnly, ROLE_HIERARCHY, ROLE_PERMISSIONS }
 }
 
-/**
- * Composable for extracting and checking permissions from API responses.
- *
- * API responses include a `permissions` object like:
- *   { "can_view": true, "can_edit": true, "can_delete": false }
- *
- * Usage:
- *   const { permissions, updatePermissions, can } = useApiPermissions()
- *   // After an API call:
- *   updatePermissions(response.data.permissions)
- *   // In template:
- *   v-if="can('delete')"
- */
 export function useApiPermissions() {
   const permissions = ref({})
 
@@ -72,10 +56,6 @@ export function useApiPermissions() {
     }
   }
 
-  /**
-   * Check if an action is permitted.
-   * Accepts either 'edit' or 'can_edit' format.
-   */
   function can(action) {
     const key = action.startsWith('can_') ? action : `can_${action}`
     return permissions.value[key] === true
@@ -97,14 +77,6 @@ export function useApiPermissions() {
   }
 }
 
-/**
- * Extract permissions from a standard API response.
- * Works with both single-item and list responses.
- *
- * For single: response.data.data.permissions
- * For list: response.data.data[0].permissions (first item)
- * For non-standard: response.data.permissions
- */
 export function extractPermissions(response) {
   const data = response?.data?.data ?? response?.data
   if (!data) return {}

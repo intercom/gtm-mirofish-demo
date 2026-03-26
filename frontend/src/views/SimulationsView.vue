@@ -12,6 +12,7 @@ import { useLocale } from '../composables/useLocale'
 import { useDashboardLayout } from '../composables/useDashboardLayout'
 import { usePagination } from '../composables/usePagination'
 import Pagination from '../components/common/Pagination.vue'
+import { usePermissions } from '../composables/usePermissions'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import ScenarioCalendar from '../components/simulation/ScenarioCalendar.vue'
@@ -20,6 +21,7 @@ const router = useRouter()
 const store = useSimulationStore()
 const { formatRelativeTime, formatShortDateTime, formatNumber } = useLocale()
 const { customOrder, saveOrder, clearOrder, applyOrder } = useDashboardLayout()
+const { can } = usePermissions()
 
 const viewMode = ref('list')
 
@@ -380,13 +382,14 @@ function exportRun(run) {
             Compare
           </router-link>
           <button
-            v-if="store.hasRuns"
+            v-if="store.hasRuns && can('delete_simulations')"
             @click="clearAll"
             class="text-[11px] md:text-xs font-medium min-h-[44px] md:min-h-0 px-3 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
           >
             Clear
           </button>
           <router-link
+            v-if="can('create_simulations')"
             to="/"
             class="inline-flex items-center gap-1.5 bg-[#2068FF] hover:bg-[#1a5ae0] active:bg-[#1550cc] text-white text-[11px] md:text-sm font-medium min-h-[44px] md:min-h-0 px-3 md:px-4 py-2 rounded-lg transition-colors no-underline"
           >
@@ -500,6 +503,7 @@ function exportRun(run) {
           Run your first simulation from the home page to see your results here.
         </p>
         <router-link
+          v-if="can('create_simulations')"
           to="/"
           class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] active:bg-[#1550cc] text-white text-sm font-medium min-h-[44px] px-5 py-2.5 rounded-lg transition-colors no-underline"
         >
@@ -586,6 +590,7 @@ function exportRun(run) {
                   </svg>
                 </button>
                 <button
+                  v-if="can('delete_simulations')"
                   @click="deleteRun(run)"
                   class="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
                   title="Delete run"
@@ -647,7 +652,7 @@ function exportRun(run) {
                 </span>
               </router-link>
               <router-link
-                v-if="canRerun(run)"
+                v-if="canRerun(run) && can('create_simulations')"
                 :to="rerunUrl(run)"
                 class="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-2 rounded-md border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[#2068FF] hover:border-[#2068FF]/50 active:bg-[rgba(32,104,255,0.06)] transition-colors no-underline"
                 title="Re-run simulation"

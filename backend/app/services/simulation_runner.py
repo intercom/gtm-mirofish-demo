@@ -1093,7 +1093,99 @@ class SimulationRunner:
         result = sorted(agent_stats.values(), key=lambda x: x["total_actions"], reverse=True)
         
         return result
-    
+
+    # --- Sentiment word lists (mirrors frontend scoring) ---
+    _POSITIVE_WORDS = [
+        'impressive', 'compelling', 'great', 'interested', 'good', 'recommend',
+        'valuable', 'effective', 'worth', 'excellent', 'innovative', 'benefit',
+        'advantage', 'better', 'love', 'amazing', 'helpful', 'promising',
+        'exciting', 'confident', 'strong', 'pleased', 'significant', 'positive',
+    ]
+    _NEGATIVE_WORDS = [
+        'concerned', 'skeptical', 'aggressive', 'missing', 'risk', 'worried',
+        'expensive', 'complex', 'difficult', 'dismiss', 'doubt', 'issue',
+        'problem', 'unclear', 'confusing', 'frustrated', 'poor', 'slow',
+        'lacks', 'overpriced', 'clunky', 'limited', 'negative', 'afraid',
+    ]
+
+    @classmethod
+    def _score_content(cls, content: str) -> float:
+        if not content:
+            return 0.0
+        lower = content.lower()
+        pos = sum(1 for w in cls._POSITIVE_WORDS if w in lower)
+        neg = sum(1 for w in cls._NEGATIVE_WORDS if w in lower)
+        if pos + neg == 0:
+            return 0.0
+        return (pos - neg) / (pos + neg)
+
+    @classmethod
+    def _score_action(cls, action: 'AgentAction') -> float:
+        action_type = (action.action_type or '').upper()
+        content_score = cls._score_content(action.action_args.get('content', ''))
+        if 'LIKE' in action_type or 'UPVOTE' in action_type:
+            return 0.3 + content_score * 0.2
+        if 'REPOST' in action_type or 'RETWEET' in action_type or 'SHARE' in action_type:
+            return 0.2 + content_score * 0.2
+        if 'REPLY' in action_type or 'COMMENT' in action_type:
+            return content_score * 0.8
+        return content_score * 0.6
+
+    @classmethod
+    def get_agent_sentiment_timeline(cls, simulation_id: str) -> Dict[str, Any]:
+        """
+        Per-agent sentiment broken down by round.
+
+        Returns:
+            {
+                "agents": [{"agent_id": int, "agent_name": str}, ...],
+                "rounds": [int, ...],
+                "series": {
+                    "<agent_id>": [{"round": int, "sentiment": float, "actions": int}, ...]
+                }
+            }
+        """
+        actions = cls.get_actions(simulation_id, limit=10000)
+
+        # Build per-agent-per-round buckets
+        agent_meta: Dict[int, str] = {}
+        buckets: Dict[int, Dict[int, list]] = {}  # agent_id -> round -> scores
+
+        for action in actions:
+            aid = action.agent_id
+            rnd = action.round_num
+            if aid not in agent_meta:
+                agent_meta[aid] = action.agent_name
+            if aid not in buckets:
+                buckets[aid] = {}
+            if rnd not in buckets[aid]:
+                buckets[aid][rnd] = []
+            buckets[aid][rnd].append(cls._score_action(action))
+
+        all_rounds = sorted({a.round_num for a in actions})
+
+        agents_list = [
+            {"agent_id": aid, "agent_name": name}
+            for aid, name in sorted(agent_meta.items())
+        ]
+
+        series = {}
+        for aid in agent_meta:
+            agent_series = []
+            for rnd in all_rounds:
+                scores = buckets.get(aid, {}).get(rnd, [])
+                if scores:
+                    avg = max(-1.0, min(1.0, sum(scores) / len(scores)))
+                    agent_series.append({"round": rnd, "sentiment": round(avg, 3), "actions": len(scores)})
+                # Only include rounds where the agent had actions
+            series[str(aid)] = agent_series
+
+        return {
+            "agents": agents_list,
+            "rounds": all_rounds,
+            "series": series,
+        }
+
     @classmethod
     def cleanup_simulation_logs(cls, simulation_id: str) -> Dict[str, Any]:
         """

@@ -22,6 +22,7 @@ import SentimentArc from './SentimentArc.vue'
 import RelationshipNetwork from './RelationshipNetwork.vue'
 import { useRelationshipsStore } from '../../stores/relationships'
 import AnomalyHighlights from './AnomalyHighlights.vue'
+import AgentSentimentTimeline from './AgentSentimentTimeline.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -691,6 +692,13 @@ onUnmounted(() => {
 
         <!-- Behavior Patterns -->
         <BehaviorPatterns
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Per-agent sentiment breakdown -->
+        <AgentSentimentTimeline
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
           class="mb-8"

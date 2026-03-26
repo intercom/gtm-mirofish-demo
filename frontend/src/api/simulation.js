@@ -63,6 +63,8 @@ export const simulationApi = {
     client.get(`/simulation/${simulationId}/adjacency-matrix`),
   getSentiment: (simulationId) =>
     client.get(`/simulation/${simulationId}/sentiment`),
+  getAgentSentimentTimeline: (simulationId) =>
+    client.get(`/simulation/${simulationId}/agent-sentiment-timeline`),
   getPosts: (simulationId, params) =>
     client.get(`/simulation/${simulationId}/posts`, { params }),
   getComments: (simulationId, params) =>

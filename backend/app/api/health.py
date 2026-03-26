@@ -1,6 +1,7 @@
 """
 Health Check API
-Provides /api/health (basic) and /api/health/detailed (dependency status).
+Provides /api/health (basic), /api/health/detailed (dependency status),
+and /api/health/services (external service degradation status).
 """
 
 import platform
@@ -10,6 +11,7 @@ import time
 from flask import Blueprint, jsonify
 
 from ..config import Config
+from ..utils.degradation import health_tracker
 
 health_bp = Blueprint('health', __name__, url_prefix='/api/health')
 
@@ -55,6 +57,18 @@ def detailed_health():
         'python_version': sys.version.split()[0],
         'platform': platform.system(),
         'checks': checks,
+    })
+
+
+@health_bp.route('/services', methods=['GET'])
+def service_health():
+    """Return health status of all tracked external services."""
+    status = health_tracker.get_status()
+    all_healthy = all(info['healthy'] for info in status.values())
+    return jsonify({
+        'success': True,
+        'healthy': all_healthy,
+        'services': status,
     })
 
 

@@ -12,6 +12,7 @@ warnings.filterwarnings("ignore", message=".*resource_tracker.*")
 
 from flask import Flask, g, request, session
 from flask_cors import CORS
+from flask_compress import Compress
 
 from .config import Config
 from .utils.logger import setup_logger
@@ -42,6 +43,9 @@ def create_app(config_class=Config):
     
     # 启用CORS
     CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+    # 启用GZIP压缩
+    Compress(app)
 
     # Auth middleware (loads g.user from JWT when AUTH_ENABLED=true)
     from auth.middleware import init_auth_middleware

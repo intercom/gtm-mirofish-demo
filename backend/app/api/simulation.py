@@ -2419,6 +2419,83 @@ def get_agent_sentiment_timeline(simulation_id: str):
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>/agent-network', methods=['GET'])
+def get_agent_network(simulation_id: str):
+    """
+    Build agent interaction network graph from simulation actions.
+
+    Returns nodes (agents) and links (interaction edges) suitable for
+    a D3 force-directed graph.  Interactions are inferred from co-participation
+    in the same round and from reply/comment/repost actions.
+    """
+    try:
+        actions = SimulationRunner.get_actions(simulation_id, limit=10000)
+
+        if not actions:
+            return jsonify({
+                "success": True,
+                "data": {"nodes": [], "links": []}
+            })
+
+        # --- Build agent nodes ---
+        agents = {}
+        for a in actions:
+            aid = a.agent_id
+            if aid not in agents:
+                agents[aid] = {
+                    "id": aid,
+                    "name": a.agent_name,
+                    "actions_count": 0,
+                    "action_types": {},
+                    "platforms": set(),
+                }
+            ag = agents[aid]
+            ag["actions_count"] += 1
+            ag["platforms"].add(a.platform)
+            ag["action_types"][a.action_type] = ag["action_types"].get(a.action_type, 0) + 1
+
+        # --- Build interaction links ---
+        # Group agents by round to derive co-participation edges.
+        rounds = {}
+        for a in actions:
+            rounds.setdefault(a.round_num, []).append(a)
+
+        link_map = {}  # (min_id, max_id) -> weight
+        for round_agents in rounds.values():
+            # Unique agent ids in this round
+            ids = list({a.agent_id for a in round_agents})
+            for i in range(len(ids)):
+                for j in range(i + 1, len(ids)):
+                    key = (min(ids[i], ids[j]), max(ids[i], ids[j]))
+                    link_map[key] = link_map.get(key, 0) + 1
+
+        links = [
+            {"source": s, "target": t, "weight": w}
+            for (s, t), w in sorted(link_map.items(), key=lambda x: x[1], reverse=True)
+        ]
+
+        nodes = []
+        for ag in sorted(agents.values(), key=lambda x: x["actions_count"], reverse=True):
+            ag["platforms"] = list(ag["platforms"])
+            nodes.append(ag)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": nodes,
+                "links": links,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to build agent network: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== 数据库查询接口 ==============
 
 @simulation_bp.route('/<simulation_id>/posts', methods=['GET'])

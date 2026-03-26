@@ -68,6 +68,11 @@ const tabs = computed(() => {
       label: 'Relationships',
       metric: simStatus === 'completed' ? '15 agents' : null,
     },
+    {
+      key: 'network',
+      label: 'Network',
+      metric: null,
+    },
   ]
 })
 </script>

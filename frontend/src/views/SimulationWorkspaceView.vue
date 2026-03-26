@@ -23,6 +23,7 @@ import CommunityView from '../components/graph/CommunityView.vue'
 import TimelineScrubber from '../components/simulation/TimelineScrubber.vue'
 import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import RelationshipEvolution from '../components/simulation/RelationshipEvolution.vue'
+import AgentNetworkGraph from '../components/simulation/AgentNetworkGraph.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -39,7 +40,7 @@ provide('polling', polling)
 const scrubber = useTimelineScrubber(polling)
 provideTimelineScrubber(scrubber)
 
-const VALID_TABS = ['graph', 'simulation', 'communities', 'relationships']
+const VALID_TABS = ['graph', 'simulation', 'communities', 'relationships', 'network']
 const initialTab = VALID_TABS.includes(route.query.tab) ? route.query.tab : 'graph'
 const activeTab = ref(initialTab)
 const demoMode = ref(false)
@@ -72,6 +73,7 @@ const workspaceShortcuts = [
   { key: '2', label: 'Simulation tab' },
   { key: '3', label: 'Communities tab' },
   { key: '4', label: 'Relationships tab' },
+  { key: '5', label: 'Network tab' },
   { key: 'r', label: 'View report' },
   { key: 'Escape', label: 'Go back', display: 'Esc' },
 ]
@@ -98,6 +100,7 @@ register('1', () => { activeTab.value = 'graph' }, { description: 'Switch to Gra
 register('2', () => { activeTab.value = 'simulation' }, { description: 'Switch to Simulation tab', category: 'Workspace' })
 register('3', () => { activeTab.value = 'communities' }, { description: 'Switch to Communities tab', category: 'Workspace' })
 register('4', () => { activeTab.value = 'relationships' }, { description: 'Switch to Relationships tab', category: 'Workspace' })
+register('5', () => { activeTab.value = 'network' }, { description: 'Switch to Network tab', category: 'Workspace' })
 register('r', () => router.push(`/report/${props.taskId}`), { description: 'View report', category: 'Workspace' })
 register('?', toggle, { description: 'Show keyboard shortcuts', category: 'General' })
 
@@ -257,6 +260,11 @@ onUnmounted(() => {
         <!-- Relationships tab -->
         <div v-show="activeTab === 'relationships'" class="absolute inset-0">
           <RelationshipEvolution :taskId="taskId" />
+        </div>
+
+        <!-- Network tab -->
+        <div v-show="activeTab === 'network'" class="absolute inset-0">
+          <AgentNetworkGraph :taskId="taskId" />
         </div>
       </div>
 

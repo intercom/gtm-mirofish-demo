@@ -21,6 +21,8 @@ INDUSTRIES = [
 
 PLAN_TIERS = ["Essential", "Advanced", "Expert"]
 
+REGIONS = ["North America", "EMEA", "APAC", "LATAM"]
+
 OPPORTUNITY_STAGES = [
     "Prospecting", "Discovery", "Proposal", "Negotiation",
     "Closed Won", "Closed Lost",
@@ -79,6 +81,8 @@ _EMAIL_DOMAINS = [
     "fusioncloud.io", "gridpoint.tech", "helixsys.com", "intellisoft.co", "jetstream.dev",
 ]
 
+_EMPLOYEE_COUNTS = [50, 100, 250, 500, 1000, 2500, 5000, 10000]
+
 
 def _seeded_rng(seed: int) -> random.Random:
     """Create a deterministic Random instance from a seed."""
@@ -112,6 +116,9 @@ class Account:
     owner: str
     created_date: str
     renewal_date: str
+    employee_count: int = 0
+    website: str = ""
+    region: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -124,6 +131,9 @@ class Account:
             "owner": self.owner,
             "created_date": self.created_date,
             "renewal_date": self.renewal_date,
+            "employee_count": self.employee_count,
+            "website": self.website,
+            "region": self.region,
         }
 
     @classmethod
@@ -138,6 +148,9 @@ class Account:
             owner=data["owner"],
             created_date=data["created_date"],
             renewal_date=data["renewal_date"],
+            employee_count=data.get("employee_count", 0),
+            website=data.get("website", ""),
+            region=data.get("region", ""),
         )
 
     @classmethod
@@ -147,11 +160,12 @@ class Account:
         suffix = rng.choice(_COMPANY_SUFFIXES)
         owner_first = rng.choice(_FIRST_NAMES)
         owner_last = rng.choice(_LAST_NAMES)
+        name = f"{prefix} {suffix}"
 
         arr_raw = rng.randint(10, 500) * 1000
         return cls(
             id=_generate_id("acct", seed),
-            name=f"{prefix} {suffix}",
+            name=name,
             industry=rng.choice(INDUSTRIES),
             arr=float(arr_raw),
             plan_tier=rng.choice(PLAN_TIERS),
@@ -159,6 +173,9 @@ class Account:
             owner=f"{owner_first} {owner_last}",
             created_date=_random_date(rng, 2022, 2024),
             renewal_date=_random_date(rng, 2025, 2026),
+            employee_count=rng.choice(_EMPLOYEE_COUNTS),
+            website=f"https://www.{name.lower().replace(' ', '')}.com",
+            region=rng.choice(REGIONS),
         )
 
 
@@ -174,6 +191,7 @@ class Opportunity:
     probability: int
     owner: str
     type: str
+    created_date: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -186,6 +204,7 @@ class Opportunity:
             "probability": self.probability,
             "owner": self.owner,
             "type": self.type,
+            "created_date": self.created_date,
         }
 
     @classmethod
@@ -200,6 +219,7 @@ class Opportunity:
             probability=data["probability"],
             owner=data["owner"],
             type=data["type"],
+            created_date=data.get("created_date", ""),
         )
 
     @classmethod
@@ -230,6 +250,7 @@ class Opportunity:
             probability=stage_probabilities[stage],
             owner=f"{rng.choice(_FIRST_NAMES)} {rng.choice(_LAST_NAMES)}",
             type=opp_type,
+            created_date=_random_date(rng, 2024, 2025),
         )
 
 
@@ -301,6 +322,7 @@ class Lead:
     source: str
     score: int
     owner: str
+    created_date: str = ""
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -313,6 +335,7 @@ class Lead:
             "source": self.source,
             "score": self.score,
             "owner": self.owner,
+            "created_date": self.created_date,
         }
 
     @classmethod
@@ -327,6 +350,7 @@ class Lead:
             source=data["source"],
             score=data["score"],
             owner=data["owner"],
+            created_date=data.get("created_date", ""),
         )
 
     @classmethod
@@ -348,4 +372,5 @@ class Lead:
             source=rng.choice(LEAD_SOURCES),
             score=rng.randint(1, 100),
             owner=f"{rng.choice(_FIRST_NAMES)} {rng.choice(_LAST_NAMES)}",
+            created_date=_random_date(rng, 2024, 2025),
         )

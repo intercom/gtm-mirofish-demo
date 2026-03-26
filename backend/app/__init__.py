@@ -179,6 +179,10 @@ def create_app(config_class=Config):
     from .api.errors import errors_bp
     app.register_blueprint(errors_bp)
 
+    # Salesforce CRM demo data API
+    from .api.salesforce import salesforce_bp
+    app.register_blueprint(salesforce_bp)
+
     # Root-level liveness check (for load balancers / infrastructure)
     @app.route('/health')
     def health():

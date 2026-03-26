@@ -14,5 +14,6 @@ COPY demo_app.py .
 COPY run.py .
 
 ENV PORT=5001
+EXPOSE 5001
 
 CMD ["python", "run.py"]

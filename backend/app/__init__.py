@@ -270,8 +270,9 @@ def create_app(config_class=Config):
     # Error handling middleware
     register_error_handlers(app)
 
-
+    # 健康检查 (both paths for docker-compose and direct access)
     @app.route('/health')
+    @app.route('/api/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}
     

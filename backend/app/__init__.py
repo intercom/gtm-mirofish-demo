@@ -98,6 +98,10 @@ def create_app(config_class=Config):
     from .api.insights import insights_bp
     app.register_blueprint(insights_bp)
 
+    # Memory search API
+    from .api.memory import memory_bp
+    app.register_blueprint(memory_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

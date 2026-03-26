@@ -88,11 +88,11 @@ const statusLabel = computed(() => {
 const statusStyle = computed(() => {
   const map = {
     building: 'bg-[rgba(32,104,255,0.1)] text-[var(--color-primary)]',
-    running: 'bg-emerald-100 text-emerald-700',
+    running: 'bg-[var(--color-success-light)] text-[var(--color-success)]',
     completed: 'bg-[var(--color-success-light)] text-[var(--color-success)]',
     failed: 'bg-[var(--color-error-light)] text-[var(--color-error)]',
   }
-  return map[status.value] || 'bg-gray-100 text-gray-700'
+  return map[status.value] || 'bg-[var(--color-tint)] text-[var(--color-text-secondary)]'
 })
 
 const statusIcon = computed(() => {

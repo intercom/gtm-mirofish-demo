@@ -39,12 +39,22 @@ const CHART_MAP = {
   5: renderCampaignSpendAllocation,
 }
 
-const COLORS = {
-  primary: '#2068FF',
-  orange: '#ff5600',
-  purple: '#AA00FF',
-  green: '#009900',
-  text: '#050505',
+function getColors() {
+  const s = getComputedStyle(document.documentElement)
+  const dark = document.documentElement.classList.contains('dark')
+  return {
+    primary: s.getPropertyValue('--color-primary').trim() || '#2068FF',
+    orange: s.getPropertyValue('--color-fin-orange').trim() || '#ff5600',
+    purple: s.getPropertyValue('--color-accent').trim() || '#AA00FF',
+    green: s.getPropertyValue('--color-success').trim() || '#009900',
+    text: s.getPropertyValue('--color-text').trim() || '#050505',
+    textSecondary: s.getPropertyValue('--color-text-secondary').trim() || '#555555',
+    textMuted: s.getPropertyValue('--color-text-muted').trim() || '#888888',
+    grid: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    subtle: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+    connector: dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.15)',
+    surface: s.getPropertyValue('--color-surface').trim() || '#ffffff',
+  }
 }
 
 function hasChart(index) {
@@ -72,6 +82,7 @@ function renderActiveChart() {
 function renderPersonaEngagement() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const c = getChartColors()
   const data = [
@@ -238,6 +249,7 @@ function renderPersonaEngagement() {
 function renderSubjectLinePerformance() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const c = getChartColors()
   const data = [
@@ -485,6 +497,7 @@ function renderSubjectLinePerformance() {
 function renderBehavioralClusters() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const c = getChartColors()
   const data = [
@@ -687,6 +700,7 @@ function renderBehavioralClusters() {
 function renderTopicTreemap() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const treeData = {
     name: 'Topics',
@@ -873,6 +887,7 @@ function renderTopicTreemap() {
 function renderCampaignSpendAllocation() {
   const container = chartRef.value
   if (!container) return
+  const COLORS = getColors()
 
   const campaigns = [
     { name: 'Zendesk Displacement Email', channel: 'Email', spend: 45000 },

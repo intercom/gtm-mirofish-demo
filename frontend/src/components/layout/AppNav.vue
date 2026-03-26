@@ -68,7 +68,7 @@ watch(() => route.path, () => {
           <span class="text-xs text-white/40 ml-1 hidden sm:inline">GTM Demo</span>
           <span
             v-if="isDemoMode"
-            class="ml-2 text-xs font-semibold text-white bg-[#2068FF] px-2 py-0.5 rounded-full"
+            class="ml-2 text-xs font-semibold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full"
           >DEMO</span>
         </router-link>
 
@@ -207,7 +207,7 @@ watch(() => route.path, () => {
       leave-from-class="opacity-100 translate-y-0"
       leave-to-class="opacity-0 -translate-y-2"
     >
-      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
+      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[var(--color-navy)] border-b border-white/10 z-50">
         <div class="px-4 py-3 space-y-1">
           <router-link
             v-for="link in navigationStore.navLinks"

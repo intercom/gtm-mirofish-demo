@@ -17,9 +17,10 @@ const showFooter = computed(() => !hideChrome.value && !isLanding.value)
 
 <template>
   <div class="min-h-screen flex flex-col bg-[var(--color-bg)]">
+    <a href="#main-content" class="skip-to-main">Skip to main content</a>
     <AppNav v-if="!hideChrome" />
     <GuestBanner v-if="auth.isGuest" />
-    <main class="flex-1" :class="{ 'pb-16 md:pb-0': !isLanding }">
+    <main id="main-content" class="flex-1" :class="{ 'pb-16 md:pb-0': !isLanding }">
       <slot />
     </main>
     <AppFooter v-if="showFooter" />

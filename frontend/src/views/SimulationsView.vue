@@ -467,7 +467,7 @@ function exportRun(run) {
       <!-- Search / Filter / Sort (list mode only) -->
       <div v-if="store.hasRuns && viewMode === 'list'" class="flex flex-col sm:flex-row gap-2 md:gap-3 mb-4 md:mb-6">
         <div class="flex-1 relative">
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
           </svg>
           <input

@@ -6,7 +6,7 @@ const year = new Date().getFullYear()
 </script>
 
 <template>
-  <footer class="border-t border-[var(--color-border)] px-4 md:px-6 py-3 md:py-4 text-center text-xs text-[var(--color-text-muted)]">
+  <footer class="border-t border-[var(--color-border)] px-4 md:px-6 py-3 md:py-4 text-center text-xs text-[var(--color-text-muted)]" role="contentinfo">
     <span>{{ t('footer.poweredBy') }} </span>
     <a
       href="https://github.com/666ghj/MiroFish"

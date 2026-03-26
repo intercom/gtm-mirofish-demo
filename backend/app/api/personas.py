@@ -7,9 +7,12 @@ Endpoints:
   GET  /api/v1/personas/<id>           — get a single persona
   PUT  /api/v1/personas/<id>           — update a persona
   POST /api/v1/personas/<id>/enhance   — enhance with simulation context
+  POST /api/v1/personas/<id>/clone     — clone and optionally modify a persona
 """
 
+import copy
 import traceback
+import uuid
 
 from flask import Blueprint, jsonify, request
 
@@ -156,3 +159,22 @@ def enhance_persona(persona_id: str):
     _persona_store[persona_id] = enhanced
 
     return jsonify({"success": True, "persona": enhanced.to_dict()})
+
+
+@personas_bp.route('/<persona_id>/clone', methods=['POST'])
+def clone_persona(persona_id: str):
+    """Clone and optionally modify a persona."""
+    persona = _persona_store.get(persona_id)
+    if not persona:
+        return jsonify({"error": "Persona not found"}), 404
+
+    overrides = request.get_json() or {}
+    cloned = copy.deepcopy(persona)
+    cloned.id = str(uuid.uuid4())
+    for field, value in overrides.items():
+        if hasattr(cloned, field):
+            setattr(cloned, field, value)
+    cloned.source = "custom"
+    _persona_store[cloned.id] = cloned
+
+    return jsonify({"success": True, "persona": cloned.to_dict()}), 201

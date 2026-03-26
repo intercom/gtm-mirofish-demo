@@ -1,12 +1,14 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { personasApi } from '../api/personas'
+import client from '../api/client'
 
 export const usePersonasStore = defineStore('personas', () => {
   const personas = ref([])
   const loading = ref(false)
+  const generating = ref(false)
   const error = ref(null)
-  const generationSource = ref(null) // "zep_graph" | "template"
+  const generationSource = ref(null)
 
   const count = computed(() => personas.value.length)
   const hasPersonas = computed(() => personas.value.length > 0)
@@ -23,6 +25,7 @@ export const usePersonasStore = defineStore('personas', () => {
 
   async function generate(scenario, numAgents = 10, graphId = null) {
     loading.value = true
+    generating.value = true
     error.value = null
     try {
       const payload = { scenario, num_agents: numAgents }
@@ -36,6 +39,7 @@ export const usePersonasStore = defineStore('personas', () => {
       return []
     } finally {
       loading.value = false
+      generating.value = false
     }
   }
 
@@ -49,6 +53,20 @@ export const usePersonasStore = defineStore('personas', () => {
     } catch (e) {
       error.value = e.message || 'Failed to fetch personas'
       return []
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function getPersona(id) {
+    loading.value = true
+    error.value = null
+    try {
+      const res = await client.get(`/api/v1/personas/${id}`)
+      return res.data
+    } catch (e) {
+      error.value = e.message
+      return null
     } finally {
       loading.value = false
     }
@@ -82,6 +100,19 @@ export const usePersonasStore = defineStore('personas', () => {
     }
   }
 
+  async function clonePersona(id, overrides = {}) {
+    error.value = null
+    try {
+      const res = await client.post(`/api/v1/personas/${id}/clone`, overrides)
+      const cloned = res.data?.persona || res.data
+      personas.value.push(cloned)
+      return cloned
+    } catch (e) {
+      error.value = e.message
+      return null
+    }
+  }
+
   function clear() {
     personas.value = []
     generationSource.value = null
@@ -91,6 +122,7 @@ export const usePersonasStore = defineStore('personas', () => {
   return {
     personas,
     loading,
+    generating,
     error,
     generationSource,
     count,
@@ -98,8 +130,10 @@ export const usePersonasStore = defineStore('personas', () => {
     byRole,
     generate,
     fetchAll,
+    getPersona,
     updatePersona,
     enhancePersona,
+    clonePersona,
     clear,
   }
 })

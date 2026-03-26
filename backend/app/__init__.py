@@ -75,6 +75,10 @@ def create_app(config_class=Config):
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)
+
+    # Temporal memory API (Zep-backed time-travel memory)
+    from .api.temporal_memory import temporal_memory_bp
+    app.register_blueprint(temporal_memory_bp)
     
     # 健康检查
     @app.route('/health')

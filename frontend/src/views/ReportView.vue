@@ -6,6 +6,8 @@ import { useReportShortcuts } from '../composables/useReportShortcuts'
 import { useToast } from '../composables/useToast'
 import { useOnlineStatus } from '../composables/useOnlineStatus'
 import { cacheReport, getCachedReport } from '../composables/useReportCache'
+import { AppBreadcrumb } from '../components/common'
+import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
 import ReportCharts from '../components/report/ReportCharts.vue'
@@ -27,6 +29,8 @@ const showShareModal = ref(false)
 const props = defineProps({ taskId: String })
 const reportStore = useReportStore()
 const { isOnline } = useOnlineStatus()
+
+const { crumbs } = useBreadcrumbs()
 
 const reportId = ref(null)
 const sections = ref([])
@@ -385,6 +389,7 @@ onUnmounted(() => {
 
 <template>
   <div class="max-w-6xl mx-auto px-4 md:px-6 py-6 md:py-8">
+    <AppBreadcrumb :crumbs="crumbs" class="-mx-4 md:-mx-6 -mt-6 md:-mt-8 mb-4" />
     <PhaseNav :taskId="taskId" activePhase="report" />
 
     <!-- Header -->

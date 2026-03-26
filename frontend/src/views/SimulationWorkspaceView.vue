@@ -7,6 +7,8 @@ import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
 import { useSimulationShortcuts } from '../composables/useSimulationShortcuts'
 import { useToast } from '../composables/useToast'
 import { useSimulationStore } from '../stores/simulation'
+import { AppBreadcrumb } from '../components/common'
+import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 import WorkspacePhaseNav from '../components/simulation/WorkspacePhaseNav.vue'
 import GraphPanel from '../components/simulation/GraphPanel.vue'
 import Graph3DPanel from '../components/simulation/Graph3DPanel.vue'
@@ -71,6 +73,11 @@ const workspaceShortcuts = [
   { key: 'r', label: 'View report' },
   { key: 'Escape', label: 'Go back', display: 'Esc' },
 ]
+
+const { crumbs } = useBreadcrumbs(
+  computed(() => ({ workspace: scenarioName.value })),
+)
+
 
 watch(() => route.query.tab, (tab) => {
   if (VALID_TABS.includes(tab)) {
@@ -139,16 +146,7 @@ onUnmounted(() => {
   <div class="flex flex-col h-[calc(100vh-56px)]">
     <!-- Breadcrumbs + Mini-map -->
     <div class="flex items-center justify-between px-4 md:px-6 pt-3">
-      <div class="text-xs text-[var(--color-text-muted)]">
-        <router-link
-          to="/"
-          class="text-[var(--color-text-muted)] hover:text-[var(--color-primary)] no-underline transition-colors"
-        >Home</router-link>
-        <span class="mx-1">/</span>
-        <span>{{ scenarioName }}</span>
-        <span class="mx-1">/</span>
-        <span class="text-[var(--color-text)]">Workspace</span>
-      </div>
+      <AppBreadcrumb :crumbs="crumbs" />
       <NavigationMiniMap class="hidden md:block" />
     </div>
 

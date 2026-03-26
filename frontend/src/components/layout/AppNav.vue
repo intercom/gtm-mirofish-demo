@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { VueDraggable } from 'vue-draggable-plus'
+import { useI18n } from 'vue-i18n'
 import { useDemoMode } from '../../composables/useDemoMode'
 import { usePermissions } from '../../composables/usePermissions'
 import { useSimulationStore } from '../../stores/simulation'
@@ -18,6 +19,7 @@ import ThemeSwitcher from '../common/ThemeSwitcher.vue'
 import RoleBadge from '../common/RoleBadge.vue'
 import { useTutorialStore } from '../../stores/tutorial'
 
+const { t } = useI18n()
 const { isDemoMode } = useDemoMode()
 const { hasRole } = usePermissions()
 const simulationStore = useSimulationStore()
@@ -67,12 +69,12 @@ watch(() => route.path, () => {
             <path d="M19 10.5C19 10.2239 19.2239 10 19.5 10H20.5C20.7761 10 21 10.2239 21 10.5V17.5C21 17.7761 20.7761 18 20.5 18H19.5C19.2239 18 19 17.7761 19 17.5V10.5Z" fill="white"/>
             <path d="M8 20.5C9.5 22 11.5 23 14 23C16.5 23 18.5 22 20 20.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
-          <span class="text-sm font-semibold tracking-tight">MiroFish</span>
-          <span class="text-xs text-white/40 ml-1 hidden sm:inline">GTM Demo</span>
+          <span class="text-sm font-semibold tracking-tight">{{ t('common.appName') }}</span>
+          <span class="text-xs text-white/40 ml-1 hidden sm:inline">{{ t('common.tagline') }}</span>
           <span
             v-if="isDemoMode"
             class="ml-2 text-xs font-semibold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full"
-          >DEMO</span>
+          >{{ t('common.demo') }}</span>
           <span
             v-if="auth.isAdmin"
             class="ml-2 text-[10px] font-semibold text-white/80 bg-white/15 px-1.5 py-px rounded-full"
@@ -194,7 +196,7 @@ watch(() => route.path, () => {
           @click="mobileMenuOpen = !mobileMenuOpen"
           class="md:hidden text-white/60 hover:text-white transition-colors"
           :aria-expanded="mobileMenuOpen"
-          aria-label="Toggle navigation menu"
+          :aria-label="t('nav.toggleMenu')"
         >
           <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
             <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>

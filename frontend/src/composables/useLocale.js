@@ -1,9 +1,15 @@
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '../stores/locale'
 
 export function useLocale() {
   const store = useLocaleStore()
+  const { t } = useI18n()
   const locale = computed(() => store.locale)
+
+  function setLocale(code) {
+    store.setLocale(code)
+  }
 
   function formatNumber(value, options) {
     return new Intl.NumberFormat(locale.value, options).format(value)
@@ -52,6 +58,9 @@ export function useLocale() {
 
   return {
     locale,
+    setLocale,
+    supportedLocales: store.supportedLocales,
+    t,
     formatNumber,
     formatCompactNumber,
     formatDecimal,

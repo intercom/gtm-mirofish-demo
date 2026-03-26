@@ -100,6 +100,11 @@ export const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/org-chart',
+    name: 'org-chart',
+    component: () => import('../views/OrgChartView.vue'),
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

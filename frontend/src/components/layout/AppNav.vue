@@ -45,6 +45,7 @@ onUnmounted(() => {
 const navLinks = computed(() => {
   const links = [
     { to: '/', label: 'Home', exact: true, shortcut: 'G+D', tutorial: 'scenarios' },
+    { to: '/scenarios', label: 'Scenarios', exact: true },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },
     { to: '/charts', label: 'Charts', exact: false },
   ]

@@ -267,6 +267,10 @@ def create_app(config_class=Config):
     from .api.memory import memory_config_bp
     app.register_blueprint(memory_config_bp)
 
+    # Agent prompts API (memory-augmented prompt building)
+    from .api.agent_prompts import agent_prompts_bp
+    app.register_blueprint(agent_prompts_bp)
+
     # Error handling middleware
     register_error_handlers(app)
 

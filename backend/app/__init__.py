@@ -83,6 +83,10 @@ def create_app(config_class=Config):
     # Cost model API (campaign cost modeling calculator)
     from .api.cost_model import cost_model_bp
     app.register_blueprint(cost_model_bp)
+
+    # Decision explanation API
+    from .api.decisions import decisions_bp
+    app.register_blueprint(decisions_bp)
     
     # 健康检查
     @app.route('/health')

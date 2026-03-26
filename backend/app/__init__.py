@@ -162,6 +162,10 @@ def create_app(config_class=Config):
     from .api.services import services_bp
     app.register_blueprint(services_bp)
 
+    # Campaigns API (ROI comparison, efficiency metrics)
+    from .api.campaigns import campaigns_bp
+    app.register_blueprint(campaigns_bp)
+
     # Root-level liveness check (for load balancers / infrastructure)
     @app.route('/health')
     def health():

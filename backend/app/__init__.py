@@ -116,6 +116,10 @@ def create_app(config_class=Config):
     from .api.personality import personality_bp
     app.register_blueprint(personality_bp)
 
+    # CPQ (Configure Price Quote) API
+    from .api.cpq import cpq_bp
+    app.register_blueprint(cpq_bp)
+
     # Health checks
     from .api.health import health_bp
     app.register_blueprint(health_bp)

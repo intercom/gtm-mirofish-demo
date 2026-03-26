@@ -256,6 +256,10 @@ def create_app(config_class=Config):
     from .api.sessions import sessions_bp
     app.register_blueprint(sessions_bp)
 
+    # Report Builder API (templates + generated reports)
+    from .api.report_builder import report_builder_bp
+    app.register_blueprint(report_builder_bp)
+
     @app.route('/health')
     def health():
         return {'status': 'ok', 'service': 'MiroFish Backend'}

@@ -24,6 +24,7 @@ import { useRelationshipsStore } from '../../stores/relationships'
 import AnomalyHighlights from './AnomalyHighlights.vue'
 import AgentSentimentTimeline from './AgentSentimentTimeline.vue'
 import KnowledgeTimeline from './KnowledgeTimeline.vue'
+import AgentJourneySankey from './AgentJourneySankey.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -693,6 +694,13 @@ onUnmounted(() => {
 
         <!-- Behavior Patterns -->
         <BehaviorPatterns
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Agent Journey Sankey -->
+        <AgentJourneySankey
           v-if="filteredActions.length > 0"
           :actions="filteredActions"
           class="mb-8"

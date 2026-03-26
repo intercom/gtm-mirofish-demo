@@ -88,6 +88,10 @@ export const simulationApi = {
   getRelationships: (simulationId) =>
     client.get(`/simulation/${simulationId}/relationships`),
 
+  // --- Agent Journeys ---
+  getAgentJourneys: (simulationId) =>
+    client.get(`/simulation/${simulationId}/agent-journeys`),
+
   // --- Interviews ---
   interview: (data) => client.post('/simulation/interview', data),
   interviewBatch: (data) => client.post('/simulation/interview/batch', data),

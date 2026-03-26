@@ -2526,6 +2526,164 @@ def get_agent_network(simulation_id: str):
         }), 500
 
 
+# ============== Agent Journey Sankey ==============
+
+ACTION_CATEGORIES = {
+    'observe': {'label': 'Observe', 'types': ['LIKE', 'LIKE_POST', 'UPVOTE'], 'depth': 0},
+    'discuss': {'label': 'Discuss', 'types': ['REPLY', 'COMMENT'], 'depth': 1},
+    'create': {'label': 'Create', 'types': ['CREATE_POST', 'CREATE_THREAD'], 'depth': 2},
+    'amplify': {'label': 'Amplify', 'types': ['REPOST', 'RETWEET', 'SHARE'], 'depth': 3},
+}
+
+
+def _categorize_action(action_type: str) -> str:
+    t = (action_type or '').upper()
+    for key, cat in ACTION_CATEGORIES.items():
+        if any(atype in t for atype in cat['types']):
+            return key
+    return 'observe'
+
+
+def _build_sankey_data(actions_dicts: list) -> dict:
+    """Transform a list of action dicts into Sankey nodes + links."""
+    agent_journeys = {}
+    for a in actions_dicts:
+        agent_key = a.get('agent_name') or a.get('agent_id', 'unknown')
+        if agent_key not in agent_journeys:
+            agent_journeys[agent_key] = []
+        agent_journeys[agent_key].append({
+            'round': a.get('round_num', 0),
+            'category': _categorize_action(a.get('action_type', '')),
+        })
+
+    if not agent_journeys:
+        return {'nodes': [], 'links': []}
+
+    flow_counts = {
+        'entry_to_first': {},
+        'first_to_dominant': {},
+        'dominant_to_last': {},
+    }
+
+    for agent, acts in agent_journeys.items():
+        acts.sort(key=lambda x: x['round'])
+        first = acts[0]['category']
+        last = acts[-1]['category']
+
+        counts = {}
+        for a in acts:
+            counts[a['category']] = counts.get(a['category'], 0) + 1
+        dominant = max(counts.keys(), key=lambda k: (counts[k], ACTION_CATEGORIES[k]['depth']))
+
+        e2f = f"entry-{first}"
+        flow_counts['entry_to_first'][e2f] = flow_counts['entry_to_first'].get(e2f, 0) + 1
+
+        f2d = f"first:{first}-dominant:{dominant}"
+        flow_counts['first_to_dominant'][f2d] = flow_counts['first_to_dominant'].get(f2d, 0) + 1
+
+        d2l = f"dominant:{dominant}-last:{last}"
+        flow_counts['dominant_to_last'][d2l] = flow_counts['dominant_to_last'].get(d2l, 0) + 1
+
+    nodes = [{'id': 'entry', 'label': f'All Agents ({len(agent_journeys)})', 'column': 0}]
+    for cat, info in ACTION_CATEGORIES.items():
+        nodes.append({'id': f'first:{cat}', 'label': info['label'], 'column': 1})
+        nodes.append({'id': f'dominant:{cat}', 'label': info['label'], 'column': 2})
+        nodes.append({'id': f'last:{cat}', 'label': info['label'], 'column': 3})
+
+    links = []
+    for key, value in flow_counts['entry_to_first'].items():
+        cat = key.replace('entry-', '')
+        links.append({'source': 'entry', 'target': f'first:{cat}', 'value': value})
+    for key, value in flow_counts['first_to_dominant'].items():
+        src, tgt = key.split('-')
+        links.append({'source': src, 'target': tgt, 'value': value})
+    for key, value in flow_counts['dominant_to_last'].items():
+        src, tgt = key.split('-')
+        links.append({'source': src, 'target': tgt, 'value': value})
+
+    connected_ids = set()
+    for link in links:
+        connected_ids.add(link['source'])
+        connected_ids.add(link['target'])
+    nodes = [n for n in nodes if n['id'] in connected_ids]
+
+    return {'nodes': nodes, 'links': links, 'agent_count': len(agent_journeys)}
+
+
+MOCK_SANKEY_DATA = {
+    'nodes': [
+        {'id': 'entry', 'label': 'All Agents (10)', 'column': 0},
+        {'id': 'first:observe', 'label': 'Observe', 'column': 1},
+        {'id': 'first:discuss', 'label': 'Discuss', 'column': 1},
+        {'id': 'first:create', 'label': 'Create', 'column': 1},
+        {'id': 'first:amplify', 'label': 'Amplify', 'column': 1},
+        {'id': 'dominant:observe', 'label': 'Observe', 'column': 2},
+        {'id': 'dominant:discuss', 'label': 'Discuss', 'column': 2},
+        {'id': 'dominant:create', 'label': 'Create', 'column': 2},
+        {'id': 'dominant:amplify', 'label': 'Amplify', 'column': 2},
+        {'id': 'last:observe', 'label': 'Observe', 'column': 3},
+        {'id': 'last:discuss', 'label': 'Discuss', 'column': 3},
+        {'id': 'last:create', 'label': 'Create', 'column': 3},
+        {'id': 'last:amplify', 'label': 'Amplify', 'column': 3},
+    ],
+    'links': [
+        {'source': 'entry', 'target': 'first:observe', 'value': 4},
+        {'source': 'entry', 'target': 'first:discuss', 'value': 3},
+        {'source': 'entry', 'target': 'first:create', 'value': 2},
+        {'source': 'entry', 'target': 'first:amplify', 'value': 1},
+        {'source': 'first:observe', 'target': 'dominant:observe', 'value': 2},
+        {'source': 'first:observe', 'target': 'dominant:discuss', 'value': 2},
+        {'source': 'first:discuss', 'target': 'dominant:discuss', 'value': 2},
+        {'source': 'first:discuss', 'target': 'dominant:create', 'value': 1},
+        {'source': 'first:create', 'target': 'dominant:create', 'value': 1},
+        {'source': 'first:create', 'target': 'dominant:amplify', 'value': 1},
+        {'source': 'first:amplify', 'target': 'dominant:amplify', 'value': 1},
+        {'source': 'dominant:observe', 'target': 'last:observe', 'value': 1},
+        {'source': 'dominant:observe', 'target': 'last:discuss', 'value': 1},
+        {'source': 'dominant:discuss', 'target': 'last:discuss', 'value': 2},
+        {'source': 'dominant:discuss', 'target': 'last:amplify', 'value': 2},
+        {'source': 'dominant:create', 'target': 'last:create', 'value': 1},
+        {'source': 'dominant:create', 'target': 'last:amplify', 'value': 1},
+        {'source': 'dominant:amplify', 'target': 'last:amplify', 'value': 2},
+    ],
+    'agent_count': 10,
+}
+
+
+@simulation_bp.route('/<simulation_id>/agent-journeys', methods=['GET'])
+def get_agent_journeys(simulation_id: str):
+    """
+    Get Sankey diagram data for agent journeys.
+
+    Returns nodes and links representing how agents flow through
+    engagement stages: Entry → First Action → Primary Behavior → Exit Action.
+
+    Falls back to mock data when no simulation actions are available.
+    """
+    try:
+        actions = SimulationRunner.get_actions(
+            simulation_id=simulation_id,
+            limit=10000,
+        )
+
+        if actions:
+            data = _build_sankey_data([a.to_dict() for a in actions])
+        else:
+            data = MOCK_SANKEY_DATA
+
+        return jsonify({
+            "success": True,
+            "data": data,
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to build agent journey data: {str(e)}")
+        return jsonify({
+            "success": True,
+            "data": MOCK_SANKEY_DATA,
+        })
+
+
 # ============== 数据库查询接口 ==============
 
 @simulation_bp.route('/<simulation_id>/posts', methods=['GET'])

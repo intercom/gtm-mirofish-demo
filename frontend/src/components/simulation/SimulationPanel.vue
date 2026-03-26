@@ -26,6 +26,7 @@ import AgentSentimentTimeline from './AgentSentimentTimeline.vue'
 import KnowledgeTimeline from './KnowledgeTimeline.vue'
 import AgentJourneySankey from './AgentJourneySankey.vue'
 import BranchPointMarker from './BranchPointMarker.vue'
+import BeliefTracker from './BeliefTracker.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -796,6 +797,14 @@ onUnmounted(() => {
         <!-- Belief Evolution -->
         <BeliefEvolution
           :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Belief System Tracker -->
+        <BeliefTracker
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          :simulationId="taskId"
           class="mb-8"
         />
 

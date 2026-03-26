@@ -308,6 +308,10 @@ def create_app(config_class=Config):
     from .api.memory import agent_memory_bp
     app.register_blueprint(agent_memory_bp)
 
+    # Beliefs API (agent belief system tracking)
+    from .api.beliefs import beliefs_bp
+    app.register_blueprint(beliefs_bp)
+
     # OAuth flow (login, callback, logout, me)
     from auth.oauth_routes import auth_bp as oauth_bp
     app.register_blueprint(oauth_bp)

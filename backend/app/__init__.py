@@ -94,6 +94,10 @@ def create_app(config_class=Config):
     from .api.pipeline import pipeline_bp
     app.register_blueprint(pipeline_bp)
 
+    # Insights API (LLM-powered GTM insights)
+    from .api.insights import insights_bp
+    app.register_blueprint(insights_bp)
+
     # Settings API (test connections, auth status)
     from .api.settings import settings_bp
     app.register_blueprint(settings_bp)

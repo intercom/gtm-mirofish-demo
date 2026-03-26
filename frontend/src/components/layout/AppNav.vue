@@ -47,6 +47,7 @@ const navLinks = computed(() => {
     { to: '/', label: 'Home', exact: true, shortcut: 'G+D', tutorial: 'scenarios' },
     { to: '/scenarios', label: 'Scenarios', exact: true },
     { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true, shortcut: 'G+S', tutorial: 'simulations' },
+    { to: '/analytics', label: 'Analytics', exact: false },
     { to: '/charts', label: 'Charts', exact: false },
   ]
   if (hasRole('viewer')) {

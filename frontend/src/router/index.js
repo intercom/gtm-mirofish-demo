@@ -126,6 +126,11 @@ export const routes = [
     component: () => import('../views/ChartsGalleryView.vue'),
   },
   {
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('../views/AnalyticsView.vue'),
+  },
+  {
     path: '/dashboard',
     redirect: '/simulations',
   },

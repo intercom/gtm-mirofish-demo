@@ -4,6 +4,10 @@ defineProps({
     type: Boolean,
     default: true,
   },
+  interactive: {
+    type: Boolean,
+    default: false,
+  },
 })
 </script>
 
@@ -12,6 +16,7 @@ defineProps({
     :class="[
       'bg-[--color-surface] border border-[--color-border] rounded-lg',
       padding && 'p-6',
+      interactive && 'card-interactive hover:border-[var(--color-primary-border)]',
     ]"
   >
     <div v-if="$slots.header" class="mb-4">

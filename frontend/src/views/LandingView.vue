@@ -491,7 +491,7 @@ const year = new Date().getFullYear()
             <div
               v-for="persona in personas"
               :key="persona.role"
-              class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:shadow-md transition-shadow"
+              class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 card-interactive"
             >
               <div class="text-3xl mb-3">{{ persona.emoji }}</div>
               <h3 class="text-sm font-semibold text-[var(--color-text)]">{{ persona.role }}</h3>

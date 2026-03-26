@@ -295,6 +295,40 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   box-shadow: var(--input-focus-shadow);
 }
 
+/* Card hover & interaction animations */
+.card-interactive {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    border-color var(--transition-fast), background-color var(--transition-fast);
+  will-change: transform;
+}
+
+.card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.card-interactive:active {
+  transform: translateY(0);
+  transition-duration: 100ms;
+}
+
+/* Lighter variant for dark-background cards (hero section) */
+.card-interactive-dark {
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast),
+    border-color var(--transition-fast), background-color var(--transition-fast);
+  will-change: transform;
+}
+
+.card-interactive-dark:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.card-interactive-dark:active {
+  transform: translateY(0);
+  transition-duration: 100ms;
+}
+
 /* Prose styles for rendered markdown in chat */
 .prose p { margin-bottom: 0.5em; }
 .prose p:last-child { margin-bottom: 0; }

@@ -539,7 +539,7 @@ function exportRun(run) {
           <template #item="{ element: run, index }">
           <div
             :data-index="index"
-            class="run-card group/card"
+            class="run-card card-interactive group/card"
           >
             <!-- Card header -->
             <div class="flex items-start justify-between mb-2 md:mb-3">

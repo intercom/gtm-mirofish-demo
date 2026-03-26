@@ -99,6 +99,10 @@ def create_app(config_class=Config):
     # OASIS Metrics API
     from .api.metrics import metrics_bp
     app.register_blueprint(metrics_bp)
+
+    # Order-to-Cash API
+    from .api.orders import orders_bp
+    app.register_blueprint(orders_bp)
     
     # 健康检查
     @app.route('/health')

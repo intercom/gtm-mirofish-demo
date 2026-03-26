@@ -49,7 +49,10 @@ def create_app(config_class=Config):
     # CORS — parse comma-separated origins from config, or allow all with "*"
     raw_origins = app.config.get('CORS_ORIGINS', '*')
     origins = [o.strip() for o in raw_origins.split(',')] if raw_origins != '*' else '*'
-    CORS(app, resources={r"/api/*": {"origins": origins}}, supports_credentials=True)
+    CORS(app, resources={
+        r"/api/*": {"origins": origins},
+        r"/auth/*": {"origins": origins},
+    }, supports_credentials=True)
 
     # 启用GZIP压缩
     Compress(app)
@@ -304,6 +307,10 @@ def create_app(config_class=Config):
     # Agent memory abstraction API
     from .api.memory import agent_memory_bp
     app.register_blueprint(agent_memory_bp)
+
+    # OAuth flow (login, callback, logout, me)
+    from auth.oauth_routes import auth_bp as oauth_bp
+    app.register_blueprint(oauth_bp)
 
     # Error handling middleware
     register_error_handlers(app)

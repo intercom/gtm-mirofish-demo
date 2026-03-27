@@ -52,7 +52,7 @@ export const useDashboardStore = defineStore('dashboards', () => {
   )
 
   const widgetCount = computed(() =>
-    activeDashboard.value?.widgets?.length ?? 0,
+    activeDashboard.value?.layout?.length ?? 0,
   )
 
   const isDirty = computed(() => {
@@ -210,34 +210,31 @@ export const useDashboardStore = defineStore('dashboards', () => {
 
   function addWidget(widgetConfig) {
     if (!activeDashboard.value) return
-    const widget = {
-      ...widgetConfig,
-      id: widgetConfig.id || `widget_${Date.now()}`,
-    }
-    activeDashboard.value.widgets.push(widget)
+    const maxY = activeDashboard.value.layout.reduce(
+      (max, item) => Math.max(max, item.y + item.h), 0,
+    )
     activeDashboard.value.layout.push({
-      widgetId: widget.id,
+      i: widgetConfig.id || `widget_${Date.now()}`,
       x: 0,
-      y: 0,
+      y: maxY,
       w: widgetConfig.w ?? 4,
       h: widgetConfig.h ?? 3,
+      type: widgetConfig.type,
+      config: widgetConfig.config || {},
     })
   }
 
   function removeWidget(widgetId) {
     if (!activeDashboard.value) return
-    activeDashboard.value.widgets = activeDashboard.value.widgets.filter(
-      (w) => w.id !== widgetId,
-    )
     activeDashboard.value.layout = activeDashboard.value.layout.filter(
-      (l) => l.widgetId !== widgetId,
+      (l) => l.i !== widgetId,
     )
   }
 
   function updateWidgetConfig(widgetId, config) {
     if (!activeDashboard.value) return
-    const widget = activeDashboard.value.widgets.find((w) => w.id === widgetId)
-    if (widget) Object.assign(widget, config)
+    const item = activeDashboard.value.layout.find((l) => l.i === widgetId)
+    if (item) Object.assign(item, config)
   }
 
   function updateLayout(items) {

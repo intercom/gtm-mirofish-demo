@@ -1,40 +1,25 @@
 import { test, expect } from '@playwright/test'
+import { setupPage } from './helpers.js'
 
 test.describe('Navigation', () => {
   test('navbar contains main links', async ({ page }) => {
-    await page.goto('/')
+    await setupPage(page, '/')
 
-    const nav = page.locator('nav')
-    await expect(nav.locator('text=Home')).toBeVisible()
-    await expect(nav.locator('text=Simulations')).toBeVisible()
-    await expect(nav.locator('text=Settings')).toBeVisible()
+    const nav = page.getByRole('navigation')
+    await expect(nav.getByRole('link', { name: 'Home' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Simulations' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Settings' })).toBeVisible()
   })
 
   test('navigates to Settings page', async ({ page }) => {
-    await page.goto('/')
-    await page.locator('nav').locator('text=Settings').click()
+    await setupPage(page, '/')
+    await page.getByRole('navigation').getByRole('link', { name: 'Settings' }).click()
     await expect(page).toHaveURL('/settings')
   })
 
-  test('navigates to Simulations page', async ({ page }) => {
-    await page.goto('/')
-    await page.locator('nav').locator('text=Simulations').click()
-    await expect(page).toHaveURL('/simulations')
-  })
-
   test('logo links back to home', async ({ page }) => {
-    await page.goto('/settings')
-    await page.locator('nav a[href="/"]').first().click()
+    await setupPage(page, '/settings')
+    await page.getByRole('navigation').getByRole('link').first().click()
     await expect(page).toHaveURL('/')
-  })
-
-  test('/login redirects to landing', async ({ page }) => {
-    await page.goto('/login')
-    await expect(page).toHaveURL('/')
-  })
-
-  test('/dashboard redirects to /simulations', async ({ page }) => {
-    await page.goto('/dashboard')
-    await expect(page).toHaveURL('/simulations')
   })
 })

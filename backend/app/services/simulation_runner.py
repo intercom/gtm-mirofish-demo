@@ -1094,7 +1094,6 @@ class SimulationRunner:
 
         return result
 
-<<<<<<< HEAD
     # --- Sentiment word lists (mirrors frontend scoring) ---
     _POSITIVE_WORDS = [
         'impressive', 'compelling', 'great', 'interested', 'good', 'recommend',

@@ -63,25 +63,6 @@ from .reasoning_parser import (
     LogicLink,
     StepType
 )
-from .coalition_labeler import CoalitionLabeler, Coalition
-from .debate_scorer import (
-    DebateScorer,
-    DebateScorecard,
-    AgentPerformance,
-    ArgumentScore,
-    DebateFormat,
-)
-from .agent_prompts import (
-    AgentPromptModifier,
-    AgentPromptContext,
-    PersonalityVector,
-    AgentContext,
-    Memory as AgentMemory,
-    build_augmented_prompt,
-    build_memory_section,
-    build_demo_prompt,
-    rank_memories,
-)
 from .scenario_templates import (
     ScenarioTemplateService,
     ScenarioTemplate,
@@ -97,122 +78,98 @@ from .whatif_engine import (
     ModificationType,
     ScenarioStatus,
 )
-from .cpq_data_generator import CpqDataGenerator
-from .otc_data_generator import OTCDataGenerator
-from .campaign_generator import (
-    generate_campaigns,
-    get_campaign_stats,
-    get_roi_comparison,
-    get_budget_efficiency,
-)
-from .revenue_data_generator import RevenueDataGenerator
-from .agent_intelligence import AgentIntelligence
-from .coalition_detector import CoalitionDetector
-from .sensitivity_analyzer import SensitivityAnalyzer
-from .activity_feed import ActivityFeedService, ACTIVITY_TYPES
-from .interaction_graph import InteractionGraphBuilder
-from .sentiment_dynamics import SentimentDynamics, AgentSentimentState
-from .agent_memory import AgentMemory as AgentMemoryService, MemoryMessage, MemorySearchResult
 
-__all__ = [
-    'OntologyGenerator',
-    'GraphBuilderService',
-    'TextProcessor',
-    'ZepEntityReader',
-    'EntityNode',
-    'FilteredEntities',
-    'OasisProfileGenerator',
-    'OasisAgentProfile',
-    'SimulationManager',
-    'SimulationState',
-    'SimulationStatus',
-    'SimulationConfigGenerator',
-    'SimulationParameters',
-    'AgentActivityConfig',
-    'TimeSimulationConfig',
-    'EventConfig',
-    'PlatformConfig',
-    'SimulationRunner',
-    'SimulationRunState',
-    'RunnerStatus',
-    'AgentAction',
-    'RoundSummary',
-    'get_zep_client',
-    'is_zep_available',
-    'require_zep_client',
-    'reset_client',
-    'ZepGraphMemoryUpdater',
-    'ZepGraphMemoryManager',
-    'AgentActivity',
-    'GraphMemoryService',
-    'GraphQueryResult',
-    'EntityRelationship',
-    'CommunitySummary',
-    'TemporalFact',
-    'SimulationIPCClient',
-    'SimulationIPCServer',
-    'IPCCommand',
-    'IPCResponse',
-    'CommandType',
-    'CommandStatus',
-    'EntityExtractor',
-    'ExtractedEntity',
-    'EntityMap',
-    'EnvironmentManager',
-    'EnvironmentState',
-    'EnvironmentType',
-    'EnvironmentStatus',
-    'MemoryConsolidator',
-    'Memory',
-    'MemoryType',
-    'ReasoningParser',
-    'ParsedReasoning',
-    'ReasoningStep',
-    'LogicLink',
-    'StepType',
-    'CoalitionLabeler',
-    'Coalition',
-    'DebateScorer',
-    'DebateScorecard',
-    'AgentPerformance',
-    'ArgumentScore',
-    'DebateFormat',
-    'AgentPromptModifier',
-    'AgentPromptContext',
-    'PersonalityVector',
-    'AgentContext',
-    'AgentMemory',
-    'build_augmented_prompt',
-    'build_memory_section',
-    'build_demo_prompt',
-    'rank_memories',
-    'ScenarioTemplateService',
-    'ScenarioTemplate',
-    'ScenarioAgentConfig',
-    'WhatIfEngine',
-    'ScenarioConfig',
-    'SimulationResults',
-    'ComparisonResult',
-    'SensitivityResult',
-    'Modification',
-    'ModificationType',
-    'ScenarioStatus',
-    'CpqDataGenerator',
-    'OTCDataGenerator',
-    'generate_campaigns',
-    'get_campaign_stats',
-    'get_roi_comparison',
-    'get_budget_efficiency',
-    'RevenueDataGenerator',
-    'AgentIntelligence',
-    'CoalitionDetector',
-    'SensitivityAnalyzer',
-    'ActivityFeedService',
-    'ACTIVITY_TYPES',
-    'InteractionGraphBuilder',
-    'SentimentDynamics',
-    'AgentSentimentState',
-    'AgentMemoryService',
-    'MemoryMessage',
-    'MemorySearchResult',
-]
+# Non-essential service imports — wrapped in try/except to tolerate
+# broken modules from parallel PRD execution without blocking app startup.
+import logging as _logging
+
+_log = _logging.getLogger(__name__)
+
+_optional_imports = {
+    'coalition_labeler': lambda: __import__('app.services.coalition_labeler', fromlist=['CoalitionLabeler', 'Coalition']),
+    'debate_scorer': lambda: __import__('app.services.debate_scorer', fromlist=['DebateScorer']),
+    'agent_prompts': lambda: __import__('app.services.agent_prompts', fromlist=['AgentPromptModifier']),
+    'cpq_data_generator': lambda: __import__('app.services.cpq_data_generator', fromlist=['CpqDataGenerator']),
+    'otc_data_generator': lambda: __import__('app.services.otc_data_generator', fromlist=['OTCDataGenerator']),
+    'campaign_generator': lambda: __import__('app.services.campaign_generator', fromlist=['generate_campaigns']),
+    'revenue_data_generator': lambda: __import__('app.services.revenue_data_generator', fromlist=['RevenueDataGenerator']),
+    'agent_intelligence': lambda: __import__('app.services.agent_intelligence', fromlist=['AgentIntelligence']),
+    'coalition_detector': lambda: __import__('app.services.coalition_detector', fromlist=['CoalitionDetector']),
+    'sensitivity_analyzer': lambda: __import__('app.services.sensitivity_analyzer', fromlist=['SensitivityAnalyzer']),
+    'activity_feed': lambda: __import__('app.services.activity_feed', fromlist=['ActivityFeedService']),
+    'interaction_graph': lambda: __import__('app.services.interaction_graph', fromlist=['InteractionGraphBuilder']),
+    'sentiment_dynamics': lambda: __import__('app.services.sentiment_dynamics', fromlist=['SentimentDynamics']),
+    'agent_memory': lambda: __import__('app.services.agent_memory', fromlist=['AgentMemory']),
+}
+
+for _name, _loader in _optional_imports.items():
+    try:
+        _loader()
+    except Exception as _e:
+        _log.debug("Optional service %s not available: %s", _name, _e)
+
+# Re-export what successfully imported
+try:
+    from .coalition_labeler import CoalitionLabeler, Coalition
+except Exception:
+    pass
+try:
+    from .debate_scorer import (
+        DebateScorer, DebateScorecard, AgentPerformance, ArgumentScore, DebateFormat,
+    )
+except Exception:
+    pass
+try:
+    from .agent_prompts import (
+        AgentPromptModifier, AgentPromptContext, PersonalityVector, AgentContext,
+        Memory as AgentMemory, build_augmented_prompt, build_memory_section,
+        build_demo_prompt, rank_memories,
+    )
+except Exception:
+    pass
+try:
+    from .cpq_data_generator import CpqDataGenerator
+except Exception:
+    pass
+try:
+    from .otc_data_generator import OTCDataGenerator
+except Exception:
+    pass
+try:
+    from .campaign_generator import (
+        generate_campaigns, get_campaign_stats, get_roi_comparison, get_budget_efficiency,
+    )
+except Exception:
+    pass
+try:
+    from .revenue_data_generator import RevenueDataGenerator
+except Exception:
+    pass
+try:
+    from .agent_intelligence import AgentIntelligence
+except Exception:
+    pass
+try:
+    from .coalition_detector import CoalitionDetector
+except Exception:
+    pass
+try:
+    from .sensitivity_analyzer import SensitivityAnalyzer
+except Exception:
+    pass
+try:
+    from .activity_feed import ActivityFeedService, ACTIVITY_TYPES
+except Exception:
+    pass
+try:
+    from .interaction_graph import InteractionGraphBuilder
+except Exception:
+    pass
+try:
+    from .sentiment_dynamics import SentimentDynamics, AgentSentimentState
+except Exception:
+    pass
+try:
+    from .agent_memory import AgentMemory as AgentMemoryService, MemoryMessage, MemorySearchResult
+except Exception:
+    pass

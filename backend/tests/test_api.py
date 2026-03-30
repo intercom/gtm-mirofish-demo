@@ -19,14 +19,14 @@ class TestGTMScenariosAPI:
     """Test GTM scenario template endpoints."""
 
     def test_list_scenarios(self, client):
-        resp = client.get("/api/gtm/scenarios")
+        resp = client.get("/api/v1/gtm/scenarios")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "scenarios" in data
         assert isinstance(data["scenarios"], list)
 
     def test_list_scenarios_contains_expected_fields(self, client):
-        resp = client.get("/api/gtm/scenarios")
+        resp = client.get("/api/v1/gtm/scenarios")
         data = resp.get_json()
         if data["scenarios"]:
             scenario = data["scenarios"][0]
@@ -35,35 +35,35 @@ class TestGTMScenariosAPI:
             assert "description" in scenario
 
     def test_get_scenario_not_found(self, client):
-        resp = client.get("/api/gtm/scenarios/nonexistent_scenario")
+        resp = client.get("/api/v1/gtm/scenarios/nonexistent_scenario")
         assert resp.status_code == 404
 
     def test_get_known_scenario(self, client):
         # First list to get a valid ID
-        list_resp = client.get("/api/gtm/scenarios")
+        list_resp = client.get("/api/v1/gtm/scenarios")
         scenarios = list_resp.get_json()["scenarios"]
         if not scenarios:
             pytest.skip("No scenarios available")
         scenario_id = scenarios[0]["id"]
 
-        resp = client.get(f"/api/gtm/scenarios/{scenario_id}")
+        resp = client.get(f"/api/v1/gtm/scenarios/{scenario_id}")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "id" in data or "name" in data
 
     def test_get_seed_data_not_found(self, client):
-        resp = client.get("/api/gtm/seed-data/nonexistent_type")
+        resp = client.get("/api/v1/gtm/seed-data/nonexistent_type")
         assert resp.status_code == 404
 
     def test_get_seed_text_not_found(self, client):
-        resp = client.get("/api/gtm/scenarios/nonexistent/seed-text")
+        resp = client.get("/api/v1/gtm/scenarios/nonexistent/seed-text")
         assert resp.status_code == 404
 
 
 class TestGTMSimulateEndpoint:
     def test_simulate_requires_seed_text(self, client):
         resp = client.post(
-            "/api/gtm/simulate",
+            "/api/v1/gtm/simulate",
             data=json.dumps({"seed_text": ""}),
             content_type="application/json",
         )
@@ -78,7 +78,7 @@ class TestGTMSimulateEndpoint:
             mock_config.DEFAULT_CHUNK_SIZE = 500
             mock_config.DEFAULT_CHUNK_OVERLAP = 50
             resp = client.post(
-                "/api/gtm/simulate",
+                "/api/v1/gtm/simulate",
                 data=json.dumps({"seed_text": "Test scenario text"}),
                 content_type="application/json",
             )
@@ -95,7 +95,7 @@ class TestGTMSimulateEndpoint:
             mock_config.DEFAULT_CHUNK_OVERLAP = 50
             mock_config.UPLOAD_FOLDER = "/tmp/test_uploads"
             resp = client.post(
-                "/api/gtm/simulate",
+                "/api/v1/gtm/simulate",
                 data=json.dumps({"seed_text": "Run a GTM market simulation"}),
                 content_type="application/json",
             )

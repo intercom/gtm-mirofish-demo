@@ -1010,32 +1010,7 @@ def _get_interaction_builder():
     return mod.InteractionGraphBuilder()
 
 
-@app.route("/api/simulation/<sim_id>/network")
-def sim_network(sim_id):
-    builder = _get_interaction_builder()
-    actions = _generate_agent_actions(72)
-    graph = builder.build_from_simulation(actions)
-
-    if request.args.get("include_centrality", "false").lower() == "true":
-        graph["centrality"] = builder.compute_centrality(graph)
-    if request.args.get("include_clusters", "false").lower() == "true":
-        graph["clusters"] = builder.detect_clusters(graph)
-
-    return _ok(graph)
-
-
-@app.route("/api/simulation/<sim_id>/network/round/<int:round_num>")
-def sim_network_round(sim_id, round_num):
-    builder = _get_interaction_builder()
-    actions = _generate_agent_actions(max(round_num, 1))
-    graph = builder.build_temporal_graph(actions, round_num)
-
-    if request.args.get("include_centrality", "false").lower() == "true":
-        graph["centrality"] = builder.compute_centrality(graph)
-    if request.args.get("include_clusters", "false").lower() == "true":
-        graph["clusters"] = builder.detect_clusters(graph)
-
-    return _ok(graph)
+# Network endpoints registered earlier (lines ~352-430) — removed duplicates.
 
 
 # ---------------------------------------------------------------------------

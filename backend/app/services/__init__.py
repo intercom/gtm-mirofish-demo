@@ -99,12 +99,7 @@ from .whatif_engine import (
 )
 from .cpq_data_generator import CpqDataGenerator
 from .otc_data_generator import OTCDataGenerator
-from .campaign_generator import (
-    generate_campaigns,
-    get_campaign_stats,
-    get_roi_comparison,
-    get_budget_efficiency,
-)
+from .campaign_generator import get_campaigns
 from .revenue_data_generator import RevenueDataGenerator
 from .agent_intelligence import AgentIntelligence
 from .coalition_detector import CoalitionDetector
@@ -199,10 +194,7 @@ __all__ = [
     'ScenarioStatus',
     'CpqDataGenerator',
     'OTCDataGenerator',
-    'generate_campaigns',
-    'get_campaign_stats',
-    'get_roi_comparison',
-    'get_budget_efficiency',
+    'get_campaigns',
     'RevenueDataGenerator',
     'AgentIntelligence',
     'CoalitionDetector',

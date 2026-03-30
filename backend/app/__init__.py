@@ -314,7 +314,7 @@ def create_app(config_class=Config):
 
     # OAuth flow (login, callback, logout, me)
     from auth.oauth_routes import auth_bp as oauth_bp
-    app.register_blueprint(oauth_bp)
+    app.register_blueprint(oauth_bp, name='oauth')
 
     # Error handling middleware
     register_error_handlers(app)

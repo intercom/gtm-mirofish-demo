@@ -4666,7 +4666,7 @@ def get_conflicts(simulation_id: str):
 
 
 @simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/memory/consolidated', methods=['GET'])
-def get_agent_memory(simulation_id: str, agent_id: int):
+def get_agent_consolidated_memory(simulation_id: str, agent_id: int):
     """
     Get consolidated memories for an agent.
 
@@ -5645,8 +5645,8 @@ def _generate_demo_belief_history(agent_id):
     return result
 
 
-@simulation_bp.route('/<simulation_id>/agents/<agent_id>/beliefs/history', methods=['GET'])
-def get_agent_beliefs_history(simulation_id, agent_id):
+@simulation_bp.route('/<simulation_id>/agents/<agent_id>/beliefs/evolution', methods=['GET'])
+def get_agent_beliefs_evolution(simulation_id, agent_id):
     """
     Get belief evolution history for an agent across simulation rounds.
 

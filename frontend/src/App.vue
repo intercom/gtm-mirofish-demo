@@ -18,6 +18,7 @@ import KeyboardShortcutCard from './components/ui/KeyboardShortcutCard.vue'
 import DemoModeOverlay from './components/common/DemoModeOverlay.vue'
 import TutorialSystem from './components/tutorial/TutorialSystem.vue'
 import ScenarioWalkthrough from './components/tutorial/ScenarioWalkthrough.vue'
+import InteractiveTutorialOverlay from './components/tutorial/InteractiveTutorialOverlay.vue'
 import ShortcutQuickRef from './components/common/ShortcutQuickRef.vue'
 import { useTheme } from './composables/useTheme'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
@@ -143,5 +144,6 @@ onUnmounted(() => {
   <SystemStatusBar v-if="showStatusBar" />
   <TutorialSystem />
   <ScenarioWalkthrough />
+  <InteractiveTutorialOverlay />
   <ShortcutQuickRef />
 </template>

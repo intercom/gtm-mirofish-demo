@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { welcomeTourSteps, walkthroughSteps } from '../data/help-content'
+import { tutorialsApi } from '../api/tutorials'
 
 const STORAGE_KEY = 'mirofish-tutorial'
 
@@ -8,8 +9,10 @@ export const useTutorialStore = defineStore('tutorial', () => {
   // --- Persisted state ---
   const hasSeenWelcome = ref(false)
   const completedTours = ref([])
+  // Per-tutorial progress: { [tutorialId]: { completedSteps: string[], completedAt: string|null } }
+  const tutorialProgress = ref({})
 
-  // --- Tutorial overlay state ---
+  // --- Tutorial overlay state (spotlight tour) ---
   const isTourActive = ref(false)
   const currentStepIndex = ref(0)
   const tourSteps = ref([])
@@ -23,12 +26,22 @@ export const useTutorialStore = defineStore('tutorial', () => {
   const isShortcutRefOpen = ref(false)
   const isShortcutRefPinned = ref(false)
 
-  // --- Computed ---
+  // --- Interactive tutorial state (multi-track system) ---
+  const catalog = ref([])
+  const categories = ref([])
+  const catalogLoading = ref(false)
+  const activeTutorial = ref(null)
+  const activeTutorialSteps = ref([])
+  const activeStepIndex = ref(0)
+  const isInteractiveTutorialActive = ref(false)
+
+  // --- Computed: spotlight tour ---
   const currentStep = computed(() => tourSteps.value[currentStepIndex.value] || null)
   const totalSteps = computed(() => tourSteps.value.length)
   const isFirstStep = computed(() => currentStepIndex.value === 0)
   const isLastStep = computed(() => currentStepIndex.value >= totalSteps.value - 1)
 
+  // --- Computed: walkthrough ---
   const currentWalkthroughStep = computed(() => walkthroughSteps[walkthroughStepIndex.value] || null)
   const walkthroughTotalSteps = computed(() => walkthroughSteps.length)
   const walkthroughRemainingSeconds = computed(() => {
@@ -39,6 +52,27 @@ export const useTutorialStore = defineStore('tutorial', () => {
     return total
   })
 
+  // --- Computed: interactive tutorial ---
+  const activeStep = computed(() => activeTutorialSteps.value[activeStepIndex.value] || null)
+  const activeTotalSteps = computed(() => activeTutorialSteps.value.length)
+  const activeIsFirst = computed(() => activeStepIndex.value === 0)
+  const activeIsLast = computed(() => activeStepIndex.value >= activeTotalSteps.value - 1)
+  const activeProgressPercent = computed(() => {
+    if (activeTotalSteps.value === 0) return 0
+    return ((activeStepIndex.value + 1) / activeTotalSteps.value) * 100
+  })
+
+  // Per-tutorial completion status
+  const completedTutorialIds = computed(() =>
+    Object.entries(tutorialProgress.value)
+      .filter(([, p]) => p.completedAt)
+      .map(([id]) => id),
+  )
+  const overallProgress = computed(() => {
+    if (catalog.value.length === 0) return 0
+    return Math.round((completedTutorialIds.value.length / catalog.value.length) * 100)
+  })
+
   // --- Persistence ---
   function load() {
     try {
@@ -47,6 +81,7 @@ export const useTutorialStore = defineStore('tutorial', () => {
         const s = JSON.parse(saved)
         hasSeenWelcome.value = s.hasSeenWelcome || false
         completedTours.value = s.completedTours || []
+        tutorialProgress.value = s.tutorialProgress || {}
       }
     } catch {
       // Corrupted — use defaults
@@ -57,6 +92,7 @@ export const useTutorialStore = defineStore('tutorial', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       hasSeenWelcome: hasSeenWelcome.value,
       completedTours: completedTours.value,
+      tutorialProgress: tutorialProgress.value,
     }))
   }
 
@@ -145,6 +181,118 @@ export const useTutorialStore = defineStore('tutorial', () => {
     }
   }
 
+  // --- Interactive tutorial system ---
+  async function fetchCatalog() {
+    catalogLoading.value = true
+    try {
+      const { data } = await tutorialsApi.list()
+      catalog.value = data.data || []
+      categories.value = data.categories || []
+    } catch {
+      catalog.value = []
+      categories.value = []
+    } finally {
+      catalogLoading.value = false
+    }
+  }
+
+  async function startTutorial(tutorialId) {
+    try {
+      const { data } = await tutorialsApi.get(tutorialId)
+      const tutorial = data.data
+      activeTutorial.value = tutorial
+      activeTutorialSteps.value = tutorial.steps || []
+      activeStepIndex.value = 0
+      isInteractiveTutorialActive.value = true
+
+      // Initialize progress entry if not present
+      if (!tutorialProgress.value[tutorialId]) {
+        tutorialProgress.value[tutorialId] = { completedSteps: [], completedAt: null }
+      }
+    } catch {
+      activeTutorial.value = null
+      activeTutorialSteps.value = []
+    }
+  }
+
+  function interactiveNext() {
+    const step = activeStep.value
+    const tutorialId = activeTutorial.value?.id
+    if (step && tutorialId) {
+      markStepCompleted(tutorialId, step.id)
+    }
+    if (activeStepIndex.value < activeTotalSteps.value - 1) {
+      activeStepIndex.value++
+    } else {
+      finishInteractiveTutorial()
+    }
+  }
+
+  function interactivePrev() {
+    if (activeStepIndex.value > 0) {
+      activeStepIndex.value--
+    }
+  }
+
+  function finishInteractiveTutorial() {
+    const tutorialId = activeTutorial.value?.id
+    if (tutorialId) {
+      const progress = tutorialProgress.value[tutorialId]
+      if (progress) {
+        progress.completedAt = new Date().toISOString()
+      }
+      if (!completedTours.value.includes(tutorialId)) {
+        completedTours.value.push(tutorialId)
+      }
+    }
+    isInteractiveTutorialActive.value = false
+    activeTutorial.value = null
+    activeTutorialSteps.value = []
+    activeStepIndex.value = 0
+    save()
+  }
+
+  function exitInteractiveTutorial() {
+    isInteractiveTutorialActive.value = false
+    activeTutorial.value = null
+    activeTutorialSteps.value = []
+    activeStepIndex.value = 0
+    save()
+  }
+
+  function markStepCompleted(tutorialId, stepId) {
+    if (!tutorialProgress.value[tutorialId]) {
+      tutorialProgress.value[tutorialId] = { completedSteps: [], completedAt: null }
+    }
+    const steps = tutorialProgress.value[tutorialId].completedSteps
+    if (!steps.includes(stepId)) {
+      steps.push(stepId)
+    }
+    save()
+  }
+
+  function getTutorialProgress(tutorialId) {
+    return tutorialProgress.value[tutorialId] || { completedSteps: [], completedAt: null }
+  }
+
+  function isTutorialCompleted(tutorialId) {
+    return !!tutorialProgress.value[tutorialId]?.completedAt
+  }
+
+  function resetTutorialProgress(tutorialId) {
+    delete tutorialProgress.value[tutorialId]
+    const idx = completedTours.value.indexOf(tutorialId)
+    if (idx !== -1) completedTours.value.splice(idx, 1)
+    save()
+  }
+
+  function resetAllProgress() {
+    tutorialProgress.value = {}
+    completedTours.value = []
+    hasSeenWelcome.value = false
+    save()
+  }
+
   // Load persisted state on creation
   load()
 
@@ -161,7 +309,7 @@ export const useTutorialStore = defineStore('tutorial', () => {
     isShortcutRefOpen,
     isShortcutRefPinned,
 
-    // Computed
+    // Computed: spotlight tour
     currentStep,
     totalSteps,
     isFirstStep,
@@ -170,7 +318,7 @@ export const useTutorialStore = defineStore('tutorial', () => {
     walkthroughTotalSteps,
     walkthroughRemainingSeconds,
 
-    // Actions
+    // Actions: spotlight tour
     startWelcomeTour,
     nextStep,
     prevStep,
@@ -184,5 +332,33 @@ export const useTutorialStore = defineStore('tutorial', () => {
     pinShortcutRef,
     closeShortcutRef,
     checkFirstVisit,
+
+    // Interactive tutorial system
+    catalog,
+    categories,
+    catalogLoading,
+    activeTutorial,
+    activeTutorialSteps,
+    activeStepIndex,
+    isInteractiveTutorialActive,
+    activeStep,
+    activeTotalSteps,
+    activeIsFirst,
+    activeIsLast,
+    activeProgressPercent,
+    completedTutorialIds,
+    overallProgress,
+    tutorialProgress,
+    fetchCatalog,
+    startTutorial,
+    interactiveNext,
+    interactivePrev,
+    finishInteractiveTutorial,
+    exitInteractiveTutorial,
+    markStepCompleted,
+    getTutorialProgress,
+    isTutorialCompleted,
+    resetTutorialProgress,
+    resetAllProgress,
   }
 })

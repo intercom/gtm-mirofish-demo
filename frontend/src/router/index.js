@@ -185,6 +185,11 @@ export const routes = [
     name: 'dashboard-builder',
     component: () => import('../views/DashboardBuilderView.vue'),
   },
+  {
+    path: '/tutorials',
+    name: 'tutorials',
+    component: () => import('../views/TutorialHubView.vue'),
+  },
 ]
 
 export function createAppRouter() {

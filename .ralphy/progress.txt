@@ -304,3 +304,4 @@ ReportWizard.vue implements a step-by-step wizard for generating reports:
 - [✓] 2026-03-26 23:53 - Build agent behavior patterns component
 - [✓] 2026-03-26 23:53 - Build influence flow chart component
 - [✓] 2026-03-26 23:53 - Create prediction API endpoints
+- [✓] 2026-03-30 11:42 - E2E test: settings and service configuration

@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "lint": "vite build --mode production 2>&1 | head -50",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:visual": "playwright test e2e/visual-regression.spec.js",
+    "test:visual:update": "playwright test e2e/visual-regression.spec.js --update-snapshots"
   },
   "dependencies": {
     "3d-force-graph": "1.79.1",

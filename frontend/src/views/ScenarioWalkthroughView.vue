@@ -84,10 +84,10 @@ onUnmounted(() => {
     <div v-else-if="walkthrough">
       <!-- Back link -->
       <router-link
-        to="/"
+        :to="`/scenarios/${id}`"
         class="text-sm text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors mb-6 inline-block"
       >
-        &larr; Back to scenarios
+        &larr; Back to scenario
       </router-link>
 
       <!-- Header -->
@@ -198,7 +198,7 @@ onUnmounted(() => {
 
     <div v-else class="text-center py-20">
       <p class="text-[var(--color-text-muted)]">Walkthrough not found</p>
-      <router-link to="/" class="text-[var(--color-primary)] text-sm mt-2 inline-block hover:underline">Back to Home</router-link>
+      <router-link to="/scenarios" class="text-[var(--color-primary)] text-sm mt-2 inline-block hover:underline">Back to Scenarios</router-link>
     </div>
   </div>
 </template>

@@ -10,6 +10,7 @@ import MemoryConfig from '../components/simulation/MemoryConfig.vue'
 import { useToast } from '../composables/useToast'
 import { useAutoSave } from '../composables/useAutoSave'
 import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { ContextualHelp } from '../components/common'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
 import { useSettingsStore } from '../stores/settings'
@@ -604,7 +605,10 @@ async function runSimulation() {
             </div>
           </div>
 
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Seed Document</label>
+          <label class="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+            Seed Document
+            <ContextualHelp featureKey="seed-text" size="xs" />
+          </label>
           <RichTextEditor
             v-model="seedText"
             rows="8"
@@ -615,7 +619,10 @@ async function runSimulation() {
           <!-- Persona Types -->
           <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">
             <div class="flex items-center justify-between mb-3">
-              <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)]">Persona Types</label>
+              <label class="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+                Persona Types
+                <ContextualHelp featureKey="agent-personas" size="xs" />
+              </label>
               <button
                 @click="useTeamComposer = !useTeamComposer"
                 class="text-[11px] text-[var(--color-primary)] hover:underline"
@@ -750,7 +757,10 @@ async function runSimulation() {
         <!-- Config Panel (right 1/3) -->
         <div class="space-y-6" :class="{ 'hidden md:block': activeTab !== 'config' }">
           <div>
-            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Agent Count</label>
+            <label class="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+              Agent Count
+              <ContextualHelp featureKey="oasis-simulation" size="xs" />
+            </label>
             <input
               type="range"
               v-model.number="agentCount"

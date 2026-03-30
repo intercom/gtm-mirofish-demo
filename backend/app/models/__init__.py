@@ -8,8 +8,6 @@ from .pipeline import (
     PipelineStage,
     FunnelSnapshot,
     ConversionEvent,
-    FUNNEL_STAGES,
-    default_funnel_stages,
 )
 from .custom_agent import (
     CustomAgentConfig, CustomAgentManager,
@@ -42,9 +40,9 @@ from .reconciliation import (
     RuleCheckType,
 )
 from .campaign import (
-    Campaign, CampaignType, CampaignStatus,
-    CampaignCostBreakdown, CostType,
-    CampaignAttribution, AttributionModel,
+    Campaign,
+    CampaignCostBreakdown,
+    CampaignAttribution,
 )
 from .data_pipeline import (
     SyncJob, SyncStatus, SyncDirection,
@@ -74,7 +72,6 @@ __all__ = [
     'TaskManager', 'TaskStatus',
     'Project', 'ProjectStatus', 'ProjectManager',
     'PipelineStage', 'FunnelSnapshot', 'ConversionEvent',
-    'FUNNEL_STAGES', 'default_funnel_stages',
     'CustomAgentConfig', 'CustomAgentManager',
     'PersonalityVector', 'VALID_COMMUNICATION_STYLES',
     'Account', 'Opportunity', 'Contact', 'Lead',
@@ -90,9 +87,9 @@ __all__ = [
     'ValidationResult', 'ValidationStatus',
     'ReconciliationRecord', 'ReconciliationRun', 'ReconciliationRule',
     'ReconciliationStatus', 'DiscrepancyType', 'RuleAction', 'RuleCheckType',
-    'Campaign', 'CampaignType', 'CampaignStatus',
-    'CampaignCostBreakdown', 'CostType',
-    'CampaignAttribution', 'AttributionModel',
+    'Campaign',
+    'CampaignCostBreakdown',
+    'CampaignAttribution',
     'SyncJob', 'SyncStatus', 'SyncDirection',
     'DbtModel', 'DbtMaterialization', 'DbtModelStatus',
     'DbtTest', 'DbtTestStatus', 'DbtTestSeverity',

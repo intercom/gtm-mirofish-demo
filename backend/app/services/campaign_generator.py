@@ -233,3 +233,42 @@ def get_campaigns() -> list[Campaign]:
     if _campaigns_cache is None:
         _campaigns_cache = [_build_campaign(d) for d in _CAMPAIGN_DEFS]
     return _campaigns_cache
+
+
+# Aliases / helper functions expected by the services __init__ re-exports
+
+def generate_campaigns() -> list[dict]:
+    """Generate all campaigns and return as dicts."""
+    return [c.to_dict(include_details=True) for c in get_campaigns()]
+
+
+def get_campaign_stats() -> dict:
+    """Aggregate statistics across all campaigns."""
+    campaigns = get_campaigns()
+    total_spend = sum(c.spend_to_date for c in campaigns)
+    total_revenue = sum(c.closed_won_value for c in campaigns)
+    total_leads = sum(c.leads_generated for c in campaigns)
+    return {
+        'total_campaigns': len(campaigns),
+        'total_spend': total_spend,
+        'total_revenue': total_revenue,
+        'total_leads': total_leads,
+        'overall_roi': round((total_revenue - total_spend) / total_spend * 100, 2) if total_spend else 0,
+    }
+
+
+def get_roi_comparison() -> list[dict]:
+    """Return per-campaign ROI for comparison charts."""
+    return [
+        {'id': c.id, 'name': c.name, 'type': c.type, 'roi_percentage': c.roi_percentage, 'spend': c.spend_to_date}
+        for c in get_campaigns()
+    ]
+
+
+def get_budget_efficiency() -> list[dict]:
+    """Return per-campaign budget efficiency metrics."""
+    return [
+        {'id': c.id, 'name': c.name, 'budget': c.budget, 'spend_to_date': c.spend_to_date,
+         'cpl': c.cpl, 'cpa': c.cpa, 'utilization': round(c.spend_to_date / c.budget * 100, 1) if c.budget else 0}
+        for c in get_campaigns()
+    ]

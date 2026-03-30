@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import Badge from '../common/Badge.vue'
+import Badge from '../common/AppBadge.vue'
 import Card from '../common/Card.vue'
 
 const props = defineProps({

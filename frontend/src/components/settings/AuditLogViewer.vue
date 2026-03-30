@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { auditLogApi } from '../../api/auditLog'
 import { useToast } from '../../composables/useToast'
-import Badge from '../common/Badge.vue'
+import Badge from '../common/AppBadge.vue'
 
 const toast = useToast()
 

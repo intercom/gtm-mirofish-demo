@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { teamApi } from '../../api/team'
 import { useToast } from '../../composables/useToast'
-import Badge from '../common/Badge.vue'
+import Badge from '../common/AppBadge.vue'
 
 const props = defineProps({
   maxSlots: { type: Number, default: 8 },

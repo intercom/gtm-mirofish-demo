@@ -19,6 +19,13 @@ PIPELINE_STAGES = [
     {"name": "Closed Lost", "order": 6, "conversion_rate": 0.0, "avg_days": 0, "color": "#ef4444"},
 ]
 
+FUNNEL_STAGES = PIPELINE_STAGES
+
+
+def default_funnel_stages() -> List[Dict[str, Any]]:
+    """Return a fresh copy of the default funnel stage definitions."""
+    return [dict(s) for s in PIPELINE_STAGES]
+
 
 @dataclass
 class PipelineStage:

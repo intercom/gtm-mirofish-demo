@@ -288,7 +288,7 @@ def _try_zep_search(graph_id: str, query: str, limit: int = 10):
 # ---------------------------------------------------------------------------
 
 @simulation_bp.route('/<simulation_id>/agents/<agent_id>/memory', methods=['GET'])
-def get_agent_memory(simulation_id: str, agent_id: str):
+def get_agent_memory_dump(simulation_id: str, agent_id: str):
     """Full memory dump for an agent.
 
     Tries Zep first for live graph data, falls back to deterministic

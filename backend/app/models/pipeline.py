@@ -19,6 +19,14 @@ PIPELINE_STAGES = [
     {"name": "Closed Lost", "order": 6, "conversion_rate": 0.0, "avg_days": 0, "color": "#ef4444"},
 ]
 
+# Alias used by __init__.py
+FUNNEL_STAGES = PIPELINE_STAGES
+
+
+def default_funnel_stages() -> list:
+    """Return a fresh copy of the default funnel stage definitions."""
+    return [dict(s) for s in PIPELINE_STAGES]
+
 
 @dataclass
 class PipelineStage:

@@ -233,3 +233,33 @@ def get_campaigns() -> list[Campaign]:
     if _campaigns_cache is None:
         _campaigns_cache = [_build_campaign(d) for d in _CAMPAIGN_DEFS]
     return _campaigns_cache
+
+
+# Aliases expected by app.services.__init__
+generate_campaigns = get_campaigns
+
+
+def get_campaign_stats() -> dict:
+    """Return aggregate statistics across all campaigns."""
+    campaigns = get_campaigns()
+    return {
+        "total_campaigns": len(campaigns),
+        "total_budget": sum(c.budget for c in campaigns),
+        "total_spend": sum(c.spend_to_date for c in campaigns),
+        "total_leads": sum(c.leads_generated for c in campaigns),
+        "avg_roi": round(sum(c.roi_percentage for c in campaigns) / len(campaigns), 1) if campaigns else 0,
+    }
+
+
+def get_roi_comparison() -> list[dict]:
+    """Return ROI comparison data across campaigns."""
+    return [{"name": c.name, "roi": c.roi_percentage, "spend": c.spend_to_date} for c in get_campaigns()]
+
+
+def get_budget_efficiency() -> list[dict]:
+    """Return budget utilization data for each campaign."""
+    return [
+        {"name": c.name, "budget": c.budget, "spend": c.spend_to_date,
+         "utilization": round(c.spend_to_date / c.budget * 100, 1) if c.budget else 0}
+        for c in get_campaigns()
+    ]

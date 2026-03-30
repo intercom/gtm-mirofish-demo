@@ -13,20 +13,62 @@ const shortcuts = [
     items: [
       { keys: ['?'], description: 'Show keyboard shortcuts' },
       { keys: ['Esc'], description: 'Close dialogs & overlays' },
+      { keys: [isMac ? '⌘' : 'Ctrl', 'K'], description: 'Open command palette' },
+      { keys: [isMac ? '⌘' : 'Ctrl', 'N'], description: 'New simulation' },
+      { keys: [isMac ? '⌘' : 'Ctrl', 'S'], description: 'Save current work' },
+      { keys: ['/'], description: 'Focus search' },
+      { keys: [isMac ? '⌘' : 'Ctrl', '/'], description: 'Toggle quick reference' },
+    ],
+  },
+  {
+    group: 'Navigation',
+    items: [
+      { keys: ['G', 'H'], description: 'Go to Home' },
+      { keys: ['G', 'D'], description: 'Go to Dashboard' },
+      { keys: ['G', 'S'], description: 'Go to Simulations' },
+      { keys: ['G', 'R'], description: 'Go to Reports' },
+      { keys: ['G', 'E'], description: 'Go to Settings' },
+    ],
+  },
+  {
+    group: 'Simulation',
+    items: [
+      { keys: ['Space'], description: 'Play / Pause' },
+      { keys: ['←'], description: 'Previous round' },
+      { keys: ['→'], description: 'Next round' },
+      { keys: ['+'], description: 'Increase speed' },
+      { keys: ['−'], description: 'Decrease speed' },
+      { keys: ['T'], description: 'Toggle agent thinking' },
+      { keys: ['M'], description: 'Toggle metrics panel' },
+      { keys: ['F'], description: 'Toggle fullscreen' },
+      { keys: ['B'], description: 'Branch at current round' },
     ],
   },
   {
     group: 'Workspace',
     items: [
-      { keys: ['1'], description: 'Switch to Knowledge Graph tab' },
-      { keys: ['2'], description: 'Switch to Simulation tab' },
+      { keys: ['1'], description: 'Graph tab' },
+      { keys: ['2'], description: 'Simulation tab' },
+      { keys: ['3'], description: 'Report tab' },
+      { keys: ['Tab'], description: 'Next panel' },
     ],
   },
   {
-    group: 'Chat & Interview',
+    group: 'Report',
+    items: [
+      { keys: [isMac ? '⌘' : 'Ctrl', 'P'], description: 'Preview report' },
+      { keys: [isMac ? '⌘' : 'Ctrl', 'E'], description: 'Export report' },
+      { keys: [isMac ? '⌘' : 'Ctrl', '⇧', 'S'], description: 'Save as template' },
+      { keys: ['Del'], description: 'Remove section' },
+      { keys: [isMac ? '⌘' : 'Ctrl', '↑'], description: 'Previous chapter' },
+      { keys: [isMac ? '⌘' : 'Ctrl', '↓'], description: 'Next chapter' },
+    ],
+  },
+  {
+    group: 'Chat',
     items: [
       { keys: ['Enter'], description: 'Send message' },
-      { keys: ['Shift', 'Enter'], description: 'New line in message' },
+      { keys: ['Shift', 'Enter'], description: 'New line' },
     ],
   },
 ]

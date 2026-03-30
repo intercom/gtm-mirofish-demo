@@ -76,7 +76,7 @@ watch(() => route.path, () => {
 </script>
 
 <template>
-  <nav data-tutorial="nav" class="bg-[var(--color-navy)] border-b border-white/10 px-4 md:px-6 py-3 relative">
+  <nav data-tutorial="nav" aria-label="Main navigation" class="bg-[var(--color-navy)] border-b border-white/10 px-4 md:px-6 py-3 relative">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-6">
         <router-link to="/" class="flex items-center gap-2 text-white no-underline">
@@ -153,6 +153,7 @@ watch(() => route.path, () => {
             @click="langMenuOpen = !langMenuOpen"
             class="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-sm px-2 py-1 rounded-md hover:bg-white/8 cursor-pointer"
             :aria-expanded="langMenuOpen"
+            aria-haspopup="true"
             aria-label="Switch language"
           >
             <span>{{ currentLang.flag }}</span>
@@ -171,16 +172,20 @@ watch(() => route.path, () => {
           >
             <div
               v-if="langMenuOpen"
+              role="menu"
+              aria-label="Language options"
               class="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-lg py-1 z-50 min-w-[140px]"
             >
               <button
                 v-for="lang in languages"
                 :key="lang.code"
+                role="menuitem"
                 @click="selectLanguage(lang.code)"
                 class="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors cursor-pointer"
                 :class="locale === lang.code
                   ? 'text-white bg-[rgba(32,104,255,0.15)]'
                   : 'text-white/60 hover:text-white hover:bg-white/5'"
+                :aria-current="locale === lang.code ? 'true' : undefined"
               >
                 <span>{{ lang.flag }}</span>
                 <span>{{ lang.label }}</span>
@@ -199,6 +204,8 @@ watch(() => route.path, () => {
             class="hidden sm:flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors cursor-pointer"
             @click.stop="helpMenuOpen = !helpMenuOpen"
             aria-label="Help menu"
+            :aria-expanded="helpMenuOpen"
+            aria-haspopup="true"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -216,20 +223,23 @@ watch(() => route.path, () => {
             leave-from-class="opacity-100 translate-y-0"
             leave-to-class="opacity-0 -translate-y-1"
           >
-            <div v-if="helpMenuOpen" class="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 z-50">
+            <div v-if="helpMenuOpen" role="menu" aria-label="Help options" class="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 z-50">
               <button
+                role="menuitem"
                 class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
                 @click="tutorial.startWelcomeTour(); helpMenuOpen = false"
               >
                 Welcome Tour
               </button>
               <button
+                role="menuitem"
                 class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
                 @click="tutorial.startWalkthrough(); helpMenuOpen = false"
               >
                 Guided Walkthrough
               </button>
               <button
+                role="menuitem"
                 class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
                 @click="tutorial.toggleShortcutRef(); helpMenuOpen = false"
               >
@@ -242,15 +252,16 @@ watch(() => route.path, () => {
 
         <div class="hidden sm:flex items-center gap-3 text-xs text-white/40">
           <span v-if="avgApiMs" class="flex items-center gap-1" :title="`Avg API response: ${avgApiMs}ms`">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="opacity-60">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="opacity-60" aria-hidden="true">
               <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
               <path d="M6 3v3.5l2 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
             <span :class="avgApiMs > 2000 ? 'text-[#ff5600]' : ''">{{ avgApiMs }}ms</span>
           </span>
           <span class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-green-500"></span>
-            Local
+            <span class="w-2 h-2 rounded-full bg-green-500" aria-hidden="true"></span>
+            <span>Local</span>
+            <span class="sr-only">environment — connected</span>
           </span>
         </div>
 

@@ -276,7 +276,7 @@ onUnmounted(() => {
 
 <template>
   <div class="relative bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-    <div ref="chartRef" />
+    <div ref="chartRef" role="img" aria-label="Radar chart" />
     <div
       ref="tooltipRef"
       class="absolute pointer-events-none opacity-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-xs shadow-md z-10"

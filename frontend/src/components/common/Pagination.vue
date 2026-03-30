@@ -41,7 +41,7 @@ function goTo(page) {
 </script>
 
 <template>
-  <div v-if="totalPages > 1" class="flex items-center justify-between gap-4 py-3">
+  <nav v-if="totalPages > 1" aria-label="Pagination" class="flex items-center justify-between gap-4 py-3">
     <span class="text-xs text-[var(--color-text-muted)]">
       {{ total }} item{{ total === 1 ? '' : 's' }}
     </span>
@@ -51,9 +51,10 @@ function goTo(page) {
       <button
         :disabled="currentPage <= 1"
         class="pagination-btn"
+        aria-label="Previous page"
         @click="goTo(currentPage - 1)"
       >
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
         </svg>
       </button>
@@ -70,6 +71,8 @@ function goTo(page) {
         :key="page"
         class="pagination-btn"
         :class="{ active: page === currentPage }"
+        :aria-current="page === currentPage ? 'page' : undefined"
+        :aria-label="`Page ${page}`"
         @click="goTo(page)"
       >
         {{ page }}
@@ -85,14 +88,15 @@ function goTo(page) {
       <button
         :disabled="currentPage >= totalPages"
         class="pagination-btn"
+        aria-label="Next page"
         @click="goTo(currentPage + 1)"
       >
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
         </svg>
       </button>
     </div>
-  </div>
+  </nav>
 </template>
 
 <style scoped>

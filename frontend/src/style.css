@@ -66,6 +66,21 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
 
 .skip-to-main:focus {
   top: 0.75rem;
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Global focus-visible ring for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-primary, #2068FF);
+  outline-offset: 2px;
+}
+
+/* Suppress focus ring inside elements that manage their own */
+.btn-interactive:focus-visible,
+.input-interactive:focus-visible,
+.focus-ring-pulse:focus-visible {
+  outline: none;
 }
 
 ::-webkit-scrollbar {

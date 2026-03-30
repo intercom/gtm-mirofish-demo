@@ -415,6 +415,8 @@ onUnmounted(() => {
         :key="dataset.title || i"
         class="sm-panel relative border border-[var(--color-border)] rounded-md bg-[var(--color-bg)] overflow-hidden"
         style="min-height: 172px"
+        role="img"
+        :aria-label="`${dataset.title || `Chart ${i + 1}`} ${chartType} chart`"
       />
     </div>
 

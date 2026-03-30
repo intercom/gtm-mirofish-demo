@@ -249,7 +249,14 @@ onUnmounted(() => {
       </h3>
     </div>
 
-    <div v-if="matrix.length && labels.length" ref="chartRef" class="relative w-full" style="min-height: 320px" />
+    <div
+      v-if="matrix.length && labels.length"
+      ref="chartRef"
+      class="relative w-full"
+      style="min-height: 320px"
+      role="img"
+      aria-label="Communication flow chord diagram"
+    />
 
     <div v-else class="flex items-center justify-center h-[280px] text-[var(--color-text-muted)] text-sm">
       <span>No flow data available</span>

@@ -114,11 +114,15 @@ const totalCols = computed(() => props.columns.length + (props.draggable ? 1 : 0
     <table class="w-full text-sm">
       <thead>
         <tr class="border-b border-[var(--color-border)]">
-          <th v-if="draggable" class="w-10 px-2 py-3 bg-[var(--color-tint)]" />
+          <th v-if="draggable" class="w-10 px-2 py-3 bg-[var(--color-tint)]" scope="col">
+            <span class="sr-only">Reorder</span>
+          </th>
           <th
             v-for="col in columns"
             :key="col.key"
+            scope="col"
             :style="col.width ? { width: col.width } : {}"
+            :aria-sort="col.sortable && sortColumn === col.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : col.sortable ? 'none' : undefined"
             :class="[
               'px-4 py-3 text-xs font-semibold tracking-wide uppercase bg-[var(--color-tint)]',
               'text-[var(--color-text-muted)]',
@@ -139,6 +143,7 @@ const totalCols = computed(() => props.columns.length + (props.draggable ? 1 : 0
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 stroke-width="2"
+                aria-hidden="true"
               >
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
               </svg>
@@ -149,6 +154,7 @@ const totalCols = computed(() => props.columns.length + (props.draggable ? 1 : 0
                 viewBox="0 0 24 24"
                 stroke="currentColor"
                 stroke-width="2"
+                aria-hidden="true"
               >
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
               </svg>
@@ -185,8 +191,9 @@ const totalCols = computed(() => props.columns.length + (props.draggable ? 1 : 0
           <td
             v-if="draggable"
             class="w-10 px-2 py-3 text-center text-[var(--color-text-muted)] cursor-grab active:cursor-grabbing"
+            aria-label="Drag to reorder"
           >
-            <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <svg class="w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
             </svg>
           </td>

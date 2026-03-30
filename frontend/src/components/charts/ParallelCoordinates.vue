@@ -427,6 +427,8 @@ onUnmounted(() => {
       ref="chartRef"
       class="relative w-full"
       style="min-height: 372px"
+      role="img"
+      aria-label="Parallel coordinates chart"
     />
 
     <div

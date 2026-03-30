@@ -224,6 +224,8 @@ onUnmounted(() => {
       v-if="data.length"
       ref="chartRef"
       class="relative overflow-x-auto"
+      role="img"
+      aria-label="Activity calendar heatmap"
     />
 
     <div v-else class="flex items-center justify-center h-[120px] text-[var(--color-text-muted)] text-sm">

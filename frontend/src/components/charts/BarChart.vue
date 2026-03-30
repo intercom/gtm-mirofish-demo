@@ -474,5 +474,20 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full" />
+  <div
+    ref="chartRef"
+    class="w-full"
+    role="img"
+    :aria-label="title ? `${title} bar chart` : 'Bar chart'"
+  />
+  <table v-if="data.length" class="sr-only">
+    <caption>{{ title || 'Bar chart data' }}</caption>
+    <thead><tr><th scope="col">Label</th><th scope="col">Value</th></tr></thead>
+    <tbody>
+      <tr v-for="d in data" :key="d.label">
+        <td>{{ d.label }}</td>
+        <td>{{ d.value }}</td>
+      </tr>
+    </tbody>
+  </table>
 </template>

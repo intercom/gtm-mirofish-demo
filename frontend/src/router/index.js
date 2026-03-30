@@ -185,6 +185,11 @@ export const routes = [
     name: 'dashboard-builder',
     component: () => import('../views/DashboardBuilderView.vue'),
   },
+  {
+    path: '/benchmark',
+    name: 'benchmark',
+    component: () => import('../views/BenchmarkView.vue'),
+  },
 ]
 
 export function createAppRouter() {

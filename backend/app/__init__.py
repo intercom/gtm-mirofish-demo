@@ -312,6 +312,10 @@ def create_app(config_class=Config):
     from .api.beliefs import beliefs_bp
     app.register_blueprint(beliefs_bp)
 
+    # Performance benchmark API
+    from .api.benchmark import benchmark_bp
+    app.register_blueprint(benchmark_bp)
+
     # OAuth flow (login, callback, logout, me)
     from auth.oauth_routes import auth_bp as oauth_bp
     app.register_blueprint(oauth_bp)

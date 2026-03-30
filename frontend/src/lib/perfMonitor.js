@@ -11,14 +11,20 @@ const metrics = {
   wsLatency: [],
 }
 
-function push(metricName, value) {
+function push(metricName, value, meta) {
   const bucket = metrics[metricName]
   if (!bucket) return
-  bucket.push({ value, timestamp: Date.now() })
+  const entry = { value, timestamp: Date.now() }
+  if (meta) entry.meta = meta
+  bucket.push(entry)
   if (bucket.length > MAX_ENTRIES) bucket.shift()
   if (isDev && value > SLOW_THRESHOLD_MS) {
     console.warn(`[perf] Slow ${metricName}: ${value.toFixed(1)}ms`)
   }
+}
+
+function getRawEntries(metricName) {
+  return metrics[metricName] ? [...metrics[metricName]] : []
 }
 
 function percentile(metricName, p) {
@@ -55,13 +61,15 @@ function recordPageLoad() {
 
 function trackRouteNavigation(router) {
   let navStart = 0
-  router.beforeEach((_to, _from, next) => {
+  let navTarget = ''
+  router.beforeEach((to, _from, next) => {
     navStart = performance.now()
+    navTarget = to.name || to.path
     next()
   })
   router.afterEach(() => {
     if (navStart) {
-      push('routeNavigation', performance.now() - navStart)
+      push('routeNavigation', performance.now() - navStart, { route: navTarget })
       navStart = 0
     }
   })
@@ -75,17 +83,41 @@ function createAxiosTimingInterceptors(client) {
   client.interceptors.response.use(
     (response) => {
       if (response.config._perfStart) {
-        push('apiResponse', performance.now() - response.config._perfStart)
+        push('apiResponse', performance.now() - response.config._perfStart, {
+          url: response.config.url,
+          method: response.config.method,
+        })
       }
       return response
     },
     (error) => {
       if (error.config?._perfStart) {
-        push('apiResponse', performance.now() - error.config._perfStart)
+        push('apiResponse', performance.now() - error.config._perfStart, {
+          url: error.config.url,
+          method: error.config.method,
+        })
       }
       return Promise.reject(error)
     },
   )
+}
+
+function getWebVitals() {
+  const nav = performance.getEntriesByType('navigation')[0]
+  if (!nav) return null
+  const paints = performance.getEntriesByType('paint')
+  const fcp = paints.find((p) => p.name === 'first-contentful-paint')
+  return {
+    dns: nav.domainLookupEnd - nav.domainLookupStart,
+    tcp: nav.connectEnd - nav.connectStart,
+    ttfb: nav.responseStart - nav.requestStart,
+    download: nav.responseEnd - nav.responseStart,
+    domParsing: nav.domInteractive - nav.responseEnd,
+    domContentLoaded: nav.domContentLoadedEventEnd - nav.startTime,
+    load: nav.loadEventEnd - nav.startTime,
+    fcp: fcp ? fcp.startTime : 0,
+    transferSize: nav.transferSize || 0,
+  }
 }
 
 function trackComponentRender(name, durationMs) {
@@ -115,6 +147,8 @@ export const perfMonitor = {
   percentile,
   getStats,
   getAllStats,
+  getRawEntries,
+  getWebVitals,
   recordPageLoad,
   trackRouteNavigation,
   createAxiosTimingInterceptors,

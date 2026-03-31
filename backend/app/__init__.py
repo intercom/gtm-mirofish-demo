@@ -304,6 +304,10 @@ def create_app(config_class=Config):
     from .api.cache import cache_bp
     app.register_blueprint(cache_bp)
 
+    # Demo preset data (curated presentation fixtures)
+    from .api.demo_preset import demo_preset_bp
+    app.register_blueprint(demo_preset_bp)
+
     # Agent memory abstraction API
     from .api.memory import agent_memory_bp
     app.register_blueprint(agent_memory_bp)

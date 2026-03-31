@@ -148,6 +148,7 @@ onMounted(async () => {
   top: 30%;
   left: 50%;
   width: 600px;
+  max-width: calc(100vw - 2rem);
   height: 600px;
   transform: translate(-50%, -50%);
   background: radial-gradient(circle, rgba(32, 104, 255, 0.08) 0%, transparent 70%);

@@ -146,7 +146,7 @@ onUnmounted(() => {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
-  width: 480px;
+  width: min(480px, calc(100vw - 2rem));
   max-width: calc(100vw - 32px);
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #e5e7eb);

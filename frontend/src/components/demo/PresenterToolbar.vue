@@ -100,7 +100,7 @@ async function resetDemo() {
       >
         <div
           v-if="expanded"
-          class="w-72 rounded-xl bg-gray-900/90 backdrop-blur-md shadow-2xl border border-white/10 text-white overflow-hidden"
+          class="w-[calc(100vw-2rem)] sm:w-72 rounded-xl bg-gray-900/90 backdrop-blur-md shadow-2xl border border-white/10 text-white overflow-hidden"
         >
           <!-- Header -->
           <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">

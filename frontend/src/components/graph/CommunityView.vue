@@ -588,7 +588,7 @@ onUnmounted(() => {
     <Transition name="slide-in">
       <div
         v-if="selectedCommunity"
-        class="w-72 border-l border-[var(--color-border)] bg-white dark:bg-gray-900 overflow-y-auto shrink-0"
+        class="w-full sm:w-72 border-l border-[var(--color-border)] bg-white dark:bg-gray-900 overflow-y-auto shrink-0"
       >
         <div class="p-4">
           <!-- Header -->

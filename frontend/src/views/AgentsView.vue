@@ -154,7 +154,7 @@ function relativeTime(dateStr) {
     </div>
 
     <!-- Summary Stats -->
-    <div class="grid grid-cols-3 gap-3 mb-6 mt-6">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6 mt-6">
       <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-4 py-3">
         <div class="text-xs text-[var(--color-text-muted)]">{{ t('agents.myAgents') }}</div>
         <div class="text-lg font-semibold text-[var(--color-text)]">{{ customCount }}</div>

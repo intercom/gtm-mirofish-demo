@@ -322,7 +322,7 @@ watch([selectedCategory, selectedSeverity, days], fetchData)
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="grid grid-cols-4 gap-4">
+    <div v-if="loading" class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div v-for="i in 4" :key="i" class="h-24 rounded-lg bg-[--color-surface] border border-[--color-border] animate-pulse" />
     </div>
 

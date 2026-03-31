@@ -477,7 +477,7 @@ onUnmounted(() => {
     <Transition name="slide">
       <div
         v-if="selectedNode"
-        class="absolute top-0 right-0 z-20 h-full w-80 bg-white/95 dark:bg-[#0f0f24]/95 backdrop-blur-md border-l border-black/10 dark:border-white/10 overflow-y-auto"
+        class="absolute top-0 right-0 z-20 h-full w-full sm:w-80 bg-white/95 dark:bg-[#0f0f24]/95 backdrop-blur-md border-l border-black/10 dark:border-white/10 overflow-y-auto"
       >
         <div class="p-5">
           <div class="flex items-start justify-between mb-4">

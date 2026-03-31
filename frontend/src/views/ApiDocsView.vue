@@ -281,7 +281,7 @@ onMounted(fetchEndpoints)
 <template>
   <div class="flex h-[calc(100vh-56px)] overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-72 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto">
+    <aside class="hidden md:block w-72 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto">
       <div class="p-3 border-b border-[var(--color-border)]">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">API Reference</span>

@@ -379,7 +379,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Scenario Summary: Best / Expected / Worst -->
-      <div class="grid grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 text-center">
           <div class="text-[10px] font-medium text-[var(--color-text-muted)] uppercase tracking-wide mb-1">Best Case</div>
           <div class="text-lg font-bold text-[#009900]">{{ formatCurrency(scenarios.best_case) }}</div>

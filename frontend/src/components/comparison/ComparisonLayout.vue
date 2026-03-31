@@ -58,7 +58,7 @@ const showSidebar = ref(false)
       leave-from-class="opacity-100 translate-x-0"
       leave-to-class="opacity-0 translate-x-4"
     >
-      <div v-if="showSidebar" class="w-80 shrink-0">
+      <div v-if="showSidebar" class="w-full sm:w-80 shrink-0">
         <slot name="sidebar" />
       </div>
     </Transition>

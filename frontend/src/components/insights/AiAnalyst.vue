@@ -259,7 +259,7 @@ watch(isOpen, (open) => {
   bottom: 88px;
   right: 24px;
   z-index: 999;
-  width: 380px;
+  width: min(380px, calc(100vw - 2rem));
   max-height: calc(100vh - 120px);
   border-radius: 16px;
   background: var(--color-surface, #fff);

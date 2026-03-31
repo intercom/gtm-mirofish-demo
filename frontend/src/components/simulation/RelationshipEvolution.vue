@@ -533,7 +533,7 @@ function affinityColor(v) {
     <Transition name="slide-right">
       <div
         v-if="selectedEdge"
-        class="w-72 shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto"
+        class="w-full sm:w-72 shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto"
       >
         <div class="px-4 py-3 border-b border-[var(--color-border)] flex items-center justify-between">
           <span class="text-sm font-medium text-[var(--color-text)]">Relationship</span>

@@ -183,7 +183,7 @@ function startDrag(e) {
   position: fixed;
   top: 72px;
   right: 16px;
-  width: 280px;
+  width: min(280px, calc(100vw - 2rem));
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 12px;

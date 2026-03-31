@@ -167,7 +167,7 @@ onMounted(fetchConnectors)
         </div>
 
         <!-- Stats row -->
-        <div class="grid grid-cols-3 gap-2 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
           <div class="text-center">
             <div class="text-xs text-[var(--color-text-muted)]">Success</div>
             <div class="text-sm font-semibold text-[var(--color-text)]">

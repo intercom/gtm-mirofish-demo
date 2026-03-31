@@ -195,6 +195,11 @@ export const routes = [
     name: 'mobile-dashboard',
     component: () => import('../views/MobileDashboardView.vue'),
   },
+  {
+    path: '/benchmark',
+    name: 'benchmark',
+    component: () => import('../views/BenchmarkView.vue'),
+  },
 ]
 
 export function createAppRouter() {

@@ -44,6 +44,8 @@ class TestConfig(Config):
     AUTH_ENABLED = False
     AUTH_PROVIDER = 'google'
     AUTH_ALLOWED_DOMAIN = 'intercom.io'
+    WTF_CSRF_ENABLED = False
+    RATE_LIMIT_ENABLED = False
 
 
 class AuthEnabledConfig(TestConfig):

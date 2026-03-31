@@ -13,7 +13,7 @@ import httpx
 import jwt
 from flask import Blueprint, current_app, jsonify, redirect, request, session
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+auth_bp = Blueprint('oauth', __name__, url_prefix='/auth')
 
 GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'

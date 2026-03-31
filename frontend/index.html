@@ -43,6 +43,11 @@
         else dark = location.pathname === '/' || location.pathname === '/login'
         if (dark) document.documentElement.classList.add('dark')
       })()
+      // Prevent flash of wrong direction before Vue mounts
+      ;(function () {
+        var dir = localStorage.getItem('mirofish-dir')
+        if (dir === 'rtl' || dir === 'ltr') document.documentElement.dir = dir
+      })()
     </script>
   </head>
   <body>

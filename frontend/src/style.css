@@ -130,7 +130,10 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
 
 /* ── Panel slide transitions ────────────────────────────────────────────── */
 
-/* Right-sliding panel */
+/* Inline-end sliding panel (slides from right in LTR, left in RTL) */
+:root { --panel-inline-end: 1; }
+:root[dir="rtl"] { --panel-inline-end: -1; }
+
 .panel-right-enter-active {
   transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1),
               opacity 200ms ease-out;
@@ -140,11 +143,11 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
               opacity 150ms ease-in;
 }
 .panel-right-enter-from {
-  transform: translateX(100%);
+  transform: translateX(calc(100% * var(--panel-inline-end)));
   opacity: 0;
 }
 .panel-right-leave-to {
-  transform: translateX(100%);
+  transform: translateX(calc(100% * var(--panel-inline-end)));
   opacity: 0;
 }
 
@@ -176,21 +179,21 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
 /* Slide left (navigating deeper: landing → scenario → workspace) */
 .page-slide-left-enter-from {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(calc(30px * var(--panel-inline-end, 1)));
 }
 .page-slide-left-leave-to {
   opacity: 0;
-  transform: translateX(-30px);
+  transform: translateX(calc(-30px * var(--panel-inline-end, 1)));
 }
 
 /* Slide right (navigating back: workspace → scenario → landing) */
 .page-slide-right-enter-from {
   opacity: 0;
-  transform: translateX(-30px);
+  transform: translateX(calc(-30px * var(--panel-inline-end, 1)));
 }
 .page-slide-right-leave-to {
   opacity: 0;
-  transform: translateX(30px);
+  transform: translateX(calc(30px * var(--panel-inline-end, 1)));
 }
 
 /* Respect reduced-motion preference */
@@ -443,7 +446,7 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
 
 /* Tab indicator slide */
 .tab-indicator {
-  transition: left var(--transition-base), width var(--transition-base);
+  transition: inset-inline-start var(--transition-base), width var(--transition-base);
 }
 
 /* Status badge pop */
@@ -460,11 +463,11 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
 .prose p { margin-bottom: 0.5em; }
 .prose p:last-child { margin-bottom: 0; }
 .prose strong { font-weight: 600; }
-.prose ul, .prose ol { margin: 0.5em 0; padding-left: 1.25em; }
+.prose ul, .prose ol { margin: 0.5em 0; padding-inline-start: 1.25em; }
 .prose ul { list-style-type: disc; }
 .prose ol { list-style-type: decimal; }
 .prose li { margin-bottom: 0.25em; }
-.prose blockquote { border-left: 3px solid var(--color-primary); padding-left: 0.75em; margin: 0.5em 0; opacity: 0.85; }
+.prose blockquote { border-inline-start: 3px solid var(--color-primary); padding-inline-start: 0.75em; margin: 0.5em 0; opacity: 0.85; }
 .prose code { background: rgba(0,0,0,0.06); padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.85em; }
 .dark .prose code { background: rgba(255,255,255,0.1); }
 

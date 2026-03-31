@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onUnmounted, watch, inject, nextTick } from '
 import * as d3 from 'd3'
 import client from '../api/client'
 import { useToast } from '../composables/useToast'
+import { useTimelineScrubberInject } from '../composables/useTimelineScrubber'
+import AgentNetwork3D from '../components/simulation/AgentNetwork3D.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -10,6 +12,9 @@ const props = defineProps({
 
 const toast = useToast()
 const polling = inject('polling', null)
+const scrubber = useTimelineScrubberInject()
+
+const viewMode = ref('2d') // '2d' | '3d'
 
 const networkData = ref(null)
 const loading = ref(false)
@@ -482,12 +487,19 @@ function renderCommTimeline() {
 // ─── Render all ──────────────────────────────────────────────────────────
 function renderAll() {
   if (!networkData.value) return
-  renderForceGraph()
+  if (viewMode.value === '2d') renderForceGraph()
   renderAdjacencyMatrix()
   renderClusterView()
   renderInformationFlow()
   renderCommTimeline()
 }
+
+// Re-render 2D graph when switching back from 3D
+watch(viewMode, (mode) => {
+  if (mode === '2d' && networkData.value) {
+    nextTick(() => renderForceGraph())
+  }
+})
 
 function cleanup() {
   flowAnimating = false
@@ -501,13 +513,27 @@ function cleanup() {
   }
 }
 
+// Sync with timeline scrubber when round changes
+if (scrubber) {
+  watch(() => scrubber.currentRound.value, (round) => {
+    if (round > 0 && round !== selectedRound.value) {
+      onRoundChange(round)
+    }
+  })
+}
+
 onMounted(() => {
-  const maxR = polling?.runStatus?.value?.current_round || polling?.runStatus?.value?.total_rounds || 144
+  const maxR = scrubber?.currentRound?.value
+    || polling?.runStatus?.value?.current_round
+    || polling?.runStatus?.value?.total_rounds
+    || 144
   fetchNetwork(maxR)
 
   resizeObserver = new ResizeObserver(() => {
-    clearTimeout(roundDebounce)
-    roundDebounce = setTimeout(renderAll, 200)
+    if (viewMode.value === '2d') {
+      clearTimeout(roundDebounce)
+      roundDebounce = setTimeout(renderAll, 200)
+    }
   })
   if (graphEl.value) resizeObserver.observe(graphEl.value)
 })
@@ -574,13 +600,38 @@ onUnmounted(() => {
         >
           <div class="px-4 py-2.5 border-b border-[var(--color-border)] flex items-center justify-between">
             <h2 class="text-sm font-semibold text-[var(--color-text)]">Agent Network Graph</h2>
-            <div v-if="networkStats" class="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
-              <span>{{ networkStats.nodes }} nodes</span>
-              <span>{{ networkStats.edges }} edges</span>
-              <span>Density {{ networkStats.density }}%</span>
+            <div class="flex items-center gap-3">
+              <!-- 2D/3D toggle -->
+              <div class="flex items-center bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg p-0.5">
+                <button
+                  @click="viewMode = '2d'"
+                  class="px-2.5 py-0.5 text-xs font-medium rounded-md transition-all duration-200"
+                  :class="viewMode === '2d'
+                    ? 'bg-[#2068FF] text-white shadow-sm'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+                >2D</button>
+                <button
+                  @click="viewMode = '3d'"
+                  class="px-2.5 py-0.5 text-xs font-medium rounded-md transition-all duration-200"
+                  :class="viewMode === '3d'
+                    ? 'bg-[#2068FF] text-white shadow-sm'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+                >3D</button>
+              </div>
+              <div v-if="networkStats" class="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+                <span>{{ networkStats.nodes }} nodes</span>
+                <span>{{ networkStats.edges }} edges</span>
+                <span>Density {{ networkStats.density }}%</span>
+              </div>
             </div>
           </div>
-          <div ref="graphEl" class="h-[420px] relative" />
+          <div v-show="viewMode === '2d'" ref="graphEl" class="h-[420px] relative" />
+          <AgentNetwork3D
+            v-if="viewMode === '3d'"
+            :networkData="networkData"
+            :clusterColors="clusterColors"
+            class="h-[420px]"
+          />
         </div>
 
         <!-- Centrality Analysis -->

@@ -13,11 +13,11 @@ defineProps({
     :class="[
       'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold',
       {
-        'bg-[rgba(32,104,255,0.1)] text-[--color-primary]': variant === 'primary',
-        'bg-green-100 text-green-700': variant === 'success',
-        'bg-[rgba(255,86,0,0.1)] text-[--color-fin-orange]': variant === 'warning',
-        'bg-red-100 text-red-700': variant === 'error',
-        'bg-black/5 text-[--color-text-secondary]': variant === 'neutral',
+        'bg-[var(--badge-secondary-bg)] text-[var(--color-primary)]': variant === 'primary',
+        'bg-[var(--badge-success-bg-soft)] text-[var(--badge-success-text-soft)]': variant === 'success',
+        'bg-[var(--badge-warning-bg-soft)] text-[var(--badge-warning-text-soft)]': variant === 'warning',
+        'bg-[var(--badge-error-bg-soft)] text-[var(--badge-error-text-soft)]': variant === 'error',
+        'bg-black/5 text-[var(--color-text-secondary)]': variant === 'neutral',
       },
     ]"
   >

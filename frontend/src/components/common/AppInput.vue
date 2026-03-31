@@ -45,7 +45,7 @@ const inputClasses =
       v-if="type === 'select'"
       :id="inputId"
       :value="modelValue"
-      :class="[inputClasses, error && 'border-red-500', shaking && 'animate-shake']"
+      :class="[inputClasses, error && 'border-[var(--color-error)]', shaking && 'animate-shake']"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="error ? errorId : undefined"
       @change="$emit('update:modelValue', $event.target.value)"
@@ -62,7 +62,7 @@ const inputClasses =
       :value="modelValue"
       :placeholder="placeholder"
       :rows="rows"
-      :class="[inputClasses, 'resize-y', error && 'border-red-500', shaking && 'animate-shake']"
+      :class="[inputClasses, 'resize-y', error && 'border-[var(--color-error)]', shaking && 'animate-shake']"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="error ? errorId : undefined"
       @input="$emit('update:modelValue', $event.target.value)"
@@ -74,12 +74,12 @@ const inputClasses =
       type="text"
       :value="modelValue"
       :placeholder="placeholder"
-      :class="[inputClasses, error && 'border-red-500', shaking && 'animate-shake']"
+      :class="[inputClasses, error && 'border-[var(--color-error)]', shaking && 'animate-shake']"
       :aria-invalid="error ? 'true' : undefined"
       :aria-describedby="error ? errorId : undefined"
       @input="$emit('update:modelValue', $event.target.value)"
     />
 
-    <p v-if="error" :id="errorId" role="alert" class="text-xs text-red-500 mt-1">{{ error }}</p>
+    <p v-if="error" :id="errorId" role="alert" class="text-xs text-[var(--color-error)] mt-1">{{ error }}</p>
   </div>
 </template>

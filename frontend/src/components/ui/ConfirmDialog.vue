@@ -58,7 +58,7 @@ function confirm() {
               </button>
               <button
                 class="btn-interactive px-4 py-2 text-sm font-medium rounded-lg text-white cursor-pointer hover:shadow-md hover:-translate-y-px"
-                :class="destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-[#2068FF] hover:bg-[#1a5ae0]'"
+                :class="destructive ? 'bg-[var(--color-destructive)] hover:bg-[var(--color-destructive-hover)]' : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]'"
                 @click="confirm"
               >
                 {{ confirmLabel }}

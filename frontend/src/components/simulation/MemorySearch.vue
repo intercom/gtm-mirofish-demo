@@ -37,9 +37,9 @@ const memoryTypes = [
 ]
 
 const typeColors = {
-  facts: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
-  beliefs: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  decisions: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+  facts: { bg: 'bg-[var(--color-primary-light)]', text: 'text-[var(--color-primary)]', border: 'border-[var(--color-primary-border)]' },
+  beliefs: { bg: 'bg-[var(--color-warning-light)]', text: 'text-[var(--color-warning)]', border: 'border-[var(--color-warning-border)]' },
+  decisions: { bg: 'bg-[var(--color-success-light)]', text: 'text-[var(--color-success)]', border: 'border-[var(--color-success-border)]' },
 }
 
 function getTypeStyle(type) {
@@ -119,10 +119,10 @@ function importancePercent(val) {
 }
 
 function importanceColor(val) {
-  if (val >= 0.8) return 'bg-emerald-500'
+  if (val >= 0.8) return 'bg-[var(--color-success)]'
   if (val >= 0.6) return 'bg-[var(--color-primary)]'
-  if (val >= 0.4) return 'bg-amber-400'
-  return 'bg-gray-300'
+  if (val >= 0.4) return 'bg-[var(--color-warning)]'
+  return 'bg-[var(--color-text-muted)]'
 }
 
 function navigateToRound(round) {

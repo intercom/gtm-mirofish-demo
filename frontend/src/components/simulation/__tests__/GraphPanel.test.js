@@ -67,16 +67,16 @@ describe('GraphPanel', () => {
       wrapper.unmount()
     })
 
-    it('applies yellow styling for building status', () => {
+    it('applies warning styling for building status', () => {
       const polling = createPolling()
       const wrapper = mountGraphPanel(polling)
       const badge = wrapper.find('.rounded-full')
-      expect(badge.classes()).toContain('bg-yellow-500/20')
-      expect(badge.classes()).toContain('text-yellow-400')
+      expect(badge.classes()).toContain('bg-[var(--color-warning-light)]')
+      expect(badge.classes()).toContain('text-[var(--color-warning)]')
       wrapper.unmount()
     })
 
-    it('applies green styling for complete status', () => {
+    it('applies success styling for complete status', () => {
       const polling = createPolling({
         graphStatus: 'complete',
         graphData: {
@@ -86,17 +86,17 @@ describe('GraphPanel', () => {
       })
       const wrapper = mountGraphPanel(polling)
       const badge = wrapper.find('.rounded-full')
-      expect(badge.classes()).toContain('bg-green-500/20')
-      expect(badge.classes()).toContain('text-green-400')
+      expect(badge.classes()).toContain('bg-[var(--color-success-light)]')
+      expect(badge.classes()).toContain('text-[var(--color-success)]')
       wrapper.unmount()
     })
 
-    it('applies red styling for failed status', () => {
+    it('applies error styling for failed status', () => {
       const polling = createPolling({ graphStatus: 'failed' })
       const wrapper = mountGraphPanel(polling)
       const badge = wrapper.find('.rounded-full')
-      expect(badge.classes()).toContain('bg-red-500/20')
-      expect(badge.classes()).toContain('text-red-400')
+      expect(badge.classes()).toContain('bg-[var(--color-error-light)]')
+      expect(badge.classes()).toContain('text-[var(--color-error)]')
       wrapper.unmount()
     })
   })

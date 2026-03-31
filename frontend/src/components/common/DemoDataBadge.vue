@@ -22,7 +22,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 
 <template>
   <span v-if="isDemoMode" ref="wrapper" class="demo-badge-wrapper" @click.stop="toggleTooltip">
-    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200/60 cursor-pointer hover:bg-amber-200/80 transition-colors select-none">
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--badge-warning-bg-soft)] text-[var(--badge-warning-text-soft)] border border-[var(--color-warning-border)] cursor-pointer hover:opacity-80 transition-colors select-none">
       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>

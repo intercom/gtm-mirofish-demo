@@ -138,7 +138,7 @@ onUnmounted(() => {
           <div class="my-1 border-t border-white/10"></div>
 
           <button
-            class="menu-item w-full text-left text-red-400 hover:text-red-300"
+            class="menu-item w-full text-left text-[var(--color-error)] hover:text-[var(--color-error)]"
             role="menuitem"
             @click="handleSignOut"
           >

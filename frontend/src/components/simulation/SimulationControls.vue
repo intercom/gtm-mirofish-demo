@@ -23,10 +23,10 @@ const statusLabel = computed(() => {
 
 const statusStyle = computed(() => {
   const map = {
-    building: 'bg-[rgba(32,104,255,0.1)] text-[var(--color-primary)]',
-    running: 'bg-emerald-100 text-emerald-700',
-    completed: 'bg-green-100 text-green-700',
-    failed: 'bg-red-100 text-red-700',
+    building: 'bg-[var(--color-primary-light)] text-[var(--color-primary)]',
+    running: 'bg-[var(--badge-success-bg-soft)] text-[var(--badge-success-text-soft)]',
+    completed: 'bg-[var(--badge-success-bg-soft)] text-[var(--badge-success-text-soft)]',
+    failed: 'bg-[var(--badge-error-bg-soft)] text-[var(--badge-error-text-soft)]',
   }
   return map[status.value] || 'bg-gray-100 text-gray-700'
 })
@@ -65,7 +65,7 @@ const redditActions = computed(() => polling.runStatus.value?.reddit_actions_cou
           <div class="text-[10px] text-[var(--color-text-muted)]">Twitter</div>
         </div>
         <div class="text-center py-2 bg-[rgba(255,86,0,0.05)] rounded-md">
-          <div class="text-base font-semibold text-[#ff5600]">{{ redditActions }}</div>
+          <div class="text-base font-semibold text-[var(--color-fin-orange)]">{{ redditActions }}</div>
           <div class="text-[10px] text-[var(--color-text-muted)]">Reddit</div>
         </div>
       </div>

@@ -1,6 +1,8 @@
 <script setup>
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ForceGraph3D from '3d-force-graph'
+import * as THREE from 'three'
+import { useGraph3DAnimations } from '../../composables/useGraph3DAnimations'
 import { DEMO_NODES, DEMO_EDGES } from '../../data/demoGraphData'
 
 const props = defineProps({
@@ -26,6 +28,10 @@ let resizeObserver = null
 let zoomTimer = null
 let demoBuildTimer = null
 let themeObserver = null
+
+const anim = useGraph3DAnimations()
+let starField = null
+let edgeParticles = null
 
 const TYPE_COLORS = {
   persona: '#ff5600', person: '#ff5600', agent: '#ff5600', user: '#ff5600',
@@ -154,16 +160,52 @@ function renderGraph() {
     return
   }
 
+  const NODE_REL_SIZE = 4
+
   graph = ForceGraph3D()(container)
     .backgroundColor(dark ? '#0a0a1a' : '#f8f9fa')
     .showNavInfo(false)
     .width(width)
     .height(height)
     .nodeId('id')
-    .nodeColor('color')
     .nodeVal('val')
-    .nodeOpacity(0.9)
     .nodeResolution(16)
+    .nodeThreeObject(node => {
+      const r = Math.cbrt(node.val || 1) * NODE_REL_SIZE
+      const group = new THREE.Group()
+
+      const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(r, 16, 12),
+        new THREE.MeshPhongMaterial({
+          color: node.color,
+          emissive: node.color,
+          emissiveIntensity: 0.35,
+          shininess: 60,
+          transparent: true,
+          opacity: 0.92,
+        }),
+      )
+      group.add(sphere)
+
+      const haloMat = new THREE.MeshBasicMaterial({
+        color: node.color,
+        transparent: true,
+        opacity: 0.06,
+      })
+      group.add(new THREE.Mesh(new THREE.SphereGeometry(r * 2, 10, 8), haloMat))
+
+      anim.entrance(group, Math.random() * 0.8)
+      if (node.centrality > 0.3) {
+        anim.haloPulse(haloMat, {
+          speed: 1.2 + node.centrality,
+          min: 0.04,
+          max: 0.18,
+          phase: Math.random() * Math.PI * 2,
+        })
+      }
+
+      return group
+    })
     .nodeLabel(n => [
       `<div style="padding:6px 10px;font-size:12px;line-height:1.4">`,
       `<div style="color:${n.color};font-weight:600">${n.name}</div>`,
@@ -176,20 +218,34 @@ function renderGraph() {
     .linkDirectionalArrowLength(3.5)
     .linkDirectionalArrowRelPos(1)
     .linkDirectionalArrowColor(() => dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
-    .linkDirectionalParticles(1)
-    .linkDirectionalParticleWidth(1)
-    .linkDirectionalParticleSpeed(0.005)
+    .linkDirectionalParticles(2)
+    .linkDirectionalParticleWidth(1.2)
+    .linkDirectionalParticleSpeed(0.006)
     .linkDirectionalParticleColor(link => {
       const src = typeof link.source === 'object' ? link.source : null
       return src?.color || '#667'
     })
     .onNodeClick(node => selectNode(node))
     .onBackgroundClick(() => { selectedNode.value = null })
+    .onEngineTick(() => anim.tick())
     .graphData(data)
 
+  const scene = graph.scene()
+  if (scene && dark) {
+    starField = anim.createStarField(scene)
+  }
+  if (scene) {
+    edgeParticles = anim.createEdgeParticles(
+      scene,
+      () => graph.graphData().links,
+      { count: 60, color: dark ? 0x4488ff : 0x2068ff },
+    )
+  }
+
+  graph.cameraPosition({ x: 0, y: 0, z: 500 })
   zoomTimer = setTimeout(() => {
-    if (graph) graph.zoomToFit(400, 60)
-  }, 1500)
+    if (graph) graph.zoomToFit(2000, 60)
+  }, 200)
 }
 
 function selectNode(d) {
@@ -210,6 +266,14 @@ function selectNode(d) {
         ? graphData.value.nodes.find(n => n.uuid === e.target_node_uuid)?.name || ''
         : graphData.value.nodes.find(n => n.uuid === e.source_node_uuid)?.name || '',
     })),
+  }
+
+  if (graph && d.x !== undefined) {
+    graph.cameraPosition(
+      { x: d.x, y: d.y, z: (d.z || 0) + 120 },
+      { x: d.x, y: d.y, z: d.z || 0 },
+      1000,
+    )
   }
 }
 
@@ -295,6 +359,13 @@ onMounted(() => {
         graph.backgroundColor(dark ? '#0a0a1a' : '#f8f9fa')
         graph.linkColor(() => dark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.1)')
         graph.linkDirectionalArrowColor(() => dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)')
+        const scene = graph.scene()
+        if (dark && !starField && scene) {
+          starField = anim.createStarField(scene)
+        } else if (!dark && starField) {
+          starField.dispose()
+          starField = null
+        }
         break
       }
     }
@@ -313,6 +384,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (zoomTimer) clearTimeout(zoomTimer)
   if (demoBuildTimer) clearInterval(demoBuildTimer)
+  if (starField) { starField.dispose(); starField = null }
+  if (edgeParticles) { edgeParticles.dispose(); edgeParticles = null }
+  anim.dispose()
   if (graph) {
     graph.pauseAnimation()
     graph._destructor()

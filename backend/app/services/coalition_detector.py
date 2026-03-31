@@ -743,4 +743,3 @@ class CoalitionDetector:
             for r in range(1, 11)
         ]
 
-

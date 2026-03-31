@@ -9,7 +9,7 @@ from typing import Dict, Any, List, Optional
 
 
 # Standard Intercom GTM funnel definition
-PIPELINE_STAGES = [
+FUNNEL_STAGES = PIPELINE_STAGES = [
     {"name": "Raw Lead", "order": 0, "conversion_rate": 0.25, "avg_days": 7, "color": "#2068FF"},
     {"name": "MQL", "order": 1, "conversion_rate": 0.40, "avg_days": 14, "color": "#1a5ae0"},
     {"name": "SQL", "order": 2, "conversion_rate": 0.60, "avg_days": 21, "color": "#ff5600"},
@@ -106,3 +106,8 @@ class ConversionEvent:
             duration_days=data.get("duration_days", 0.0),
             owner=data.get("owner", ""),
         )
+
+
+def default_funnel_stages() -> List[PipelineStage]:
+    """Return default pipeline stages as PipelineStage objects."""
+    return [PipelineStage.from_dict(s) for s in PIPELINE_STAGES]

@@ -4666,7 +4666,7 @@ def get_conflicts(simulation_id: str):
 
 
 @simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/memory/consolidated', methods=['GET'])
-def get_agent_memory_consolidated(simulation_id: str, agent_id: int):
+def get_agent_consolidated_memory(simulation_id: str, agent_id: int):
     """
     Get consolidated memories for an agent.
 

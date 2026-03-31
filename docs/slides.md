@@ -181,8 +181,8 @@ Four pre-built scenarios tailored for GTM teams:
 |----------|-------|--------|
 | **Pipeline Review** | Forecast accuracy, deal risk | Sales, RevOps, CS |
 | **Competitive Response** | Positioning against threats | Product, Marketing, Sales |
+| **MRR Reconciliation** | Revenue discrepancy investigation | Finance, RevOps, CS |
 | **Outbound Campaign** | Campaign strategy simulation | Marketing, SDR, Ops |
-| **Pricing Simulation** | Pricing impact analysis | Finance, Product, Sales |
 
 Each template includes **seed data**, **persona definitions**, and **discussion prompts** — ready to simulate in one click.
 

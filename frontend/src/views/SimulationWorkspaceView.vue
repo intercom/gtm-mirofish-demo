@@ -24,6 +24,9 @@ import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
 import RelationshipEvolution from '../components/simulation/RelationshipEvolution.vue'
 import NetworkAnalysisView from './NetworkAnalysisView.vue'
 import CoalitionView from '../components/simulation/CoalitionView.vue'
+import CursorOverlay from '../components/simulation/CursorOverlay.vue'
+import PresencePanel from '../components/simulation/PresencePanel.vue'
+import { useSettingsStore } from '../stores/settings'
 
 const GraphPanel = defineAsyncComponent({
   loader: () => import('../components/simulation/GraphPanel.vue'),
@@ -45,6 +48,7 @@ const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const simulationStore = useSimulationStore()
+const settingsStore = useSettingsStore()
 
 const polling = useSimulationPolling(() => props.taskId)
 provide('polling', polling)
@@ -199,6 +203,8 @@ onUnmounted(() => {
     <div class="flex-1 flex overflow-hidden">
       <!-- Main panels -->
       <div class="flex-1 relative overflow-hidden">
+        <!-- Multi-user cursor overlay -->
+        <CursorOverlay v-if="settingsStore.showPresence" />
         <!-- Graph tab -->
         <div v-show="activeTab === 'graph'" class="absolute inset-0">
           <!-- 2D/3D toggle -->
@@ -286,12 +292,14 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- GTM context sidebar (hidden on mobile, visible on lg+) -->
-      <GtmContextPanel
-        v-if="currentScenarioId"
-        :scenarioId="currentScenarioId"
-        class="hidden lg:flex"
-      />
+      <!-- Right sidebar (hidden on mobile, visible on lg+) -->
+      <div class="hidden lg:flex flex-col gap-4 p-4 w-[300px] shrink-0 overflow-y-auto">
+        <PresencePanel v-if="settingsStore.showPresence" />
+        <GtmContextPanel
+          v-if="currentScenarioId"
+          :scenarioId="currentScenarioId"
+        />
+      </div>
     </div>
 
     <!-- Timeline Scrubber -->

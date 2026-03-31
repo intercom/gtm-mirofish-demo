@@ -9,6 +9,7 @@ import { useParallax } from '../composables/useParallax'
 import { useOnboardingTour } from '../composables/useOnboardingTour'
 import { useLocale } from '../composables/useLocale'
 import { API_BASE } from '../api/client'
+import { ContextualHelp } from '../components/common'
 import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
 import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
 import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
@@ -439,7 +440,10 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section data-tour="how-it-works" class="px-4 md:px-6 py-10 md:py-16 bg-[var(--color-bg)]">
       <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8">{{ t('landing.howItWorks') }}</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8 inline-flex items-center gap-2">
+          {{ t('landing.howItWorks') }}
+          <ContextualHelp featureKey="oasis-simulation" size="sm" />
+        </h2>
         <TransitionGroup
           tag="div"
           class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"

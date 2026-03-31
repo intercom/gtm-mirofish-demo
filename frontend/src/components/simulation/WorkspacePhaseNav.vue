@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch, nextTick, onMounted } from 'vue'
+import { ContextualHelp } from '../common'
 
 const props = defineProps({
   activeTab: { type: String, required: true },
@@ -52,31 +53,37 @@ const tabs = computed(() => {
       key: 'graph',
       label: 'Graph',
       metric: nodeCount > 0 ? `${nodeCount} nodes` : null,
+      helpKey: 'knowledge-graph',
     },
     {
       key: 'communities',
       label: 'Communities',
       metric: nodeCount > 0 ? 'Clusters' : null,
+      helpKey: 'coalition-detection',
     },
     {
       key: 'simulation',
       label: 'Simulation',
       metric: simMetric,
+      helpKey: 'oasis-simulation',
     },
     {
       key: 'relationships',
       label: 'Relationships',
       metric: simStatus === 'completed' ? '15 agents' : null,
+      helpKey: 'personality-dynamics',
     },
     {
       key: 'network',
       label: 'Network',
       metric: null,
+      helpKey: 'influence-network',
     },
     {
       key: 'coalitions',
       label: 'Coalitions',
       metric: null,
+      helpKey: 'coalition-detection',
     },
   ]
 })
@@ -104,6 +111,11 @@ const tabs = computed(() => {
         v-if="tab.metric"
         class="ml-1.5 text-xs font-normal opacity-60"
       >{{ tab.metric }}</span>
+      <ContextualHelp
+        v-if="activeTab === tab.key && tab.helpKey"
+        :featureKey="tab.helpKey"
+        size="xs"
+      />
     </button>
 
     <!-- Spacer -->

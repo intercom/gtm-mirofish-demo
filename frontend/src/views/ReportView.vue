@@ -6,7 +6,7 @@ import { useReportShortcuts } from '../composables/useReportShortcuts'
 import { useToast } from '../composables/useToast'
 import { useOnlineStatus } from '../composables/useOnlineStatus'
 import { cacheReport, getCachedReport } from '../composables/useReportCache'
-import { AppBreadcrumb } from '../components/common'
+import { AppBreadcrumb, ContextualHelp } from '../components/common'
 import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 import PhaseNav from '../components/simulation/PhaseNav.vue'
 import ShimmerCard from '../components/ui/ShimmerCard.vue'
@@ -401,8 +401,9 @@ onUnmounted(() => {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
       <div>
-        <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]" style="letter-spacing: -0.64px">
+        <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] flex items-center gap-2" style="letter-spacing: -0.64px">
           Predictive Report
+          <ContextualHelp featureKey="what-if-analysis" size="sm" />
         </h1>
         <p v-if="templateLabel && !showTemplateSelector" class="text-xs text-[#2068FF] font-medium mt-0.5">
           {{ templateLabel }}
@@ -734,6 +735,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Inline chart for the active chapter -->
+        <div v-if="activeContent && !generating" class="flex items-center gap-1.5 mt-6 mb-2">
+          <span class="text-xs uppercase tracking-wider text-[var(--color-text-muted)]">Visualizations</span>
+          <ContextualHelp featureKey="d3-visualizations" size="xs" />
+        </div>
         <ReportCharts
           v-if="activeContent && !generating"
           :chapterIndex="activeChapter"

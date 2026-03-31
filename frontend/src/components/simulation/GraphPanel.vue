@@ -7,7 +7,7 @@ import { drag as d3drag } from 'd3-drag'
 import { easeBackOut } from 'd3-ease'
 import 'd3-transition'
 import GraphSearch from './GraphSearch.vue'
-import Graph3DPanel from './Graph3DPanel.vue'
+import ThreeForceGraph from './ThreeForceGraph.vue'
 import { useMobileChart } from '../../composables/useMobileChart'
 import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
 import { DEMO_NODES, DEMO_EDGES } from '../../data/demoGraphData'
@@ -721,8 +721,8 @@ onUnmounted(() => {
     <!-- 2D SVG canvas -->
     <svg v-show="viewMode === '2d'" ref="svgRef" class="w-full h-full graph-canvas" />
 
-    <!-- 3D WebGL canvas -->
-    <Graph3DPanel
+    <!-- 3D Three.js force-directed graph -->
+    <ThreeForceGraph
       v-if="viewMode === '3d' && graphData.nodes.length"
       :nodes="graphData.nodes"
       :edges="graphData.edges"

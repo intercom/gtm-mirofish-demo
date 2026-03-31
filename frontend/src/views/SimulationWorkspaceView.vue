@@ -26,6 +26,7 @@ import NetworkAnalysisView from './NetworkAnalysisView.vue'
 import CoalitionView from '../components/simulation/CoalitionView.vue'
 import CursorOverlay from '../components/simulation/CursorOverlay.vue'
 import PresencePanel from '../components/simulation/PresencePanel.vue'
+import CollaborationDisplay from '../components/simulation/CollaborationDisplay.vue'
 import { useSettingsStore } from '../stores/settings'
 
 const GraphPanel = defineAsyncComponent({
@@ -56,7 +57,7 @@ provide('polling', polling)
 const scrubber = useTimelineScrubber(polling)
 provideTimelineScrubber(scrubber)
 
-const VALID_TABS = ['graph', 'simulation', 'communities', 'relationships', 'network', 'coalitions']
+const VALID_TABS = ['graph', 'simulation', 'communities', 'relationships', 'network', 'coalitions', 'collaboration']
 const initialTab = VALID_TABS.includes(route.query.tab) ? route.query.tab : 'graph'
 const activeTab = ref(initialTab)
 const demoMode = ref(false)
@@ -91,6 +92,7 @@ const workspaceShortcuts = [
   { key: '4', label: 'Relationships tab' },
   { key: '5', label: 'Network tab' },
   { key: '6', label: 'Coalitions tab' },
+  { key: '7', label: 'Collaboration tab' },
   { key: 'r', label: 'View report' },
   { key: 'Escape', label: 'Go back', display: 'Esc' },
 ]
@@ -119,6 +121,7 @@ register('3', () => { activeTab.value = 'communities' }, { description: 'Switch 
 register('4', () => { activeTab.value = 'relationships' }, { description: 'Switch to Relationships tab', category: 'Workspace' })
 register('5', () => { activeTab.value = 'network' }, { description: 'Switch to Network tab', category: 'Workspace' })
 register('6', () => { activeTab.value = 'coalitions' }, { description: 'Switch to Coalitions tab', category: 'Workspace' })
+register('7', () => { activeTab.value = 'collaboration' }, { description: 'Switch to Collaboration tab', category: 'Workspace' })
 register('r', () => router.push(`/report/${props.taskId}`), { description: 'View report', category: 'Workspace' })
 register('?', toggle, { description: 'Show keyboard shortcuts', category: 'General' })
 
@@ -289,6 +292,11 @@ onUnmounted(() => {
         <!-- Coalitions tab -->
         <div v-show="activeTab === 'coalitions'" class="absolute inset-0">
           <CoalitionView :simulationId="simulationStore.simulationId || taskId" />
+        </div>
+
+        <!-- Collaboration tab -->
+        <div v-show="activeTab === 'collaboration'" class="absolute inset-0 overflow-y-auto p-4 md:p-6">
+          <CollaborationDisplay />
         </div>
       </div>
 

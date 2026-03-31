@@ -672,7 +672,6 @@ function exportRun(run) {
           </template>
         </draggable>
       </div>
-    </TransitionGroup>
 
     <!-- Pagination -->
     <Pagination

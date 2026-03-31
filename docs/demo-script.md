@@ -1,8 +1,8 @@
 # MiroFish GTM Demo — Presenter Script
 
-**Duration:** 10–15 minutes
-**Audience:** GTM leadership, RevOps, Sales/Marketing stakeholders
-**Prerequisites:** App running locally (`docker compose up -d`) or deployed to Railway
+**Duration:** 10–15 minutes (full) · 5 minutes (abbreviated) · 20 minutes (deep-dive)
+**Audience:** GTM leadership, RevOps, Sales/Marketing stakeholders, Engineering
+**Prerequisites:** App running locally or via Railway deployment
 
 > This script follows the Outbound Campaign scenario end-to-end. All steps work in demo mode (no LLM key required). Timings are approximate — adjust pacing to audience engagement.
 
@@ -10,9 +10,17 @@
 
 ## Pre-Demo Checklist
 
+**Option A — Railway (recommended for presentations):**
+- [ ] Frontend: https://frontend-production-86ea.up.railway.app
+- [ ] Backend: https://backend-production-e9d7.up.railway.app
+- [ ] Verify health: visit the backend URL `/health` endpoint
+
+**Option B — Local:**
 - [ ] App running at `http://localhost:3000` (frontend) and `http://localhost:5001` (backend)
-- [ ] Browser: Chrome or Edge, fullscreen, zoom at 100%
 - [ ] Demo mode active: set `VITE_DEMO_MODE=true` in `frontend/.env.production` if using built assets
+
+**For both options:**
+- [ ] Browser: Chrome or Edge, fullscreen, zoom at 100%
 - [ ] Close unrelated browser tabs, silence notifications
 - [ ] Presenter Toolbar visible (bottom-right floating button — appears automatically in demo mode)
 - [ ] Test the full flow once before presenting: landing → scenario → simulation → report → chat
@@ -21,6 +29,11 @@
 - **Speed** (1×/2×/3×/5×): Accelerates simulation and graph build timers
 - **Skip Phase**: Jumps to next phase if audience is ready to move on
 - **Reset Demo**: Clears state, returns to landing page
+
+**Keyboard Shortcuts (Simulation Workspace):**
+- `1`–`6`: Switch workspace tabs (Graph, Simulation, Communities, Relationships, Network, Coalitions)
+- `R`: Jump to Report view
+- `Esc`: Go back
 
 ---
 
@@ -31,13 +44,13 @@
 **What to show:**
 - Hero section with animated swarm visualization
 - The 3-step flow: **Seed → Simulate → Reports**
-- Scroll to the scenario grid (4 pre-built GTM scenarios)
+- Scroll to the scenario grid (19 pre-built GTM scenarios across categories)
 - Stats banner: 1M agents supported, 4 tools, 2 platforms
 
 **Talking points:**
 - "MiroFish is a swarm intelligence engine for GTM operations. Instead of A/B testing on real prospects, you simulate campaigns against hundreds of AI agents that role-play your buyer personas."
 - "Think of it as a flight simulator for go-to-market — test your messaging, pricing, and signals before they hit real inboxes."
-- "We ship with four pre-built scenarios tuned to Intercom's GTM motion."
+- "We ship with 19 pre-built scenarios covering outbound campaigns, pricing changes, competitive response, pipeline optimization, churn prevention, and more — all tuned to Intercom's GTM motion."
 
 **If asked:** "How realistic are the agents?" → Scroll to the FAQ section or persona showcase at the bottom of the page.
 
@@ -205,8 +218,12 @@
 **Route:** Return to `/` (landing page)
 
 **Talking points:**
-- "What you just saw was one scenario — Outbound Campaign Pre-Testing. MiroFish ships with three more: Sales Signal Validation, Pricing Change Simulation, and Personalization Optimization."
-- "The Pricing scenario is especially relevant — it simulates 500 customer personas reacting to P5 pricing migration options, predicting churn risk before you roll out changes."
+- "What you just saw was one scenario — Outbound Campaign Pre-Testing. MiroFish ships with 18 more covering the full GTM lifecycle."
+- "Highlight scenarios by audience interest:"
+  - **Revenue leaders**: Pricing Simulation (500 agents reacting to P5 pricing migration), Expansion Revenue, Pipeline Optimization
+  - **Sales leaders**: Signal Validation, Enterprise Deal Strategy, Quarterly Pipeline Review
+  - **Marketing leaders**: Outbound Campaign, Personalization, Product Launch GTM
+  - **Strategy/Ops**: Competitive Response, Market Entry Analysis, Budget Allocation Debate, Churn Prevention War Room
 - "The key insight: every GTM team has a 'send and pray' problem. MiroFish replaces guesswork with simulation. Test your messaging before it hits real inboxes, predict pricing reactions before you announce changes, validate signals before you build workflows around them."
 
 **Expected questions and answers:**
@@ -218,6 +235,43 @@
 | Can we use our own data? | Yes — the Custom scenario option lets you paste any seed document. You can also modify persona templates and seed data files. |
 | What LLM does it use? | Configurable: Claude Sonnet 4, GPT-4o, or Gemini Flash. Each provider is swappable via a single environment variable. |
 | Is the data private? | All simulation data stays in your deployment. LLM calls send only the seed text and agent prompts — no customer PII is involved. |
+| How many scenarios are there? | 19 pre-built scenarios across outbound, signals, pricing, competitive, pipeline, expansion, churn, and more. Plus a custom scenario builder for any GTM situation. |
+| Can I compare simulation runs? | Yes — the Comparison view (`/comparison`) lets you put two simulation runs side-by-side to compare outcomes with different parameters. |
+
+---
+
+## Bonus Features (if time allows or audience asks)
+
+These features can be shown ad-hoc during Q&A or in a longer demo session:
+
+### Simulation Replay (`/replay/:taskId`)
+- Timeline scrubber showing round-by-round playback of the entire simulation
+- "You can rewind to any point in the simulation and see exactly what happened — like a DVR for your GTM experiment."
+
+### Scenario Walkthrough (`/scenarios/:id/walkthrough`)
+- Guided step-by-step experience for first-time users
+- Progress bar, step cards, and contextual explanations
+- "For teams new to MiroFish, the walkthrough mode guides them through each phase with explanations."
+
+### Scenario Marketplace (`/marketplace`)
+- Browsable gallery of all 19 scenario templates with search and filtering
+- "The marketplace lets you discover scenarios by category — outbound, pricing, competitive, pipeline — and launch any of them with pre-loaded configuration."
+
+### Dashboard & Analytics (`/dashboard`, `/analytics`)
+- Aggregated metrics across all simulation runs
+- Custom dashboard builder with drag-and-drop widgets
+- "For teams running multiple simulations, the dashboard aggregates insights across all your runs."
+
+### Comparison View (`/comparison`)
+- Side-by-side comparison of two simulation runs
+- "Run the same scenario with different parameters and compare outcomes — true A/B testing for GTM strategy."
+
+### Workspace Deep-Dive Tabs
+During the simulation workspace, mention additional tabs if the audience is technical:
+- **Communities** (press `3`): Clustered agent groups that self-organize
+- **Relationships** (press `4`): How agent connections evolve over time
+- **Network** (press `5`): Detailed graph analysis of influence patterns
+- **Coalitions** (press `6`): Alliance formation between aligned agents
 
 ---
 
@@ -245,8 +299,9 @@ If anything fails during the live demo, MiroFish has built-in graceful degradati
 **Quick recovery steps:**
 1. If the page goes blank → refresh the browser, navigate to `/`
 2. If simulation gets stuck → use Presenter Toolbar "Skip Phase"
-3. If the whole app is down → restart with `docker compose up -d`, wait 10 seconds, refresh
-4. If you need a fresh start → Presenter Toolbar "Reset Demo" or clear browser localStorage
+3. If local app is down → restart with `docker compose up -d`, wait 10 seconds, refresh
+4. If Railway is down → switch to local: `docker compose up -d` and open `http://localhost:3000`
+5. If you need a fresh start → Presenter Toolbar "Reset Demo" or clear browser localStorage
 
 ---
 
@@ -277,3 +332,71 @@ If time is limited, compress to these five steps:
 3. **Simulation** (2min) — Watch graph build, switch to simulation tab, highlight actions feed and sentiment
 4. **Report** (1.5min) — Show key findings, one chart, mention cadence recommendation
 5. **Chat** (1min) — Ask "Which messaging resonated?", show tool calls, wrap up
+
+---
+
+## Extended 20-Minute Deep-Dive Version
+
+For technical audiences or stakeholders who want the full picture, add these after the standard 13-minute flow:
+
+6. **Scenario Marketplace** (2min) — Browse all 19 scenarios, show category filters, open a different scenario (e.g., Pricing Simulation) to show breadth
+7. **Replay** (2min) — Open Replay view for a completed simulation, scrub through the timeline, show how agent behavior evolves
+8. **Comparison** (1.5min) — Compare two simulation runs side-by-side (e.g., same scenario with different agent counts)
+9. **Dashboard** (1.5min) — Show aggregated metrics across all runs, highlight the custom dashboard builder
+
+---
+
+## Audience-Specific Tips
+
+### For GTM Leadership (VP Sales, CMO, CRO)
+- Lead with business outcomes: "predict churn before it happens", "test messaging before it hits real inboxes"
+- Emphasize the Pricing Simulation and Outbound Campaign scenarios
+- Spend more time on the Report and Chat phases — these deliver the actionable insights
+- Skip technical details (Settings, Architecture)
+
+### For RevOps / Sales Ops
+- Emphasize the scenario configuration: "you control every variable"
+- Show the Simulation History view and metrics tracking
+- Highlight comparison capabilities for iterative testing
+- Mention the 19 pre-built scenarios covering their full workflow
+
+### For Engineering / Technical Audiences
+- Show the Settings page and multi-LLM provider support
+- Mention the keyboard shortcuts in the workspace
+- Discuss the knowledge graph in more depth (Zep Cloud, entity extraction)
+- Point out the D3.js visualizations and real-time data architecture
+- Show the API docs at `/api-docs` if available
+
+### For Executive Briefings (5 minutes max)
+- Use the Shortened 5-Minute Version
+- Focus on one scenario (Outbound Campaign)
+- Skip to Report immediately after showing 30 seconds of simulation
+- End with the "flight simulator for GTM" metaphor
+
+---
+
+## Available Scenarios Reference
+
+All 19 pre-built scenarios with their focus areas:
+
+| Scenario | Focus | Agents | Best For |
+|----------|-------|--------|----------|
+| Outbound Campaign | Zendesk displacement email testing | 200 | Sales/Marketing demos |
+| Signal Validation | Intent signal predictivity | 500 | RevOps demos |
+| Pricing Simulation | P5 pricing migration reactions | 500 | Revenue/Finance demos |
+| Personalization | Email variant ranking | 200 | Marketing demos |
+| AI Adoption Strategy | AI tool adoption barriers | 200 | Product demos |
+| Pipeline Optimization | Deal pipeline efficiency | — | Sales Ops demos |
+| Market Entry Analysis | New market/vertical entry | — | Strategy demos |
+| Competitor Price War | Competitive pricing response | — | Pricing demos |
+| Churn Prevention War Room | Retention strategy effectiveness | — | CS/Success demos |
+| Expansion Revenue | Account expansion motions | — | Revenue demos |
+| Enterprise Deal Strategy | Complex enterprise sale dynamics | — | Enterprise Sales demos |
+| Product Launch GTM | New product launch effectiveness | — | Product Marketing demos |
+| Quarterly Pipeline Review | Pipeline health and forecasting | — | Sales Leadership demos |
+| Expansion vs Acquisition | Organic growth vs M&A | — | Strategy/Executive demos |
+| Budget Allocation Debate | Marketing/sales budget outcomes | — | Finance/Ops demos |
+| Competitive Response | Competitive move simulation | — | Strategy demos |
+| Order Validation | Order validation and fulfillment | — | Ops demos |
+| MRR Reconciliation | Revenue reconciliation | — | Finance demos |
+| MRR Reconciliation Investigation | Detailed MRR discrepancy analysis | — | Finance deep-dives |

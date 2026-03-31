@@ -155,6 +155,11 @@ export const routes = [
     component: () => import('../views/ApiDocsView.vue'),
   },
   {
+    path: '/performance',
+    name: 'performance',
+    component: () => import('../views/PerformanceBenchmarkView.vue'),
+  },
+  {
     path: '/agents',
     name: 'agents',
     component: () => import('../views/AgentsView.vue'),

@@ -162,8 +162,8 @@ onMounted(() => {
     </div>
 
     <!-- Demo Mode Banner -->
-    <section v-if="isDemoMode" class="mb-8 md:mb-10 bg-[rgba(32,104,255,0.06)] border border-[#2068FF]/20 rounded-lg p-3 md:p-4 flex items-start gap-3">
-      <svg class="w-5 h-5 text-[#2068FF] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <section v-if="isDemoMode" class="mb-8 md:mb-10 bg-[var(--color-primary-light)] border border-[var(--color-primary)]/20 rounded-lg p-3 md:p-4 flex items-start gap-3">
+      <svg class="w-5 h-5 text-[var(--color-primary)] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <p class="text-sm text-[var(--color-text-secondary)]">
@@ -208,8 +208,8 @@ onMounted(() => {
           @click="setLanguage(lang.code)"
           class="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors cursor-pointer"
           :class="locale === lang.code
-            ? 'border-[#2068FF] bg-[rgba(32,104,255,0.08)] text-[var(--color-text)]'
-            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#2068FF]/50'"
+            ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-text)]'
+            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
         >
           <span>{{ lang.flag }}</span>
           <span>{{ lang.label }}</span>
@@ -227,12 +227,12 @@ onMounted(() => {
           class="flex items-center gap-3 p-3 md:p-4 rounded-lg border transition-colors"
           :class="[
             provider === p.id
-              ? 'border-[#2068FF] bg-[rgba(32,104,255,0.04)]'
-              : 'border-[var(--color-border)] hover:border-[#2068FF]/50',
+              ? 'border-[var(--color-primary)] bg-[var(--color-primary-lighter)]'
+              : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50',
             isReadOnly ? 'cursor-default opacity-60' : 'cursor-pointer',
           ]"
         >
-          <input type="radio" :value="p.id" v-model="provider" :disabled="isReadOnly" class="accent-[#2068FF]" />
+          <input type="radio" :value="p.id" v-model="provider" :disabled="isReadOnly" class="accent-[var(--color-primary)]" />
           <div>
             <div class="text-sm font-medium text-[var(--color-text)]">{{ p.name }}</div>
             <div class="text-xs text-[var(--color-text-muted)]">{{ t('common.model', { model: p.model }) }}</div>
@@ -248,7 +248,7 @@ onMounted(() => {
             v-model="apiKey"
             :placeholder="isDemoMode ? t('settings.apiKeyDemoPlaceholder') : t('settings.apiKeyPlaceholder')"
             :disabled="isDemoMode || isReadOnly"
-            class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
+            class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
             :class="{ 'opacity-40 cursor-not-allowed': isDemoMode || isReadOnly }"
           />
           <span
@@ -265,7 +265,7 @@ onMounted(() => {
             {{ testButtonLabel('llm') }}
           </button>
         </div>
-        <p v-if="connectionError.llm" class="text-xs text-red-500 mt-1">{{ connectionError.llm }}</p>
+        <p v-if="connectionError.llm" class="text-xs text-[var(--color-error)] mt-1">{{ connectionError.llm }}</p>
       </div>
     </section>
 
@@ -278,7 +278,7 @@ onMounted(() => {
           v-model="zepKey"
           :placeholder="isDemoMode ? t('settings.zepKeyDemoPlaceholder') : t('settings.zepKeyPlaceholder')"
           :disabled="isDemoMode || isReadOnly"
-          class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
+          class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
           :class="{ 'opacity-40 cursor-not-allowed': isDemoMode || isReadOnly }"
         />
         <span
@@ -295,10 +295,10 @@ onMounted(() => {
           {{ testButtonLabel('zep') }}
         </button>
       </div>
-      <p v-if="connectionError.zep" class="text-xs text-red-500 mt-1">{{ connectionError.zep }}</p>
+      <p v-if="connectionError.zep" class="text-xs text-[var(--color-error)] mt-1">{{ connectionError.zep }}</p>
       <p v-else-if="!isDemoMode" class="text-xs text-[var(--color-text-muted)] mt-2">
         <i18n-t keypath="settings.zepSignup" tag="span">
-          <template #link><a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[#2068FF] hover:underline">app.getzep.com</a></template>
+          <template #link><a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">app.getzep.com</a></template>
         </i18n-t>
       </p>
     </section>
@@ -385,14 +385,14 @@ onMounted(() => {
     <!-- Demo Features -->
     <section class="mb-8 md:mb-10">
       <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Demo Features</h2>
-      <label class="flex items-center justify-between p-3 md:p-4 rounded-lg border border-[var(--color-border)] cursor-pointer transition-colors hover:border-[#2068FF]/50">
+      <label class="flex items-center justify-between p-3 md:p-4 rounded-lg border border-[var(--color-border)] cursor-pointer transition-colors hover:border-[var(--color-primary)]/50">
         <div>
           <div class="text-sm font-medium text-[var(--color-text)]">Show Collaboration Presence</div>
           <div class="text-xs text-[var(--color-text-muted)] mt-0.5">Simulates other team members viewing the app</div>
         </div>
         <div
           class="relative w-10 h-6 rounded-full transition-colors shrink-0 ml-4"
-          :class="showPresence ? 'bg-[#2068FF]' : 'bg-[var(--color-border-strong)]'"
+          :class="showPresence ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border-strong)]'"
         >
           <input type="checkbox" v-model="showPresence" class="sr-only" />
           <div
@@ -414,7 +414,7 @@ onMounted(() => {
     </section>
 
     <!-- Info -->
-    <section class="bg-[var(--color-primary-light)] border border-[#2068FF]/20 rounded-lg p-3 md:p-4">
+    <section class="bg-[var(--color-primary-light)] border border-[var(--color-primary)]/20 rounded-lg p-3 md:p-4">
       <p v-if="isDemoMode" class="text-xs text-[var(--color-text-secondary)]">
         <i18n-t keypath="settings.demoProdHint" tag="span">
           <template #code><code class="bg-[var(--color-border)] px-1 rounded">DEMO_MODE=false</code></template>

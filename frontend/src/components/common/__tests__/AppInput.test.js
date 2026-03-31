@@ -55,12 +55,12 @@ describe('AppInput', () => {
 
   it('shows error message', () => {
     const wrapper = mount(AppInput, { props: { error: 'Required' } })
-    expect(wrapper.find('.text-red-500').text()).toBe('Required')
+    expect(wrapper.find('[role="alert"]').text()).toBe('Required')
   })
 
   it('applies error border class', () => {
     const wrapper = mount(AppInput, { props: { error: 'Required' } })
-    expect(wrapper.find('input').classes()).toContain('border-red-500')
+    expect(wrapper.find('input').classes()).toContain('border-[var(--color-error)]')
   })
 
   it('renders placeholder text on select', () => {

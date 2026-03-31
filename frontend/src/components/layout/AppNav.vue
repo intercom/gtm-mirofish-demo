@@ -246,10 +246,10 @@ watch(() => route.path, () => {
               <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
               <path d="M6 3v3.5l2 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
             </svg>
-            <span :class="avgApiMs > 2000 ? 'text-[#ff5600]' : ''">{{ avgApiMs }}ms</span>
+            <span :class="avgApiMs > 2000 ? 'text-[var(--color-fin-orange)]' : ''">{{ avgApiMs }}ms</span>
           </span>
           <span class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-green-500"></span>
+            <span class="w-2 h-2 rounded-full bg-[var(--color-success)]"></span>
             Local
           </span>
         </div>

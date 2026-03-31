@@ -330,9 +330,9 @@ onUnmounted(() => {
       <span
         class="px-3 py-1 rounded-full text-xs font-medium"
         :class="{
-          'bg-yellow-500/20 text-yellow-400': graphStatus === 'building',
-          'bg-green-500/20 text-green-400': graphStatus === 'complete',
-          'bg-red-500/20 text-red-400': graphStatus === 'failed',
+          'bg-[var(--color-warning-light)] text-[var(--color-warning)]': graphStatus === 'building',
+          'bg-[var(--color-success-light)] text-[var(--color-success)]': graphStatus === 'complete',
+          'bg-[var(--color-error-light)] text-[var(--color-error)]': graphStatus === 'failed',
         }"
       >
         <template v-if="graphStatus === 'building'">Building Graph... {{ graphProgress }}%</template>
@@ -351,7 +351,7 @@ onUnmounted(() => {
           <svg viewBox="0 0 36 36" class="w-9 h-9 -rotate-90 flex-shrink-0">
             <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="3" />
             <circle
-              cx="18" cy="18" r="14" fill="none" stroke="#2068FF" stroke-width="3"
+              cx="18" cy="18" r="14" fill="none" stroke="var(--color-primary)" stroke-width="3"
               stroke-linecap="round" :stroke-dasharray="88" :stroke-dashoffset="88 - (88 * graphProgress / 100)"
               class="transition-[stroke-dashoffset] duration-300"
             />
@@ -370,8 +370,8 @@ onUnmounted(() => {
       class="absolute inset-0 flex items-center justify-center z-20 bg-[var(--color-surface)]/80 backdrop-blur-sm"
     >
       <div class="flex flex-col items-center text-center max-w-md">
-        <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
-          <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <div class="w-14 h-14 rounded-full bg-[var(--color-error-light)] flex items-center justify-center mb-4">
+          <svg class="w-7 h-7 text-[var(--color-error)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
           </svg>
         </div>

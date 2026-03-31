@@ -33,8 +33,8 @@ function dismiss() {
         <div class="bg-[--color-surface] rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden border border-[--color-border]">
           <!-- Header -->
           <div class="px-6 pt-6 pb-4 text-center">
-            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
-              <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="w-12 h-12 mx-auto mb-4 rounded-full bg-[var(--color-warning-light)] flex items-center justify-center">
+              <svg class="w-6 h-6 text-[var(--color-warning)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>

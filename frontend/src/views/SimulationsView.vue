@@ -225,10 +225,10 @@ function statusLabel(status) {
 
 function statusClasses(status) {
   const s = normalizeStatus(status)
-  if (s === 'completed') return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-  if (s === 'in_progress') return 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse'
-  if (s === 'failed') return 'bg-red-500/10 text-red-500 border-red-500/20'
-  return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+  if (s === 'completed') return 'bg-[var(--color-success-light)] text-[var(--color-success)] border-[var(--color-success-border)]'
+  if (s === 'in_progress') return 'bg-[var(--color-primary-light)] text-[var(--color-primary)] border-[var(--color-primary-border)] animate-pulse'
+  if (s === 'failed') return 'bg-[var(--color-error-light)] text-[var(--color-error)] border-[var(--color-error-border)]'
+  return 'bg-[var(--color-success-light)] text-[var(--color-success)] border-[var(--color-success-border)]'
 }
 
 function canRerun(run) {
@@ -384,13 +384,13 @@ function exportRun(run) {
           <button
             v-if="store.hasRuns && can('delete_simulations')"
             @click="clearAll"
-            class="text-[11px] md:text-xs font-medium min-h-[44px] md:min-h-0 px-3 py-2 rounded-lg border border-red-500/30 text-red-500 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+            class="text-[11px] md:text-xs font-medium min-h-[44px] md:min-h-0 px-3 py-2 rounded-lg border border-[var(--color-error-border)] text-[var(--color-error)] hover:bg-[var(--color-error-light)] active:bg-[var(--color-error-light)] transition-colors"
           >
             Clear
           </button>
           <router-link
             :to="`/replay/${run.id}`"
-            class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#2068FF]/50 hover:text-[#2068FF] transition-colors no-underline"
+            class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary-border)] hover:text-[var(--color-primary)] transition-colors no-underline"
           >
             Replay
           </router-link>
@@ -598,7 +598,7 @@ function exportRun(run) {
                 <button
                   v-if="can('delete_simulations')"
                   @click="deleteRun(run)"
-                  class="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
+                  class="min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center p-1.5 rounded-md text-[var(--color-text-muted)] hover:text-[var(--color-error)] hover:bg-[var(--color-error-light)] active:bg-[var(--color-error-light)] transition-colors"
                   title="Delete run"
                 >
                   <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

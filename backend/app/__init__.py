@@ -308,6 +308,10 @@ def create_app(config_class=Config):
     from .api.memory import agent_memory_bp
     app.register_blueprint(agent_memory_bp)
 
+    # API Documentation (route auto-discovery)
+    from .api.docs import docs_bp
+    app.register_blueprint(docs_bp)
+
     # Beliefs API (agent belief system tracking)
     from .api.beliefs import beliefs_bp
     app.register_blueprint(beliefs_bp)

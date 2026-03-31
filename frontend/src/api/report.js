@@ -4,6 +4,7 @@ export const reportApi = {
   // --- Generation ---
   generate: (data) => client.post('/report/generate', data),
   generateStatus: (data) => client.post('/report/generate/status', data),
+  getReportTypes: () => client.get('/report/types'),
 
   // --- CRUD ---
   get: (reportId) => client.get(`/report/${reportId}`),
@@ -11,16 +12,29 @@ export const reportApi = {
     client.get(`/report/by-simulation/${simulationId}`),
   list: (params) => client.get('/report/list', { params }),
   delete: (reportId) => client.delete(`/report/${reportId}`),
-  download: (reportId) =>
-    client.get(`/report/${reportId}/download`, { responseType: 'blob' }),
+  download: (reportId, format = 'md') =>
+    client.get(`/report/${reportId}/download`, { params: { format }, responseType: 'blob' }),
 
-  // --- Progress & sections ---
+  // --- Status & progress ---
+  getStatus: (reportId) => client.get(`/report/${reportId}/status`),
   getProgress: (reportId) => client.get(`/report/${reportId}/progress`),
   getSections: (reportId) => client.get(`/report/${reportId}/sections`),
   getSection: (reportId, sectionIndex) =>
     client.get(`/report/${reportId}/section/${sectionIndex}`),
   checkStatus: (simulationId) =>
     client.get(`/report/check/${simulationId}`),
+
+  // --- Transparency & logs ---
+  getToolCalls: (reportId) => client.get(`/report/${reportId}/tool-calls`),
+
+  // --- Visualizations ---
+  getCampaignSpend: () => client.get('/report/campaign-spend'),
+
+  // --- Sharing ---
+  createShare: (reportId) => client.post(`/report/${reportId}/share`),
+  getShare: (reportId) => client.get(`/report/${reportId}/share`),
+  revokeShare: (reportId) => client.delete(`/report/${reportId}/share`),
+  getSharedReport: (token) => client.get(`/report/shared/${token}`),
 
   // --- Agent logs ---
   getAgentLog: (reportId, params) =>
@@ -31,4 +45,9 @@ export const reportApi = {
     client.get(`/report/${reportId}/console-log`, { params }),
   getConsoleLogStream: (reportId) =>
     client.get(`/report/${reportId}/console-log/stream`),
+
+  // --- Data sources ---
+  listDataSources: () => client.get('/report/data-sources'),
+  previewDataSource: (sourceType, params) =>
+    client.get(`/report/data-sources/${sourceType}/preview`, { params }),
 }

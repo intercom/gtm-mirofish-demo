@@ -2,19 +2,74 @@
 import { ref, computed, inject, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import ShimmerCard from '../ui/ShimmerCard.vue'
 import SentimentTimeline from './SentimentTimeline.vue'
+import { useCountUp } from '../../composables/useCountUp'
+import { useStaggerAnimation } from '../../composables/useStaggerAnimation'
+import TimelineEventMarkers from './TimelineEventMarkers.vue'
+import AgentMoodIndicator from './AgentMoodIndicator.vue'
+import BehaviorPatterns from './BehaviorPatterns.vue'
+import CollaborationIndicator from './CollaborationIndicator.vue'
+import LiveMetrics from './LiveMetrics.vue'
+import PredictionDashboard from './PredictionDashboard.vue'
+import SyncedChart from '../timeline/SyncedChart.vue'
+import MultiMetricView from './MultiMetricView.vue'
+import BeliefEvolution from './BeliefEvolution.vue'
+import LiveFeed from './LiveFeed.vue'
+import RichTextEditor from '../common/RichTextEditor.vue'
+import { useSimulationStream } from '../../composables/useSimulationStream'
+import { useTransparency } from '../../composables/useTransparency'
+import InfluenceFlow from './InfluenceFlow.vue'
+import SentimentArc from './SentimentArc.vue'
+import RelationshipNetwork from './RelationshipNetwork.vue'
+import { useRelationshipsStore } from '../../stores/relationships'
+import AnomalyHighlights from './AnomalyHighlights.vue'
+import AgentSentimentTimeline from './AgentSentimentTimeline.vue'
+import KnowledgeTimeline from './KnowledgeTimeline.vue'
+import AgentJourneySankey from './AgentJourneySankey.vue'
+import BranchPointMarker from './BranchPointMarker.vue'
+import BeliefTracker from './BeliefTracker.vue'
 
 const props = defineProps({
   taskId: { type: String, required: true },
 })
 
 const polling = inject('polling')
+const simShortcuts = inject('simShortcuts', null)
+const { showThinking, hasAgentFilter, toggleThinking, toggleAgent, isAgentTransparent, clearAgentFilter } = useTransparency()
+const relationshipsStore = useRelationshipsStore()
 
 const activePlatform = ref('all')
+const chartViewMode = ref('detail') // 'detail' | 'overview'
 const chartCanvas = ref(null)
 const heartbeatCanvas = ref(null)
-const feedContainer = ref(null)
-const autoScroll = ref(true)
 const selectedAgent = ref(null)
+const agentBackstories = ref({})
+const editingBackstory = ref(false)
+
+const {
+  onBeforeEnter: agentBeforeEnter,
+  onEnter: agentEnter,
+  onLeave: agentLeave,
+  reset: resetAgentStagger,
+} = useStaggerAnimation({ delay: 40, duration: 250, distance: 8 })
+watch(selectedAgent, () => resetAgentStagger())
+
+// SSE live feed stream — merges with polling data for the LiveFeed component
+const stream = useSimulationStream(() => props.taskId)
+
+const feedActions = computed(() => {
+  // Prefer SSE events when connected; fall back to polling data
+  if (stream.events.value.length > 0) return stream.events.value
+  return polling.recentActions.value
+})
+
+const feedConnectionStatus = computed(() => {
+  if (stream.status.value === 'connected') return 'connected'
+  if (stream.status.value === 'connecting') return 'connecting'
+  if (stream.status.value === 'done') return 'done'
+  if (stream.status.value === 'error') return 'error'
+  if (polling.recentActions.value.length > 0) return 'polling'
+  return 'disconnected'
+})
 
 let resizeObserver = null
 let heartbeatAnimId = null
@@ -36,11 +91,11 @@ const statusLabel = computed(() => {
 const statusStyle = computed(() => {
   const map = {
     building: 'bg-[rgba(32,104,255,0.1)] text-[var(--color-primary)]',
-    running: 'bg-emerald-100 text-emerald-700',
+    running: 'bg-[var(--color-success-light)] text-[var(--color-success)]',
     completed: 'bg-[var(--color-success-light)] text-[var(--color-success)]',
     failed: 'bg-[var(--color-error-light)] text-[var(--color-error)]',
   }
-  return map[status.value] || 'bg-gray-100 text-gray-700'
+  return map[status.value] || 'bg-[var(--color-tint)] text-[var(--color-text-secondary)]'
 })
 
 const statusIcon = computed(() => {
@@ -54,6 +109,13 @@ const totalRounds = computed(() => polling.runStatus.value?.total_rounds ?? 0)
 const totalActions = computed(() => polling.runStatus.value?.total_actions_count ?? 0)
 const twitterActions = computed(() => polling.runStatus.value?.twitter_actions_count ?? 0)
 const redditActions = computed(() => polling.runStatus.value?.reddit_actions_count ?? 0)
+
+// Animated metric displays
+const animatedTotalActions = useCountUp(totalActions, { duration: 600 })
+const animatedCurrentRound = useCountUp(currentRound, { duration: 400 })
+const animatedProgress = useCountUp(progressPercent, { duration: 400 })
+const animatedTwitterActions = useCountUp(twitterActions, { duration: 600 })
+const animatedRedditActions = useCountUp(redditActions, { duration: 600 })
 
 const metrics = computed(() => {
   const actions = polling.recentActions.value
@@ -72,10 +134,54 @@ const metrics = computed(() => {
   return { replies, likes, reposts }
 })
 
+const animatedReplies = useCountUp(() => metrics.value.replies, { duration: 600 })
+const animatedLikes = useCountUp(() => metrics.value.likes, { duration: 600 })
+const animatedReposts = useCountUp(() => metrics.value.reposts, { duration: 600 })
+
+// Agent panel animated stats
+const animatedAgentTotal = useCountUp(() => selectedAgent.value?.totalActions ?? 0, { duration: 500 })
+const animatedAgentTwitter = useCountUp(() => selectedAgent.value?.twitterActions ?? 0, { duration: 500 })
+const animatedAgentReddit = useCountUp(() => selectedAgent.value?.redditActions ?? 0, { duration: 500 })
+
 const filteredActions = computed(() => {
-  if (activePlatform.value === 'all') return polling.recentActions.value
-  return polling.recentActions.value.filter(a => a.platform === activePlatform.value)
+  if (activePlatform.value === 'all') return feedActions.value
+  return feedActions.value.filter(a => a.platform === activePlatform.value)
 })
+
+const actionRounds = computed(() => {
+  const rounds = new Set()
+  for (const a of filteredActions.value) {
+    if (a.round_num != null) rounds.add(a.round_num)
+  }
+  return Array.from(rounds).sort((a, b) => a - b)
+})
+
+const chartContainerRef = ref(null)
+const chartWidth = ref(0)
+
+const branchMarkerPositions = computed(() => {
+  const bps = polling.branchPoints?.value || []
+  const data = polling.timeline.value
+  if (!bps.length || !data.length || !chartWidth.value) return []
+
+  const pad = { left: 40, right: 16 }
+  const plotW = chartWidth.value - pad.left - pad.right
+
+  return bps
+    .filter(bp => bp.round >= 1 && bp.round <= data.length)
+    .map(bp => {
+      const idx = bp.round - 1
+      const x = pad.left + (idx / Math.max(data.length - 1, 1)) * plotW
+      return { ...bp, x }
+    })
+})
+
+const isReplayMode = computed(() => status.value === 'completed')
+
+function onBranchHere(round) {
+  // Placeholder — emits intent for future branching integration
+  console.info(`[Branch] User requested branch at round ${round}`)
+}
 
 const platformTabs = [
   { key: 'all', label: 'Both Platforms' },
@@ -287,8 +393,18 @@ function truncate(str, len = 120) {
   return str.slice(0, len) + '\u2026'
 }
 
+function formatTimestamp(ts) {
+  if (!ts) return ''
+  try {
+    const d = new Date(ts)
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  } catch {
+    return ts
+  }
+}
+
 function selectAgent(action) {
-  const agentActions = polling.recentActions.value.filter(
+  const agentActions = feedActions.value.filter(
     a => a.agent_name === action.agent_name
   )
   const twitterCount = agentActions.filter(a => a.platform === 'twitter').length
@@ -300,6 +416,7 @@ function selectAgent(action) {
   const role = roleParts[0] || ''
   const company = roleParts[1] || ''
 
+  editingBackstory.value = false
   selectedAgent.value = {
     id: action.agent_id,
     name,
@@ -311,8 +428,24 @@ function selectAgent(action) {
     redditActions: redditCount,
     actions: agentActions.slice(0, 20),
     sentiment: twitterCount + redditCount > 5 ? 'Engaged' : 'Moderate',
+    backstory: agentBackstories.value[action.agent_id] || '',
   }
 }
+
+function updateBackstory(html) {
+  if (!selectedAgent.value) return
+  selectedAgent.value.backstory = html
+  agentBackstories.value[selectedAgent.value.id] = html
+}
+
+// Connect SSE stream when simulation starts running
+watch(status, (val) => {
+  if (val === 'running') {
+    stream.connect()
+  } else if (val === 'completed' || val === 'failed') {
+    stream.disconnect()
+  }
+})
 
 // --- Auto-scroll for activity feed ---
 function onFeedScroll() {
@@ -329,6 +462,22 @@ watch(() => polling.recentActions.value.length, () => {
   }
 })
 
+// Fetch relationship data when actions accumulate or simulation completes
+let relFetchTimer = null
+watch(() => polling.recentActions.value.length, (len) => {
+  if (len > 0 && len % 20 === 0) {
+    clearTimeout(relFetchTimer)
+    relFetchTimer = setTimeout(() => {
+      relationshipsStore.fetchRelationships(props.taskId)
+    }, 500)
+  }
+})
+watch(() => polling.simStatus.value, (val) => {
+  if (val === 'completed') {
+    relationshipsStore.fetchRelationships(props.taskId)
+  }
+})
+
 // Redraw chart when timeline updates
 watch(() => polling.timeline.value, () => {
   nextTick(() => drawChart())
@@ -338,15 +487,26 @@ watch(() => polling.timeline.value, () => {
 watch(activePlatform, () => drawChart())
 
 onMounted(() => {
-  const canvasContainer = chartCanvas.value?.parentElement
+  const canvasContainer = chartContainerRef.value || chartCanvas.value?.parentElement
   if (canvasContainer) {
-    resizeObserver = new ResizeObserver(() => {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        chartWidth.value = entry.contentRect.width
+      }
       drawChart()
     })
     resizeObserver.observe(canvasContainer)
   }
   if (polling.graphStatus.value === 'building') {
     nextTick(() => startHeartbeat())
+  }
+  // Connect SSE if simulation is already running
+  if (status.value === 'running') {
+    stream.connect()
+  }
+  // Fetch relationships for existing/completed simulations
+  if (props.taskId) {
+    relationshipsStore.fetchRelationships(props.taskId)
   }
 })
 
@@ -356,7 +516,9 @@ onUnmounted(() => {
     resizeObserver = null
   }
   if (chartRetryTimer) clearTimeout(chartRetryTimer)
+  if (relFetchTimer) clearTimeout(relFetchTimer)
   stopHeartbeat()
+  stream.disconnect()
 })
 </script>
 
@@ -410,8 +572,8 @@ onUnmounted(() => {
         <!-- Progress Bar -->
         <div class="mb-6 md:mb-8">
           <div class="flex items-center justify-between text-xs text-[var(--color-text-muted)] mb-1.5">
-            <span>Round {{ currentRound }} / {{ totalRounds }}</span>
-            <span>{{ progressPercent }}%</span>
+            <span>Round {{ animatedCurrentRound }} / {{ totalRounds }}</span>
+            <span>{{ animatedProgress }}%</span>
           </div>
           <div class="h-2 bg-[var(--color-tint)] rounded-full overflow-hidden">
             <div
@@ -423,36 +585,36 @@ onUnmounted(() => {
         </div>
 
         <!-- Shimmer loading state for metrics -->
-        <div v-if="!polling.runStatus.value && status === 'building'" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div v-if="!polling.runStatus.value && status === 'building' && (!simShortcuts || simShortcuts.showMetrics.value)" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
           <ShimmerCard v-for="i in 5" :key="i" :lines="2" height="80px" />
         </div>
 
         <!-- Metrics Cards -->
-        <div v-else class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div v-else-if="!simShortcuts || simShortcuts.showMetrics.value" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6 md:mb-8">
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-primary)]">{{ totalActions }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-primary)]">{{ animatedTotalActions }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Total Actions</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-fin-orange)]">{{ metrics.replies }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-fin-orange)]">{{ animatedReplies }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Replies</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-accent)]">{{ metrics.likes }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-accent)]">{{ animatedLikes }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Likes</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ metrics.reposts }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ animatedReposts }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Reposts</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-center">
-            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-success)]">{{ currentRound }}</div>
+            <div class="text-2xl md:text-3xl font-semibold text-[var(--color-success)]">{{ animatedCurrentRound }}</div>
             <div class="text-xs text-[var(--color-text-muted)] mt-1">Current Round</div>
           </div>
         </div>
 
         <!-- Platform Tabs -->
-        <div class="flex gap-1 mb-6 bg-[var(--color-tint)] rounded-lg p-1 w-fit">
+        <div class="flex gap-1 mb-6 bg-[var(--color-tint)] rounded-lg p-1 w-fit max-w-full overflow-x-auto">
           <button
             v-for="tab in platformTabs"
             :key="tab.key"
@@ -466,18 +628,64 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <!-- Two-column layout: Chart + Activity Feed -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Collaboration Indicator -->
+        <CollaborationIndicator class="mb-6" />
+
+        <!-- View mode toggle -->
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex gap-1 bg-[var(--color-tint)] rounded-lg p-1">
+            <button
+              class="px-3 py-1 text-xs rounded-md font-medium transition-colors"
+              :class="chartViewMode === 'detail'
+                ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+              @click="chartViewMode = 'detail'"
+            >
+              Detail
+            </button>
+            <button
+              class="px-3 py-1 text-xs rounded-md font-medium transition-colors"
+              :class="chartViewMode === 'overview'
+                ? 'bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm'
+                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
+              @click="chartViewMode = 'overview'"
+            >
+              Overview
+            </button>
+          </div>
+        </div>
+
+        <!-- Multi-Metric Overview (when in overview mode) -->
+        <MultiMetricView
+          v-if="chartViewMode === 'overview'"
+          :timeline="polling.timeline.value"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Two-column layout: Chart + Activity Feed (detail mode) -->
+        <div v-if="chartViewMode === 'detail'" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <!-- Engagement Timeline Chart -->
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
             <h3 class="text-sm font-semibold text-[var(--color-text)] mb-4">Engagement Timeline</h3>
-            <div v-if="polling.timeline.value.length" class="relative" style="height: 200px">
-              <canvas ref="chartCanvas" class="w-full h-full" />
-            </div>
-            <div v-else class="flex items-center justify-center h-[200px] text-[var(--color-text-muted)] text-sm">
-              <span v-if="status === 'building'">Waiting for simulation to start...</span>
-              <span v-else>No timeline data yet</span>
-            </div>
+            <SyncedChart :pad-left="40" :pad-right="16">
+              <div v-if="polling.timeline.value.length" ref="chartContainerRef" class="relative" style="height: 200px">
+                <canvas ref="chartCanvas" class="w-full h-full" />
+                <!-- Branch point markers overlay -->
+                <BranchPointMarker
+                  v-for="bp in branchMarkerPositions"
+                  :key="bp.id"
+                  :branch-point="bp"
+                  :x="bp.x"
+                  :replay-mode="isReplayMode"
+                  @branch-here="onBranchHere"
+                />
+              </div>
+              <div v-else class="flex items-center justify-center h-[200px] text-[var(--color-text-muted)] text-sm">
+                <span v-if="status === 'building'">Waiting for simulation to start...</span>
+                <span v-else>No timeline data yet</span>
+              </div>
+            </SyncedChart>
             <div v-if="polling.timeline.value.length" class="flex items-center gap-4 mt-3 text-xs text-[var(--color-text-muted)]">
               <span v-if="activePlatform !== 'reddit'" class="flex items-center gap-1">
                 <span class="inline-block w-3 h-0.5 bg-[var(--color-primary)] rounded" /> Twitter
@@ -485,62 +693,139 @@ onUnmounted(() => {
               <span v-if="activePlatform !== 'twitter'" class="flex items-center gap-1">
                 <span class="inline-block w-3 h-0.5 bg-[var(--color-fin-orange)] rounded" /> Reddit
               </span>
+              <span v-if="branchMarkerPositions.length" class="flex items-center gap-1 ml-auto">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" class="text-[var(--color-primary)]">
+                  <path d="M8 2v4M8 6L4 10M8 6l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                {{ branchMarkerPositions.length }} branch point{{ branchMarkerPositions.length > 1 ? 's' : '' }}
+              </span>
             </div>
           </div>
 
-          <!-- Agent Activity Feed -->
-          <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-sm font-semibold text-[var(--color-text)]">Agent Activity Feed</h3>
-              <span class="text-xs text-[var(--color-text-muted)]">{{ filteredActions.length }} actions</span>
-            </div>
-            <div
-              v-if="filteredActions.length"
-              ref="feedContainer"
-              class="space-y-2 max-h-[240px] overflow-y-auto pr-1"
-              @scroll="onFeedScroll"
-            >
-              <div
-                v-for="(action, idx) in filteredActions.slice(0, 50)"
-                :key="idx"
-                class="flex items-start gap-2.5 py-2 border-b border-[var(--color-border)] last:border-0"
-              >
-                <span class="text-base mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-center gap-2 flex-wrap">
-                    <button class="text-sm font-medium text-[var(--color-text)] hover:text-[var(--color-primary)] hover:underline transition-colors text-left" @click.stop="selectAgent(action)">
-                      {{ action.agent_name || `Agent #${action.agent_id}` }}
-                    </button>
-                    <span class="text-xs px-1.5 py-0.5 rounded-full" :class="platformBadge(action.platform).class">
-                      {{ platformBadge(action.platform).label }}
-                    </span>
-                    <span class="text-xs text-[var(--color-text-muted)]">R{{ action.round_num }}</span>
-                  </div>
-                  <p class="text-xs text-[var(--color-text-secondary)] mt-0.5">
-                    {{ actionLabel(action.action_type) }}
-                    <span v-if="action.action_args?.content" class="text-[var(--color-text-muted)]">
-                      &mdash; {{ truncate(action.action_args.content) }}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div v-else class="flex flex-col items-center justify-center h-[200px] text-[var(--color-text-muted)]">
-              <p class="text-3xl mb-2">&#x1F426;</p>
-              <p class="text-sm">Real-time agent actions will appear here</p>
-              <p class="text-xs mt-1 text-[var(--color-text-muted)]">Posts, replies, likes, and reposts from simulated agents</p>
-            </div>
-          </div>
+          <!-- Live Agent Activity Feed -->
+          <LiveFeed
+            :actions="feedActions"
+            :connection-status="feedConnectionStatus"
+            :show-thinking="showThinking"
+            :has-agent-filter="hasAgentFilter"
+            :is-agent-transparent="isAgentTransparent"
+            :llm-model="polling.runStatus.value?.llm_model"
+            :llm-provider="polling.runStatus.value?.llm_provider"
+            @select-agent="selectAgent"
+            @toggle-thinking="toggleThinking"
+            @toggle-agent="toggleAgent"
+            @clear-agent-filter="clearAgentFilter"
+          />
         </div>
 
-        <!-- Sentiment Timeline -->
-        <SentimentTimeline
-          v-if="filteredActions.length > 0"
-          :actions="filteredActions"
+        <!-- Sentiment Timeline (detail mode only) -->
+        <SyncedChart
+          v-if="chartViewMode === 'detail' && filteredActions.length > 0"
+          :pad-left="56"
+          :pad-right="36"
+          class="mb-8"
+        >
+          <SentimentTimeline
+            :actions="filteredActions"
+            :timeline="polling.timeline.value"
+          />
+        </SyncedChart>
+
+        <!-- Timeline Event Markers -->
+        <TimelineEventMarkers
+          v-if="polling.timeline.value.length > 0"
           :timeline="polling.timeline.value"
+          :actions="filteredActions"
           class="mb-8"
         />
 
+        <!-- Behavior Patterns -->
+        <BehaviorPatterns
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Agent Journey Sankey -->
+        <AgentJourneySankey
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Per-agent sentiment breakdown -->
+        <AgentSentimentTimeline
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Behavior Anomalies -->
+        <AnomalyHighlights
+          v-if="filteredActions.length > 0"
+          :simulationId="taskId"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Sentiment Arc (per-agent narrative) -->
+        <SentimentArc
+          :simulation-id="props.taskId"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Influence Flow -->
+        <InfluenceFlow
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Agent Relationships -->
+        <RelationshipNetwork
+          v-if="relationshipsStore.hasData || filteredActions.length > 0"
+          :agents="relationshipsStore.agents"
+          :relationships="relationshipsStore.relationships"
+          :alliances="relationshipsStore.alliances"
+          :conflicts="relationshipsStore.conflicts"
+          :isDemo="relationshipsStore.isDemo"
+          :loading="relationshipsStore.loading"
+          class="mb-8"
+        />
+
+        <!-- Belief Evolution -->
+        <BeliefEvolution
+          :actions="filteredActions"
+          class="mb-8"
+        />
+
+        <!-- Belief System Tracker -->
+        <BeliefTracker
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          :simulationId="taskId"
+          class="mb-8"
+        />
+
+        <!-- Knowledge Timeline -->
+        <KnowledgeTimeline
+          v-if="polling.knowledgeTimeline.value?.timeline?.length > 0"
+          :data="polling.knowledgeTimeline.value"
+          class="mb-8"
+        />
+
+        <!-- Live Metrics Dashboard -->
+        <LiveMetrics class="mb-8" />
+
+        <!-- Prediction Dashboard -->
+        <PredictionDashboard
+          v-if="filteredActions.length > 0"
+          :actions="filteredActions"
+          :currentRound="currentRound"
+          :totalRounds="totalRounds"
+          class="mb-8"
+        />
         <!-- Platform breakdown -->
         <div v-if="polling.runStatus.value" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center gap-4">
@@ -550,22 +835,22 @@ onUnmounted(() => {
             <div class="flex-1">
               <div class="text-sm font-medium text-[var(--color-text)]">Twitter</div>
               <div class="text-xs text-[var(--color-text-muted)]">
-                {{ twitterActions }} actions &middot; Round {{ polling.runStatus.value.twitter_current_round || 0 }}
+                {{ animatedTwitterActions }} actions &middot; Round {{ polling.runStatus.value.twitter_current_round || 0 }}
                 <span v-if="polling.runStatus.value.twitter_completed" class="text-[var(--color-success)]"> &middot; Done</span>
               </div>
             </div>
-            <div class="text-2xl font-semibold text-[var(--color-primary)]">{{ twitterActions }}</div>
+            <div class="text-2xl font-semibold text-[var(--color-primary)]">{{ animatedTwitterActions }}</div>
           </div>
           <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-4 flex items-center gap-4">
             <div class="w-10 h-10 rounded-lg bg-[var(--color-fin-orange-tint)] flex items-center justify-center text-lg">&#x1F4E2;</div>
             <div class="flex-1">
               <div class="text-sm font-medium text-[var(--color-text)]">Reddit</div>
               <div class="text-xs text-[var(--color-text-muted)]">
-                {{ redditActions }} actions &middot; Round {{ polling.runStatus.value.reddit_current_round || 0 }}
+                {{ animatedRedditActions }} actions &middot; Round {{ polling.runStatus.value.reddit_current_round || 0 }}
                 <span v-if="polling.runStatus.value.reddit_completed" class="text-[var(--color-success)]"> &middot; Done</span>
               </div>
             </div>
-            <div class="text-2xl font-semibold text-[var(--color-fin-orange)]">{{ redditActions }}</div>
+            <div class="text-2xl font-semibold text-[var(--color-fin-orange)]">{{ animatedRedditActions }}</div>
           </div>
         </div>
 
@@ -593,16 +878,16 @@ onUnmounted(() => {
     </div>
 
     <!-- Overlay when agent panel is open -->
-    <Transition name="fade">
+    <Transition name="modal-overlay">
       <div
         v-if="selectedAgent"
-        class="fixed inset-0 z-40 bg-black/20"
+        class="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
         @click="selectedAgent = null"
       />
     </Transition>
 
     <!-- Agent Detail Panel -->
-    <Transition name="slide-right">
+    <Transition name="panel-right">
       <div
         v-if="selectedAgent"
         class="fixed top-0 right-0 z-50 h-full w-96 max-w-[90vw] bg-[var(--color-surface)] border-l border-[var(--color-border)] shadow-xl overflow-y-auto"
@@ -621,37 +906,74 @@ onUnmounted(() => {
           </div>
 
           <!-- Stats -->
-          <div class="grid grid-cols-3 gap-3 mb-5">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
             <div class="bg-[var(--color-tint)] rounded-lg p-3 text-center">
-              <div class="text-lg font-semibold text-[var(--color-text)]">{{ selectedAgent.totalActions }}</div>
+              <div class="text-lg font-semibold text-[var(--color-text)]">{{ animatedAgentTotal }}</div>
               <div class="text-[10px] text-[var(--color-text-muted)]">Actions</div>
             </div>
             <div class="bg-[rgba(32,104,255,0.06)] rounded-lg p-3 text-center">
-              <div class="text-lg font-semibold text-[var(--color-primary)]">{{ selectedAgent.twitterActions }}</div>
+              <div class="text-lg font-semibold text-[var(--color-primary)]">{{ animatedAgentTwitter }}</div>
               <div class="text-[10px] text-[var(--color-primary)]">Twitter</div>
             </div>
             <div class="bg-[rgba(255,86,0,0.06)] rounded-lg p-3 text-center">
-              <div class="text-lg font-semibold text-[#ff5600]">{{ selectedAgent.redditActions }}</div>
+              <div class="text-lg font-semibold text-[#ff5600]">{{ animatedAgentReddit }}</div>
               <div class="text-[10px] text-[#ff5600]">Reddit</div>
             </div>
           </div>
 
-          <!-- Engagement badge -->
+          <!-- Agent Mood -->
           <div class="mb-5">
-            <span class="text-xs font-medium px-2.5 py-1 rounded-full"
-              :class="selectedAgent.sentiment === 'Engaged'
-                ? 'bg-emerald-500/10 text-emerald-600'
-                : 'bg-yellow-500/10 text-yellow-600'"
-            >{{ selectedAgent.sentiment }}</span>
+            <AgentMoodIndicator
+              :actions="polling.recentActions.value"
+              :agent-name="selectedAgent.fullName"
+              size="large"
+            />
+          </div>
+
+          <!-- Backstory -->
+          <div class="mb-5">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">Backstory</h4>
+              <button
+                @click="editingBackstory = !editingBackstory"
+                class="text-[11px] font-medium text-[var(--color-primary)] hover:underline"
+              >
+                {{ editingBackstory ? 'Done' : (selectedAgent.backstory ? 'Edit' : 'Add') }}
+              </button>
+            </div>
+            <RichTextEditor
+              v-if="editingBackstory"
+              :model-value="selectedAgent.backstory"
+              @update:model-value="updateBackstory"
+              placeholder="Describe this agent's background, experience, and perspective..."
+              :char-limit="500"
+            />
+            <div
+              v-else-if="selectedAgent.backstory"
+              class="text-xs text-[var(--color-text-secondary)] leading-relaxed"
+              v-html="selectedAgent.backstory"
+            />
+            <p v-else class="text-xs text-[var(--color-text-muted)] italic">
+              No backstory yet
+            </p>
           </div>
 
           <!-- Action history -->
           <div>
             <h4 class="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Recent Activity</h4>
-            <div class="space-y-2">
+            <TransitionGroup
+              tag="div"
+              class="space-y-2"
+              :css="false"
+              appear
+              @before-enter="agentBeforeEnter"
+              @enter="agentEnter"
+              @leave="agentLeave"
+            >
               <div
                 v-for="(action, idx) in selectedAgent.actions"
-                :key="idx"
+                :key="`${selectedAgent.id}-${idx}`"
+                :data-index="idx"
                 class="flex items-start gap-2 py-2 border-b border-[var(--color-border)] last:border-0"
               >
                 <span class="text-sm mt-0.5 shrink-0">{{ actionIcon(action.action_type) }}</span>
@@ -670,7 +992,7 @@ onUnmounted(() => {
                   </p>
                 </div>
               </div>
-            </div>
+            </TransitionGroup>
           </div>
 
           <!-- View Full Profile link -->

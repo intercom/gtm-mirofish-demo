@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch, nextTick, onMounted } from 'vue'
+import { ContextualHelp } from '../common'
 
 const props = defineProps({
   activeTab: { type: String, required: true },
@@ -8,6 +9,28 @@ const props = defineProps({
 })
 
 defineEmits(['update:activeTab'])
+
+const tabRefs = ref({})
+const indicatorStyle = ref({ left: '0px', width: '0px' })
+
+function updateIndicator() {
+  const el = tabRefs.value[props.activeTab]
+  if (el) {
+    indicatorStyle.value = {
+      left: `${el.offsetLeft}px`,
+      width: `${el.offsetWidth}px`,
+    }
+  }
+}
+
+function setTabRef(key) {
+  return (el) => {
+    if (el) tabRefs.value[key] = el
+  }
+}
+
+watch(() => props.activeTab, () => nextTick(updateIndicator))
+onMounted(() => nextTick(updateIndicator))
 
 const tabs = computed(() => {
   const nodeCount = props.polling.graphData.value?.nodes?.length || 0
@@ -30,25 +53,62 @@ const tabs = computed(() => {
       key: 'graph',
       label: 'Graph',
       metric: nodeCount > 0 ? `${nodeCount} nodes` : null,
+      helpKey: 'knowledge-graph',
+    },
+    {
+      key: 'communities',
+      label: 'Communities',
+      metric: nodeCount > 0 ? 'Clusters' : null,
+      helpKey: 'coalition-detection',
     },
     {
       key: 'simulation',
       label: 'Simulation',
       metric: simMetric,
+      helpKey: 'oasis-simulation',
+    },
+    {
+      key: 'relationships',
+      label: 'Relationships',
+      metric: simStatus === 'completed' ? '15 agents' : null,
+      helpKey: 'personality-dynamics',
+    },
+    {
+      key: 'network',
+      label: 'Network',
+      metric: null,
+      helpKey: 'influence-network',
+    },
+    {
+      key: 'coalitions',
+      label: 'Coalitions',
+      metric: null,
+      helpKey: 'coalition-detection',
+    },
+    {
+      key: 'collaboration',
+      label: 'Collaboration',
+      metric: simStatus === 'running' ? 'Live' : null,
     },
   ]
 })
 </script>
 
 <template>
-  <nav class="flex items-center gap-1 border-b border-[var(--color-border)]">
+  <nav class="relative flex items-center gap-1 border-b border-[var(--color-border)]">
+    <!-- Sliding indicator -->
+    <span
+      class="tab-indicator absolute bottom-0 h-0.5 bg-[#2068FF] rounded-full"
+      :style="indicatorStyle"
+    />
     <button
       v-for="tab in tabs"
       :key="tab.key"
+      :ref="setTabRef(tab.key)"
       @click="$emit('update:activeTab', tab.key)"
       class="relative px-4 py-3 text-sm font-medium transition-colors"
       :class="activeTab === tab.key
-        ? 'text-[#050505]'
+        ? 'text-[#050505] dark:text-white'
         : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'"
     >
       {{ tab.label }}
@@ -56,9 +116,10 @@ const tabs = computed(() => {
         v-if="tab.metric"
         class="ml-1.5 text-xs font-normal opacity-60"
       >{{ tab.metric }}</span>
-      <span
-        v-if="activeTab === tab.key"
-        class="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2068FF] transition-all duration-300"
+      <ContextualHelp
+        v-if="activeTab === tab.key && tab.helpKey"
+        :featureKey="tab.helpKey"
+        size="xs"
       />
     </button>
 

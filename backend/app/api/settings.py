@@ -6,7 +6,9 @@ Test connections and retrieve auth status for the Settings page.
 from flask import Blueprint, jsonify, request, current_app
 from openai import OpenAI
 
-settings_bp = Blueprint('settings', __name__, url_prefix='/api/settings')
+from ..services.permissions import compute_permissions
+
+settings_bp = Blueprint('settings', __name__, url_prefix='/api/v1/settings')
 
 
 @settings_bp.route('/test-llm', methods=['POST'])
@@ -38,7 +40,7 @@ def test_llm():
 
 @settings_bp.route('/test-zep', methods=['POST'])
 def test_zep():
-    """Test Zep Cloud connection."""
+    """Test Zep Cloud connection using the SDK."""
     data = request.get_json() or {}
     api_key = data.get('apiKey', '')
 
@@ -46,18 +48,52 @@ def test_zep():
         return jsonify({'ok': False, 'error': 'API key is required'}), 400
 
     try:
-        import httpx
-        resp = httpx.get(
-            'https://api.getzep.com/api/v2/users',
-            headers={'Authorization': f'Api-Key {api_key}'},
-            timeout=15,
-            params={'limit': 1},
-        )
-        if resp.status_code in (200, 404):
-            return jsonify({'ok': True})
-        return jsonify({'ok': False, 'error': f'HTTP {resp.status_code}'}), 400
+        from zep_cloud.client import Zep
+        client = Zep(api_key=api_key)
+        client.user.list(limit=1)
+        return jsonify({'ok': True})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 400
+
+
+@settings_bp.route('/service-status', methods=['GET'])
+def service_status():
+    """Return connectivity status of backend services (cheap check, no API calls)."""
+    import os
+    from ..config import Config
+
+    llm_provider = os.environ.get('LLM_PROVIDER', '').lower()
+    llm_key_set = bool(Config.LLM_API_KEY)
+    zep_key_set = bool(Config.ZEP_API_KEY)
+
+    llm_status = 'connected' if llm_key_set else 'demo'
+    zep_status = 'connected' if zep_key_set else 'demo'
+
+    overall = 'healthy'
+    if not llm_key_set and not zep_key_set:
+        overall = 'demo'
+    elif not llm_key_set or not zep_key_set:
+        overall = 'degraded'
+
+    return jsonify({
+        'success': True,
+        'data': {
+            'overall': overall,
+            'services': {
+                'llm': {
+                    'status': llm_status,
+                    'provider': llm_provider or 'none',
+                    'model': Config.LLM_MODEL_NAME if llm_key_set else None,
+                },
+                'zep': {
+                    'status': zep_status,
+                },
+                'oasis': {
+                    'status': 'connected',
+                },
+            },
+        },
+    })
 
 
 @settings_bp.route('/auth-status', methods=['GET'])
@@ -81,4 +117,31 @@ def auth_status():
                 'picture': user.get('picture'),
             }
 
+    result['permissions'] = compute_permissions('settings')
+
     return jsonify(result)
+
+
+# ============== Cache Management ==============
+
+@settings_bp.route('/cache', methods=['GET'])
+def cache_stats():
+    """Return current cache statistics."""
+    from ..services.cache import cache_manager
+    return jsonify({'ok': True, 'data': cache_manager.stats()})
+
+
+@settings_bp.route('/cache', methods=['DELETE'])
+def cache_clear():
+    """Clear all cached responses."""
+    from ..services.cache import cache_manager
+    removed = cache_manager.clear()
+    return jsonify({'ok': True, 'cleared': removed})
+
+
+@settings_bp.route('/cache/evict', methods=['POST'])
+def cache_evict():
+    """Evict expired entries from cache."""
+    from ..services.cache import cache_manager
+    evicted = cache_manager.evict_expired()
+    return jsonify({'ok': True, 'evicted': evicted})

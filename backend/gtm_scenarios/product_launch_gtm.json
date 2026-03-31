@@ -1,0 +1,32 @@
+{
+  "id": "product_launch_gtm",
+  "name": "Product Launch Go-To-Market",
+  "description": "Cross-functional team plans the go-to-market for a new AI-powered product, simulating market reception across segments.",
+  "category": "launch",
+  "icon": "zap",
+  "seed_text": "Intercom is preparing to launch 'Fin Workflows' — an AI-powered workflow automation layer that lets support teams build no-code automation chains combining Fin AI resolution, human handoff rules, and proactive outreach triggers. Launch is planned for 6 weeks out.\n\nProduct details:\n- Fin Workflows is available as an add-on ($49/seat/month) for Pro and Premium customers\n- Key capabilities: auto-triage by intent + sentiment, conditional escalation paths, proactive messaging triggers based on usage patterns, and SLA-aware routing\n- Beta results from 23 customers: 34% reduction in first-response time, 22% increase in CSAT, 18% reduction in ticket volume through proactive deflection\n- Competitive landscape: Zendesk just launched a similar feature (Zendesk AI Agents) but it requires their Suite Enterprise plan ($150+/agent/month)\n\nGTM challenges identified:\n1. Positioning: Is this an 'AI product' or a 'workflow product'? The naming matters for buyer persona targeting\n2. Enablement gap: Only 40% of AEs can confidently demo the existing Fin product — adding Workflows increases complexity\n3. Packaging: Should Workflows be bundled into Premium or kept as a paid add-on to drive expansion revenue?\n4. Launch timing: Dreamforce is in 4 weeks — do we launch before, during, or after to maximize press coverage?\n5. Customer migration: 180 customers on legacy Custom Bots need a migration path to Fin Workflows\n\nThe simulation should model how target buyer personas receive the product positioning, which GTM motions (PLG vs sales-led vs hybrid) drive fastest adoption, and how competitive dynamics shape messaging effectiveness.",
+  "agent_config": {
+    "count": 250,
+    "persona_types": ["VP of Support", "CX Director", "Product Manager", "Marketing Leader", "IT Decision Maker"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Fintech", "E-commerce", "Healthcare", "Media"],
+      "company_sizes": ["200-500", "500-2000", "2000-5000"],
+      "regions": ["North America", "EMEA", "APAC"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Positioning resonance by persona and segment",
+    "GTM motion effectiveness comparison (PLG vs sales-led vs hybrid)",
+    "Pricing sensitivity analysis for add-on vs bundle",
+    "Competitive differentiation strength vs Zendesk AI Agents",
+    "Launch timing impact prediction",
+    "Sales enablement readiness gap analysis",
+    "Adoption curve prediction by customer segment",
+    "Legacy migration friction assessment"
+  ]
+}

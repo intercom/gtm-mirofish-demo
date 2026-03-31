@@ -1,0 +1,22 @@
+# Production overrides — use with:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile production up -d
+
+services:
+  backend:
+    command: gunicorn -w 4 -b 0.0.0.0:5001 --timeout 120 --access-logfile - demo_app:app
+    environment:
+      - FLASK_DEBUG=false
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  frontend:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"

@@ -4,62 +4,52 @@ MiroFish Demo Backend — Lightweight mock Flask server.
 Serves realistic, pre-built demo data for all frontend endpoints so the app
 can run without the heavy camel-ai / PyTorch production backend.  Total
 image size drops from ~5.8 GB to ~150 MB.
+
+Routes are organized into Flask Blueprints under app/api/demo/.
 """
 
-import json
-import logging
-import math
 import os
 import random
-import time
+import sys
+import importlib.util as _ilu
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, Response, jsonify, request
-from flask_cors import CORS
 
 # Load .env from project root (one level up from backend/)
 load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=True)
 load_dotenv(override=True)
 
-from llm_client import chat_completion  # noqa: E402
+# Add backend/ to sys.path for llm_client, and app/api/ for the demo package.
+# Importing as "from demo import ..." avoids loading the production app/__init__.py.
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _backend_dir)
+sys.path.insert(0, os.path.join(_backend_dir, "app", "api"))
 
-log = logging.getLogger(__name__)
+from data.demo_preset.loader import (   # noqa: E402
+    get_dashboard,
+    get_preset_report_id,
+    get_preset_sim_id,
+    get_report as get_preset_report,
+    get_simulation as get_preset_simulation,
+    is_demo_preset_enabled,
+)
+
+from flask import Flask, jsonify, request
+from flask_cors import CORS
+
+from demo import (                       # noqa: E402
+    register_demo_blueprints,
+    _graph_tasks,
+    _simulations,
+    _reports,
+)
 
 app = Flask(__name__)
 CORS(app)
+register_demo_blueprints(app)
 
-SCENARIOS_DIR = Path(__file__).parent / "gtm_scenarios"
-
-# ---------------------------------------------------------------------------
-# In-memory state tracking for progressive endpoints
-# ---------------------------------------------------------------------------
-_graph_tasks: dict = {}     # task_id -> {"start": float}
-_simulations: dict = {}     # sim_id  -> {"start": float}
-_reports: dict = {}         # report_id -> {"start": float, "sim_id": str}
-
-_BASE_GRAPH_BUILD_SECONDS = 6
-_BASE_SIMULATION_RUN_SECONDS = 35
-_BASE_REPORT_GEN_SECONDS = 18
-TOTAL_ROUNDS = 144
-
-_demo_speed = float(os.environ.get("DEMO_SPEED", "1.0"))
-
-
-def _speed():
-    return max(0.1, _demo_speed)
-
-
-def GRAPH_BUILD_SECONDS():
-    return _BASE_GRAPH_BUILD_SECONDS / _speed()
-
-
-def SIMULATION_RUN_SECONDS():
-    return _BASE_SIMULATION_RUN_SECONDS / _speed()
-
-
-def REPORT_GEN_SECONDS():
-    return _BASE_REPORT_GEN_SECONDS / _speed()
+_preset_loaded: bool = False  # True when demo preset data is active
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -73,531 +63,219 @@ def _err(msg, status=400):
     return jsonify({"success": False, "error": msg}), status
 
 
-def _elapsed(store, key):
-    entry = store.get(key)
-    if not entry:
-        return 0.0
-    return time.time() - entry["start"]
-
-
 # ---------------------------------------------------------------------------
-# Health
+# What-If Analysis API
 # ---------------------------------------------------------------------------
 
-@app.route("/api/health")
-def health():
-    return jsonify({"status": "ok", "mode": "demo"})
+_spec = _ilu.spec_from_file_location(
+    "whatif_engine", Path(__file__).parent / "app/services/whatif_engine.py",
+)
+_whatif_mod = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_whatif_mod)
+WhatIfEngine = _whatif_mod.WhatIfEngine
+
+_whatif_engine = WhatIfEngine()
 
 
-# ---------------------------------------------------------------------------
-# GTM Scenarios
-# ---------------------------------------------------------------------------
-
-def _load_scenarios():
-    scenarios = []
-    for p in sorted(SCENARIOS_DIR.glob("*.json")):
-        with open(p) as f:
-            scenarios.append(json.load(f))
-    return scenarios
-
-
-@app.route("/api/gtm/scenarios")
-def list_scenarios():
-    return jsonify({"scenarios": _load_scenarios()})
-
-
-@app.route("/api/gtm/scenarios/<scenario_id>")
-def get_scenario(scenario_id):
-    for s in _load_scenarios():
-        if s["id"] == scenario_id:
-            return jsonify(s)
-    return _err("Scenario not found", 404)
-
-
-@app.route("/api/gtm/scenarios/<scenario_id>/seed-text")
-def get_seed_text(scenario_id):
-    for s in _load_scenarios():
-        if s["id"] == scenario_id:
-            return _ok({"seed_text": s.get("seed_text", "")})
-    return _err("Scenario not found", 404)
-
-
-@app.route("/api/gtm/seed-data/<data_type>")
-def get_seed_data(data_type):
-    samples = {
-        "companies": [
-            {"name": "Acme SaaS", "size": "500-1000", "industry": "SaaS"},
-            {"name": "MedFirst Health", "size": "1000-2000", "industry": "Healthcare"},
-            {"name": "PayStream Financial", "size": "200-500", "industry": "Fintech"},
-            {"name": "ShopNova", "size": "500-1000", "industry": "E-commerce"},
-            {"name": "CloudOps Inc", "size": "1000-2000", "industry": "SaaS"},
-        ],
-        "personas": [
-            {"name": "Sarah Chen", "title": "VP of Support", "company": "Acme SaaS"},
-            {"name": "Marcus Johnson", "title": "CX Director", "company": "MedFirst Health"},
-            {"name": "Priya Patel", "title": "Head of Operations", "company": "PayStream Financial"},
-            {"name": "David Kim", "title": "IT Leader", "company": "ShopNova"},
-            {"name": "Rachel Torres", "title": "VP of Support", "company": "CloudOps Inc"},
-        ],
-    }
-    return _ok(samples.get(data_type, []))
-
-
-# ---------------------------------------------------------------------------
-# Graph API
-# ---------------------------------------------------------------------------
-
-@app.route("/api/graph/build", methods=["POST"])
-def graph_build():
-    task_id = f"demo-graph-{int(time.time()) % 100000:05d}"
-    _graph_tasks[task_id] = {"start": time.time()}
-    return jsonify({"success": True, "task_id": task_id, "status": "building"})
-
-
-@app.route("/api/graph/task/<task_id>")
-def graph_task(task_id):
-    if task_id not in _graph_tasks:
-        _graph_tasks[task_id] = {"start": time.time()}
-
-    elapsed = _elapsed(_graph_tasks, task_id)
-    pct = min(100, int(elapsed / GRAPH_BUILD_SECONDS() * 100))
-
-    if pct >= 100:
-        return _ok({
-            "status": "completed",
-            "progress": 100,
-            "message": "Knowledge graph built successfully",
-            "result": {"graph_id": task_id},
-        })
-
-    messages = [
-        (0, "Parsing seed document..."),
-        (15, "Extracting entities and relationships..."),
-        (35, "Building persona nodes..."),
-        (55, "Mapping topic clusters..."),
-        (75, "Computing relationship weights..."),
-        (90, "Finalizing graph structure..."),
-    ]
-    msg = "Initializing..."
-    for threshold, m in messages:
-        if pct >= threshold:
-            msg = m
-
-    return _ok({
-        "status": "building",
-        "progress": pct,
-        "message": msg,
-    })
-
-
-@app.route("/api/graph/data/<graph_id>")
-def graph_data(graph_id):
-    nodes, edges = _build_knowledge_graph()
-    return _ok({
-        "nodes": nodes,
-        "edges": edges,
-        "node_count": len(nodes),
-        "edge_count": len(edges),
-    })
-
-
-def _build_knowledge_graph():
-    personas = [
-        ("Sarah Chen, VP Support @ Acme SaaS", "Persona", "Decision-maker evaluating AI-first support. Currently on Zendesk, frustrated with resolution times and escalation queues."),
-        ("Marcus Johnson, CX Director @ MedFirst Health", "Persona", "Healthcare CX leader focused on HIPAA-compliant customer interactions. Evaluates tools through compliance lens first."),
-        ("Priya Patel, Head of Ops @ PayStream Financial", "Persona", "Fintech operations leader managing 200-person support team. Obsessed with cost-per-ticket metrics."),
-        ("David Kim, IT Leader @ ShopNova", "Persona", "E-commerce IT decision-maker. Prioritizes API integrations and Shopify/Salesforce ecosystem fit."),
-        ("Rachel Torres, VP Support @ CloudOps Inc", "Persona", "Enterprise support leader at 2,000-employee SaaS. Champions AI-augmented agents over full automation."),
-        ("James Wright, CX Director @ Retail Plus", "Persona", "Retail CX director managing holiday surge planning. Seasonal volume spikes are top concern."),
-        ("Anika Sharma, Head of Support Engineering @ DevStack", "Persona", "Technical support leader with strong opinions on chatbot accuracy. Has failed Zendesk AI deployment in past."),
-        ("Tom O'Brien, VP Customer Success @ GrowthLoop", "Persona", "Post-sale leader focused on NPS and expansion revenue. Sees support as retention lever."),
-        ("Elena Vasquez, Director of Digital @ HealthBridge", "Persona", "Digital transformation leader in healthcare. Evaluating omnichannel patient communication."),
-        ("Michael Chang, Head of Operations @ FinEdge", "Persona", "Operations leader at fintech startup. Budget-conscious, looking for 10x efficiency gains."),
-        ("Lisa Park, VP CX @ TravelNow", "Persona", "Travel industry CX leader dealing with high-volume, emotionally-charged interactions."),
-        ("Robert Williams, IT Director @ EduSpark", "Persona", "EdTech IT leader evaluating student-facing support automation."),
-        ("Sofia Martinez, Support Manager @ QuickShip", "Persona", "Mid-market support manager. Hands-on, evaluates tools by agent adoption rate."),
-        ("Nathan Lee, CTO @ DataPulse Analytics", "Persona", "Technical founder who builds internal tooling. Skeptical of vendor lock-in."),
-        ("Catherine Hayes, CFO @ ScaleUp Corp", "Persona", "Finance leader evaluating support tool ROI. Focused on cost reduction and headcount efficiency."),
-    ]
-
-    topics = [
-        ("AI-First Support Resolution", "Topic", "Using LLM-powered agents to resolve customer issues without human intervention. Fin agent handles Tier 1 autonomously."),
-        ("Zendesk Migration Pain", "Topic", "Common friction points when migrating from Zendesk: ticket history, macros, agent workflows, and reporting dependencies."),
-        ("Fin Agent Deployment", "Topic", "Intercom's Fin AI agent — deployment timeline, training requirements, accuracy benchmarks, and resolution rate targets."),
-        ("ROI-Driven Messaging", "Topic", "Positioning support automation through cost savings: reduce cost-per-ticket by 40-60%, handle 10x volume without hiring."),
-        ("Speed-to-Value Positioning", "Topic", "Deploy in weeks not months messaging. Contrast with 6-month Zendesk AI setup cycles."),
-        ("Competitive Displacement Strategy", "Topic", "Targeting Zendesk, Freshdesk, and HubSpot Service Hub customers with migration-focused campaigns."),
-        ("Support Cost Optimization", "Topic", "Metrics and strategies for reducing support overhead: automation rate, deflection, first-contact resolution."),
-        ("Omnichannel Customer Communication", "Topic", "Unified messaging across email, chat, social, and phone. Intercom Messenger as the hub."),
-        ("AI Accuracy and Trust", "Topic", "Customer concerns about chatbot hallucination, incorrect answers, and brand risk from AI responses."),
-        ("Agent Augmentation vs Replacement", "Topic", "Two philosophies: AI fully replacing Tier 1 agents vs. AI augmenting human agents with suggested responses."),
-        ("Compliance and Data Security", "Topic", "HIPAA, SOC2, GDPR requirements for customer support tools. Healthcare and fintech are particularly sensitive."),
-        ("Email Personalization at Scale", "Topic", "AI-generated personalized outreach: tone matching, pain-point targeting, and engagement optimization."),
-        ("Outbound Cadence Optimization", "Topic", "Optimal email sequence timing, follow-up intervals, and channel mix for B2B SaaS outbound."),
-        ("Spam Perception Risk", "Topic", "How aggressive subject lines and competitive displacement messaging can trigger spam filters or negative brand perception."),
-        ("Expansion Revenue through Support", "Topic", "Using support interactions to identify upsell opportunities and drive net revenue retention."),
-        ("Support Team Retention", "Topic", "How AI tools affect support agent job satisfaction, career growth, and turnover rates."),
-        ("Self-Service Knowledge Base", "Topic", "Building and maintaining help centers that reduce ticket volume. Integration with AI for smart article suggestions."),
-        ("Customer Sentiment Analysis", "Topic", "Real-time analysis of customer mood during support interactions to trigger escalation or retention plays."),
-        ("Platform Integration Ecosystem", "Topic", "Salesforce, HubSpot, Shopify, Slack integrations. API extensibility and marketplace app availability."),
-        ("Proactive Support Strategy", "Topic", "Anticipating customer issues before they arise using product usage signals and predictive models."),
-    ]
-
-    relationships = [
-        ("Zendesk-to-Intercom Migration Path", "Relationship", "Structured migration process: data export, workflow mapping, agent training, go-live. Average 4-6 weeks."),
-        ("AI Pilot Program Structure", "Relationship", "Phased rollout: 10% traffic -> 25% -> 50% -> 100%. Measure resolution rate and CSAT at each gate."),
-        ("Competitive Evaluation Framework", "Relationship", "Head-to-head comparison methodology for support platforms: features, pricing, integration, AI capability, support."),
-        ("Champion-CFO Alignment", "Relationship", "Internal selling motion: CX champion builds business case, CFO approves based on ROI and headcount impact."),
-        ("Support-to-Sales Handoff", "Relationship", "Process for routing expansion signals from support interactions to account management team."),
-        ("Vendor Lock-in Concerns", "Relationship", "Technical and contractual barriers to switching support platforms. Data portability and API dependency risks."),
-        ("Budget Approval Cycle", "Relationship", "Enterprise procurement timeline: tech eval (4 weeks) -> security review (2 weeks) -> legal (2 weeks) -> sign-off (1 week)."),
-        ("Team Adoption Resistance", "Relationship", "Change management challenges when introducing new tools. Agent training, workflow disruption, and productivity dip."),
-        ("Multi-Stakeholder Decision", "Relationship", "Support tool purchases involve CX, IT, Finance, and Security teams. Average 4.2 stakeholders in buying committee."),
-        ("AI Trust Building Process", "Relationship", "Steps to earn organizational trust in AI: pilot with low-risk tickets, build confidence with metrics, expand scope gradually."),
-    ]
-
-    companies = [
-        ("Acme SaaS", "Company", "Mid-market SaaS company, 800 employees. Currently on Zendesk Suite Enterprise. $18K/mo support tool spend."),
-        ("MedFirst Health", "Company", "Healthcare technology provider, 1,500 employees. HIPAA requirements dominate all vendor evaluations."),
-        ("PayStream Financial", "Company", "Series C fintech, 400 employees. Rapid growth creating support scaling challenges. Currently on Freshdesk."),
-        ("ShopNova", "Company", "E-commerce platform, 700 employees. High-volume seasonal support. Shopify ecosystem dependency."),
-        ("CloudOps Inc", "Company", "Enterprise SaaS, 2,000 employees. Complex B2B support needs. Evaluating Intercom for technical support automation."),
-        ("GrowthLoop", "Company", "Growth-stage SaaS, 300 employees. Customer success-driven model. Support is a retention lever."),
-        ("HealthBridge", "Company", "Digital health platform, 1,200 employees. Patient-facing communication needs. HIPAA and accessibility requirements."),
-        ("FinEdge", "Company", "Early-stage fintech, 150 employees. Lean team needs maximum automation. Budget is primary constraint."),
-        ("TravelNow", "Company", "Online travel agency, 900 employees. Emotional support interactions require nuanced AI responses."),
-        ("DataPulse Analytics", "Company", "Data analytics startup, 200 employees. API-first culture, builds custom integrations for everything."),
-    ]
-
-    all_entities = []
-    for i, (name, label, summary) in enumerate(personas, start=1):
-        all_entities.append({
-            "uuid": str(i),
-            "name": name,
-            "labels": ["Entity", label],
-            "summary": summary,
-            "attributes": {"type": label.lower()},
-        })
-    offset = len(all_entities)
-    for i, (name, label, summary) in enumerate(topics, start=offset + 1):
-        all_entities.append({
-            "uuid": str(i),
-            "name": name,
-            "labels": ["Entity", label],
-            "summary": summary,
-            "attributes": {"type": label.lower()},
-        })
-    offset = len(all_entities)
-    for i, (name, label, summary) in enumerate(relationships, start=offset + 1):
-        all_entities.append({
-            "uuid": str(i),
-            "name": name,
-            "labels": ["Entity", label],
-            "summary": summary,
-            "attributes": {"type": label.lower()},
-        })
-    offset = len(all_entities)
-    for i, (name, label, summary) in enumerate(companies, start=offset + 1):
-        all_entities.append({
-            "uuid": str(i),
-            "name": name,
-            "labels": ["Entity", label],
-            "summary": summary,
-            "attributes": {"type": label.lower()},
-        })
-
-    num_nodes = len(all_entities)
-
-    edge_defs = [
-        ("1", "16", "evaluates", "Sarah Chen is evaluating AI-first support to replace Zendesk at Acme SaaS."),
-        ("1", "17", "experiencing", "Sarah Chen's team experiences significant Zendesk migration pain points."),
-        ("1", "18", "pilots", "Sarah Chen is running a Fin agent pilot with 10% of support traffic."),
-        ("1", "46", "works_at", "Sarah Chen is VP Support at Acme SaaS."),
-        ("2", "26", "requires", "Marcus Johnson requires HIPAA compliance for all support tooling."),
-        ("2", "23", "manages", "Marcus Johnson manages omnichannel communication across MedFirst channels."),
-        ("2", "47", "works_at", "Marcus Johnson is CX Director at MedFirst Health."),
-        ("3", "22", "focuses_on", "Priya Patel focuses on support cost optimization metrics."),
-        ("3", "19", "responds_to", "Priya Patel responds strongly to ROI-driven messaging."),
-        ("3", "48", "works_at", "Priya Patel is Head of Operations at PayStream Financial."),
-        ("4", "34", "prioritizes", "David Kim prioritizes platform integration ecosystem fit."),
-        ("4", "49", "works_at", "David Kim is IT Leader at ShopNova."),
-        ("4", "24", "skeptical_of", "David Kim is skeptical of AI accuracy claims without proof."),
-        ("5", "25", "champions", "Rachel Torres champions agent augmentation over full replacement."),
-        ("5", "18", "evaluates", "Rachel Torres evaluates Fin for enterprise technical support."),
-        ("5", "50", "works_at", "Rachel Torres is VP Support at CloudOps Inc."),
-        ("6", "16", "seeks", "James Wright seeks AI support for seasonal volume management."),
-        ("6", "22", "measures", "James Wright measures success by cost-per-ticket reduction."),
-        ("7", "24", "concerns_about", "Anika Sharma has deep concerns about AI accuracy from past failures."),
-        ("7", "18", "testing", "Anika Sharma is testing Fin with controlled traffic after Zendesk AI failure."),
-        ("8", "30", "leverages", "Tom O'Brien leverages support interactions to drive expansion revenue."),
-        ("8", "51", "works_at", "Tom O'Brien is VP Customer Success at GrowthLoop."),
-        ("9", "23", "implements", "Elena Vasquez is implementing omnichannel patient communication."),
-        ("9", "26", "bound_by", "Elena Vasquez is bound by HIPAA and accessibility requirements."),
-        ("9", "52", "works_at", "Elena Vasquez works at HealthBridge."),
-        ("10", "22", "optimizes", "Michael Chang optimizes for maximum automation on lean budget."),
-        ("10", "53", "works_at", "Michael Chang is Head of Operations at FinEdge."),
-        ("11", "33", "uses", "Lisa Park uses customer sentiment analysis for escalation."),
-        ("11", "25", "prefers", "Lisa Park prefers AI augmentation for emotionally-charged travel interactions."),
-        ("12", "32", "builds", "Robert Williams builds self-service knowledge base for student support."),
-        ("13", "31", "measures_by", "Sofia Martinez measures tool success by support team adoption rate."),
-        ("14", "34", "evaluates", "Nathan Lee evaluates platforms by API extensibility and data portability."),
-        ("14", "41", "wary_of", "Nathan Lee is wary of vendor lock-in with proprietary platforms."),
-        ("15", "19", "driven_by", "Catherine Hayes is driven by ROI and headcount efficiency metrics."),
-        ("15", "42", "oversees", "Catherine Hayes oversees budget approval cycle for support tools."),
-        ("16", "18", "enables", "AI-first support resolution is the core value prop of Fin agent deployment."),
-        ("17", "21", "drives", "Zendesk migration pain drives competitive displacement strategy opportunities."),
-        ("18", "20", "validates", "Successful Fin deployment validates speed-to-value positioning."),
-        ("19", "15", "persuades", "ROI-driven messaging is the primary lever for persuading CFOs."),
-        ("20", "17", "contrasts_with", "Speed-to-value positioning contrasts with slow Zendesk migration experiences."),
-        ("21", "17", "targets", "Competitive displacement strategy directly targets Zendesk migration pain."),
-        ("22", "16", "achieved_through", "Support cost optimization is achieved through AI-first resolution."),
-        ("23", "18", "integrates_with", "Omnichannel communication integrates with Fin for unified AI responses."),
-        ("24", "37", "mitigated_by", "AI accuracy concerns are mitigated by structured pilot programs."),
-        ("25", "31", "improves", "Agent augmentation approach improves support team retention and satisfaction."),
-        ("26", "52", "critical_for", "Compliance and data security is critical for HealthBridge operations."),
-        ("27", "28", "informs", "Email personalization results inform outbound cadence optimization strategies."),
-        ("28", "29", "must_avoid", "Outbound cadence must carefully avoid spam perception risk."),
-        ("29", "21", "constrains", "Spam perception risk constrains how aggressive competitive displacement messaging can be."),
-        ("30", "40", "flows_through", "Expansion revenue flows through support-to-sales handoff process."),
-        ("32", "16", "reduces_need_for", "Self-service knowledge base reduces need for AI-first agent resolution."),
-        ("33", "35", "enhances", "Customer sentiment analysis enhances proactive support strategy."),
-        ("34", "41", "influences", "Platform integration ecosystem strength influences vendor lock-in concerns."),
-        ("35", "33", "powered_by", "Proactive support strategy is powered by customer sentiment analysis."),
-        ("36", "37", "structured_as", "Zen-to-Intercom migration follows AI pilot program structure."),
-        ("37", "39", "builds_toward", "AI pilot program builds toward champion-CFO alignment with metrics."),
-        ("38", "21", "informs", "Competitive evaluation framework informs competitive displacement strategy."),
-        ("39", "42", "requires", "Champion-CFO alignment requires navigating budget approval cycle."),
-        ("40", "30", "captures", "Support-to-sales handoff captures expansion revenue opportunities."),
-        ("41", "14", "concerns", "Vendor lock-in concerns are top-of-mind for technical founders like Nathan Lee."),
-        ("42", "44", "involves", "Budget approval cycle involves multi-stakeholder decision process."),
-        ("43", "7", "affects", "Team adoption resistance affects technical leaders like Anika Sharma."),
-        ("44", "42", "complicates", "Multi-stakeholder decisions complicate budget approval cycles."),
-        ("45", "37", "essential_for", "AI trust building process is essential for successful pilot programs."),
-        ("46", "17", "experiencing", "Acme SaaS is experiencing Zendesk migration pain firsthand."),
-        ("47", "26", "requires", "MedFirst Health requires strict HIPAA compliance for all tools."),
-        ("48", "22", "needs", "PayStream Financial needs aggressive support cost optimization."),
-        ("49", "34", "depends_on", "ShopNova depends on Shopify ecosystem integration."),
-        ("50", "25", "culture_of", "CloudOps Inc has a culture of agent augmentation over replacement."),
-        ("51", "30", "model_of", "GrowthLoop's model centers on expansion revenue from existing customers."),
-        ("52", "26", "mandates", "HealthBridge mandates HIPAA and accessibility in all patient-facing tools."),
-        ("53", "22", "constrained_by", "FinEdge is constrained by lean budget for support tooling."),
-        ("54", "11", "worries_about", "TravelNow worries about AI handling emotionally-charged customer interactions."),
-        ("10", "20", "attracted_to", "Michael Chang is attracted to speed-to-value messaging for lean deployment."),
-        ("13", "43", "experiences", "Sofia Martinez experiences team adoption resistance when rolling out new tools."),
-        ("6", "54", "seasonal_at", "James Wright manages seasonal volume spikes at Retail Plus."),
-        ("8", "33", "analyzes", "Tom O'Brien analyzes customer sentiment to identify expansion signals."),
-        ("12", "16", "explores", "Robert Williams explores AI-first support for student-facing automation."),
-        ("15", "44", "navigates", "Catherine Hayes navigates multi-stakeholder decisions for tool purchases."),
-        ("11", "54", "works_at", "Lisa Park is VP CX at TravelNow."),
-        ("14", "55", "works_at", "Nathan Lee is CTO at DataPulse Analytics."),
-        ("9", "47", "works_at", "Elena Vasquez is Director of Digital at HealthBridge."),
-    ]
-
-    edges = []
-    for i, (src, tgt, name, fact) in enumerate(edge_defs, start=1):
-        if int(src) <= num_nodes and int(tgt) <= num_nodes:
-            edges.append({
-                "uuid": f"e{i}",
-                "source_node_uuid": src,
-                "target_node_uuid": tgt,
-                "name": name,
-                "fact": fact,
-            })
-
-    return all_entities, edges
-
-
-# ---------------------------------------------------------------------------
-# Simulation API
-# ---------------------------------------------------------------------------
-
-@app.route("/api/simulation/create", methods=["POST"])
-def sim_create():
-    sim_id = f"demo-sim-{int(time.time()) % 100000:05d}"
-    _simulations[sim_id] = {"start": time.time()}
-    return _ok({"simulation_id": sim_id, "status": "created"})
-
-
-@app.route("/api/simulation/prepare", methods=["POST"])
-def sim_prepare():
+@app.route("/api/v1/whatif/scenarios", methods=["POST"])
+def whatif_create_scenario():
+    """Create a what-if scenario variant from a base with modifications."""
     body = request.get_json(silent=True) or {}
-    sim_id = body.get("simulation_id", list(_simulations.keys())[-1] if _simulations else "demo-sim-00001")
-    if sim_id not in _simulations:
-        _simulations[sim_id] = {"start": time.time()}
-    return _ok({"simulation_id": sim_id, "status": "prepared"})
+    base_id = body.get("base_scenario_id")
+    modifications = body.get("modifications", [])
+    label = body.get("label", "")
+
+    if not modifications:
+        return _err("At least one modification is required")
+
+    try:
+        scenario = _whatif_engine.create_scenario(base_id, modifications, label)
+        return _ok(scenario.to_dict())
+    except Exception as e:
+        return _err(str(e))
 
 
-@app.route("/api/simulation/start", methods=["POST"])
-def sim_start():
+@app.route("/api/v1/whatif/scenarios", methods=["GET"])
+def whatif_list_scenarios():
+    """List all what-if scenarios."""
+    scenarios = _whatif_engine.list_scenarios()
+    return _ok({"scenarios": [s.to_dict() for s in scenarios]})
+
+
+@app.route("/api/v1/whatif/scenarios/<scenario_id>")
+def whatif_get_scenario(scenario_id):
+    """Get a specific what-if scenario."""
+    scenario = _whatif_engine.get_scenario(scenario_id)
+    if not scenario:
+        return _err("Scenario not found", 404)
+    return _ok(scenario.to_dict())
+
+
+@app.route("/api/v1/whatif/scenarios/<scenario_id>/run", methods=["POST"])
+def whatif_run_scenario(scenario_id):
+    """Run a what-if scenario and return results."""
+    try:
+        results = _whatif_engine.run_scenario(scenario_id)
+        return _ok(results.to_dict())
+    except ValueError as e:
+        return _err(str(e), 404)
+    except Exception as e:
+        return _err(str(e))
+
+
+@app.route("/api/v1/whatif/scenarios/<scenario_id>/results")
+def whatif_get_results(scenario_id):
+    """Get results for a previously-run scenario."""
+    results = _whatif_engine.get_results(scenario_id)
+    if not results:
+        return _err("No results found. Run the scenario first.", 404)
+    return _ok(results.to_dict())
+
+
+@app.route("/api/v1/whatif/compare", methods=["POST"])
+def whatif_compare():
+    """Compare a variant to its base scenario."""
     body = request.get_json(silent=True) or {}
-    sim_id = body.get("simulation_id", list(_simulations.keys())[-1] if _simulations else "demo-sim-00001")
-    if sim_id not in _simulations:
-        _simulations[sim_id] = {"start": time.time()}
-    else:
-        _simulations[sim_id]["start"] = time.time()
-    return _ok({"status": "running"})
+    base_id = body.get("base_id", "")
+    variant_id = body.get("variant_id", "")
+
+    if not base_id or not variant_id:
+        return _err("Both base_id and variant_id are required")
+
+    try:
+        comparison = _whatif_engine.compare_to_base(base_id, variant_id)
+        return _ok(comparison.to_dict())
+    except ValueError as e:
+        return _err(str(e), 404)
 
 
-@app.route("/api/simulation/<sim_id>/run-status")
-def sim_run_status(sim_id):
-    if sim_id not in _simulations:
-        _simulations[sim_id] = {"start": time.time()}
+@app.route("/api/v1/whatif/sensitivity", methods=["POST"])
+def whatif_sensitivity():
+    """Run a parameter sensitivity sweep."""
+    body = request.get_json(silent=True) or {}
+    base_id = body.get("base_scenario_id")
+    parameter = body.get("parameter", "")
+    value_range = body.get("value_range", [])
 
-    elapsed = _elapsed(_simulations, sim_id)
-    pct = min(100, elapsed / SIMULATION_RUN_SECONDS() * 100)
-    current_round = min(TOTAL_ROUNDS, int(pct / 100 * TOTAL_ROUNDS))
-    completed = pct >= 100
+    if not parameter:
+        return _err("parameter is required")
+    if not value_range or len(value_range) < 2:
+        return _err("value_range must contain at least 2 values")
 
-    base_actions = int(current_round * 8.5)
-    twitter_actions = int(base_actions * 0.55)
-    reddit_actions = base_actions - twitter_actions
-
-    runner_status = "completed" if completed else "running"
-
-    return _ok({
-        "runner_status": runner_status,
-        "progress_percent": min(100, int(pct)),
-        "current_round": current_round,
-        "total_rounds": TOTAL_ROUNDS,
-        "total_actions_count": base_actions,
-        "twitter_actions_count": twitter_actions,
-        "reddit_actions_count": reddit_actions,
-        "twitter_current_round": current_round,
-        "reddit_current_round": max(0, current_round - 2),
-        "twitter_completed": completed,
-        "reddit_completed": completed,
-        "simulated_hours": round(current_round * 0.5, 1),
-        "total_simulation_hours": 72,
-    })
+    try:
+        result = _whatif_engine.run_sensitivity(base_id, parameter, value_range)
+        return _ok(result.to_dict())
+    except Exception as e:
+        return _err(str(e))
 
 
-@app.route("/api/simulation/<sim_id>/run-status/detail")
-def sim_run_status_detail(sim_id):
-    if sim_id not in _simulations:
-        _simulations[sim_id] = {"start": time.time()}
-
-    elapsed = _elapsed(_simulations, sim_id)
-    pct = min(100, elapsed / SIMULATION_RUN_SECONDS() * 100)
-    current_round = max(1, min(TOTAL_ROUNDS, int(pct / 100 * TOTAL_ROUNDS)))
-
-    actions = _generate_agent_actions(current_round)
-    return _ok({
-        "recent_actions": actions,
-        "all_actions": actions,
-    })
+@app.route("/api/v1/whatif/scenarios/<base_id>/variants")
+def whatif_get_variants(base_id):
+    """Get all variants linked to a base scenario."""
+    variants = _whatif_engine.get_variants(base_id)
+    return _ok({"variants": [v.to_dict() for v in variants]})
 
 
-def _generate_agent_actions(current_round):
+# ---------------------------------------------------------------------------
+# Adjacency Matrix API (not in demo blueprint — added for heatmap component)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/simulation/<sim_id>/adjacency-matrix")
+def sim_adjacency_matrix(sim_id):
+    """Return agent-to-agent interaction matrix for heatmap visualization."""
     agents = [
-        ("Sarah Chen", "VP Support @ Acme SaaS"),
-        ("Marcus Johnson", "CX Director @ MedFirst"),
-        ("Priya Patel", "Head of Ops @ PayStream"),
-        ("David Kim", "IT Leader @ ShopNova"),
-        ("Rachel Torres", "VP Support @ CloudOps"),
-        ("James Wright", "CX Director @ Retail Plus"),
-        ("Anika Sharma", "Support Eng Lead @ DevStack"),
-        ("Tom O'Brien", "VP CS @ GrowthLoop"),
-        ("Elena Vasquez", "Dir Digital @ HealthBridge"),
-        ("Michael Chang", "Head of Ops @ FinEdge"),
-        ("Lisa Park", "VP CX @ TravelNow"),
-        ("Sofia Martinez", "Support Mgr @ QuickShip"),
-        ("Nathan Lee", "CTO @ DataPulse"),
-        ("Catherine Hayes", "CFO @ ScaleUp Corp"),
-        ("Robert Williams", "IT Director @ EduSpark"),
+        "Sarah Chen", "Marcus Johnson", "Priya Patel", "David Kim",
+        "Rachel Torres", "James Wright", "Anika Sharma", "Tom O'Brien",
+        "Elena Vasquez", "Michael Chang", "Lisa Park", "Sofia Martinez",
+        "Nathan Lee", "Catherine Hayes", "Robert Williams",
     ]
+    n = len(agents)
+    rng = random.Random(42)
 
-    action_templates = [
-        ("CREATE_POST", "twitter", [
-            "Just evaluated @interaboratory's Fin AI agent — resolved 47% of our Tier 1 tickets in the pilot. Zendesk's AI Answer Bot never cracked 20%. The difference is night and day.",
-            "Hot take: any support team still manually routing tickets in 2026 is leaving 40% efficiency on the table. AI-first resolution isn't the future, it's the present.",
-            "Our team deployed Fin in 3 weeks. THREE WEEKS. Our Zendesk migration took 6 months. Let that sink in.",
-            "Ran the numbers: switching to Intercom's Fin agent would save us $280K/yr in support costs. CFO's attention: captured.",
-            "The 'AI will replace support agents' narrative is wrong. The right framing is AI handling the repetitive 60% so your agents can do the meaningful 40%.",
-            "Just got our Q1 support metrics: 52% AI resolution rate, CSAT actually went UP 8 points. The skeptics on my team are converts now.",
-            "Interesting pattern: our Fin deployment handles password resets and billing questions flawlessly, but struggles with nuanced product feedback. Know your automation boundaries.",
-            "Comparing support platforms for our 2026 renewal: Intercom's API ecosystem is genuinely impressive. Salesforce, HubSpot, Slack — all native.",
-        ]),
-        ("CREATE_POST", "reddit", [
-            "Our company switched from Zendesk to Intercom 6 months ago. Here's our honest review after processing 150K tickets through Fin AI: resolution rate went from 12% to 48%, CSAT improved 6 points, and we redeployed 3 agents to proactive outreach. AMA.",
-            "PSA for anyone evaluating support platforms: request a 30-day pilot with REAL ticket data, not demo scenarios. We caught 4 critical gaps in Zendesk's AI that we would have missed with their canned demo.",
-            "Unpopular opinion: the cost-per-ticket metric everyone obsesses over is misleading. What matters is cost-per-RESOLUTION. A $2 ticket that gets reopened 3 times costs $6.",
-        ]),
-        ("REPLY", "twitter", [
-            "Agreed — we saw similar results. The key was starting with high-volume, low-complexity tickets first. Build trust with your team before expanding scope.",
-            "This matches our experience. Fin's accuracy on FAQ-type questions is genuinely impressive. The trick is curating your knowledge base before deployment.",
-            "Interesting data point. We're seeing 3.2x higher engagement with ROI messaging vs. speed messaging among VP-level personas.",
-            "Worth noting: Fin handles intent detection way better than Zendesk's Answer Bot. It actually understands context, not just keyword matching.",
-            "We ran a similar analysis. The delta between AI-augmented agents and fully automated resolution is smaller than you'd think — about 8% in our case.",
-        ]),
-        ("REPLY", "reddit", [
-            "Thanks for sharing. What was your knowledge base setup time? We're evaluating Intercom but worried about the content migration effort.",
-            "Strong agree on the pilot approach. We did a 2-week pilot with 5% of traffic and caught a critical edge case with our refund workflow that would have been a disaster at full scale.",
-            "This resonates. We moved from Freshdesk to Intercom and the AI accuracy difference was the deciding factor. Freshdesk's bot was basically a glorified search engine.",
-        ]),
-        ("LIKE", "twitter", []),
-        ("LIKE", "reddit", []),
-        ("REPOST", "twitter", []),
-    ]
+    # Define clusters: agents in the same cluster interact more
+    clusters = [0, 1, 0, 2, 0, 1, 2, 1, 1, 2, 0, 2, 2, 0, 1]
 
-    rng = random.Random(current_round * 42)
-    num_actions = min(15, max(5, current_round // 3))
-    actions = []
+    # Build symmetric interaction counts
+    matrix = [[0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(i, n):
+            if i == j:
+                matrix[i][j] = rng.randint(40, 120)
+            else:
+                same_cluster = clusters[i] == clusters[j]
+                base = rng.randint(8, 35) if same_cluster else rng.randint(0, 12)
+                matrix[i][j] = base
+                matrix[j][i] = base
 
-    for i in range(num_actions):
-        agent_name, agent_title = rng.choice(agents)
-        action_type, platform, contents = rng.choice(action_templates)
-        round_num = max(1, current_round - rng.randint(0, min(5, current_round - 1)))
+    # Normalize to 0-1
+    flat = [v for row in matrix for v in row]
+    max_val = max(flat) or 1
+    values = [[round(v / max_val, 3) for v in row] for row in matrix]
 
-        action = {
-            "agent_id": rng.randint(1, 200),
-            "agent_name": f"{agent_name} ({agent_title})",
-            "action_type": action_type,
-            "platform": platform,
-            "round_num": round_num,
-            "timestamp": f"2026-01-{15 + round_num // 48:02d}T{(round_num % 48) // 2 + 8:02d}:{(round_num % 2) * 30:02d}:00Z",
-            "action_args": {},
-        }
+    # Row and column totals (sum of off-diagonal interactions)
+    row_totals = [sum(matrix[i][j] for j in range(n) if j != i) for i in range(n)]
+    col_totals = [sum(matrix[i][j] for i in range(n) if i != j) for j in range(n)]
 
-        if contents:
-            action["action_args"]["content"] = rng.choice(contents)
+    # Influence ranking (by total interactions)
+    influence_order = sorted(range(n), key=lambda i: row_totals[i], reverse=True)
+    # Cluster ordering (group by cluster, then by influence within)
+    cluster_order = sorted(range(n), key=lambda i: (clusters[i], -row_totals[i]))
 
-        actions.append(action)
-
-    actions.sort(key=lambda a: a["round_num"], reverse=True)
-    return actions
-
-
-@app.route("/api/simulation/<sim_id>/timeline")
-def sim_timeline(sim_id):
-    if sim_id not in _simulations:
-        _simulations[sim_id] = {"start": time.time()}
-
-    elapsed = _elapsed(_simulations, sim_id)
-    pct = min(100, elapsed / SIMULATION_RUN_SECONDS() * 100)
-    current_round = max(1, min(TOTAL_ROUNDS, int(pct / 100 * TOTAL_ROUNDS)))
-
-    timeline = []
-    rng = random.Random(12345)
-    for r in range(1, current_round + 1):
-        base = 3 + math.log(r + 1) * 2.5
-        twitter = max(0, int(base * (0.55 + rng.uniform(-0.1, 0.1))))
-        reddit = max(0, int(base * (0.45 + rng.uniform(-0.1, 0.1))))
-        timeline.append({
-            "round_num": r,
-            "twitter_actions": twitter,
-            "reddit_actions": reddit,
-            "total_actions": twitter + reddit,
-        })
-
-    return _ok({"timeline": timeline})
-
-
-@app.route("/api/simulation/<sim_id>")
-def sim_get(sim_id):
     return _ok({
+        "agents": agents,
+        "values": values,
+        "row_totals": row_totals,
+        "col_totals": col_totals,
+        "clusters": clusters,
+        "sort_orders": {
+            "alphabetical": list(range(n)),
+            "cluster": cluster_order,
+            "influence": influence_order,
+        },
+    })
+
+
+# ---------------------------------------------------------------------------
+# Demo Preset API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/demo-preset")
+def demo_preset_status():
+    """Check if demo preset is available and/or loaded."""
+    return _ok({
+        "available": is_demo_preset_enabled(),
+        "loaded": _preset_loaded,
+        "simulation_id": get_preset_sim_id() if _preset_loaded else None,
+        "report_id": get_preset_report_id() if _preset_loaded else None,
+    })
+
+
+@app.route("/api/demo-preset/load", methods=["POST"])
+def demo_preset_load():
+    """Load demo preset data into in-memory state for a curated presentation."""
+    global _preset_loaded
+
+    if not is_demo_preset_enabled():
+        return _err("Demo preset not enabled. Set DEMO_PRESET=true in environment.", 403)
+
+    preset_sim = get_preset_simulation()
+    preset_report = get_preset_report()
+    sim_id = preset_sim["simulation_id"]
+    report_id = preset_report["report_id"]
+
+    # Seed in-memory state so existing endpoints serve preset data
+    _simulations[sim_id] = {"start": 0}  # start=0 means completed (elapsed > threshold)
+    _graph_tasks[f"demo-graph-preset"] = {"start": 0}
+    _reports[report_id] = {"start": 0, "sim_id": sim_id}
+    _preset_loaded = True
+
+    return _ok({
+        "loaded": True,
         "simulation_id": sim_id,
         "status": "completed" if sim_id in _simulations and _elapsed(_simulations, sim_id) > SIMULATION_RUN_SECONDS() else "running",
         "config": {"total_hours": 72, "minutes_per_round": 30, "platform_mode": "parallel"},
+        "report_id": report_id,
+        "graph_task_id": "demo-graph-preset",
     })
 
 
@@ -621,6 +299,40 @@ def sim_agent_stats(sim_id):
     return _ok({"stats": []})
 
 
+@app.route("/api/simulation/<sim_id>/agent-personalities")
+def sim_agent_personalities(sim_id):
+    import hashlib
+    traits = ["confidence", "openness", "risk_aversion", "empathy", "aggressiveness"]
+    names = [
+        "Sarah Chen, VP Support @ Acme SaaS",
+        "Marcus Johnson, CTO @ HealthFirst",
+        "Priya Patel, Dir. CX @ FinServe",
+        "James O'Brien, Head of Ops @ RetailCo",
+        "Elena Rodriguez, VP Product @ CloudSync",
+        "David Kim, Support Lead @ EduPlatform",
+        "Aisha Williams, CRO @ DataDrive",
+        "Tom Fischer, Dir. IT @ MediGroup",
+        "Nina Yamamoto, COO @ LogiTech",
+        "Carlos Mendez, VP Sales @ InsureTech",
+    ]
+    agents = []
+    for i, name in enumerate(names):
+        initial, current = {}, {}
+        for trait in traits:
+            seed = hashlib.md5(f"{i}-{trait}".encode()).hexdigest()
+            base_val = (int(seed[:4], 16) % 60) + 20
+            delta = (int(seed[4:8], 16) % 30) - 12
+            initial[trait] = base_val
+            current[trait] = max(0, min(100, base_val + delta))
+        agents.append({
+            "agent_id": i,
+            "agent_name": name,
+            "initial_personality": initial,
+            "current_personality": current,
+        })
+    return _ok({"traits": traits, "agents": agents})
+
+
 @app.route("/api/simulation/<sim_id>/posts")
 def sim_posts(sim_id):
     return _ok({"posts": []})
@@ -635,6 +347,561 @@ def sim_comments(sim_id):
 def sim_entities(graph_id):
     nodes, _ = _build_knowledge_graph()
     return _ok({"entities": nodes})
+
+
+# ---------------------------------------------------------------------------
+# Snapshot Comparison API
+# ---------------------------------------------------------------------------
+
+_POSITIVE_WORDS = [
+    'impressive', 'compelling', 'great', 'interested', 'good', 'recommend',
+    'valuable', 'effective', 'worth', 'excellent', 'innovative', 'benefit',
+    'advantage', 'better', 'love', 'amazing', 'helpful', 'promising',
+]
+_NEGATIVE_WORDS = [
+    'concerned', 'skeptical', 'aggressive', 'missing', 'risk', 'worried',
+    'expensive', 'complex', 'difficult', 'dismiss', 'doubt', 'issue',
+    'problem', 'unclear', 'frustrated', 'poor', 'slow', 'lacks',
+]
+
+
+def _score_content(content):
+    if not content:
+        return 0.0
+    lower = content.lower()
+    pos = sum(1 for w in _POSITIVE_WORDS if w in lower)
+    neg = sum(1 for w in _NEGATIVE_WORDS if w in lower)
+    if pos + neg == 0:
+        return 0.0
+    return (pos - neg) / (pos + neg)
+
+
+def _build_snapshot_at_round(sim_id, target_round):
+    """Build a complete simulation state snapshot at a given round."""
+    rng = random.Random(12345)
+    timeline = []
+    total_twitter = 0
+    total_reddit = 0
+    for r in range(1, target_round + 1):
+        base = 3 + math.log(r + 1) * 2.5
+        tw = max(0, int(base * (0.55 + rng.uniform(-0.1, 0.1))))
+        rd = max(0, int(base * (0.45 + rng.uniform(-0.1, 0.1))))
+        total_twitter += tw
+        total_reddit += rd
+        timeline.append({"round_num": r, "twitter_actions": tw, "reddit_actions": rd})
+
+    total_actions = total_twitter + total_reddit
+
+    # Generate cumulative agent activity up to this round
+    agents_data = {}
+    for r in range(1, target_round + 1):
+        actions = _generate_agent_actions(r)
+        for a in actions:
+            name = a["agent_name"]
+            if name not in agents_data:
+                agents_data[name] = {
+                    "name": name,
+                    "actionCount": 0,
+                    "sentimentSum": 0.0,
+                    "sentimentCount": 0,
+                    "twitter": 0,
+                    "reddit": 0,
+                    "firstRound": r,
+                    "lastRound": r,
+                }
+            entry = agents_data[name]
+            entry["actionCount"] += 1
+            entry["lastRound"] = max(entry["lastRound"], r)
+            if a["platform"] == "twitter":
+                entry["twitter"] += 1
+            else:
+                entry["reddit"] += 1
+            content = a.get("action_args", {}).get("content", "")
+            if content:
+                entry["sentimentSum"] += _score_content(content)
+                entry["sentimentCount"] += 1
+
+    agents_list = []
+    for entry in agents_data.values():
+        avg_sent = entry["sentimentSum"] / entry["sentimentCount"] if entry["sentimentCount"] else 0.0
+        agents_list.append({
+            "name": entry["name"],
+            "actionCount": entry["actionCount"],
+            "sentiment": round(avg_sent, 3),
+            "twitter": entry["twitter"],
+            "reddit": entry["reddit"],
+            "primaryPlatform": "twitter" if entry["twitter"] >= entry["reddit"] else "reddit",
+        })
+    agents_list.sort(key=lambda x: x["actionCount"], reverse=True)
+
+    overall_sentiment = 0.0
+    if agents_list:
+        overall_sentiment = sum(a["sentiment"] for a in agents_list) / len(agents_list)
+
+    return {
+        "round": target_round,
+        "metrics": {
+            "totalActions": total_actions,
+            "twitterActions": total_twitter,
+            "redditActions": total_reddit,
+            "activeAgents": len(agents_list),
+        },
+        "agents": agents_list[:15],
+        "sentimentAvg": round(overall_sentiment, 3),
+    }
+
+
+def _compute_snapshot_diff(snap_a, snap_b):
+    """Compute diff between two snapshots."""
+    ma, mb = snap_a["metrics"], snap_b["metrics"]
+    metric_diff = {}
+    for key in ma:
+        a_val, b_val = ma[key], mb[key]
+        delta = b_val - a_val
+        pct = round(delta / a_val * 100, 1) if a_val else 0.0
+        metric_diff[key] = {"a": a_val, "b": b_val, "delta": delta, "pctChange": pct}
+
+    # Agent-level changes
+    agents_a = {a["name"]: a for a in snap_a["agents"]}
+    agents_b = {a["name"]: a for a in snap_b["agents"]}
+    all_names = set(agents_a) | set(agents_b)
+
+    new_agents = [agents_b[n] for n in all_names if n not in agents_a]
+    removed_agents = [agents_a[n] for n in all_names if n not in agents_b]
+
+    agent_changes = []
+    biggest_change = {"description": "No changes", "value": 0}
+    most_affected = {"name": "N/A", "totalChange": 0}
+
+    for name in sorted(all_names):
+        if name not in agents_a or name not in agents_b:
+            continue
+        aa, ab = agents_a[name], agents_b[name]
+        action_delta = ab["actionCount"] - aa["actionCount"]
+        sentiment_delta = round(ab["sentiment"] - aa["sentiment"], 3)
+        total_change = abs(action_delta) + abs(sentiment_delta) * 10
+
+        if action_delta != 0:
+            agent_changes.append({
+                "agent": name,
+                "metric": "actionCount",
+                "oldValue": aa["actionCount"],
+                "newValue": ab["actionCount"],
+                "change": action_delta,
+            })
+        if abs(sentiment_delta) > 0.01:
+            agent_changes.append({
+                "agent": name,
+                "metric": "sentiment",
+                "oldValue": aa["sentiment"],
+                "newValue": ab["sentiment"],
+                "change": sentiment_delta,
+            })
+
+        if total_change > most_affected["totalChange"]:
+            most_affected = {"name": name, "totalChange": round(total_change, 1)}
+
+    if agent_changes:
+        top = max(agent_changes, key=lambda c: abs(c["change"]))
+        biggest_change = {
+            "description": f"{top['agent']} {top['metric']} changed by {top['change']:+}",
+            "value": abs(top["change"]),
+        }
+
+    sentiment_delta = round(snap_b["sentimentAvg"] - snap_a["sentimentAvg"], 3)
+
+    return {
+        "metrics": metric_diff,
+        "agentChanges": agent_changes,
+        "newAgents": new_agents,
+        "removedAgents": removed_agents,
+        "biggestChange": biggest_change,
+        "mostAffectedAgent": most_affected,
+        "totalChanges": len(agent_changes) + len(new_agents) + len(removed_agents),
+        "sentimentDelta": sentiment_delta,
+    }
+
+
+@app.route("/api/simulation/<sim_id>/snapshot/compare")
+def sim_snapshot_compare(sim_id):
+    round_a = request.args.get("round_a", 1, type=int)
+    round_b = request.args.get("round_b", TOTAL_ROUNDS, type=int)
+    round_a = max(1, min(TOTAL_ROUNDS, round_a))
+    round_b = max(1, min(TOTAL_ROUNDS, round_b))
+
+    snap_a = _build_snapshot_at_round(sim_id, round_a)
+    snap_b = _build_snapshot_at_round(sim_id, round_b)
+    diff = _compute_snapshot_diff(snap_a, snap_b)
+
+    return _ok({
+        "point_a": snap_a,
+        "point_b": snap_b,
+        "diff": diff,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Reasoning Transparency API
+# ---------------------------------------------------------------------------
+
+AGENTS = [
+    ("Sarah Chen", "VP Support @ Acme SaaS"),
+    ("Marcus Johnson", "CX Director @ MedFirst"),
+    ("Priya Patel", "Head of Ops @ PayStream"),
+    ("David Kim", "IT Leader @ ShopNova"),
+    ("Rachel Torres", "VP Support @ CloudOps"),
+    ("James Wright", "CX Director @ Retail Plus"),
+    ("Anika Sharma", "Support Eng Lead @ DevStack"),
+    ("Tom O'Brien", "VP CS @ GrowthLoop"),
+    ("Elena Vasquez", "Dir Digital @ HealthBridge"),
+    ("Michael Chang", "Head of Ops @ FinEdge"),
+    ("Lisa Park", "VP CX @ TravelNow"),
+    ("Sofia Martinez", "Support Mgr @ QuickShip"),
+    ("Nathan Lee", "CTO @ DataPulse"),
+    ("Catherine Hayes", "CFO @ ScaleUp Corp"),
+    ("Robert Williams", "IT Director @ EduSpark"),
+]
+
+_REASONING_TEMPLATES = [
+    "Evaluating whether to share our Q1 support metrics publicly. Fin AI resolution rate of {pct}% is significantly above industry average — sharing could attract attention from prospects and validate our positioning.",
+    "Weighing competitive response to Zendesk's latest announcement. Our data shows {pct}% improvement in CSAT since switching — direct comparison could be effective but risks appearing combative.",
+    "Considering whether cost-per-resolution framing resonates better than speed-to-value. Internal surveys suggest {pct}% of VPs respond more strongly to ROI messaging.",
+    "Analyzing the trade-off between AI automation depth and customer satisfaction. Our pilot data shows diminishing returns above {pct}% automation — human escalation paths are critical.",
+    "Assessing multi-threading strategy: reaching multiple stakeholders increases conversion {pct}% but risks appearing spammy if not coordinated.",
+    "Reviewing whether compliance-first messaging for Healthcare is worth the extra personalization cost. Data shows {pct}% higher engagement when HIPAA is mentioned upfront.",
+]
+
+_GOAL_TEMPLATES = [
+    "Maximize support team efficiency",
+    "Reduce cost per resolution",
+    "Improve customer satisfaction scores",
+    "Drive AI adoption in support workflows",
+    "Build thought leadership in CX space",
+    "Evaluate competitive alternatives objectively",
+    "Optimize multi-channel support strategy",
+    "Scale support operations without proportional headcount",
+]
+
+_FACTOR_TEMPLATES = [
+    {"name": "ROI impact", "weight": 0.35, "assessment": "High — strong cost savings narrative"},
+    {"name": "audience relevance", "weight": 0.25, "assessment": "Medium — resonates with VP-level personas"},
+    {"name": "competitive risk", "weight": 0.15, "assessment": "Low — factual, data-driven framing"},
+    {"name": "credibility", "weight": 0.15, "assessment": "High — backed by pilot data"},
+    {"name": "timing", "weight": 0.10, "assessment": "Good — aligns with Q1 budget planning"},
+]
+
+
+def _agent_id_from_name(name):
+    return abs(hash(name)) % 10000
+
+
+def _generate_round_reasoning(sim_id, round_num):
+    rng = random.Random(hash(f"{sim_id}-reasoning-{round_num}"))
+    traces = []
+    num_agents = rng.randint(3, 8)
+    chosen = rng.sample(AGENTS, num_agents)
+    for name, title in chosen:
+        agent_id = _agent_id_from_name(name)
+        tpl = rng.choice(_REASONING_TEMPLATES)
+        pct = rng.randint(20, 72)
+        goal = rng.choice(_GOAL_TEMPLATES)
+        confidence = round(rng.uniform(0.55, 0.95), 2)
+        action = rng.choice(["CREATE_POST", "REPLY", "LIKE", "REPOST"])
+        traces.append({
+            "agent_id": agent_id,
+            "agent_name": f"{name} ({title})",
+            "round": round_num,
+            "reasoning": tpl.format(pct=pct),
+            "goal": goal,
+            "action_chosen": action,
+            "confidence": confidence,
+            "factors_considered": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in rng.sample(_FACTOR_TEMPLATES, rng.randint(2, 4))
+            ],
+            "alternatives_rejected": rng.sample(
+                ["LIKE", "REPOST", "CREATE_POST", "REPLY", "IGNORE"],
+                rng.randint(1, 3),
+            ),
+        })
+    return traces
+
+
+def _generate_decisions(sim_id):
+    rng = random.Random(hash(f"{sim_id}-decisions"))
+    decisions = []
+    topics = [
+        "AI automation vs human touch",
+        "Competitive displacement messaging",
+        "ROI-first vs feature-first positioning",
+        "Multi-threading outreach strategy",
+        "Compliance-first messaging for Healthcare",
+        "Optimal email cadence timing",
+        "Zendesk migration narrative",
+        "Fin AI resolution rate claims",
+    ]
+    for i, topic in enumerate(topics):
+        agent_name, agent_title = rng.choice(AGENTS)
+        agent_id = _agent_id_from_name(agent_name)
+        confidence = round(rng.uniform(0.6, 0.95), 2)
+        round_num = rng.randint(1, TOTAL_ROUNDS)
+        decisions.append({
+            "decision_id": f"dec-{sim_id[:8]}-{i:04d}",
+            "agent_id": agent_id,
+            "agent_name": f"{agent_name} ({agent_title})",
+            "round": round_num,
+            "topic": topic,
+            "action": rng.choice(["CREATE_POST", "REPLY", "REPOST"]),
+            "confidence": confidence,
+            "reasoning_summary": rng.choice(_REASONING_TEMPLATES).format(pct=rng.randint(20, 72)),
+        })
+    return decisions
+
+
+@app.route("/api/simulation/<sim_id>/round/<int:round_num>/reasoning")
+def sim_round_reasoning(sim_id, round_num):
+    if round_num < 1 or round_num > TOTAL_ROUNDS:
+        return _err(f"Round must be between 1 and {TOTAL_ROUNDS}", 400)
+    traces = _generate_round_reasoning(sim_id, round_num)
+    return _ok({"simulation_id": sim_id, "round": round_num, "traces": traces})
+
+
+@app.route("/api/simulation/<sim_id>/agents/<int:agent_id>/reasoning")
+def sim_agent_reasoning(sim_id, agent_id):
+    rng = random.Random(hash(f"{sim_id}-agent-{agent_id}"))
+    agent_match = None
+    for name, title in AGENTS:
+        if _agent_id_from_name(name) == agent_id:
+            agent_match = (name, title)
+            break
+    if not agent_match:
+        return _err("Agent not found", 404)
+    name, title = agent_match
+    traces = []
+    num_rounds = rng.randint(5, 12)
+    rounds = sorted(rng.sample(range(1, TOTAL_ROUNDS + 1), num_rounds))
+    for r in rounds:
+        tpl = rng.choice(_REASONING_TEMPLATES)
+        pct = rng.randint(20, 72)
+        traces.append({
+            "round": r,
+            "reasoning": tpl.format(pct=pct),
+            "goal": rng.choice(_GOAL_TEMPLATES),
+            "action_chosen": rng.choice(["CREATE_POST", "REPLY", "LIKE", "REPOST"]),
+            "confidence": round(rng.uniform(0.55, 0.95), 2),
+            "factors_considered": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in rng.sample(_FACTOR_TEMPLATES, rng.randint(2, 4))
+            ],
+        })
+    return _ok({
+        "simulation_id": sim_id,
+        "agent_id": agent_id,
+        "agent_name": f"{name} ({title})",
+        "traces": traces,
+    })
+
+
+@app.route("/api/simulation/<sim_id>/decisions")
+def sim_decisions(sim_id):
+    decisions = _generate_decisions(sim_id)
+    return _ok({"simulation_id": sim_id, "decisions": decisions})
+
+
+@app.route("/api/simulation/<sim_id>/decisions/<decision_id>/explain")
+def sim_decision_explain(sim_id, decision_id):
+    decisions = _generate_decisions(sim_id)
+    match = next((d for d in decisions if d["decision_id"] == decision_id), None)
+    if not match:
+        return _err("Decision not found", 404)
+    rng = random.Random(hash(f"{sim_id}-explain-{decision_id}"))
+    return _ok({
+        "decision_id": decision_id,
+        "agent_name": match["agent_name"],
+        "round": match["round"],
+        "topic": match["topic"],
+        "action": match["action"],
+        "reasoning": match["reasoning_summary"],
+        "explanation": {
+            "goal": rng.choice(_GOAL_TEMPLATES),
+            "factors": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in _FACTOR_TEMPLATES
+            ],
+            "decision_process": (
+                f"Agent evaluated {len(_FACTOR_TEMPLATES)} factors against the goal "
+                f"of '{rng.choice(_GOAL_TEMPLATES).lower()}'. "
+                f"The {match['action']} action scored highest with {match['confidence']:.0%} "
+                f"confidence based on weighted factor analysis."
+            ),
+            "alternatives": [
+                {
+                    "action": alt,
+                    "score": round(rng.uniform(0.2, match["confidence"] - 0.05), 2),
+                    "rejection_reason": rng.choice([
+                        "Lower expected engagement",
+                        "Insufficient data support",
+                        "Misaligned with current goal",
+                        "Higher competitive risk",
+                        "Audience mismatch",
+                    ]),
+                }
+                for alt in rng.sample(["CREATE_POST", "REPLY", "LIKE", "REPOST", "IGNORE"], 2)
+                if alt != match["action"]
+            ],
+        },
+    })
+
+
+@app.route("/api/simulation/<sim_id>/decisions/<decision_id>/counterfactual")
+def sim_decision_counterfactual(sim_id, decision_id):
+    decisions = _generate_decisions(sim_id)
+    match = next((d for d in decisions if d["decision_id"] == decision_id), None)
+    if not match:
+        return _err("Decision not found", 404)
+    rng = random.Random(hash(f"{sim_id}-cf-{decision_id}"))
+    alt_actions = [a for a in ["CREATE_POST", "REPLY", "LIKE", "REPOST", "IGNORE"] if a != match["action"]]
+    scenarios = []
+    for alt in rng.sample(alt_actions, min(3, len(alt_actions))):
+        engagement_delta = round(rng.uniform(-30, 15), 1)
+        sentiment_delta = round(rng.uniform(-0.3, 0.2), 2)
+        scenarios.append({
+            "alternative_action": alt,
+            "predicted_engagement_delta_pct": engagement_delta,
+            "predicted_sentiment_delta": sentiment_delta,
+            "cascade_effect": rng.choice([
+                "Minimal — isolated impact on immediate thread",
+                "Moderate — 2-3 connected agents would shift stance",
+                "Significant — could trigger topic-wide sentiment reversal",
+            ]),
+            "risk_assessment": rng.choice(["low", "medium", "high"]),
+            "narrative": (
+                f"If the agent had chosen {alt} instead of {match['action']}, "
+                f"engagement would have shifted by {engagement_delta:+.1f}% "
+                f"with a sentiment change of {sentiment_delta:+.2f}."
+            ),
+        })
+    return _ok({
+        "decision_id": decision_id,
+        "original_action": match["action"],
+        "original_confidence": match["confidence"],
+        "counterfactual_scenarios": scenarios,
+    })
+
+
+@app.route("/api/simulation/<sim_id>/argument-map/<topic>")
+def sim_argument_map(sim_id, topic):
+    rng = random.Random(hash(f"{sim_id}-argmap-{topic}"))
+    nodes = []
+    edges = []
+    positions = [
+        {"label": "central_claim", "type": "claim"},
+        {"label": "supporting_evidence_1", "type": "evidence"},
+        {"label": "supporting_evidence_2", "type": "evidence"},
+        {"label": "counterargument_1", "type": "counterargument"},
+        {"label": "counterargument_2", "type": "counterargument"},
+        {"label": "rebuttal_1", "type": "rebuttal"},
+        {"label": "synthesis", "type": "synthesis"},
+    ]
+    claim_templates = {
+        "claim": [
+            f"AI-driven support automation delivers measurable ROI for {topic}",
+            f"The market is shifting toward {topic} as a competitive differentiator",
+            f"Organizations that adopt {topic} early will capture disproportionate market share",
+        ],
+        "evidence": [
+            "Pilot data shows 47% AI resolution rate with Fin agent",
+            "CSAT improved 8 points after Intercom deployment",
+            "Cost per resolution dropped 40% in first quarter",
+            "3-week deployment time vs 6-month legacy migration",
+            "Multi-threading outreach increases conversion 4.7x",
+        ],
+        "counterargument": [
+            "AI chatbots still struggle with nuanced product feedback",
+            "Migration costs and team disruption offset short-term savings",
+            "Customer trust decreases when they know they're talking to a bot",
+            "Regulatory requirements in Healthcare limit AI automation scope",
+        ],
+        "rebuttal": [
+            "Human escalation paths preserve quality for complex cases",
+            "3-week deployment minimizes disruption window",
+            "Transparency about AI involvement actually increases trust per recent studies",
+        ],
+        "synthesis": [
+            f"Balanced approach to {topic}: automate high-volume low-complexity, elevate humans for high-value interactions",
+        ],
+    }
+    for i, pos in enumerate(positions):
+        node_type = pos["type"]
+        agent_name, agent_title = rng.choice(AGENTS)
+        nodes.append({
+            "id": f"arg-{i}",
+            "type": node_type,
+            "content": rng.choice(claim_templates[node_type]),
+            "agent_name": f"{agent_name} ({agent_title})",
+            "agent_id": _agent_id_from_name(agent_name),
+            "confidence": round(rng.uniform(0.5, 0.95), 2),
+            "round_introduced": rng.randint(1, TOTAL_ROUNDS),
+        })
+    edge_defs = [
+        ("arg-1", "arg-0", "supports"), ("arg-2", "arg-0", "supports"),
+        ("arg-3", "arg-0", "opposes"), ("arg-4", "arg-0", "opposes"),
+        ("arg-5", "arg-3", "rebuts"), ("arg-6", "arg-0", "synthesizes"),
+    ]
+    for src, tgt, rel in edge_defs:
+        edges.append({
+            "source": src, "target": tgt, "relationship": rel,
+            "strength": round(rng.uniform(0.4, 0.95), 2),
+        })
+    return _ok({
+        "simulation_id": sim_id,
+        "topic": topic,
+        "argument_map": {"nodes": nodes, "edges": edges},
+    })
+
+
+# ---------------------------------------------------------------------------
+# Agent Interaction Network (demo mode)
+# ---------------------------------------------------------------------------
+
+def _get_interaction_builder():
+    """Lazy-import InteractionGraphBuilder without triggering the full app package."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "interaction_graph",
+        Path(__file__).parent / "app" / "services" / "interaction_graph.py",
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.InteractionGraphBuilder()
+
+
+@app.route("/api/simulation/<sim_id>/network/graph")
+def sim_network_graph(sim_id):
+    builder = _get_interaction_builder()
+    actions = _generate_agent_actions(72)
+    graph = builder.build_from_simulation(actions)
+
+    if request.args.get("include_centrality", "false").lower() == "true":
+        graph["centrality"] = builder.compute_centrality(graph)
+    if request.args.get("include_clusters", "false").lower() == "true":
+        graph["clusters"] = builder.detect_clusters(graph)
+
+    return _ok(graph)
+
+
+@app.route("/api/simulation/<sim_id>/network/round/<int:round_num>")
+def sim_network_round(sim_id, round_num):
+    builder = _get_interaction_builder()
+    actions = _generate_agent_actions(max(round_num, 1))
+    graph = builder.build_temporal_graph(actions, round_num)
+
+    if request.args.get("include_centrality", "false").lower() == "true":
+        graph["centrality"] = builder.compute_centrality(graph)
+    if request.args.get("include_clusters", "false").lower() == "true":
+        graph["clusters"] = builder.detect_clusters(graph)
+
+    return _ok(graph)
 
 
 # ---------------------------------------------------------------------------
@@ -897,435 +1164,151 @@ def report_generate():
     _reports[report_id] = {"start": time.time(), "sim_id": sim_id}
     return _ok({
         "report_id": report_id,
-        "status": "generating",
-        "already_generated": False,
+        "graph_task_id": "demo-graph-preset",
     })
 
 
-@app.route("/api/report/generate/status", methods=["POST"])
-def report_generate_status():
-    body = request.get_json(silent=True) or {}
-    report_id = body.get("report_id", "")
-    if report_id not in _reports:
-        return _err("Report not found", 404)
-    elapsed = _elapsed(_reports, report_id)
-    pct = min(100, int(elapsed / REPORT_GEN_SECONDS() * 100))
-    return _ok({"progress": pct, "status": "completed" if pct >= 100 else "generating"})
+@app.route("/api/demo-preset/simulation")
+def demo_preset_simulation():
+    """Return full preset simulation data including coalitions and belief changes."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_preset_simulation())
 
 
-@app.route("/api/report/<report_id>/progress")
-def report_progress(report_id):
-    if report_id not in _reports:
-        _reports[report_id] = {"start": time.time(), "sim_id": "unknown"}
-
-    elapsed = _elapsed(_reports, report_id)
-    pct = min(100, int(elapsed / REPORT_GEN_SECONDS() * 100))
-    total_sections = len(REPORT_SECTIONS)
-    completed = min(total_sections, int(pct / 100 * total_sections))
-
-    messages = [
-        (0, "Analyzing simulation data..."),
-        (20, "Generating executive summary..."),
-        (40, "Computing engagement metrics..."),
-        (60, "Analyzing messaging effectiveness..."),
-        (80, "Synthesizing recommendations..."),
-        (95, "Finalizing report..."),
-    ]
-    msg = "Initializing..."
-    for threshold, m in messages:
-        if pct >= threshold:
-            msg = m
-
-    return _ok({
-        "progress": pct,
-        "total_sections": total_sections,
-        "completed_sections": completed,
-        "message": msg,
-    })
+@app.route("/api/demo-preset/report")
+def demo_preset_report():
+    """Return full preset report data."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_preset_report())
 
 
-@app.route("/api/report/<report_id>/sections")
-def report_sections(report_id):
-    if report_id not in _reports:
-        _reports[report_id] = {"start": time.time(), "sim_id": "unknown"}
-
-    elapsed = _elapsed(_reports, report_id)
-    pct = min(100, elapsed / REPORT_GEN_SECONDS() * 100)
-    total = len(REPORT_SECTIONS)
-    visible = min(total, int(pct / 100 * total) + (1 if pct > 5 else 0))
-
-    return _ok({
-        "sections": REPORT_SECTIONS[:visible],
-        "is_complete": pct >= 100,
-    })
-
-
-@app.route("/api/report/<report_id>/section/<int:section_index>")
-def report_section(report_id, section_index):
-    if 0 <= section_index < len(REPORT_SECTIONS):
-        return _ok(REPORT_SECTIONS[section_index])
-    return _err("Section not found", 404)
-
-
-@app.route("/api/report/<report_id>")
-def report_get(report_id):
-    return _ok({
-        "report_id": report_id,
-        "status": "completed",
-        "sections": REPORT_SECTIONS,
-    })
-
-
-@app.route("/api/report/by-simulation/<sim_id>")
-def report_by_simulation(sim_id):
-    report_id = f"demo-report-{sim_id.split('-')[-1]}"
-    return _ok({
-        "report_id": report_id,
-        "status": "completed",
-    })
-
-
-@app.route("/api/report/list")
-def report_list():
-    return _ok({"reports": []})
-
-
-@app.route("/api/report/<report_id>/download")
-def report_download(report_id):
-    full_md = "\n\n---\n\n".join(s["content"] for s in REPORT_SECTIONS)
-    return Response(
-        full_md,
-        mimetype="text/markdown",
-        headers={"Content-Disposition": f"attachment; filename=mirofish-report-{report_id}.md"},
-    )
-
-
-@app.route("/api/report/check/<sim_id>")
-def report_check(sim_id):
-    report_id = f"demo-report-{sim_id.split('-')[-1]}"
-    if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS():
-        return _ok({
-            "has_report": True,
-            "report_id": report_id,
-            "report_status": "completed",
-        })
-    return _ok({
-        "has_report": False,
-        "report_id": None,
-        "report_status": None,
-    })
+@app.route("/api/demo-preset/dashboard")
+def demo_preset_dashboard():
+    """Return preset dashboard widget configuration."""
+    if not _preset_loaded:
+        return _err("Demo preset not loaded. POST /api/demo-preset/load first.", 400)
+    return _ok(get_dashboard())
 
 
 # ---------------------------------------------------------------------------
-# Report Agent Logs (stubs for frontend API module)
+# Org Chart with Information Flow
 # ---------------------------------------------------------------------------
 
-@app.route("/api/report/<report_id>/agent-log")
-def report_agent_log(report_id):
-    return _ok({"logs": []})
-
-
-@app.route("/api/report/<report_id>/agent-log/stream")
-def report_agent_log_stream(report_id):
-    return _ok({"logs": []})
-
-
-@app.route("/api/report/<report_id>/console-log")
-def report_console_log(report_id):
-    return _ok({"logs": []})
-
-
-@app.route("/api/report/<report_id>/console-log/stream")
-def report_console_log_stream(report_id):
-    return _ok({"logs": []})
-
-
-# ---------------------------------------------------------------------------
-# Chat API
-# ---------------------------------------------------------------------------
-
-CHAT_RESPONSES = {
-    "subject line": {
-        "response": "Based on the simulation data, here's the subject line performance breakdown:\n\n1. \"Your Zendesk bill is 3x what it should be\" — 34.7% open rate (but 8.2% spam flag in Healthcare)\n2. \"How [Company] cut support costs 40% with AI\" — 31.2% open rate (safest universal option)\n3. \"The AI agent your support team actually wants\" — 28.9% open rate (best for CX Directors)\n4. \"Replace Zendesk in 30 days\" — 24.3% open rate (highest spam risk at 11.7%)\n\nThe key insight is that subject line #1 has the highest raw performance but carries brand risk in regulated industries. For a universal campaign, I'd recommend #2 as the default with #1 reserved for confirmed Zendesk accounts in SaaS.",
-        "tool_calls": [
-            {"name": "insight_forge", "arguments": {"query": "subject line performance by open rate and spam flag rate"}, "result": "Analyzed 200 agent interactions across 4 subject line variants. Competitive displacement framing shows highest engagement but also highest negative sentiment in Healthcare (14.8% spam flag) and Fintech (9.1% spam flag)."},
-        ],
-        "sources": ["Simulation Rounds 1-144", "Agent Engagement Metrics", "Spam Perception Analysis"],
-    },
-    "persona": {
-        "response": "The simulation reveals significant persona-based variation in engagement:\n\n• VP of Support: 38.4% open rate, responds most strongly to ROI-driven messaging with specific cost reduction numbers. They want to see \"40% cost reduction\" not \"significant savings.\"\n\n• CX Director: 31.2% open rate, most engaged by AI resolution rate benchmarks. They care about CSAT impact and agent experience.\n\n• IT Leader: 22.8% open rate — the hardest to engage. They prioritize integration ecosystem details and security certifications. Lead with technical credibility.\n\n• Head of Operations: 35.6% open rate, focused on efficiency metrics and headcount impact. They're running the numbers immediately.\n\n• CFO: 28.9% open rate, responds to detailed ROI calculations with specific timeframes. They need a business case they can present to the board.\n\nThe biggest surprise: VP of Support personas showed 3.2x higher engagement with ROI messaging compared to speed-to-value messaging. We assumed speed would win, but these buyers care more about proving budget impact to their CFO.",
-        "tool_calls": [
-            {"name": "panorama_search", "arguments": {"query": "persona engagement breakdown by role title"}, "result": "Retrieved engagement data for 5 persona types across 12,384 total interactions. VP of Support and Head of Operations are highest-engagement personas. IT Leaders require the most touches before converting."},
-        ],
-        "sources": ["Agent Cluster Analysis", "Persona Engagement Matrix", "Cross-Role Comparison Report"],
-    },
-    "healthcare": {
-        "response": "Healthcare is a fascinating segment in this simulation. Here's what the data shows:\n\n• Initial engagement is the LOWEST of all verticals at 19.8% average open rate\n• BUT conversion-to-meeting rate is the HIGHEST at 5.1% — these buyers are slow to engage but very serious when they do\n• HIPAA compliance must be mentioned in the first two sentences or engagement drops to 12%\n• Standard ROI messaging achieves only 12% engagement vs 31% when compliance is front-loaded\n• The subject line \"Your Zendesk bill is 3x what it should be\" triggers a 14.8% spam flag rate in Healthcare — it should be excluded entirely\n\nThe recommended approach for Healthcare: Lead with \"HIPAA-compliant AI-powered support\" positioning, include SOC2 certification badges in email signature, and use the consultative CTA style (\"What are your biggest compliance challenges with your current support tool?\").",
-        "tool_calls": [
-            {"name": "insight_forge", "arguments": {"query": "healthcare vertical engagement patterns and compliance sensitivity"}, "result": "Healthcare personas prioritize compliance verification before evaluating features. 89% of healthcare decision-makers checked for HIPAA documentation within first 3 interactions. Compliance-first messaging improved engagement 2.6x."},
-        ],
-        "sources": ["Vertical Analysis - Healthcare", "Compliance Sensitivity Index", "HIPAA Messaging A/B Results"],
-    },
-    "objection": {
-        "response": "The simulation identified four primary objection patterns with clear counter-strategies:\n\n1. **\"We just renewed our Zendesk contract\"** (34% of negative responses)\n   → Counter: Don't push for immediate switch. Offer ROI analysis to build business case for next renewal. Plant the seed now, harvest in 6-12 months.\n\n2. **\"AI chatbots give bad answers\"** (28%)\n   → Counter: This is the most convertible objection! Share Fin accuracy benchmarks and offer a controlled pilot. 34% of \"Skeptical Evaluator\" personas who raised this objection eventually booked meetings.\n\n3. **\"We don't have budget for a migration\"** (22%)\n   → Counter: Build an interactive migration cost calculator showing first-year savings offset. The math almost always works in Intercom's favor for companies spending >$5K/mo on support.\n\n4. **\"We need [specific feature] you don't have\"** (16%)\n   → Counter: Feature parity matrix + roadmap. Most gaps are perceived, not real.\n\nKey insight: Skeptical Evaluators (Cluster 4) have the HIGHEST eventual meeting rate at 34%. Don't be discouraged by initial pushback — address it directly with data.",
-        "tool_calls": [
-            {"name": "panorama_search", "arguments": {"query": "objection frequency and conversion rates by objection type"}, "result": "Mapped 4 primary objection categories across 847 conversation threads. 'AI quality concerns' objection has highest overcome rate (34%) when addressed with specific accuracy benchmarks and pilot program offers."},
-        ],
-        "sources": ["Objection Mapping Analysis", "Skeptical Evaluator Cluster Study", "Counter-Strategy Effectiveness Report"],
-    },
-    "roi": {
-        "response": "The ROI story from the simulation is compelling:\n\n• **Cost reduction:** Companies spending >$10K/mo on support tools showed the strongest engagement with cost-saving messaging. The \"40% cost reduction\" claim was the most-cited metric in positive engagement signals.\n\n• **Headcount efficiency:** Head of Operations personas responded 3.1x more strongly to \"handle 10x volume without hiring\" than generic efficiency claims. They're doing literal headcount math.\n\n• **Time-to-value:** Deployment speed (\"3 weeks vs 6 months\") was the #2 most persuasive data point after resolution rate claims. But it was most effective for smaller companies (200-500 employees) who can't afford long implementation cycles.\n\n• **AI resolution rate:** Fin's 50% automation claim was referenced in 67% of positive engagement signals. This is the single most powerful metric in the entire messaging arsenal.\n\nThe simulation suggests framing ROI differently by persona:\n- **For VPs:** \"Save $280K/yr and redeploy 3 agents to proactive outreach\"\n- **For CFOs:** \"40% cost reduction with 90-day payback period\"\n- **For Ops leaders:** \"Handle holiday surge without temporary hires\"",
-        "tool_calls": [
-            {"name": "insight_forge", "arguments": {"query": "ROI messaging effectiveness by persona and company size"}, "result": "ROI-driven messaging outperformed speed messaging by 3.2x among VP personas. Cost reduction claims most effective at >$10K/mo spend. Resolution rate (50%) was referenced in 67% of positive engagement signals."},
-        ],
-        "sources": ["ROI Sensitivity Analysis", "Persona-Specific Messaging Study", "Cost Reduction Impact Model"],
-    },
-    "cadence": {
-        "response": "The simulation revealed a clear winner for email cadence:\n\n**Current cadence (Day 1-2-4):** Triggers \"too aggressive\" perception in 23% of personas. The Day 2 follow-up feels pushy, especially for Enterprise buyers who need time to process.\n\n**Recommended cadence (Day 1-3-8-15):**\n- Day 1: Initial outreach with value proposition\n- Day 3: \"Research acknowledgment\" — acknowledge their evaluation without being pushy\n- Day 8: Case study or social proof relevant to their industry\n- Day 15: Direct ask with specific meeting time offer\n\nThis cadence showed 23% lower unsubscribe intent and 18% higher eventual meeting bookings.\n\n**Critical addition:** Multi-threading at Day 3. When a second stakeholder at the same company was contacted during the \"research phase\" (Hours 12-36), conversion increased 3.1x. The simulation strongly supports reaching multiple buying committee members early.\n\n**Late responder insight:** 15% of meetings were booked in the Day 12-15 window by personas who needed internal approval time. Don't give up after Day 8.",
-        "tool_calls": [
-            {"name": "insight_forge", "arguments": {"query": "email cadence timing optimization and multi-threading impact"}, "result": "Day 1-3-8-15 cadence outperformed Day 1-2-4 by 18% in meeting bookings with 23% fewer unsubscribes. Multi-threading (2+ contacts at same company) at Day 3 increased conversion 3.1x."},
-        ],
-        "sources": ["Cadence Optimization Analysis", "Multi-Threading Impact Study", "Temporal Engagement Patterns"],
-    },
-    "fin": {
-        "response": "Fin AI agent data from the simulation:\n\n• **Resolution rate claims are the #1 persuasion lever** — \"50% AI resolution\" was referenced in 67% of positive engagement signals across ALL persona types\n• Agents who received Fin-specific messaging showed 2.4x higher engagement than those who received generic \"AI support\" messaging\n• The most effective Fin proof point was: \"48% resolution rate in 30-day pilot\" — specific, time-bounded, and verifiable\n• IT Leaders specifically asked about Fin's accuracy on technical queries vs. simple FAQ-type questions\n• Healthcare personas needed assurance that Fin could handle HIPAA-sensitive interactions\n\n**Interesting pattern:** Personas who had previously experienced a failed chatbot deployment (Cluster 4: Skeptical Evaluators) were actually MORE likely to engage with Fin messaging when it included accuracy benchmarks and pilot program structure. They want AI to work — they just need proof.\n\nRecommendation: Create a \"Fin Accuracy Report\" one-pager showing resolution rates by ticket category, and include it as an attachment in Email 2 of the sequence.",
-        "tool_calls": [
-            {"name": "panorama_search", "arguments": {"query": "Fin AI agent perception and engagement metrics across persona types"}, "result": "Fin-specific messaging achieved 2.4x engagement vs generic AI messaging. 50% resolution rate claim was most-cited metric. Skeptical Evaluators showed 34% eventual conversion when provided accuracy benchmarks."},
-        ],
-        "sources": ["Fin Perception Analysis", "AI Accuracy Benchmark Study", "Pilot Program Engagement Data"],
-    },
-}
-
-DEFAULT_CHAT = {
-    "response": "That's a great question! Based on the simulation data, here's what I can tell you:\n\nThe 72-hour simulation with 200 AI agents produced 12,384 total interactions across Twitter and Reddit platforms. The key themes that emerged were:\n\n1. **ROI-driven messaging outperforms speed messaging** by 3.2x among senior buyer personas\n2. **Healthcare and Fintech require compliance-first positioning** — standard messaging only achieves 12% engagement vs 31% with compliance front-loaded\n3. **Multi-threading (reaching multiple stakeholders)** increases conversion 4.7x\n4. **Optimal cadence is Day 1-3-8-15** instead of the current Day 1-2-4\n\nYou can ask me about specific topics like:\n- Subject line performance\n- Persona-specific engagement patterns\n- Objection handling strategies\n- ROI messaging optimization\n- Email cadence recommendations\n- Fin AI agent positioning\n- Industry-specific approaches (Healthcare, Fintech, etc.)\n\nWhat would you like to dive deeper into?",
-    "tool_calls": [
-        {"name": "panorama_search", "arguments": {"query": "simulation overview and key metrics"}, "result": "72-hour simulation, 200 agents, 12,384 interactions, 847 unique threads, 94.2% statistical confidence. Top finding: segment-specific messaging improves engagement 35-45%."},
-    ],
-    "sources": ["Full Simulation Report", "Executive Summary", "Cross-Section Analysis"],
-}
-
-
-_REPORT_CHAT_SYSTEM = """You are MiroFish, an AI research analyst for Intercom's GTM team.
-
-You have access to results from a completed swarm intelligence simulation:
-- 200 AI agents representing buyer personas across SaaS, Healthcare, Fintech, and E-commerce
-- 72-hour simulation, 144 rounds, running on Twitter and Reddit platforms
-- Outbound campaign targeting mid-market companies currently using Zendesk
-
-Key findings you should reference:
-- VP of Support personas showed 3.2x higher engagement with ROI-driven messaging vs speed-to-value messaging
-- "Your Zendesk bill is 3x what it should be" achieved 34.7% open rate but 8.2% spam flag rate in Healthcare
-- Healthcare and Fintech require compliance-first messaging (12% engagement without vs 31% with)
-- Optimal email cadence is Day 1-3-8-15 (not Day 1-2-4)
-- Fin AI agent 50% resolution rate was the single most persuasive data point (referenced in 67% of positive signals)
-- Multi-threading (3+ personas at same company) increases meeting booking 4.7x
-- 12,384 total interactions, 847 unique threads, 94.2% statistical confidence
-- Subject line "How [Company] cut support costs 40% with AI" is the safest universal option (31.2% open, 2.1% spam)
-- "Replace Zendesk in 30 days" had 24.3% open rate but 11.7% spam flag — worst performer
-- Data-driven tone outperformed casual tone by 18% among VP/Director personas
-- Medium emails (100-200 words) optimal length; short emails have lowest meeting conversion
-- Skeptical Evaluators (19% of agents) have the HIGHEST eventual meeting rate (34%) when objections are addressed
-- Top objection: "We just renewed our Zendesk contract" (34% of negative responses)
-- 8 "influencer" agents (4% of population) generated 34% of positive sentiment cascades
-
-Respond with data-backed insights. Use markdown formatting.
-Reference specific metrics and percentages from the simulation data.
-Keep responses focused and actionable. If asked about something not in the simulation data, say so honestly."""
-
-
-@app.route("/api/report/chat", methods=["POST"])
-def report_chat():
-    body = request.get_json(silent=True) or {}
-    question = (body.get("message") or body.get("question") or "")
-    chat_history = body.get("chat_history") or []
-
-    # Try LLM first
-    llm_messages = [{"role": "system", "content": _REPORT_CHAT_SYSTEM}]
-    for msg in chat_history:
-        if msg.get("role") in ("user", "assistant"):
-            llm_messages.append({"role": msg["role"], "content": msg["content"]})
-    llm_messages.append({"role": "user", "content": question})
-
-    llm_response = chat_completion(llm_messages, max_tokens=2048)
-
-    if llm_response:
-        return _ok({
-            "response": llm_response,
-            "tool_calls": [
-                {"name": "insight_forge", "arguments": {"query": question[:100]}, "result": "Analyzed simulation data with LLM."},
+_ORG_TREE = {
+    "id": "ceo-1",
+    "name": "Sarah Chen",
+    "title": "CEO",
+    "children": [
+        {
+            "id": "vp-sales",
+            "name": "Marcus Rivera",
+            "title": "VP Sales",
+            "children": [
+                {"id": "sales-1", "name": "Jake Thornton", "title": "Enterprise AE"},
+                {"id": "sales-2", "name": "Priya Nair", "title": "Mid-Market AE"},
+                {"id": "sales-3", "name": "Tom Liu", "title": "SDR Lead"},
             ],
-            "sources": ["Simulation Report", "Agent Engagement Data", "LLM Analysis"],
-        })
-
-    # Fallback: keyword matching
-    q_lower = question.lower()
-    matched = None
-    for keyword, response_data in CHAT_RESPONSES.items():
-        if keyword in q_lower:
-            matched = response_data
-            break
-
-    if not matched:
-        matched = DEFAULT_CHAT
-
-    return _ok(matched)
-
-
-# ---------------------------------------------------------------------------
-# Settings API
-# ---------------------------------------------------------------------------
-
-@app.route("/api/settings/test-llm", methods=["POST"])
-def test_llm():
-    return jsonify({
-        "ok": True,
-        "model": "claude-sonnet-4-20250514",
-        "message": "Demo mode — connection simulated",
-    })
-
-
-@app.route("/api/settings/test-zep", methods=["POST"])
-def test_zep():
-    return jsonify({
-        "ok": True,
-        "message": "Demo mode — connection simulated",
-    })
-
-
-@app.route("/api/settings/auth-status")
-def auth_status():
-    return jsonify({"authEnabled": False})
-
-
-# ---------------------------------------------------------------------------
-# Graph project stubs (called by frontend graphApi module)
-# ---------------------------------------------------------------------------
-
-@app.route("/api/graph/project/<project_id>")
-def graph_project(project_id):
-    return _ok({"project_id": project_id, "name": "Demo Project", "status": "active"})
-
-
-@app.route("/api/graph/project/list")
-def graph_project_list():
-    return _ok({"projects": []})
-
-
-@app.route("/api/graph/project/<project_id>", methods=["DELETE"])
-def graph_project_delete(project_id):
-    return _ok({"deleted": True})
-
-
-@app.route("/api/graph/project/<project_id>/reset", methods=["POST"])
-def graph_project_reset(project_id):
-    return _ok({"reset": True})
-
-
-@app.route("/api/graph/ontology/generate", methods=["POST"])
-def graph_ontology_generate():
-    return _ok({"ontology": "demo-ontology"})
-
-
-@app.route("/api/graph/tasks")
-def graph_tasks():
-    return _ok({"tasks": []})
-
-
-@app.route("/api/graph/delete/<graph_id>", methods=["DELETE"])
-def graph_delete(graph_id):
-    return _ok({"deleted": True})
-
-
-# ---------------------------------------------------------------------------
-# Simulation stubs (additional endpoints from frontend API module)
-# ---------------------------------------------------------------------------
-
-@app.route("/api/simulation/entities/<graph_id>/<entity_uuid>")
-def sim_entity(graph_id, entity_uuid):
-    return _ok({"uuid": entity_uuid, "name": "Demo Entity"})
-
-
-@app.route("/api/simulation/entities/<graph_id>/by-type/<entity_type>")
-def sim_entities_by_type(graph_id, entity_type):
-    return _ok({"entities": []})
-
-
-@app.route("/api/simulation/prepare/status", methods=["POST"])
-def sim_prepare_status():
-    return _ok({"status": "prepared"})
-
-
-@app.route("/api/simulation/stop", methods=["POST"])
-def sim_stop():
-    return _ok({"status": "stopped"})
-
-
-@app.route("/api/simulation/<sim_id>/profiles")
-def sim_profiles(sim_id):
-    return _ok({"profiles": []})
-
-
-@app.route("/api/simulation/<sim_id>/profiles/realtime")
-def sim_profiles_realtime(sim_id):
-    return _ok({"profiles": []})
-
-
-@app.route("/api/simulation/<sim_id>/config")
-def sim_config(sim_id):
-    return _ok({"config": {"total_hours": 72, "minutes_per_round": 30, "platform_mode": "parallel"}})
-
-
-@app.route("/api/simulation/<sim_id>/config/realtime")
-def sim_config_realtime(sim_id):
-    return _ok({"config": {}})
-
-
-@app.route("/api/simulation/<sim_id>/config/download")
-def sim_config_download(sim_id):
-    return Response("{}", mimetype="application/json", headers={"Content-Disposition": "attachment; filename=config.json"})
-
-
-@app.route("/api/simulation/script/<script_name>/download")
-def sim_script_download(script_name):
-    return Response("", mimetype="text/plain", headers={"Content-Disposition": f"attachment; filename={script_name}"})
-
-
-@app.route("/api/simulation/generate-profiles", methods=["POST"])
-def sim_generate_profiles():
-    return _ok({"profiles": []})
-
-
-_INTERVIEW_RESPONSES = {
-    "messaging": "The subject line 'Your Zendesk bill is 3x what it should be' caught my attention immediately — it called out a real pain point. However, the 'Replace Zendesk in 30 days' variant felt too aggressive. I'd respond better to messaging that positions Intercom as a complement or upgrade rather than a rip-and-replace.",
-    "pricing": "Cost is a real factor for our team. We're spending $12K/month on Zendesk and the 40% savings claim is compelling. But I need to see a detailed TCO comparison that includes migration costs, training time, and the first 6 months of potential productivity loss.",
-    "competition": "We evaluated Freshdesk last quarter and it didn't meet our needs on the AI front. Intercom's Fin agent is genuinely differentiated — the intent understanding is impressive. My concern is whether it handles our edge cases as well as the demo suggests.",
-    "objection": "My biggest concern is migration risk. We have 3 years of customer data, 200+ macros, and custom integrations built on Zendesk's API. I need a clear migration playbook with timelines before I can advocate for a switch internally.",
-    "engagement": "I engaged mostly on Twitter because that's where I follow industry conversations. I shared the ROI-focused content with my team because those numbers were specific enough to be credible. The generic 'AI is the future' posts didn't resonate — I need concrete evidence.",
-    "recommendation": "If I were advising Intercom's GTM team: lead with the cost angle for execs like me, but make sure the technical documentation is solid for our IT team. We won't make a decision without IT sign-off, and they'll dig deep into the API docs.",
-}
-
-_INTERVIEW_KEYWORD_MAP = {
-    "messaging": ["messag", "subject", "copy", "email", "content", "campaign"],
-    "pricing": ["pric", "cost", "budget", "spend", "tco", "roi", "money", "savings"],
-    "competition": ["compet", "zendesk", "freshdesk", "rival", "alternative", "versus", "vs"],
-    "objection": ["objection", "concern", "risk", "worry", "block", "hesitat", "migrat"],
-    "engagement": ["engage", "interact", "action", "click", "share", "platform", "twitter", "reddit"],
-    "recommendation": ["recommend", "advice", "suggest", "improv", "next step", "gtm"],
+        },
+        {
+            "id": "vp-marketing",
+            "name": "Aisha Patel",
+            "title": "VP Marketing",
+            "children": [
+                {"id": "mktg-1", "name": "Dylan Park", "title": "Demand Gen"},
+                {"id": "mktg-2", "name": "Nina Costa", "title": "Product Marketing"},
+                {"id": "mktg-3", "name": "Eli Russo", "title": "Content Lead"},
+            ],
+        },
+        {
+            "id": "vp-cs",
+            "name": "David Kim",
+            "title": "VP Customer Success",
+            "children": [
+                {"id": "cs-1", "name": "Maria Lopez", "title": "Enterprise CSM"},
+                {"id": "cs-2", "name": "Sam Okafor", "title": "Mid-Market CSM"},
+                {"id": "cs-3", "name": "Jess Wang", "title": "Support Lead"},
+            ],
+        },
+        {
+            "id": "vp-product",
+            "name": "Rachel Stein",
+            "title": "VP Product",
+            "children": [
+                {"id": "prod-1", "name": "Arjun Mehta", "title": "PM — Platform"},
+                {"id": "prod-2", "name": "Lucy Tran", "title": "PM — AI/ML"},
+                {"id": "prod-3", "name": "Chris Novak", "title": "UX Lead"},
+            ],
+        },
+    ],
 }
 
 
-def _interview_keyword_fallback(question, agent_role):
-    q = question.lower()
-    for key, keywords in _INTERVIEW_KEYWORD_MAP.items():
-        if any(kw in q for kw in keywords):
-            return _INTERVIEW_RESPONSES[key]
-    return (
-        f"That's a great question. From my perspective as {agent_role or 'a stakeholder'}, "
-        "the key factor in any vendor decision is whether the solution genuinely solves a "
-        "pain point we have today. I saw some compelling data in the simulation, particularly "
-        "around cost efficiency and AI-first resolution. I'd want to see a pilot program "
-        "before committing to anything."
-    )
+def _build_org_flows(time_point):
+    """Generate deterministic information flow edges for a given time point."""
+    rng = random.Random(42 + time_point)
+
+    flow_templates = [
+        # Reports flowing UP
+        {"source": "sales-1", "target": "vp-sales", "type": "data", "label": "Pipeline report", "direction": "up"},
+        {"source": "sales-2", "target": "vp-sales", "type": "data", "label": "Deal forecast", "direction": "up"},
+        {"source": "sales-3", "target": "vp-sales", "type": "data", "label": "SDR metrics", "direction": "up"},
+        {"source": "mktg-1", "target": "vp-marketing", "type": "data", "label": "Campaign results", "direction": "up"},
+        {"source": "mktg-2", "target": "vp-marketing", "type": "data", "label": "Win/loss analysis", "direction": "up"},
+        {"source": "cs-1", "target": "vp-cs", "type": "feedback", "label": "Customer health", "direction": "up"},
+        {"source": "cs-2", "target": "vp-cs", "type": "feedback", "label": "Churn risk alert", "direction": "up"},
+        {"source": "cs-3", "target": "vp-cs", "type": "feedback", "label": "Support tickets", "direction": "up"},
+        {"source": "prod-1", "target": "vp-product", "type": "data", "label": "Sprint velocity", "direction": "up"},
+        {"source": "prod-2", "target": "vp-product", "type": "data", "label": "AI model accuracy", "direction": "up"},
+        {"source": "vp-sales", "target": "ceo-1", "type": "data", "label": "Revenue update", "direction": "up"},
+        {"source": "vp-marketing", "target": "ceo-1", "type": "data", "label": "MQL pipeline", "direction": "up"},
+        {"source": "vp-cs", "target": "ceo-1", "type": "feedback", "label": "NPS trends", "direction": "up"},
+        {"source": "vp-product", "target": "ceo-1", "type": "data", "label": "Roadmap status", "direction": "up"},
+        # Directives flowing DOWN
+        {"source": "ceo-1", "target": "vp-sales", "type": "decision", "label": "Q3 targets", "direction": "down"},
+        {"source": "ceo-1", "target": "vp-marketing", "type": "decision", "label": "Budget realloc", "direction": "down"},
+        {"source": "ceo-1", "target": "vp-product", "type": "decision", "label": "Priority shift", "direction": "down"},
+        {"source": "vp-sales", "target": "sales-1", "type": "decision", "label": "Account focus", "direction": "down"},
+        {"source": "vp-marketing", "target": "mktg-1", "type": "decision", "label": "Campaign brief", "direction": "down"},
+        {"source": "vp-cs", "target": "cs-1", "type": "decision", "label": "Escalation plan", "direction": "down"},
+        {"source": "vp-product", "target": "prod-2", "type": "decision", "label": "AI roadmap", "direction": "down"},
+        # Cross-team HORIZONTAL collaboration
+        {"source": "vp-sales", "target": "vp-marketing", "type": "data", "label": "Lead quality", "direction": "horizontal"},
+        {"source": "vp-marketing", "target": "vp-sales", "type": "data", "label": "Content assets", "direction": "horizontal"},
+        {"source": "vp-cs", "target": "vp-product", "type": "feedback", "label": "Feature requests", "direction": "horizontal"},
+        {"source": "vp-product", "target": "vp-cs", "type": "data", "label": "Release notes", "direction": "horizontal"},
+        {"source": "vp-sales", "target": "vp-cs", "type": "data", "label": "Deal handoff", "direction": "horizontal"},
+        {"source": "mktg-2", "target": "sales-1", "type": "data", "label": "Battle cards", "direction": "horizontal"},
+        {"source": "cs-1", "target": "prod-1", "type": "feedback", "label": "Bug report", "direction": "horizontal"},
+    ]
+
+    active = [f for f in flow_templates if rng.random() < 0.6 + 0.05 * time_point]
+    for f in active:
+        f["volume"] = rng.randint(1, 10)
+
+    # Bottleneck detection: nodes receiving > threshold inbound flows
+    inbound_counts = {}
+    for f in active:
+        inbound_counts[f["target"]] = inbound_counts.get(f["target"], 0) + f["volume"]
+    bottleneck_threshold = 15
+    bottlenecks = [nid for nid, vol in inbound_counts.items() if vol >= bottleneck_threshold]
+
+    return active, bottlenecks
+
+
+@app.route("/api/v1/org-chart")
+def org_chart():
+    """Return org hierarchy tree, information flows, and bottleneck data."""
+    time_point = request.args.get("time", 0, type=int)
+    time_point = max(0, min(time_point, 10))
+    flows, bottlenecks = _build_org_flows(time_point)
+    return _ok({
+        "tree": _ORG_TREE,
+        "flows": flows,
+        "bottlenecks": bottlenecks,
+        "time_points": 11,
+    })
 
 
 def _build_persona_traits(role):
@@ -1446,6 +1429,152 @@ def sim_close_env():
 
 
 # ---------------------------------------------------------------------------
+# Analytics — anomaly detection (demo data)
+# ---------------------------------------------------------------------------
+
+_METRIC_DEFS = {
+    "revenue": {
+        "label": "Revenue",
+        "metrics": [
+            {"key": "mrr", "label": "MRR", "unit": "$", "baseline": 125000, "noise": 3000},
+            {"key": "arr", "label": "ARR", "unit": "$", "baseline": 1500000, "noise": 25000},
+            {"key": "expansion_revenue", "label": "Expansion Revenue", "unit": "$", "baseline": 18000, "noise": 4000},
+            {"key": "churn_revenue", "label": "Churn Revenue", "unit": "$", "baseline": 8000, "noise": 2000},
+        ],
+    },
+    "pipeline": {
+        "label": "Pipeline",
+        "metrics": [
+            {"key": "deal_velocity", "label": "Deal Velocity", "unit": "days", "baseline": 32, "noise": 4},
+            {"key": "conversion_rate", "label": "Conversion Rate", "unit": "%", "baseline": 24, "noise": 3},
+            {"key": "new_opps", "label": "New Opportunities", "unit": "", "baseline": 85, "noise": 12},
+            {"key": "pipeline_value", "label": "Pipeline Value", "unit": "$", "baseline": 450000, "noise": 45000},
+        ],
+    },
+    "sync": {
+        "label": "Data Sync",
+        "metrics": [
+            {"key": "sync_success_rate", "label": "Sync Success Rate", "unit": "%", "baseline": 98.5, "noise": 0.8},
+            {"key": "sync_latency", "label": "Sync Latency", "unit": "ms", "baseline": 240, "noise": 50},
+            {"key": "records_synced", "label": "Records Synced", "unit": "", "baseline": 15000, "noise": 2000},
+        ],
+    },
+    "billing": {
+        "label": "Billing",
+        "metrics": [
+            {"key": "payment_failure_rate", "label": "Payment Failure Rate", "unit": "%", "baseline": 2.1, "noise": 0.6},
+            {"key": "invoice_count", "label": "Invoices Sent", "unit": "", "baseline": 320, "noise": 30},
+            {"key": "overdue_amount", "label": "Overdue Amount", "unit": "$", "baseline": 12000, "noise": 3500},
+        ],
+    },
+}
+
+
+def _generate_anomaly_data(days=90, cat_filter=None, sev_filter=None):
+    """Generate deterministic anomaly detection data for demo mode."""
+    import hashlib
+    from datetime import datetime, timedelta
+
+    today = datetime.utcnow().date()
+    seed_base = int(hashlib.md5(today.isoformat().encode()).hexdigest()[:8], 16)
+
+    all_anomalies = []
+    heatmap = {}
+    timeseries = {}
+
+    for cat_key, cat_def in _METRIC_DEFS.items():
+        if cat_filter and cat_key != cat_filter:
+            continue
+        heatmap[cat_key] = {}
+        for mdef in cat_def["metrics"]:
+            rng = random.Random(seed_base + hash(mdef["key"]))
+            baseline = mdef["baseline"]
+            noise = mdef["noise"]
+            start = today - timedelta(days=days - 1)
+
+            num_anomalies = rng.randint(3, 5)
+            anomaly_days = sorted(rng.sample(range(5, days - 2), num_anomalies))
+
+            values = []
+            for i in range(days):
+                date = start + timedelta(days=i)
+                trend = baseline * 0.0005 * i
+                val = baseline + trend + rng.gauss(0, noise)
+                if i in anomaly_days:
+                    direction = rng.choice([-1, 1])
+                    magnitude = rng.uniform(3.0, 5.5) * noise
+                    val += direction * magnitude
+                values.append({"date": date.isoformat(), "value": round(val, 2)})
+
+            timeseries[mdef["key"]] = values
+
+            # Z-score anomaly detection
+            nums = [v["value"] for v in values]
+            mean = sum(nums) / len(nums)
+            variance = sum((x - mean) ** 2 for x in nums) / len(nums)
+            std = math.sqrt(variance) if variance > 0 else 1.0
+
+            heatmap_row = []
+            for v in values:
+                z = (v["value"] - mean) / std
+                heatmap_row.append({"date": v["date"], "z_score": round(z, 2)})
+                if abs(z) >= 2.0:
+                    dev_pct = ((v["value"] - mean) / mean) * 100 if mean != 0 else 0
+                    severity = "critical" if abs(z) >= 4.0 else "high" if abs(z) >= 3.0 else "medium"
+                    if sev_filter and severity != sev_filter:
+                        continue
+                    all_anomalies.append({
+                        "id": f"{mdef['key']}_{v['date']}",
+                        "category": cat_key,
+                        "metric": mdef["key"],
+                        "metric_label": mdef["label"],
+                        "date": v["date"],
+                        "expected": round(mean, 2),
+                        "actual": v["value"],
+                        "deviation": round(dev_pct, 1),
+                        "z_score": round(z, 2),
+                        "severity": severity,
+                        "direction": "spike" if z > 0 else "drop",
+                    })
+
+            heatmap[cat_key][mdef["key"]] = heatmap_row
+
+    all_anomalies.sort(key=lambda a: abs(a["z_score"]), reverse=True)
+
+    summary = {
+        "total": len(all_anomalies),
+        "critical": sum(1 for a in all_anomalies if a["severity"] == "critical"),
+        "high": sum(1 for a in all_anomalies if a["severity"] == "high"),
+        "medium": sum(1 for a in all_anomalies if a["severity"] == "medium"),
+        "by_category": {},
+    }
+    for cat_key in _METRIC_DEFS:
+        summary["by_category"][cat_key] = sum(
+            1 for a in all_anomalies if a["category"] == cat_key
+        )
+
+    return {
+        "anomalies": all_anomalies,
+        "heatmap": heatmap,
+        "timeseries": timeseries,
+        "summary": summary,
+        "meta": {
+            "days": days,
+            "threshold": 2.0,
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+        },
+    }
+
+
+@app.route("/api/v1/analytics/anomalies")
+def analytics_anomalies():
+    days = min(request.args.get("days", 90, type=int), 365)
+    cat_filter = request.args.get("category")
+    sev_filter = request.args.get("severity")
+    return _ok(_generate_anomaly_data(days, cat_filter, sev_filter))
+
+
+# ---------------------------------------------------------------------------
 # Auth stubs
 # ---------------------------------------------------------------------------
 
@@ -1457,6 +1586,178 @@ def auth_logout():
 # ---------------------------------------------------------------------------
 # Demo Speed Control
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Activity Feed
+# ---------------------------------------------------------------------------
+
+from app.services.activity_feed import ActivityFeedService
+
+
+@app.route("/api/activity")
+def activity_feed():
+    limit = request.args.get("limit", 20, type=int)
+    limit = max(1, min(limit, 100))
+
+    types_param = request.args.get("types", "")
+    types = [t.strip() for t in types_param.split(",") if t.strip()] or None
+
+    since = request.args.get("since")
+
+    items = ActivityFeedService.get_recent(limit=limit, types=types, since=since)
+    return _ok({"items": items, "count": len(items)})
+
+
+# ---------------------------------------------------------------------------
+# Relationship network evolution
+# ---------------------------------------------------------------------------
+
+_RELATIONSHIP_AGENTS = [
+    {"id": "a0", "name": "Sarah Chen", "role": "VP Support", "company": "Acme SaaS", "group": "support"},
+    {"id": "a1", "name": "Marcus Johnson", "role": "CX Director", "company": "MedFirst", "group": "cx"},
+    {"id": "a2", "name": "Priya Patel", "role": "Head of Ops", "company": "PayStream", "group": "ops"},
+    {"id": "a3", "name": "David Kim", "role": "IT Leader", "company": "ShopNova", "group": "it"},
+    {"id": "a4", "name": "Rachel Torres", "role": "VP Support", "company": "CloudOps", "group": "support"},
+    {"id": "a5", "name": "James Wright", "role": "CX Director", "company": "Retail Plus", "group": "cx"},
+    {"id": "a6", "name": "Anika Sharma", "role": "Support Eng Lead", "company": "DevStack", "group": "support"},
+    {"id": "a7", "name": "Tom O'Brien", "role": "VP CS", "company": "GrowthLoop", "group": "cx"},
+    {"id": "a8", "name": "Elena Vasquez", "role": "Dir Digital", "company": "HealthBridge", "group": "ops"},
+    {"id": "a9", "name": "Michael Chang", "role": "Head of Ops", "company": "FinEdge", "group": "ops"},
+    {"id": "a10", "name": "Lisa Park", "role": "VP CX", "company": "TravelNow", "group": "cx"},
+    {"id": "a11", "name": "Sofia Martinez", "role": "Support Mgr", "company": "QuickShip", "group": "support"},
+    {"id": "a12", "name": "Nathan Lee", "role": "CTO", "company": "DataPulse", "group": "it"},
+    {"id": "a13", "name": "Catherine Hayes", "role": "CFO", "company": "ScaleUp Corp", "group": "finance"},
+    {"id": "a14", "name": "Robert Williams", "role": "IT Director", "company": "EduSpark", "group": "it"},
+]
+
+# Predefined relationship seeds: (source_idx, target_idx, initial_affinity, drift_direction)
+# drift_direction: 1 = grows positive, -1 = grows negative, 0 = stays near initial
+_RELATIONSHIP_SEEDS = [
+    (0, 4, 0.3, 1), (0, 6, 0.1, 1), (0, 11, 0.2, 1),    # Support cluster
+    (1, 5, 0.2, 1), (1, 7, 0.1, 1), (1, 10, 0.3, 1),     # CX cluster
+    (2, 8, 0.2, 1), (2, 9, 0.3, 1),                        # Ops cluster
+    (3, 12, 0.4, 1), (3, 14, 0.3, 1), (12, 14, 0.2, 1),   # IT cluster
+    (0, 1, 0.0, 1), (4, 5, -0.1, -1),                      # Cross-cluster
+    (6, 12, 0.0, 1), (7, 8, 0.1, 1),                       # Bridge links
+    (2, 13, -0.1, -1), (9, 13, -0.2, -1),                  # Finance tension
+    (0, 3, 0.0, 0), (1, 2, 0.0, 0),                        # Neutral links
+    (5, 9, 0.0, -1), (10, 14, 0.1, 1),                     # Mixed
+    (11, 7, 0.0, 1), (6, 5, -0.1, 0),                      # Late emergers
+    (8, 14, 0.0, 1), (4, 13, 0.0, -1),                     # More cross-cluster
+]
+
+_INTERACTION_TEMPLATES = [
+    "Shared insights on AI resolution rates",
+    "Debated cost-per-ticket metrics",
+    "Agreed on pilot deployment strategy",
+    "Disagreed on vendor evaluation criteria",
+    "Collaborated on ROI analysis",
+    "Exchanged knowledge base best practices",
+    "Discussed integration requirements",
+    "Aligned on customer satisfaction goals",
+    "Conflicted over budget allocation priorities",
+    "Co-evaluated competitive alternatives",
+]
+
+
+def _compute_relationship_snapshots():
+    """Generate relationship state for each round bucket (every 6 rounds)."""
+    rng = random.Random(7777)
+    bucket_size = 6
+    num_buckets = TOTAL_ROUNDS // bucket_size  # 24 buckets
+
+    snapshots = []
+    for bucket in range(num_buckets):
+        round_num = (bucket + 1) * bucket_size
+        progress = round_num / TOTAL_ROUNDS  # 0.0 to 1.0
+        edges = []
+
+        for src, tgt, initial, drift in _RELATIONSHIP_SEEDS:
+            # Edges appear progressively — not all visible from round 1
+            appear_bucket = rng.randint(0, max(0, num_buckets // 3))
+            if bucket < appear_bucket:
+                continue
+
+            time_factor = (bucket - appear_bucket) / max(1, num_buckets - appear_bucket)
+            noise = rng.gauss(0, 0.05)
+            affinity = initial + drift * time_factor * 0.6 + noise
+            affinity = max(-1.0, min(1.0, round(affinity, 3)))
+            strength = min(1.0, round(0.1 + time_factor * 0.7 + abs(affinity) * 0.2, 3))
+
+            edges.append({
+                "source": _RELATIONSHIP_AGENTS[src]["id"],
+                "target": _RELATIONSHIP_AGENTS[tgt]["id"],
+                "affinity": affinity,
+                "strength": strength,
+            })
+
+        # Detect alliances: groups with all pairwise affinity > 0.2
+        alliances = []
+        groups = {"support": [], "cx": [], "ops": [], "it": [], "finance": []}
+        for agent in _RELATIONSHIP_AGENTS:
+            groups[agent["group"]].append(agent["id"])
+
+        edge_map = {}
+        for e in edges:
+            edge_map[(e["source"], e["target"])] = e["affinity"]
+            edge_map[(e["target"], e["source"])] = e["affinity"]
+
+        for group_name, members in groups.items():
+            if len(members) < 2:
+                continue
+            avg_aff = 0
+            count = 0
+            for i, a in enumerate(members):
+                for b in members[i + 1:]:
+                    if (a, b) in edge_map:
+                        avg_aff += edge_map[(a, b)]
+                        count += 1
+            if count > 0 and avg_aff / count > 0.15:
+                alliances.append({"members": members, "label": group_name})
+
+        # Detect conflicts: edges with affinity < -0.15
+        conflicts = [
+            {"agents": [e["source"], e["target"]], "intensity": round(abs(e["affinity"]), 2)}
+            for e in edges if e["affinity"] < -0.15
+        ]
+
+        snapshots.append({
+            "round": round_num,
+            "edges": edges,
+            "alliances": alliances,
+            "conflicts": conflicts,
+        })
+
+    return snapshots
+
+
+@app.route("/api/simulation/<sim_id>/relationships")
+def sim_relationships(sim_id):
+    if sim_id not in _simulations:
+        _simulations[sim_id] = {"start": time.time()}
+
+    snapshots = _compute_relationship_snapshots()
+
+    # Build per-edge history for the side panel
+    edge_history = {}
+    rng = random.Random(8888)
+    for snap in snapshots:
+        for e in snap["edges"]:
+            key = f"{e['source']}-{e['target']}"
+            if key not in edge_history:
+                edge_history[key] = []
+            edge_history[key].append({
+                "round": snap["round"],
+                "affinity": e["affinity"],
+                "interaction": rng.choice(_INTERACTION_TEMPLATES),
+            })
+
+    return _ok({
+        "nodes": _RELATIONSHIP_AGENTS,
+        "snapshots": snapshots,
+        "edge_history": edge_history,
+    })
+
 
 @app.route("/api/demo/speed", methods=["GET", "POST"])
 def demo_speed():
@@ -1504,5 +1805,16 @@ def demo_reset():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+
+    if is_demo_preset_enabled():
+        # Auto-load preset so the app starts with curated data ready to go
+        sim = get_preset_simulation()
+        rpt = get_preset_report()
+        _simulations[sim["simulation_id"]] = {"start": 0}
+        _graph_tasks["demo-graph-preset"] = {"start": 0}
+        _reports[rpt["report_id"]] = {"start": 0, "sim_id": sim["simulation_id"]}
+        _preset_loaded = True
+        print(f"Demo preset loaded: sim={sim['simulation_id']}, report={rpt['report_id']}")
+
     print(f"MiroFish Demo Backend starting on port {port} (demo mode)")
     app.run(host="0.0.0.0", port=port, debug=debug)

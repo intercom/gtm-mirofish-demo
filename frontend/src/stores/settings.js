@@ -1,6 +1,6 @@
 import { ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { API_BASE } from '../api/client'
+import { useServiceStatus } from '../composables/useServiceStatus'
 
 const STORAGE_KEY = 'mirofish-settings'
 
@@ -14,6 +14,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const provider = ref('anthropic')
   const apiKey = ref('')
   const zepKey = ref('')
+  const statusBarEnabled = ref(false)
+  const showPresence = ref(true)
   const connectionStatus = ref({ llm: null, zep: null })
 
   function load() {
@@ -24,6 +26,8 @@ export const useSettingsStore = defineStore('settings', () => {
         provider.value = s.provider || 'anthropic'
         apiKey.value = s.apiKey || ''
         zepKey.value = s.zepKey || ''
+        statusBarEnabled.value = !!s.statusBarEnabled
+        showPresence.value = s.showPresence !== false
       }
     } catch {
       // Corrupted data — reset to defaults
@@ -35,19 +39,27 @@ export const useSettingsStore = defineStore('settings', () => {
       provider: provider.value,
       apiKey: apiKey.value,
       zepKey: zepKey.value,
+      statusBarEnabled: statusBarEnabled.value,
+      showPresence: showPresence.value,
     }))
   }
 
   // Auto-persist on changes
-  watch([provider, apiKey, zepKey], save, { flush: 'post' })
+  watch([provider, apiKey, zepKey, statusBarEnabled, showPresence], save, { flush: 'post' })
 
   async function testConnection(service) {
+    if (!navigator.onLine) {
+      connectionStatus.value[service] = 'offline'
+      return
+    }
     connectionStatus.value[service] = 'testing'
     try {
-      const res = await fetch(`${API_BASE}/health`)
-      connectionStatus.value[service] = res.ok ? 'success' : 'error'
+      const { services, check } = useServiceStatus()
+      await check()
+      const result = services.value[service]
+      connectionStatus.value[service] = result?.status === 'ok' ? 'success' : 'error'
     } catch {
-      connectionStatus.value[service] = 'error'
+      connectionStatus.value[service] = navigator.onLine ? 'error' : 'offline'
     }
   }
 
@@ -58,6 +70,8 @@ export const useSettingsStore = defineStore('settings', () => {
     provider,
     apiKey,
     zepKey,
+    statusBarEnabled,
+    showPresence,
     connectionStatus,
     providers: PROVIDERS,
     load,

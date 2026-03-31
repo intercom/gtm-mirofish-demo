@@ -1,0 +1,33 @@
+{
+  "id": "churn_prevention_war_room",
+  "name": "Churn Prevention War Room",
+  "description": "CS, Sales, and Product convene to address a spike in mid-market churn, simulating retention interventions across at-risk accounts.",
+  "category": "retention",
+  "icon": "alert-triangle",
+  "seed_text": "Intercom's mid-market segment (200-2000 employees) has seen churn spike from 4.2% to 7.8% over the past two quarters. The CS team has flagged 47 accounts ($3.6M ARR) as 'red' health score, up from 18 accounts at the same point last year.\n\nPattern analysis from the churned accounts reveals:\n- 62% cited 'not using enough of the platform to justify cost' — they purchased Intercom for live chat but never adopted Fin, Outbound, or Product Tours\n- 23% switched to competitors (Freshdesk 14%, Zendesk 6%, HubSpot Service 3%) primarily on price\n- 15% were acquired, downsized, or went through budget cuts\n\nLeading indicators that preceded churn (identified by data science):\n1. Monthly active seat usage dropping below 40% of purchased seats (strongest signal, 3.2x churn risk)\n2. No Fin AI enablement 90 days post-purchase (2.8x risk)\n3. Zero proactive outbound messages sent in 60 days (2.1x risk)\n4. Support ticket to Intercom with unresolved billing complaint (1.9x risk)\n5. Champion role change or departure (1.7x risk)\n\nCurrent retention playbook:\n- Health score alerts trigger CSM outreach, but CSMs have 85 accounts each (industry avg is 50)\n- Renewal conversations start 90 days out, but 60% of churned accounts had already mentally decided by then\n- No systematic 'value realization' program exists — onboarding ends at 30 days with no follow-up\n\nThe simulation should model different retention intervention strategies, predict which accounts are saveable, and identify the minimum viable retention program that could bring churn back below 5%.",
+  "agent_config": {
+    "count": 200,
+    "persona_types": ["Customer Success Manager", "VP of Customer Success", "Product Manager", "Account Executive", "Support Operations Lead"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Fintech", "E-commerce", "Healthcare"],
+      "company_sizes": ["200-500", "500-1000", "1000-2000"],
+      "regions": ["North America", "EMEA"],
+      "segments": ["Mid-Market"],
+      "tenure": ["6-12 months", "12-24 months", "24+ months"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 48,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Account-level save probability ranking",
+    "Retention intervention ROI by strategy type",
+    "Optimal CSM-to-account ratio recommendation",
+    "Value realization program design recommendations",
+    "Early warning signal effectiveness ranking",
+    "Churn rate reduction forecast per intervention",
+    "Competitive win-back feasibility assessment"
+  ]
+}

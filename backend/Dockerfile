@@ -1,8 +1,22 @@
 FROM python:3.11-slim
+
 WORKDIR /app
-RUN pip install flask flask-cors python-dotenv anthropic openai
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app/ ./app/
+COPY scripts/ ./scripts/
 COPY gtm_scenarios/ ./gtm_scenarios/
+COPY gtm_seed_data/ ./gtm_seed_data/
 COPY llm_client.py .
 COPY demo_app.py .
+COPY run.py .
+
 ENV PORT=5001
-CMD ["sh", "-c", "python demo_app.py"]
+EXPOSE 5001
+
+STOPSIGNAL SIGTERM
+
+# Exec form ensures Python is PID 1 and receives SIGTERM directly
+CMD ["python", "run.py"]

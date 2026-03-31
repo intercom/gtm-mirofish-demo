@@ -1,10 +1,12 @@
 import { ref, computed, watch, toValue, onUnmounted } from 'vue'
-import client, { API_BASE } from '../api/client'
+import { batchGet } from '../api/batch'
 import { graphApi } from '../api/graph'
 import { useSimulationStore } from '../stores/simulation'
+import { useSimulationSSE } from './useSimulationSSE'
 
 export function useSimulationPolling(taskIdSource) {
   const simStore = useSimulationStore()
+  const sse = useSimulationSSE()
 
   // --- Graph state ---
   const graphTask = ref(null)
@@ -18,6 +20,8 @@ export function useSimulationPolling(taskIdSource) {
   const simStatus = ref('idle') // 'idle' | 'building' | 'running' | 'completed' | 'failed'
   const recentActions = ref([])
   const timeline = ref([])
+  const knowledgeTimeline = ref(null)
+  const branchPoints = ref([])
 
   // --- Error / fallback ---
   const errorMsg = ref('')
@@ -28,6 +32,7 @@ export function useSimulationPolling(taskIdSource) {
   let runStatusTimer = null
   let detailTimer = null
   let timelineTimer = null
+  let knowledgeTimelineTimer = null
 
   // --- Computed ---
   const overallPhase = computed(() => {
@@ -55,7 +60,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await graphApi.getTask(taskId)
+      const res = await batchGet(`/graph/task/${taskId}`)
       const json = res.data
       if (!json.success) {
         errorMsg.value = json.error || 'Unknown error'
@@ -115,7 +120,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await client.get(`/simulation/${taskId}/run-status`)
+      const res = await batchGet(`/simulation/${taskId}/run-status`)
       const json = res.data
       if (!json.success) return
 
@@ -143,6 +148,7 @@ export function useSimulationPolling(taskIdSource) {
           totalActions: json.data.total_actions_count ?? 0,
           twitterActions: json.data.twitter_actions_count ?? 0,
           redditActions: json.data.reddit_actions_count ?? 0,
+          branchCount: branchPoints.value.length,
           status: 'completed',
         })
       } else if (rs === 'failed') {
@@ -168,7 +174,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await client.get(`/simulation/${taskId}/run-status/detail`)
+      const res = await batchGet(`/simulation/${taskId}/run-status/detail`)
       const json = res.data
       if (json.success) {
         recentActions.value = json.data.recent_actions || json.data.all_actions || []
@@ -184,7 +190,7 @@ export function useSimulationPolling(taskIdSource) {
     if (!taskId) return
 
     try {
-      const res = await client.get(`/simulation/${taskId}/timeline`)
+      const res = await batchGet(`/simulation/${taskId}/timeline`)
       const json = res.data
       if (json.success) {
         timeline.value = json.data.timeline || []
@@ -194,8 +200,80 @@ export function useSimulationPolling(taskIdSource) {
     }
   }
 
+  // --- Knowledge timeline polling ---
+  async function fetchKnowledgeTimeline() {
+    const taskId = resolveTaskId()
+    if (!taskId) return
+
+    try {
+      const res = await client.get(`/simulation/${taskId}/knowledge-timeline`)
+      const json = res.data
+      if (json.success) {
+        knowledgeTimeline.value = json.data
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  // --- Branch points (fetched once when simulation completes or on initial load) ---
+  async function fetchBranchPoints() {
+    const taskId = resolveTaskId()
+    if (!taskId) return
+
+    try {
+      const res = await client.get(`/simulation/${taskId}/branch-points`)
+      const json = res.data
+      if (json.success) {
+        branchPoints.value = json.data.branch_points || []
+        simStore.setBranchPoints(json.data)
+      }
+    } catch {
+      // Non-critical — branch points just won't show
+    }
+  }
+
+  // --- SSE bridge ---
+  // When SSE connects, sync its data into our refs and pause redundant polling.
+  // When SSE drops, resume polling automatically.
+  watch(sse.connected, (connected) => {
+    if (connected) {
+      runStatusTimer = clearTimer(runStatusTimer)
+      detailTimer = clearTimer(detailTimer)
+    } else if (simStatus.value === 'running') {
+      if (!runStatusTimer) {
+        runStatusTimer = setInterval(fetchRunStatus, 5000)
+      }
+      ensureDetailPolling()
+    }
+  })
+
+  watch(sse.runStatus, (data) => {
+    if (!data) return
+    runStatus.value = data
+    const rs = data.runner_status
+    if (rs === 'completed' || rs === 'stopped') {
+      simStatus.value = 'completed'
+    } else if (rs === 'failed') {
+      simStatus.value = 'failed'
+      errorMsg.value = data.error || 'Simulation failed'
+    } else if (rs === 'running' || rs === 'starting' || rs === 'paused') {
+      simStatus.value = 'running'
+    }
+  })
+
+  watch(sse.recentActions, (actions) => {
+    if (actions.length > 0) recentActions.value = actions
+  })
+
+  function trySSE() {
+    const taskId = resolveTaskId()
+    if (taskId) sse.connect(taskId)
+  }
+
   // --- Timer management ---
   function ensureDetailPolling() {
+    if (sse.connected.value) return
     if (!detailTimer) {
       fetchDetail()
       detailTimer = setInterval(fetchDetail, 5000)
@@ -204,12 +282,18 @@ export function useSimulationPolling(taskIdSource) {
       fetchTimeline()
       timelineTimer = setInterval(fetchTimeline, 5000)
     }
+    if (!knowledgeTimelineTimer) {
+      fetchKnowledgeTimeline()
+      knowledgeTimelineTimer = setInterval(fetchKnowledgeTimeline, 8000)
+    }
   }
 
   function stopSimTimers() {
     runStatusTimer = clearTimer(runStatusTimer)
     detailTimer = clearTimer(detailTimer)
     timelineTimer = clearTimer(timelineTimer)
+    knowledgeTimelineTimer = clearTimer(knowledgeTimelineTimer)
+    sse.disconnect()
   }
 
   // --- Public methods ---
@@ -217,10 +301,11 @@ export function useSimulationPolling(taskIdSource) {
     stop()
 
     fetchGraphTask()
-    graphTimer = setInterval(fetchGraphTask, 2000)
+    graphTimer = setInterval(fetchGraphTask, 5000)
 
+    trySSE()
     fetchRunStatus()
-    runStatusTimer = setInterval(fetchRunStatus, 3000)
+    runStatusTimer = setInterval(fetchRunStatus, 5000)
   }
 
   function stop() {
@@ -254,6 +339,8 @@ export function useSimulationPolling(taskIdSource) {
       total_actions_count: demoActions,
       twitter_actions_count: twitterShare,
       reddit_actions_count: redditShare,
+      llm_provider: 'anthropic',
+      llm_model: 'claude-sonnet-4-20250514',
     }
     simStatus.value = 'completed'
     stopSimTimers()
@@ -304,19 +391,43 @@ export function useSimulationPolling(taskIdSource) {
       'Reposting — our ops team should see the pricing comparison data.',
       'Support automation has been on our roadmap for Q3. This timeline could work.',
     ]
+    const sampleThoughts = [
+      'The discussion thread has gained traction. My persona is skeptical about migration costs — I should engage with a cost-focused response.',
+      'Several agents have shared positive experiences. As a decision-maker, I should ask for concrete evidence before endorsing.',
+      'This post resonates with my industry vertical. Sharing it with my network would be in character.',
+      'The original poster raised valid concerns about compliance. I should amplify this since my persona works in healthcare.',
+      'Engagement on this thread is high. A supportive reaction aligns with my persona\'s general positivity toward innovation.',
+      'My persona has been quiet this round. A new post about our evaluation timeline would add value to the conversation.',
+      'The sentiment is shifting positive. As a cautious buyer persona, I should introduce a counterpoint about implementation risk.',
+      'This comparison data is exactly what my persona would find valuable. Reposting fits my knowledge-sharing behavior pattern.',
+    ]
+    const sampleObservations = [
+      'Post published successfully. Expected to generate 2-4 follow-up interactions based on thread momentum.',
+      'Reply added to thread with 12 existing responses. Position in thread should get moderate visibility.',
+      'Engagement registered. This increases the post\'s visibility score in the platform algorithm.',
+      'Content shared to followers. Estimated reach: 150-300 impressions based on persona\'s follower count.',
+      'Thread created in subreddit with active discussion. Should attract attention from other agents monitoring this topic.',
+    ]
 
     const demoActionsList = []
     for (let round = 1; round <= demoRounds; round++) {
       const actionsInRound = Math.floor(Math.random() * 8) + 3
       for (let j = 0; j < actionsInRound; j++) {
+        const actionType = actionTypes[Math.floor(Math.random() * actionTypes.length)]
+        const content = sampleContent[Math.floor(Math.random() * sampleContent.length)]
         demoActionsList.push({
           agent_id: Math.floor(Math.random() * agentNames.length),
           agent_name: agentNames[Math.floor(Math.random() * agentNames.length)],
-          action_type: actionTypes[Math.floor(Math.random() * actionTypes.length)],
+          action_type: actionType,
           platform: platforms[Math.floor(Math.random() * platforms.length)],
           round_num: round,
-          action_args: {
-            content: sampleContent[Math.floor(Math.random() * sampleContent.length)],
+          timestamp: new Date(Date.now() - (demoRounds - round) * 60000 + j * 5000).toISOString(),
+          success: true,
+          action_args: { content },
+          reasoning: {
+            thought: sampleThoughts[Math.floor(Math.random() * sampleThoughts.length)],
+            action: `${actionType}${content ? ': "' + content.slice(0, 60) + '..."' : ''}`,
+            observation: sampleObservations[Math.floor(Math.random() * sampleObservations.length)],
           },
         })
       }
@@ -334,10 +445,42 @@ export function useSimulationPolling(taskIdSource) {
       })
     }
     timeline.value = demoTimeline
+
+    // Generate demo branch points
+    const bpRound1 = Math.max(2, Math.floor(demoRounds * 0.3))
+    const demoBranchPoints = [
+      {
+        id: `bp-${bpRound1}`,
+        round: bpRound1,
+        label: 'Messaging pivot',
+        branches: [
+          { id: `b-${bpRound1}a`, label: 'Original messaging', outcome: 'Moderate engagement, 12% reply rate' },
+          { id: `b-${bpRound1}b`, label: 'Empathy-led messaging', outcome: 'Higher trust signals, 18% reply rate' },
+        ],
+      },
+    ]
+    if (demoRounds >= 6) {
+      const bpRound2 = Math.floor(demoRounds * 0.65)
+      demoBranchPoints.push({
+        id: `bp-${bpRound2}`,
+        round: bpRound2,
+        label: 'Competitive response',
+        branches: [
+          { id: `b-${bpRound2}a`, label: 'Ignore competitor mention', outcome: 'Neutral sentiment maintained' },
+          { id: `b-${bpRound2}b`, label: 'Direct comparison response', outcome: 'Polarized reactions, +25% engagement' },
+        ],
+      })
+    }
+    branchPoints.value = demoBranchPoints
+    simStore.setBranchPoints({
+      branch_points: demoBranchPoints,
+      total_branches: demoBranchPoints.reduce((s, bp) => s + bp.branches.length, 0),
+    })
+    simStore.addSessionRun({ id: taskId, branchCount: demoBranchPoints.length })
   }
 
   async function forceRefresh() {
-    const promises = [fetchGraphTask(), fetchRunStatus(), fetchDetail(), fetchTimeline()]
+    const promises = [fetchGraphTask(), fetchRunStatus(), fetchDetail(), fetchTimeline(), fetchBranchPoints()]
     await Promise.allSettled(promises)
   }
 
@@ -346,6 +489,8 @@ export function useSimulationPolling(taskIdSource) {
     if (val === 'completed' || val === 'failed') {
       fetchDetail()
       fetchTimeline()
+      fetchKnowledgeTimeline()
+      fetchBranchPoints()
       stopSimTimers()
     }
   })
@@ -365,11 +510,16 @@ export function useSimulationPolling(taskIdSource) {
     simStatus,
     recentActions,
     timeline,
+    knowledgeTimeline,
+    branchPoints,
 
     // Derived
     overallPhase,
     errorMsg,
     isDemoFallback,
+
+    // SSE state
+    sseConnected: sse.connected,
 
     // Methods
     start,

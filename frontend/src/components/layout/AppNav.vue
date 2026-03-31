@@ -1,29 +1,82 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { VueDraggable } from 'vue-draggable-plus'
+import { useI18n } from 'vue-i18n'
 import { useDemoMode } from '../../composables/useDemoMode'
+import { usePermissions } from '../../composables/usePermissions'
+import { useLanguage } from '../../composables/useLanguage'
 import { useSimulationStore } from '../../stores/simulation'
+import { perfMonitor } from '../../lib/perfMonitor'
+import { useSettingsStore } from '../../stores/settings'
+import { useNavigationStore } from '../../stores/navigation'
+import { useAuthStore } from '../../stores/auth'
+import NotificationCenter from '../ui/NotificationCenter.vue'
+import UserMenu from '../common/UserMenu.vue'
+import ShortcutBadge from '../common/ShortcutBadge.vue'
+import PresenceIndicator from '../common/PresenceIndicator.vue'
+import ServiceStatus from '../common/ServiceStatus.vue'
+import ThemeSwitcher from '../common/ThemeSwitcher.vue'
+import RoleBadge from '../common/RoleBadge.vue'
+import { useTutorialStore } from '../../stores/tutorial'
 
-const route = useRoute()
+const { t } = useI18n()
 const { isDemoMode } = useDemoMode()
+const { hasRole } = usePermissions()
+const { locale, languages, setLanguage } = useLanguage()
 const simulationStore = useSimulationStore()
+const settingsStore = useSettingsStore()
+const tutorial = useTutorialStore()
+const navigationStore = useNavigationStore()
+const auth = useAuthStore()
+const route = useRoute()
 const mobileMenuOpen = ref(false)
+const avgApiMs = ref(0)
+const helpMenuOpen = ref(false)
+const helpMenuRef = ref(null)
+const langMenuOpen = ref(false)
 
-const navLinks = computed(() => {
-  return [
-    { to: '/', label: 'Home', exact: true },
-    { to: '/simulations', label: 'Simulations', exact: false, showActiveDot: true },
-    { to: '/settings', label: 'Settings', exact: false },
-  ]
+const currentLang = computed(() => languages.find((l) => l.code === locale.value) || languages[0])
+
+function onClickOutsideHelp(e) {
+  if (helpMenuRef.value && !helpMenuRef.value.contains(e.target)) {
+    helpMenuOpen.value = false
+  }
+}
+
+function selectLanguage(code) {
+  setLanguage(code)
+  langMenuOpen.value = false
+}
+
+function onClickOutside(e) {
+  if (langMenuOpen.value && !e.target.closest('[aria-label="Switch language"]')?.parentElement) {
+    langMenuOpen.value = false
+  }
+}
+
+let perfInterval
+onMounted(() => {
+  perfInterval = setInterval(() => {
+    avgApiMs.value = Math.round(perfMonitor.avg('apiResponse'))
+  }, 3000)
+  document.addEventListener('click', onClickOutsideHelp)
+  document.addEventListener('click', onClickOutside)
+})
+onUnmounted(() => {
+  clearInterval(perfInterval)
+  document.removeEventListener('click', onClickOutsideHelp)
+  document.removeEventListener('click', onClickOutside)
 })
 
 watch(() => route.path, () => {
   mobileMenuOpen.value = false
+  langMenuOpen.value = false
 })
 </script>
 
 <template>
-  <nav class="bg-[var(--color-navy)] border-b border-white/10 px-4 md:px-6 py-3 relative">
+  <nav data-tutorial="nav" aria-label="Main navigation" class="bg-[var(--color-navy)] border-b border-white/10 px-4 md:px-6 py-3 relative">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-6">
         <router-link to="/" class="flex items-center gap-2 text-white no-underline">
@@ -35,50 +88,195 @@ watch(() => route.path, () => {
             <path d="M19 10.5C19 10.2239 19.2239 10 19.5 10H20.5C20.7761 10 21 10.2239 21 10.5V17.5C21 17.7761 20.7761 18 20.5 18H19.5C19.2239 18 19 17.7761 19 17.5V10.5Z" fill="white"/>
             <path d="M8 20.5C9.5 22 11.5 23 14 23C16.5 23 18.5 22 20 20.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
-          <span class="text-sm font-semibold tracking-tight">MiroFish</span>
-          <span class="text-xs text-white/40 ml-1 hidden sm:inline">GTM Demo</span>
+          <span class="text-sm font-semibold tracking-tight">{{ t('common.appName') }}</span>
+          <span class="text-xs text-white/40 ml-1 hidden sm:inline">{{ t('common.tagline') }}</span>
           <span
             v-if="isDemoMode"
-            class="ml-2 text-xs font-semibold text-white bg-[#2068FF] px-2 py-0.5 rounded-full"
-          >DEMO</span>
+            class="ml-2 text-xs font-semibold text-white bg-[var(--color-primary)] px-2 py-0.5 rounded-full"
+          >{{ t('common.demo') }}</span>
+          <span
+            v-if="auth.isAdmin"
+            class="ml-2 text-[10px] font-semibold text-white/80 bg-white/15 px-1.5 py-px rounded-full"
+          >Admin</span>
         </router-link>
 
-        <div class="hidden md:flex items-center gap-1">
+        <VueDraggable
+          v-model="navigationStore.navLinks"
+          :animation="200"
+          ghost-class="nav-link--ghost"
+          drag-class="nav-link--drag"
+          handle=".nav-drag-handle"
+          class="hidden md:flex items-center gap-1"
+        >
           <router-link
-            v-for="link in navLinks"
-            :key="link.to"
+            v-for="link in navigationStore.navLinks"
+            :key="link.id"
             :to="link.to"
             :exact="link.exact"
-            class="nav-link"
+            :data-tutorial="link.tutorial"
+            class="nav-link group"
             :class="{ 'nav-link--exact': link.exact }"
           >
+            <span class="nav-drag-handle">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+                <circle cx="4" cy="3" r="1" /><circle cx="8" cy="3" r="1" />
+                <circle cx="4" cy="6" r="1" /><circle cx="8" cy="6" r="1" />
+                <circle cx="4" cy="9" r="1" /><circle cx="8" cy="9" r="1" />
+              </svg>
+            </span>
             <span class="flex items-center gap-1.5">
               {{ link.label }}
               <span
                 v-if="link.showActiveDot && simulationStore.isActive"
                 class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+                aria-hidden="true"
               ></span>
+              <span v-if="link.showActiveDot && simulationStore.isActive" class="sr-only">(active)</span>
+              <ShortcutBadge
+                v-if="link.shortcut"
+                :shortcut="link.shortcut"
+                variant="light"
+                class="nav-shortcut"
+              />
             </span>
           </router-link>
-        </div>
+        </VueDraggable>
       </div>
 
       <div class="flex items-center gap-3">
-        <div class="hidden sm:flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          <span>Local</span>
+        <RoleBadge v-if="auth.isAuthenticated" :role="auth.userRole" size="xs" class="hidden sm:inline-flex !bg-white/10 !text-white/70" />
+        <ThemeSwitcher compact class="hidden sm:inline-flex" />
+
+        <!-- Language Switcher -->
+        <div class="relative">
+          <button
+            @click="langMenuOpen = !langMenuOpen"
+            class="flex items-center gap-1.5 text-white/60 hover:text-white transition-colors text-sm px-2 py-1 rounded-md hover:bg-white/8 cursor-pointer"
+            :aria-expanded="langMenuOpen"
+            aria-haspopup="true"
+            aria-label="Switch language"
+          >
+            <span>{{ currentLang.flag }}</span>
+            <span class="hidden sm:inline text-xs">{{ currentLang.code.toUpperCase() }}</span>
+            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition duration-100 ease-in"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95"
+          >
+            <div
+              v-if="langMenuOpen"
+              role="menu"
+              aria-label="Language options"
+              class="absolute right-0 top-full mt-1 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-lg py-1 z-50 min-w-[140px]"
+            >
+              <button
+                v-for="lang in languages"
+                :key="lang.code"
+                role="menuitem"
+                @click="selectLanguage(lang.code)"
+                class="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors cursor-pointer"
+                :class="locale === lang.code
+                  ? 'text-white bg-[rgba(32,104,255,0.15)]'
+                  : 'text-white/60 hover:text-white hover:bg-white/5'"
+                :aria-current="locale === lang.code ? 'true' : undefined"
+              >
+                <span>{{ lang.flag }}</span>
+                <span>{{ lang.label }}</span>
+              </button>
+            </div>
+          </Transition>
         </div>
+
+        <ServiceStatus mode="compact" class="hidden sm:flex" />
+        <PresenceIndicator v-if="settingsStore.showPresence" />
+        <NotificationCenter />
+
+        <!-- Help menu -->
+        <div ref="helpMenuRef" class="relative" data-tutorial="reports">
+          <button
+            class="hidden sm:flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors cursor-pointer"
+            @click.stop="helpMenuOpen = !helpMenuOpen"
+            aria-label="Help menu"
+            :aria-expanded="helpMenuOpen"
+            aria-haspopup="true"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Help</span>
+          </button>
+
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 -translate-y-1"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition duration-100 ease-in"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 -translate-y-1"
+          >
+            <div v-if="helpMenuOpen" role="menu" aria-label="Help options" class="absolute top-full right-0 mt-2 w-48 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-lg py-1 z-50">
+              <button
+                role="menuitem"
+                class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
+                @click="tutorial.startWelcomeTour(); helpMenuOpen = false"
+              >
+                Welcome Tour
+              </button>
+              <button
+                role="menuitem"
+                class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
+                @click="tutorial.startWalkthrough(); helpMenuOpen = false"
+              >
+                Guided Walkthrough
+              </button>
+              <button
+                role="menuitem"
+                class="w-full text-left px-3 py-2 text-sm text-[var(--color-text)] hover:bg-[var(--color-border)] transition-colors cursor-pointer"
+                @click="tutorial.toggleShortcutRef(); helpMenuOpen = false"
+              >
+                Keyboard Shortcuts
+                <span class="text-xs text-[var(--color-text-muted)] ml-1">Ctrl+/</span>
+              </button>
+            </div>
+          </Transition>
+        </div>
+
+        <div class="hidden sm:flex items-center gap-3 text-xs text-white/40">
+          <span v-if="avgApiMs" class="flex items-center gap-1" :title="`Avg API response: ${avgApiMs}ms`">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" class="opacity-60" aria-hidden="true">
+              <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1.2"/>
+              <path d="M6 3v3.5l2 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+            </svg>
+            <span :class="avgApiMs > 2000 ? 'text-[var(--color-fin-orange)]' : ''">{{ avgApiMs }}ms</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[var(--color-success)]" aria-hidden="true"></span>
+            <span>Local</span>
+            <span class="sr-only">environment — connected</span>
+          </span>
+        </div>
+
+        <UserMenu />
 
         <button
           @click="mobileMenuOpen = !mobileMenuOpen"
           class="md:hidden text-white/60 hover:text-white transition-colors"
           :aria-expanded="mobileMenuOpen"
-          aria-label="Toggle navigation menu"
+          :aria-label="t('nav.toggleMenu')"
         >
-          <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <svg v-if="!mobileMenuOpen" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/>
           </svg>
-          <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
           </svg>
         </button>
@@ -94,11 +292,11 @@ watch(() => route.path, () => {
       leave-from-class="opacity-100 translate-y-0"
       leave-to-class="opacity-0 -translate-y-2"
     >
-      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[#050505] border-b border-white/10 z-50">
+      <div v-if="mobileMenuOpen" class="md:hidden absolute top-full left-0 right-0 bg-[var(--color-navy)] border-b border-white/10 z-50">
         <div class="px-4 py-3 space-y-1">
           <router-link
-            v-for="link in navLinks"
-            :key="link.to"
+            v-for="link in navigationStore.navLinks"
+            :key="link.id"
             :to="link.to"
             class="flex items-center gap-1.5 px-3 py-2.5 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors no-underline"
           >
@@ -106,12 +304,15 @@ watch(() => route.path, () => {
             <span
               v-if="link.showActiveDot && simulationStore.isActive"
               class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"
+              aria-hidden="true"
             ></span>
+            <span v-if="link.showActiveDot && simulationStore.isActive" class="sr-only">(active)</span>
           </router-link>
         </div>
-        <div class="px-4 pb-3 flex items-center gap-2 text-xs text-white/40">
-          <span class="w-2 h-2 rounded-full bg-green-500"></span>
-          Connected
+        <div class="px-4 pb-3 border-t border-white/10 pt-3 space-y-3">
+          <ServiceStatus mode="compact" />
+          <UserMenu />
+          <ThemeSwitcher compact />
         </div>
       </div>
     </Transition>
@@ -120,12 +321,16 @@ watch(() => route.path, () => {
 
 <style scoped>
 .nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   padding: 0.25rem 0.75rem;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast), background-color var(--transition-fast);
+  cursor: default;
 }
 .nav-link:hover {
   color: white;
@@ -142,5 +347,38 @@ watch(() => route.path, () => {
 .nav-link--exact.router-link-exact-active {
   color: white;
   background-color: rgba(255, 255, 255, 0.12);
+}
+.nav-shortcut {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.nav-link:hover .nav-shortcut {
+  opacity: 1;
+}
+
+.nav-drag-handle {
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  color: rgba(255, 255, 255, 0.15);
+  transition: color var(--transition-fast);
+  padding: 0.125rem;
+}
+.nav-link:hover .nav-drag-handle {
+  color: rgba(255, 255, 255, 0.5);
+}
+.nav-drag-handle:active {
+  cursor: grabbing;
+}
+
+.nav-link--ghost {
+  opacity: 0.4;
+  background-color: rgba(32, 104, 255, 0.15);
+  border-radius: var(--radius-sm);
+}
+.nav-link--drag {
+  opacity: 0.9;
+  background-color: rgba(32, 104, 255, 0.25);
+  border-radius: var(--radius-sm);
 }
 </style>

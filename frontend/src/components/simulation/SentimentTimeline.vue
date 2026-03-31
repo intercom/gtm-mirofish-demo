@@ -1,15 +1,33 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import * as d3 from 'd3'
+import { select } from 'd3-selection'
+import { scaleLinear } from 'd3-scale'
+import { area as d3Area, line as d3Line, curveMonotoneX, stack as d3Stack, stackOrderNone } from 'd3-shape'
+import { easeCubicOut } from 'd3-ease'
+import 'd3-transition'
+import { useChartEntrance } from '../../composables/useChartEntrance'
+import { getChartColors, useChartColors } from '../../lib/chartUtils'
+import { useMobileChart } from '../../composables/useMobileChart'
+import { useLocale } from '../../composables/useLocale'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
+
+const { isMobile } = useMobileChart()
+const { measure, countDomNodes } = useD3PerfMonitor()
 
 const props = defineProps({
   actions: { type: Array, default: () => [] },
   timeline: { type: Array, default: () => [] },
 })
 
+const { locale, formatSignedDecimal, formatPercent } = useLocale()
+
 const chartRef = ref(null)
+const wrapperRef = ref(null)
 let resizeObserver = null
 let resizeTimer = null
+const { colors: themeColors, isDark } = useChartColors()
+
+const { isVisible } = useChartEntrance(wrapperRef)
 
 // --- Sentiment scoring ---
 
@@ -95,7 +113,7 @@ const viewMode = ref('trend') // 'trend' | 'distribution'
 
 function clearChart() {
   if (chartRef.value) {
-    d3.select(chartRef.value).selectAll('*').remove()
+    select(chartRef.value).selectAll('*').remove()
   }
 }
 
@@ -108,20 +126,27 @@ function renderChart() {
   const containerWidth = container.clientWidth
   if (containerWidth === 0) return
 
-  if (viewMode.value === 'distribution') {
-    renderDistribution(container, data, containerWidth)
-  } else {
-    renderTrend(container, data, containerWidth)
-  }
+  measure('SentimentTimeline', () => {
+    if (viewMode.value === 'distribution') {
+      renderDistribution(container, data, containerWidth)
+    } else {
+      renderTrend(container, data, containerWidth)
+    }
+  })
+  countDomNodes('SentimentTimeline', container)
 }
 
 function renderTrend(container, data, containerWidth) {
-  const margin = { top: 12, right: 16, bottom: 28, left: 36 }
+  const c = getChartColors()
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 8, right: 12, bottom: 24, left: 30 }
+    : { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
-  const height = 180
+  const height = mobile ? 140 : 180
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -130,17 +155,15 @@ function renderTrend(container, data, containerWidth) {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  // Scales
-  const x = d3.scaleLinear()
+  const x = scaleLinear()
     .domain([data[0].round, data[data.length - 1].round])
     .range([0, width])
 
-  const y = d3.scaleLinear()
+  const y = scaleLinear()
     .domain([-0.6, 0.6])
     .range([height, 0])
     .clamp(true)
 
-  // Grid lines
   const gridValues = [-0.4, -0.2, 0, 0.2, 0.4]
   g.selectAll('.grid')
     .data(gridValues)
@@ -149,10 +172,14 @@ function renderTrend(container, data, containerWidth) {
     .attr('x2', width)
     .attr('y1', d => y(d))
     .attr('y2', d => y(d))
-    .attr('stroke', d => d === 0 ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.06)')
+    .attr('stroke', d => d === 0 ? c.gridLineStrong : c.gridLine)
     .attr('stroke-dasharray', d => d === 0 ? 'none' : '2,3')
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => i * 30)
+    .style('opacity', 1)
 
-  // Y-axis labels
   g.selectAll('.y-label')
     .data(gridValues)
     .join('text')
@@ -162,16 +189,17 @@ function renderTrend(container, data, containerWidth) {
     .attr('text-anchor', 'end')
     .attr('font-size', '10px')
     .attr('fill', d => {
-      if (d > 0) return '#009900'
-      if (d < 0) return '#ff5600'
-      return '#888'
+      if (d > 0) return c.green
+      if (d < 0) return c.orange
+      return c.textMuted
     })
-    .text(d => {
-      if (d === 0) return '0'
-      return d > 0 ? `+${d.toFixed(1)}` : d.toFixed(1)
-    })
+    .text(d => d === 0 ? '0' : formatSignedDecimal(d, 1))
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 50 + i * 25)
+    .style('opacity', 1)
 
-  // X-axis labels
   const step = Math.max(1, Math.floor(data.length / 8))
   g.selectAll('.x-label')
     .data(data.filter((_, i) => i % step === 0 || i === data.length - 1))
@@ -180,40 +208,51 @@ function renderTrend(container, data, containerWidth) {
     .attr('y', height + 18)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
+    .attr('fill', c.textMuted)
     .text(d => `R${d.round}`)
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 80 + i * 20)
+    .style('opacity', 1)
 
-  // Positive area (above 0)
-  const positiveArea = d3.area()
+  const positiveArea = d3Area()
     .x(d => x(d.round))
     .y0(y(0))
     .y1(d => d.avgSentiment > 0 ? y(d.avgSentiment) : y(0))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
   g.append('path')
     .datum(data)
     .attr('d', positiveArea)
-    .attr('fill', 'rgba(0, 153, 0, 0.08)')
+    .attr('fill', c.areaPositive)
+    .style('opacity', 0)
+    .transition()
+    .duration(400)
+    .delay(100)
+    .style('opacity', 1)
 
-  // Negative area (below 0)
-  const negativeArea = d3.area()
+  const negativeArea = d3Area()
     .x(d => x(d.round))
     .y0(y(0))
     .y1(d => d.avgSentiment < 0 ? y(d.avgSentiment) : y(0))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
   g.append('path')
     .datum(data)
     .attr('d', negativeArea)
-    .attr('fill', 'rgba(255, 86, 0, 0.08)')
+    .attr('fill', c.areaNegative)
+    .style('opacity', 0)
+    .transition()
+    .duration(400)
+    .delay(100)
+    .style('opacity', 1)
 
-  // Sentiment line
-  const line = d3.line()
+  const sentimentLine = d3Line()
     .x(d => x(d.round))
     .y(d => y(d.avgSentiment))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
-  // Line gradient
   const gradientId = 'sentiment-gradient'
   const defs = svg.append('defs')
   const gradient = defs.append('linearGradient')
@@ -222,28 +261,26 @@ function renderTrend(container, data, containerWidth) {
     .attr('x1', 0).attr('y1', y(0.5))
     .attr('x2', 0).attr('y2', y(-0.5))
 
-  gradient.append('stop').attr('offset', '0%').attr('stop-color', '#009900')
-  gradient.append('stop').attr('offset', '50%').attr('stop-color', '#2068FF')
-  gradient.append('stop').attr('offset', '100%').attr('stop-color', '#ff5600')
+  gradient.append('stop').attr('offset', '0%').attr('stop-color', c.green)
+  gradient.append('stop').attr('offset', '50%').attr('stop-color', c.primary)
+  gradient.append('stop').attr('offset', '100%').attr('stop-color', c.orange)
 
   const path = g.append('path')
     .datum(data)
-    .attr('d', line)
+    .attr('d', sentimentLine)
     .attr('fill', 'none')
     .attr('stroke', `url(#${gradientId})`)
     .attr('stroke-width', 2.5)
 
-  // Animate line drawing
   const totalLength = path.node().getTotalLength()
   path
     .attr('stroke-dasharray', `${totalLength} ${totalLength}`)
     .attr('stroke-dashoffset', totalLength)
     .transition()
     .duration(800)
-    .ease(d3.easeCubicOut)
+    .ease(easeCubicOut)
     .attr('stroke-dashoffset', 0)
 
-  // Data points
   const dots = g.selectAll('.dot')
     .data(data)
     .join('circle')
@@ -251,33 +288,76 @@ function renderTrend(container, data, containerWidth) {
     .attr('cy', d => y(d.avgSentiment))
     .attr('r', 0)
     .attr('fill', d => {
-      if (d.avgSentiment > 0.1) return '#009900'
-      if (d.avgSentiment < -0.1) return '#ff5600'
-      return '#2068FF'
+      if (d.avgSentiment > 0.1) return c.green
+      if (d.avgSentiment < -0.1) return c.orange
+      return c.primary
     })
-    .attr('stroke', '#fff')
+    .attr('stroke', c.surface)
     .attr('stroke-width', 1.5)
+
+  const dotRadius = mobile ? 6 : 4
 
   dots.transition()
     .duration(300)
     .delay((_, i) => 800 + i * 40)
-    .attr('r', 4)
+    .attr('r', dotRadius)
 
-  // Tooltip overlay
-  const tooltip = d3.select(container)
+  const tooltip = select(container)
     .append('div')
     .style('position', 'absolute')
     .style('pointer-events', 'none')
     .style('opacity', 0)
-    .style('background', 'var(--color-surface, #fff)')
-    .style('border', '1px solid var(--color-border, rgba(0,0,0,0.1))')
+    .style('background', c.surface)
+    .style('border', `1px solid ${c.border}`)
     .style('border-radius', '8px')
     .style('padding', '8px 12px')
     .style('font-size', '12px')
     .style('box-shadow', '0 4px 12px rgba(0,0,0,0.1)')
     .style('z-index', '10')
 
-  // Invisible hover targets
+  // Invisible interaction targets (pointer events for mouse + touch)
+  let activeRound = null
+
+  function showTooltip(event, d) {
+    const sentimentLabel = d.avgSentiment > 0.1 ? 'Positive' : d.avgSentiment < -0.1 ? 'Negative' : 'Neutral'
+    const color = d.avgSentiment > 0.1 ? c.green : d.avgSentiment < -0.1 ? c.orange : c.primary
+    tooltip
+      .html(`
+        <div style="font-weight:600;color:${c.text};margin-bottom:4px">Round ${d.round}</div>
+        <div style="color:${color};font-weight:600">${sentimentLabel} (${formatSignedDecimal(d.avgSentiment, 2)})</div>
+        <div style="color:${c.textMuted};margin-top:2px">
+          ${d.agentCount} agents · ${d.total} actions
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px;font-size:11px">
+          <span style="color:${c.green}">+${d.positive}</span>
+          <span style="color:${c.textMuted}">${d.neutral} neutral</span>
+          <span style="color:${c.orange}">-${d.negative}</span>
+        </div>
+      `)
+      .style('opacity', 1)
+
+    const rect = container.getBoundingClientRect()
+    const cx = x(d.round) + margin.left
+    tooltip
+      .style('left', `${cx + 12}px`)
+      .style('top', `${event.clientY - rect.top - 40}px`)
+
+    dots.filter(dd => dd.round === d.round)
+      .transition().duration(100)
+      .attr('r', dotRadius + 2)
+    activeRound = d.round
+  }
+
+  function hideTooltip() {
+    tooltip.style('opacity', 0)
+    if (activeRound != null) {
+      dots.filter(dd => dd.round === activeRound)
+        .transition().duration(100)
+        .attr('r', dotRadius)
+      activeRound = null
+    }
+  }
+
   g.selectAll('.hover-target')
     .data(data)
     .join('rect')
@@ -294,50 +374,30 @@ function renderTrend(container, data, containerWidth) {
     .attr('height', height)
     .attr('fill', 'transparent')
     .attr('cursor', 'pointer')
-    .on('mouseenter', (event, d) => {
-      const sentimentLabel = d.avgSentiment > 0.1 ? 'Positive' : d.avgSentiment < -0.1 ? 'Negative' : 'Neutral'
-      const color = d.avgSentiment > 0.1 ? '#009900' : d.avgSentiment < -0.1 ? '#ff5600' : '#2068FF'
-      tooltip
-        .html(`
-          <div style="font-weight:600;color:var(--color-text,#050505);margin-bottom:4px">Round ${d.round}</div>
-          <div style="color:${color};font-weight:600">${sentimentLabel} (${d.avgSentiment >= 0 ? '+' : ''}${d.avgSentiment.toFixed(2)})</div>
-          <div style="color:var(--color-text-muted,#888);margin-top:2px">
-            ${d.agentCount} agents · ${d.total} actions
-          </div>
-          <div style="display:flex;gap:8px;margin-top:4px;font-size:11px">
-            <span style="color:#009900">+${d.positive}</span>
-            <span style="color:#888">${d.neutral} neutral</span>
-            <span style="color:#ff5600">-${d.negative}</span>
-          </div>
-        `)
-        .style('opacity', 1)
-
-      // Highlight the dot
-      dots.filter(dd => dd.round === d.round)
-        .transition().duration(100)
-        .attr('r', 6)
-    })
-    .on('mousemove', (event) => {
+    .style('touch-action', 'none')
+    .on('pointerenter', showTooltip)
+    .on('pointermove', (event, d) => {
+      if (activeRound !== d.round) showTooltip(event, d)
       const rect = container.getBoundingClientRect()
       tooltip
         .style('left', `${event.clientX - rect.left + 12}px`)
         .style('top', `${event.clientY - rect.top - 40}px`)
     })
-    .on('mouseleave', (event, d) => {
-      tooltip.style('opacity', 0)
-      dots.filter(dd => dd.round === d.round)
-        .transition().duration(100)
-        .attr('r', 4)
-    })
+    .on('pointerleave', hideTooltip)
+    .on('pointercancel', hideTooltip)
 }
 
 function renderDistribution(container, data, containerWidth) {
-  const margin = { top: 12, right: 16, bottom: 28, left: 36 }
+  const c = getChartColors()
+  const mobile = isMobile.value
+  const margin = mobile
+    ? { top: 8, right: 12, bottom: 24, left: 30 }
+    : { top: 12, right: 16, bottom: 28, left: 36 }
   const width = containerWidth - margin.left - margin.right
-  const height = 180
+  const height = mobile ? 140 : 180
   const totalHeight = height + margin.top + margin.bottom
 
-  const svg = d3.select(container)
+  const svg = select(container)
     .append('svg')
     .attr('width', containerWidth)
     .attr('height', totalHeight)
@@ -346,7 +406,6 @@ function renderDistribution(container, data, containerWidth) {
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  // Convert to percentages
   const stackData = data.map(d => ({
     round: d.round,
     positive: d.total ? d.positive / d.total : 0,
@@ -354,46 +413,57 @@ function renderDistribution(container, data, containerWidth) {
     negative: d.total ? d.negative / d.total : 0,
   }))
 
-  const x = d3.scaleLinear()
+  const x = scaleLinear()
     .domain([data[0].round, data[data.length - 1].round])
     .range([0, width])
 
-  const y = d3.scaleLinear()
+  const y = scaleLinear()
     .domain([0, 1])
     .range([height, 0])
 
-  // Stack generator
-  const stack = d3.stack()
+  const stackGen = d3Stack()
     .keys(['negative', 'neutral', 'positive'])
-    .order(d3.stackOrderNone)
+    .order(stackOrderNone)
 
-  const series = stack(stackData)
+  const series = stackGen(stackData)
 
-  const colors = {
-    positive: 'rgba(0, 153, 0, 0.5)',
-    neutral: 'rgba(32, 104, 255, 0.3)',
-    negative: 'rgba(255, 86, 0, 0.5)',
+  const stackColors = {
+    positive: c.stackPositive,
+    neutral: c.stackNeutral,
+    negative: c.stackNegative,
   }
 
-  const area = d3.area()
+  const areaGen = d3Area()
     .x(d => x(d.data.round))
     .y0(d => y(d[0]))
     .y1(d => y(d[1]))
-    .curve(d3.curveMonotoneX)
+    .curve(curveMonotoneX)
 
-  // Stacked areas with animation
-  g.selectAll('.area')
+  // Clip-path for left-to-right reveal animation
+  const clipId = `dist-reveal-${Date.now()}`
+  svg.append('defs')
+    .append('clipPath')
+    .attr('id', clipId)
+    .append('rect')
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('width', 0)
+    .attr('height', totalHeight)
+    .transition()
+    .duration(800)
+    .delay(100)
+    .ease(easeCubicOut)
+    .attr('width', width)
+
+  // Stacked areas with clip reveal
+  g.append('g')
+    .attr('clip-path', `url(#${clipId})`)
+    .selectAll('.area')
     .data(series)
     .join('path')
-    .attr('d', area)
-    .attr('fill', d => colors[d.key])
-    .style('opacity', 0)
-    .transition()
-    .duration(600)
-    .delay((_, i) => i * 100)
-    .style('opacity', 1)
+    .attr('d', areaGen)
+    .attr('fill', d => stackColors[d.key])
 
-  // Grid lines
   const gridValues = [0, 0.25, 0.5, 0.75, 1.0]
   g.selectAll('.grid')
     .data(gridValues)
@@ -402,10 +472,14 @@ function renderDistribution(container, data, containerWidth) {
     .attr('x2', width)
     .attr('y1', d => y(d))
     .attr('y2', d => y(d))
-    .attr('stroke', 'rgba(255,255,255,0.4)')
+    .attr('stroke', c.stackGrid)
     .attr('stroke-dasharray', '2,3')
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => i * 30)
+    .style('opacity', 1)
 
-  // Y-axis labels
   g.selectAll('.y-label')
     .data(gridValues.filter(d => d === 0 || d === 0.5 || d === 1))
     .join('text')
@@ -414,10 +488,14 @@ function renderDistribution(container, data, containerWidth) {
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
-    .text(d => `${Math.round(d * 100)}%`)
+    .attr('fill', c.textMuted)
+    .text(d => formatPercent(d))
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 50 + i * 25)
+    .style('opacity', 1)
 
-  // X-axis labels
   const step = Math.max(1, Math.floor(data.length / 8))
   g.selectAll('.x-label')
     .data(data.filter((_, i) => i % step === 0 || i === data.length - 1))
@@ -426,18 +504,25 @@ function renderDistribution(container, data, containerWidth) {
     .attr('y', height + 18)
     .attr('text-anchor', 'middle')
     .attr('font-size', '10px')
-    .attr('fill', '#888')
+    .attr('fill', c.textMuted)
     .text(d => `R${d.round}`)
+    .style('opacity', 0)
+    .transition()
+    .duration(250)
+    .delay((_, i) => 80 + i * 20)
+    .style('opacity', 1)
 }
 
 // --- Lifecycle ---
 
-watch([() => props.actions.length, () => props.timeline.length, viewMode], () => {
-  nextTick(() => renderChart())
+watch([() => props.actions.length, () => props.timeline.length, viewMode, isVisible, isDark, isMobile, locale], () => {
+  if (isVisible.value) {
+    nextTick(() => renderChart())
+  }
 })
 
 onMounted(() => {
-  renderChart()
+  if (isVisible.value) renderChart()
   if (chartRef.value) {
     resizeObserver = new ResizeObserver(() => {
       clearTimeout(resizeTimer)
@@ -454,9 +539,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-sm font-semibold text-[var(--color-text)]">Sentiment Timeline</h3>
+  <div
+    ref="wrapperRef"
+    class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg p-3 sm:p-5 transition-all duration-500 ease-out"
+    :class="isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'"
+  >
+    <div class="flex items-center justify-between mb-3 sm:mb-4">
+      <h3 class="text-xs sm:text-sm font-semibold text-[var(--color-text)]">Sentiment Timeline</h3>
       <div v-if="sentimentData.length" class="flex gap-1 bg-[var(--color-tint)] rounded-md p-0.5">
         <button
           class="px-2.5 py-1 text-[11px] rounded font-medium transition-colors"
@@ -479,7 +568,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="sentimentData.length" class="relative" ref="chartRef" style="height: 220px" />
+    <div v-if="sentimentData.length" class="relative" ref="chartRef" :style="{ height: isMobile ? '172px' : '220px', touchAction: 'pan-y' }" />
 
     <div v-else class="flex items-center justify-center h-[180px] text-[var(--color-text-muted)] text-sm">
       <span>Sentiment data will appear as agents interact</span>
@@ -489,24 +578,24 @@ onUnmounted(() => {
     <div v-if="sentimentData.length" class="flex items-center gap-4 mt-3 text-xs text-[var(--color-text-muted)]">
       <template v-if="viewMode === 'trend'">
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-2 h-2 rounded-full bg-[#009900]" /> Positive
+          <span class="inline-block w-2 h-2 rounded-full" :style="{ background: themeColors.green }" /> Positive
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-2 h-2 rounded-full bg-[#2068FF]" /> Neutral
+          <span class="inline-block w-2 h-2 rounded-full" :style="{ background: themeColors.primary }" /> Neutral
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-2 h-2 rounded-full bg-[#ff5600]" /> Negative
+          <span class="inline-block w-2 h-2 rounded-full" :style="{ background: themeColors.orange }" /> Negative
         </span>
       </template>
       <template v-else>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-3 h-2 rounded-sm bg-[rgba(0,153,0,0.5)]" /> Positive
+          <span class="inline-block w-3 h-2 rounded-sm" :style="{ background: themeColors.stackPositive }" /> Positive
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-3 h-2 rounded-sm bg-[rgba(32,104,255,0.3)]" /> Neutral
+          <span class="inline-block w-3 h-2 rounded-sm" :style="{ background: themeColors.stackNeutral }" /> Neutral
         </span>
         <span class="flex items-center gap-1.5">
-          <span class="inline-block w-3 h-2 rounded-sm bg-[rgba(255,86,0,0.5)]" /> Negative
+          <span class="inline-block w-3 h-2 rounded-sm" :style="{ background: themeColors.stackNegative }" /> Negative
         </span>
       </template>
     </div>

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "billing_crm_drift",
+    "name": "Billing-to-CRM Drift",
+    "category": "sync",
+    "description": "Subscription changes in the billing system not yet reflected in CRM opportunity records, creating temporary MRR divergence.",
+    "typical_variance_pct": 2.5,
+    "avg_resolution_days": 3,
+    "affected_systems": ["Stripe", "Salesforce"]
+  },
+  {
+    "id": "currency_normalization",
+    "name": "Multi-Currency Normalization",
+    "category": "currency",
+    "description": "Exchange rate timing differences between billing settlement and CRM currency conversion creating phantom variances.",
+    "typical_variance_pct": 1.8,
+    "avg_resolution_days": 5,
+    "affected_systems": ["Stripe", "Financial Dashboard"]
+  },
+  {
+    "id": "usage_billing_mismatch",
+    "name": "Usage-Based Billing Mismatch",
+    "category": "usage",
+    "description": "Invoiced amounts differ from contracted MRR due to seat overages, Fin AI resolution charges, and Proactive Support message volumes.",
+    "typical_variance_pct": 4.2,
+    "avg_resolution_days": 7,
+    "affected_systems": ["Stripe", "Product Usage DB", "Salesforce"]
+  },
+  {
+    "id": "contract_amendment_lag",
+    "name": "Contract Amendment Lag",
+    "category": "amendments",
+    "description": "Mid-cycle contract changes (early renewals, expansions, co-terms) not yet configured in billing to match what the AE closed in CRM.",
+    "typical_variance_pct": 3.1,
+    "avg_resolution_days": 8,
+    "affected_systems": ["Salesforce", "Stripe"]
+  },
+  {
+    "id": "credit_refund_treatment",
+    "name": "Credit & Refund Reconciliation",
+    "category": "credits",
+    "description": "Inconsistent rules for whether customer credits, promotional discounts, and partial refunds reduce MRR or only affect collections.",
+    "typical_variance_pct": 1.5,
+    "avg_resolution_days": 10,
+    "affected_systems": ["Stripe", "Salesforce", "Financial Dashboard"]
+  },
+  {
+    "id": "churn_timing_dispute",
+    "name": "Churn Timing Dispute",
+    "category": "churn",
+    "description": "Different teams define churn differently: contract end date (Sales), 90-day unpaid invoice (Finance), or zero usage (Product), causing 3-8% MRR variance.",
+    "typical_variance_pct": 5.5,
+    "avg_resolution_days": 15,
+    "affected_systems": ["Salesforce", "Stripe", "Product Usage DB"]
+  }
+]

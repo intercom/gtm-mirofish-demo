@@ -1,21 +1,48 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import LandingView from '../views/LandingView.vue'
+// Module-level auth state — decoupled from Pinia so the navigation
+// guard works before the Vue app (and stores) are fully initialised.
+let _authEnabled = false
+let _authenticated = false
+
+export function setAuthState({ enabled, loggedIn } = {}) {
+  if (enabled !== undefined) _authEnabled = enabled
+  if (loggedIn !== undefined) _authenticated = loggedIn
+}
+
+export function getAuthState() {
+  return { authEnabled: _authEnabled, authenticated: _authenticated }
+}
 
 export const routes = [
   {
     path: '/',
     name: 'landing',
-    component: LandingView,
+    component: () => import('../views/LandingView.vue'),
+    meta: { public: true },
   },
   {
     path: '/login',
-    redirect: '/',
+    name: 'login',
+    component: () => import('../views/LoginView.vue'),
+    meta: { public: true, guest: true, hideNav: true },
+  },
+  {
+    path: '/scenarios',
+    name: 'scenarios',
+    component: () => import('../views/ScenariosView.vue'),
   },
   {
     path: '/scenarios/:id',
     name: 'scenario-builder',
     component: () => import('../views/ScenarioBuilderView.vue'),
+    props: true,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/scenarios/:id/walkthrough',
+    name: 'scenario-walkthrough',
+    component: () => import('../views/ScenarioWalkthroughView.vue'),
     props: true,
   },
   {
@@ -23,46 +50,160 @@ export const routes = [
     name: 'agent-profile',
     component: () => import('../views/AgentProfileView.vue'),
     props: true,
+    meta: { requiresAuth: true },
   },
   {
     path: '/workspace/:taskId',
     name: 'workspace',
     component: () => import('../views/SimulationWorkspaceView.vue'),
     props: true,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/knowledge-graph',
+    name: 'knowledge-graph',
+    component: () => import('../views/KnowledgeGraphView.vue'),
   },
   {
     path: '/graph/:taskId',
-    redirect: (to) => `/workspace/${to.params.taskId}?tab=graph`,
+    name: 'graph',
+    component: () => import('../views/SimulationWorkspaceView.vue'),
+    props: true,
+    meta: { requiresAuth: true },
   },
   {
     path: '/simulation/:taskId',
-    redirect: (to) => `/workspace/${to.params.taskId}?tab=simulation`,
+    name: 'simulation',
+    component: () => import('../views/SimulationWorkspaceView.vue'),
+    props: true,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/report/new',
+    name: 'report-wizard',
+    component: () => import('../views/ReportWizardView.vue'),
+  },
+  {
+    path: '/network/:taskId',
+    redirect: (to) => `/workspace/${to.params.taskId}?tab=network`,
   },
   {
     path: '/report/:taskId',
     name: 'report',
     component: () => import('../views/ReportView.vue'),
     props: true,
+    meta: { requiresAuth: true },
   },
   {
     path: '/chat/:taskId',
     name: 'chat',
     component: () => import('../views/ChatView.vue'),
     props: true,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/knowledge-graph/:graphId?',
+    name: 'knowledge-graph',
+    component: () => import('../views/KnowledgeGraphView.vue'),
+    props: true,
   },
   {
     path: '/settings',
     name: 'settings',
     component: () => import('../views/SettingsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/marketplace',
+    name: 'marketplace',
+    component: () => import('../views/ScenarioMarketplaceView.vue'),
   },
   {
     path: '/simulations',
     name: 'simulations',
     component: () => import('../views/SimulationsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/org-chart',
+    name: 'org-chart',
+    component: () => import('../views/OrgChartView.vue'),
+  },
+  {
+    path: '/comparison',
+    name: 'comparison',
+    component: () => import('../views/ComparisonView.vue'),
+  },
+  {
+    path: '/charts',
+    name: 'charts-gallery',
+    component: () => import('../views/ChartsGalleryView.vue'),
+  },
+  {
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('../views/AnalyticsView.vue'),
+  },
+  {
+    path: '/visualizations',
+    name: 'visualizations',
+    component: () => import('../views/VisualizationsView.vue'),
+  },
+  {
+    path: '/api-docs',
+    name: 'api-docs',
+    component: () => import('../views/ApiDocsView.vue'),
+  },
+  {
+    path: '/performance',
+    name: 'performance',
+    component: () => import('../views/PerformanceBenchmarkView.vue'),
+  },
+  {
+    path: '/agents',
+    name: 'agents',
+    component: () => import('../views/AgentsView.vue'),
+  },
+  {
+    path: '/compare',
+    name: 'compare',
+    component: () => import('../views/CompareView.vue'),
+  },
+  {
+    path: '/replay/:taskId',
+    name: 'replay',
+    component: () => import('../views/ReplayView.vue'),
+    props: true,
   },
   {
     path: '/dashboard',
-    redirect: '/simulations',
+    name: 'gtm-dashboard',
+    component: () => import('../views/GtmDashboardView.vue'),
+  },
+  {
+    path: '/permission-denied',
+    name: 'permission-denied',
+    component: () => import('../views/PermissionDeniedView.vue'),
+  },
+  {
+    path: '/dashboard-builder',
+    name: 'dashboard-builder',
+    component: () => import('../views/DashboardBuilderView.vue'),
+  },
+  {
+    path: '/m/dashboard',
+    name: 'mobile-dashboard',
+    component: () => import('../views/MobileDashboardView.vue'),
+  },
+  {
+    path: '/benchmark',
+    name: 'benchmark',
+    component: () => import('../views/BenchmarkView.vue'),
+  },
+  {
+    path: '/tutorials',
+    name: 'tutorials',
+    component: () => import('../views/TutorialHubView.vue'),
   },
 ]
 
@@ -70,6 +211,24 @@ export function createAppRouter() {
   const router = createRouter({
     history: createWebHistory(),
     routes,
+  })
+
+  router.beforeEach((to) => {
+    const { authEnabled, authenticated } = getAuthState()
+
+    if (!authEnabled) return true
+
+    if (to.meta.public && !(to.meta.guest && authenticated)) return true
+
+    if (to.meta.requiresAuth && !authenticated) {
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
+
+    if (to.meta.guest && authenticated) {
+      return { name: 'landing' }
+    }
+
+    return true
   })
 
   return router

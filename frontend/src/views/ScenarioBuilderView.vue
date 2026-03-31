@@ -1,11 +1,19 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import SkeletonFormLayout from '../components/ui/SkeletonFormLayout.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
+import TeamComposer from '../components/simulation/TeamComposer.vue'
+import { RichTextEditor } from '../components/common'
+import KeyboardShortcutsHelp from '../components/ui/KeyboardShortcutsHelp.vue'
+import MemoryConfig from '../components/simulation/MemoryConfig.vue'
 import { useToast } from '../composables/useToast'
+import { useAutoSave } from '../composables/useAutoSave'
+import { useKeyboardShortcuts } from '../composables/useKeyboardShortcuts'
+import { ContextualHelp } from '../components/common'
 import { useScenariosStore } from '../stores/scenarios'
 import { useSimulationStore } from '../stores/simulation'
+import { useSettingsStore } from '../stores/settings'
 import { graphApi } from '../api/graph'
 
 const props = defineProps({ id: String })
@@ -14,12 +22,14 @@ const route = useRoute()
 const toast = useToast()
 const scenariosStore = useScenariosStore()
 const simulationStore = useSimulationStore()
+const settingsStore = useSettingsStore()
 
 const isRerun = computed(() => route.query.rerun === 'true')
 
 const scenario = ref(null)
 const loading = ref(true)
 const error = ref(null)
+const description = ref('')
 const seedText = ref('')
 const statusMessage = ref('')
 const agentCount = ref(200)
@@ -34,8 +44,74 @@ const selectedCompanySizes = ref([])
 const selectedRegions = ref([])
 const minutesPerRound = ref(30)
 const showAdvanced = ref(false)
+const useTeamComposer = ref(false)
+
+function onTeamUpdate(roles) {
+  selectedPersonas.value = [...roles]
+}
+
+function togglePersona(persona) {
+  const idx = selectedPersonas.value.indexOf(persona)
+  if (idx === -1) {
+    selectedPersonas.value.push(persona)
+  } else {
+    selectedPersonas.value.splice(idx, 1)
+  }
+}
+
+const importFileInput = ref(null)
+const memoryConfig = ref({
+  windowSize: 5,
+  searchDepth: 10,
+  extractionLevel: 'medium',
+  crossSimulation: false,
+})
 
 const isCustom = computed(() => props.id === 'custom')
+
+const { saveStatus, hasDraft, load: loadDraft, clear: clearDraft } = useAutoSave(
+  `scenario-${props.id}`,
+  () => ({
+    seedText: seedText.value,
+    agentCount: agentCount.value,
+    selectedPersonas: selectedPersonas.value,
+    selectedIndustries: selectedIndustries.value,
+    selectedCompanySizes: selectedCompanySizes.value,
+    selectedRegions: selectedRegions.value,
+    duration: duration.value,
+    minutesPerRound: minutesPerRound.value,
+    platformMode: platformMode.value,
+  }),
+  (data) => {
+    if (data.seedText != null) seedText.value = data.seedText
+    if (data.agentCount != null) agentCount.value = data.agentCount
+    if (data.selectedPersonas) selectedPersonas.value = data.selectedPersonas
+    if (data.selectedIndustries) selectedIndustries.value = data.selectedIndustries
+    if (data.selectedCompanySizes) selectedCompanySizes.value = data.selectedCompanySizes
+    if (data.selectedRegions) selectedRegions.value = data.selectedRegions
+    if (data.duration != null) duration.value = data.duration
+    if (data.minutesPerRound != null) minutesPerRound.value = data.minutesPerRound
+    if (data.platformMode) platformMode.value = data.platformMode
+  },
+  [seedText, agentCount, selectedPersonas, selectedIndustries, selectedCompanySizes, selectedRegions, duration, minutesPerRound, platformMode],
+)
+
+const builderShortcuts = [
+  { key: 'Enter', mod: true, global: true, label: 'Run simulation', display: '↵', action: () => { if (canRun.value) runSimulation() } },
+  { key: '1', label: 'Template 1', action: () => { if (isCustom.value && scenarioTemplates[0]) applyTemplate(scenarioTemplates[0]) } },
+  { key: '2', label: 'Template 2', action: () => { if (isCustom.value && scenarioTemplates[1]) applyTemplate(scenarioTemplates[1]) } },
+  { key: '3', label: 'Template 3', action: () => { if (isCustom.value && scenarioTemplates[2]) applyTemplate(scenarioTemplates[2]) } },
+  { key: '4', label: 'Template 4', action: () => { if (isCustom.value && scenarioTemplates[3]) applyTemplate(scenarioTemplates[3]) } },
+  { key: 'Escape', label: 'Go back', global: true, display: 'Esc', action: () => {
+    const tag = document.activeElement?.tagName?.toLowerCase()
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+      document.activeElement.blur()
+    } else {
+      router.push('/')
+    }
+  }},
+]
+const { showHelp, modLabel } = useKeyboardShortcuts(builderShortcuts)
 
 const canRun = computed(() =>
   seedText.value.trim().length > 0 && selectedPersonas.value.length > 0 && !running.value,
@@ -169,6 +245,92 @@ function toggleRegion(region) {
   else selectedRegions.value.splice(idx, 1)
 }
 
+function buildScenarioJson() {
+  return {
+    id: scenario.value?.id || 'custom_export',
+    name: scenario.value?.name || 'Custom Simulation',
+    description: scenario.value?.description || '',
+    category: scenario.value?.category || 'custom',
+    icon: scenario.value?.icon || 'upload',
+    seed_text: seedText.value,
+    agent_config: {
+      count: agentCount.value,
+      persona_types: [...selectedPersonas.value],
+      firmographic_mix: {
+        industries: [...selectedIndustries.value],
+        company_sizes: [...selectedCompanySizes.value],
+        regions: [...selectedRegions.value],
+      },
+    },
+    simulation_config: {
+      total_hours: duration.value,
+      minutes_per_round: minutesPerRound.value,
+      platform_mode: platformMode.value,
+    },
+    expected_outputs: scenario.value?.expected_outputs || [],
+  }
+}
+
+function exportScenario() {
+  const data = buildScenarioJson()
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${data.id}.json`
+  a.click()
+  URL.revokeObjectURL(url)
+  toast.success('Scenario exported')
+}
+
+function triggerImport() {
+  importFileInput.value?.click()
+}
+
+async function handleImportFile(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  event.target.value = ''
+
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+
+    const required = ['id', 'name', 'seed_text', 'agent_config', 'simulation_config']
+    const missing = required.filter((k) => !(k in data))
+    if (missing.length) {
+      toast.error(`Invalid scenario: missing ${missing.join(', ')}`)
+      return
+    }
+
+    seedText.value = data.seed_text || ''
+    agentCount.value = data.agent_config?.count || 200
+    selectedPersonas.value = [...(data.agent_config?.persona_types || [])]
+    selectedIndustries.value = [...(data.agent_config?.firmographic_mix?.industries || [])]
+    selectedCompanySizes.value = [...(data.agent_config?.firmographic_mix?.company_sizes || [])]
+    selectedRegions.value = [...(data.agent_config?.firmographic_mix?.regions || [])]
+    duration.value = data.simulation_config?.total_hours || 72
+    minutesPerRound.value = data.simulation_config?.minutes_per_round || 30
+    platformMode.value = data.simulation_config?.platform_mode || 'parallel'
+
+    scenario.value = {
+      ...scenario.value,
+      id: data.id,
+      name: data.name,
+      description: data.description || '',
+      category: data.category || 'custom',
+      icon: data.icon || 'upload',
+      expected_outputs: data.expected_outputs || [],
+      agent_config: data.agent_config,
+      simulation_config: data.simulation_config,
+    }
+
+    await scenariosStore.importScenario(data)
+    toast.success(`Imported "${data.name}"`)
+  } catch (e) {
+    toast.error(e.name === 'SyntaxError' ? 'File is not valid JSON' : `Import failed: ${e.message}`)
+  }
+}
 
 async function loadScenario() {
   loading.value = true
@@ -199,6 +361,7 @@ async function loadScenario() {
           platform_mode: 'parallel',
         },
       }
+      description.value = scenario.value.description
       seedText.value = ''
       agentCount.value = 200
       duration.value = 72
@@ -210,6 +373,7 @@ async function loadScenario() {
       if (!data) throw new Error('Scenario not found')
       scenario.value = data
 
+      description.value = data.description || ''
       seedText.value = data.seed_text || ''
       agentCount.value = data.agent_config?.count || 200
       duration.value = data.simulation_config?.total_hours || 72
@@ -237,18 +401,11 @@ onMounted(async () => {
     if (route.query.industries) {
       try { selectedIndustries.value = JSON.parse(route.query.industries) } catch {}
     }
+  } else {
+    loadDraft()
   }
 })
 
-
-function togglePersona(persona) {
-  const idx = selectedPersonas.value.indexOf(persona)
-  if (idx === -1) {
-    selectedPersonas.value.push(persona)
-  } else {
-    selectedPersonas.value.splice(idx, 1)
-  }
-}
 
 function toggleIndustry(industry) {
   const idx = selectedIndustries.value.indexOf(industry)
@@ -265,7 +422,7 @@ async function runSimulation() {
   error.value = ''
 
   try {
-    const { data } = await graphApi.build({
+    const { data: res } = await graphApi.build({
       seed_text: seedText.value,
       agent_count: agentCount.value,
       persona_types: selectedPersonas.value,
@@ -275,11 +432,13 @@ async function runSimulation() {
       duration_hours: duration.value,
       minutes_per_round: minutesPerRound.value,
       platform_mode: platformMode.value,
+      memory_config: memoryConfig.value,
     })
-    const taskId = data.task_id
+    const taskId = res.data?.task_id || res.task_id
     simulationStore.setScenarioConfig({
       scenarioId: props.id,
       scenarioName: scenario.value?.name || (props.id === 'custom' ? 'Custom Simulation' : 'Untitled Scenario'),
+      scenarioDescription: description.value,
       seedText: seedText.value,
       agentCount: agentCount.value,
       personas: selectedPersonas.value,
@@ -289,6 +448,7 @@ async function runSimulation() {
       duration: duration.value,
       minutesPerRound: minutesPerRound.value,
       platformMode: platformMode.value,
+      memoryConfig: memoryConfig.value,
     })
     simulationStore.startGraphBuild(taskId)
     simulationStore.addSessionRun({
@@ -297,6 +457,7 @@ async function runSimulation() {
       scenarioName: scenario.value?.name || 'Untitled Scenario',
       status: 'building_graph',
     })
+    clearDraft()
     toast.success('Building knowledge graph...')
     router.push(`/workspace/${taskId}`)
   } catch (e) {
@@ -311,7 +472,7 @@ async function runSimulation() {
 
 <template>
   <div class="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
-    <LoadingSpinner v-if="loading" label="Loading scenario..." />
+    <SkeletonFormLayout v-if="loading" />
 
     <ErrorState
       v-else-if="error"
@@ -335,8 +496,76 @@ async function runSimulation() {
         <router-link to="/simulations" class="font-medium hover:underline no-underline text-[#2068FF]">Back to Simulations</router-link>
       </div>
 
-      <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)] mb-2">{{ scenario.name }}</h1>
-      <p class="text-sm text-[var(--color-text-secondary)] mb-6 md:mb-8">{{ scenario.description }}</p>
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6 md:mb-8">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <h1 class="text-2xl md:text-3xl font-semibold text-[var(--color-text)]">{{ scenario.name }}</h1>
+            <transition name="fade">
+              <span v-if="saveStatus === 'saved'" class="text-[10px] font-medium text-[#090] bg-[rgba(0,153,0,0.08)] px-2 py-0.5 rounded-full whitespace-nowrap">
+                ✓ Draft saved
+              </span>
+            </transition>
+          </div>
+          <div class="mt-1">
+            <RichTextEditor
+              v-model="description"
+              placeholder="Describe your scenario — goals, target audience, expected outcomes..."
+            />
+          </div>
+        </div>
+        <div class="flex gap-2 shrink-0">
+          <router-link
+            v-if="!isCustom"
+            :to="`/scenarios/${id}/walkthrough`"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors bg-[var(--color-surface)] no-underline"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5" />
+            </svg>
+            Guided Tour
+          </router-link>
+          <button
+            @click="triggerImport"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors bg-[var(--color-surface)]"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+            </svg>
+            Import
+          </button>
+          <button
+            @click="exportScenario"
+            :disabled="!seedText.trim()"
+            class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors bg-[var(--color-surface)] disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Export
+          </button>
+          <input
+            ref="importFileInput"
+            type="file"
+            accept=".json"
+            class="hidden"
+            @change="handleImportFile"
+          />
+        </div>
+      </div>
+
+      <!-- Draft restored banner -->
+      <div
+        v-if="hasDraft && !isRerun"
+        class="flex items-center justify-between gap-2 mb-4 px-4 py-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-sm text-[var(--color-text-secondary)]"
+      >
+        <span>Restored from your previous draft.</span>
+        <button
+          @click="clearDraft(); loadScenario()"
+          class="text-xs font-medium text-[var(--color-text-muted)] hover:text-[var(--color-primary)] transition-colors"
+        >
+          Discard draft
+        </button>
+      </div>
 
       <!-- Mobile: tab switcher -->
       <div class="md:hidden flex gap-2 mb-4">
@@ -367,10 +596,10 @@ async function runSimulation() {
                 v-for="template in scenarioTemplates"
                 :key="template.name"
                 @click="applyTemplate(template)"
-                class="text-left p-3.5 rounded-lg border transition-all group"
+                class="text-left p-3.5 rounded-lg border card-interactive group"
                 :class="seedText === template.seedText
                   ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                  : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)] hover:shadow-[var(--shadow)]'"
+                  : 'border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-primary)]'"
               >
                 <span class="block text-sm font-semibold text-[var(--color-text)] mb-1">{{ template.name }}</span>
                 <span class="block text-xs text-[var(--color-text-muted)] leading-relaxed mb-2">{{ template.description }}</span>
@@ -386,18 +615,34 @@ async function runSimulation() {
             </div>
           </div>
 
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Seed Document</label>
-          <textarea
+          <label class="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+            Seed Document
+            <ContextualHelp featureKey="seed-text" size="xs" />
+          </label>
+          <RichTextEditor
             v-model="seedText"
-            rows="16"
-            class="w-full border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-sm leading-relaxed focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-y bg-[var(--color-surface)]"
+            rows="8"
+            class="w-full border border-[var(--color-border)] rounded-lg p-3 md:p-4 text-sm leading-relaxed focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent resize-y bg-[var(--color-surface)] md:min-h-[24rem]"
             placeholder="Describe your scenario: What campaign are you testing? What messaging will prospects see? Include email copy, target audience details, and any competitive context. The more realistic the seed document, the more useful the simulation results will be."
-          ></textarea>
+          />
 
-          <!-- Persona Types Multiselect -->
+          <!-- Persona Types -->
           <div v-if="scenario.agent_config?.persona_types?.length" class="mt-6">
-            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Persona Types</label>
-            <div class="flex flex-wrap gap-2">
+            <div class="flex items-center justify-between mb-3">
+              <label class="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--color-text-muted)]">
+                Persona Types
+                <ContextualHelp featureKey="agent-personas" size="xs" />
+              </label>
+              <button
+                @click="useTeamComposer = !useTeamComposer"
+                class="text-[11px] text-[var(--color-primary)] hover:underline"
+              >
+                {{ useTeamComposer ? 'Simple mode' : 'Team composer' }}
+              </button>
+            </div>
+
+            <!-- Simple toggle mode -->
+            <div v-if="!useTeamComposer" class="flex flex-wrap gap-2">
               <button
                 v-for="persona in scenario.agent_config.persona_types"
                 :key="persona"
@@ -410,6 +655,13 @@ async function runSimulation() {
                 {{ persona }}
               </button>
             </div>
+
+            <!-- Team Composer mode -->
+            <TeamComposer
+              v-else
+              :scenario-personas="scenario.agent_config.persona_types"
+              @update:team="onTeamUpdate"
+            />
           </div>
 
           <!-- Industry Mix Checkboxes -->
@@ -515,7 +767,10 @@ async function runSimulation() {
         <!-- Config Panel (right 1/3) -->
         <div class="space-y-6" :class="{ 'hidden md:block': activeTab !== 'config' }">
           <div>
-            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Agent Count</label>
+            <label class="flex items-center gap-1.5 text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">
+              Agent Count
+              <ContextualHelp featureKey="oasis-simulation" size="xs" />
+            </label>
             <input
               type="range"
               v-model.number="agentCount"
@@ -563,6 +818,15 @@ async function runSimulation() {
             </div>
           </div>
 
+          <!-- Agent Memory -->
+          <div class="border-t border-[var(--color-border)] pt-5">
+            <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-3">Agent Memory</label>
+            <MemoryConfig
+              v-model="memoryConfig"
+              :zep-key="settingsStore.zepKey"
+            />
+          </div>
+
           <!-- Error display -->
           <div v-if="error" class="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3">
             {{ error }}
@@ -589,5 +853,21 @@ async function runSimulation() {
       <p class="text-[var(--color-text-muted)]">Scenario not found</p>
       <router-link to="/" class="text-[var(--color-primary)] text-sm mt-2 inline-block hover:underline">Back to Home</router-link>
     </div>
+
+    <!-- Shortcuts hint -->
+    <button
+      @click="showHelp = true"
+      class="fixed bottom-4 right-4 flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--color-text-muted)] bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg shadow-sm hover:border-[var(--color-primary)] hover:text-[var(--color-primary)] transition-colors"
+    >
+      <kbd class="inline-flex items-center justify-center w-5 h-5 text-[10px] font-medium bg-[var(--color-tint)] border border-[var(--color-border)] rounded">?</kbd>
+      Shortcuts
+    </button>
+
+    <KeyboardShortcutsHelp
+      :open="showHelp"
+      :shortcuts="builderShortcuts"
+      :modLabel="modLabel"
+      @close="showHelp = false"
+    />
   </div>
 </template>

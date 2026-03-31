@@ -1,15 +1,50 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, defineAsyncComponent, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useDemoMode } from '../composables/useDemoMode'
+import { useDemoPreset } from '../composables/useDemoPreset'
 import { useCountUp } from '../composables/useCountUp'
+import { useParallax } from '../composables/useParallax'
+import { useOnboardingTour } from '../composables/useOnboardingTour'
+import { useLocale } from '../composables/useLocale'
 import { API_BASE } from '../api/client'
-import HeroSwarm from '../components/landing/HeroSwarm.vue'
+import { ContextualHelp } from '../components/common'
+import LoadingSpinner from '../components/ui/LoadingSpinner.vue'
+import ScenarioTemplateGallery from '../components/scenarios/ScenarioTemplateGallery.vue'
+import ScenarioDetailModal from '../components/scenarios/ScenarioDetailModal.vue'
+import GtmScenarioLauncher from '../components/scenarios/GtmScenarioLauncher.vue'
+import LazyComponent from '../components/ui/LazyComponent.vue'
+import SkeletonScenarioCard from '../components/ui/SkeletonScenarioCard.vue'
+
+const HeroSwarm = defineAsyncComponent({
+  loader: () => import('../components/landing/HeroSwarm.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 200,
+})
 
 const router = useRouter()
+const { t } = useI18n()
 const { isDemoMode } = useDemoMode()
+const { autoStart: autoStartTour } = useOnboardingTour()
+const { available: presetAvailable, loaded: presetLoaded, loading: presetLoading, loadPreset, checkStatus: checkPresetStatus } = useDemoPreset()
+const { formatCompactNumber } = useLocale()
 const showCards = ref(false)
 const showSteps = ref(false)
+
+const heroSection = ref(null)
+const { scrollY, progress } = useParallax(heroSection)
+
+const heroSwarmStyle = computed(() => ({
+  transform: `translateY(${scrollY.value * 0.4}px)`,
+  willChange: 'transform',
+}))
+
+const heroContentStyle = computed(() => ({
+  transform: `translateY(${scrollY.value * 0.15}px)`,
+  opacity: Math.max(1 - progress.value * 1.2, 0),
+  willChange: 'transform, opacity',
+}))
 
 function onStaggerBeforeEnter(el) {
   el.style.opacity = 0
@@ -27,36 +62,39 @@ function onStaggerEnter(el, done) {
 }
 
 onMounted(() => {
-  showCards.value = true
   setTimeout(() => { showSteps.value = true }, 200)
+  autoStartTour()
 })
 
-const steps = [
+const steps = computed(() => [
   {
     icon: '🧠',
     bgClass: 'bg-[rgba(32,104,255,0.1)]',
-    title: '1. Seed Your Scenario',
-    description: 'Upload campaign copy, signal definitions, or pricing scenarios as seed information.',
+    title: t('landing.steps.seed'),
+    description: t('landing.steps.seedDesc'),
   },
   {
     icon: '🐟',
     bgClass: 'bg-[rgba(255,86,0,0.1)]',
-    title: '2. Simulate the Swarm',
-    description: 'Hundreds of AI agents with unique personas interact, debate, and react on simulated social platforms.',
+    title: t('landing.steps.simulate'),
+    description: t('landing.steps.simulateDesc'),
   },
   {
     icon: '📊',
     bgClass: 'bg-[rgba(170,0,255,0.1)]',
-    title: '3. Get Predictive Reports',
-    description: 'Multi-chapter analysis reveals engagement patterns, objections, and segment-specific insights.',
+    title: t('landing.steps.report'),
+    description: t('landing.steps.reportDesc'),
   },
-]
+])
 
 const ICON_MAP = {
   mail: '📧',
   signal: '📡',
   dollar: '💰',
   sparkle: '✨',
+  pipeline: '🔄',
+  'trending-up': '📈',
+  refresh: '🔄',
 }
 
 function resolveIcon(icon) {
@@ -108,6 +146,24 @@ async function loadScenarios() {
         description: 'Rank email variants by simulated engagement.',
         icon: '✨',
       },
+      {
+        id: 'pipeline_optimization',
+        name: 'Pipeline Optimization',
+        description: 'Identify pipeline bottlenecks and test intervention strategies.',
+        icon: '🔄',
+      },
+      {
+        id: 'expansion_revenue',
+        name: 'Expansion Revenue Simulation',
+        description: 'Simulate upsell and cross-sell motions across existing customer segments.',
+        icon: '📈',
+      },
+      {
+        id: 'mrr_reconciliation',
+        name: 'MRR Reconciliation Simulation',
+        description: 'Predict revenue leakage and reconciliation bottlenecks across billing, CRM, and reporting.',
+        icon: '🔄',
+      },
     ]
     error.value = null
   } finally {
@@ -115,17 +171,40 @@ async function loadScenarios() {
   }
 }
 
-onMounted(loadScenarios)
+onMounted(() => {
+  loadScenarios()
+  checkPresetStatus()
+})
 
 const scenarioSection = ref(null)
 
+const selectedScenarioId = ref(null)
+
+function openScenarioDetail(id) {
+  selectedScenarioId.value = id
+}
+
+async function launchPreset() {
+  try {
+    const ids = await loadPreset()
+    if (ids?.graphTaskId) {
+      router.push(`/workspace/${ids.graphTaskId}`)
+    }
+  } catch {
+    // error is already set in the composable
+  }
+}
+
 function launchScenario(id) {
+  selectedScenarioId.value = null
   router.push(`/scenarios/${id}`)
 }
 
 function scrollToScenarios() {
   const el = scenarioSection.value?.$el || scenarioSection.value
-  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (el && typeof el.scrollIntoView === 'function') {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 }
 
 const statsBanner = ref(null)
@@ -268,115 +347,69 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 1. HERO SECTION                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section class="relative overflow-hidden bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-12 md:py-32">
-      <HeroSwarm />
-      <div class="relative max-w-4xl mx-auto text-center">
-        <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
-          Intercom GTM Systems
-        </p>
-        <h1 class="text-3xl md:text-6xl font-semibold mb-3 md:mb-4">
-          MiroFish Swarm Intelligence
-        </h1>
+    <section ref="heroSection" class="relative overflow-hidden bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-12 md:py-32">
+      <div class="absolute inset-0" :style="heroSwarmStyle">
+        <HeroSwarm />
+      </div>
+      <div class="relative max-w-4xl mx-auto text-center" :style="heroContentStyle">
+        <div data-tour="hero" class="inline-block">
+          <p class="text-[#2068FF] text-xs font-semibold tracking-[2px] uppercase mb-3 md:mb-4">
+            {{ t('landing.tagline') }}
+          </p>
+          <h1 class="text-3xl md:text-6xl font-semibold mb-3 md:mb-4">
+            {{ t('landing.title') }}
+          </h1>
+        </div>
         <p class="text-base md:text-lg text-white/60 max-w-2xl mx-auto" :class="isDemoMode ? 'mb-3' : 'mb-8 md:mb-12'">
-          Predict campaign outcomes before they happen. Simulate how prospects react
-          to your outbound, signals, and pricing changes.
+          {{ t('landing.subtitle') }}
         </p>
         <p v-if="isDemoMode" class="text-sm text-white/35 mb-8 md:mb-12">
-          Interactive demo with simulated swarm intelligence
+          {{ t('landing.demoNote') }}
         </p>
+
+        <!-- Demo Preset CTA -->
+        <div v-if="presetAvailable" class="max-w-2xl mx-auto mb-6">
+          <button
+            @click="launchPreset"
+            :disabled="presetLoading"
+            class="w-full text-left rounded-lg p-5 border-2 border-[#ff5600]/40 bg-[rgba(255,86,0,0.1)] hover:bg-[rgba(255,86,0,0.2)] hover:border-[#ff5600]/60 transition-all duration-300 cursor-pointer group"
+          >
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🎬</span>
+              <div class="flex-1">
+                <h3 class="text-sm font-semibold text-white group-hover:text-[#ff5600] transition-colors">
+                  {{ presetLoading ? 'Loading Demo...' : presetLoaded ? 'Re-open Demo Presentation' : 'Launch Demo Presentation' }}
+                </h3>
+                <p class="text-xs text-white/50 mt-0.5">
+                  Pre-built simulation: coalitions debate pipeline strategy, form beliefs, and reach consensus.
+                </p>
+              </div>
+              <svg v-if="!presetLoading" class="w-5 h-5 text-white/40 group-hover:text-[#ff5600] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+              </svg>
+              <svg v-else class="w-5 h-5 text-[#ff5600] animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          </button>
+        </div>
 
         <!-- Loading State -->
         <div v-if="loading" class="max-w-2xl mx-auto">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div v-for="n in 4" :key="n"
-              class="rounded-lg p-5 border border-white/10 bg-white/5 animate-pulse">
-              <div class="flex items-start gap-3">
-                <div class="w-8 h-8 rounded bg-white/10"></div>
-                <div class="flex-1 space-y-2">
-                  <div class="h-4 bg-white/10 rounded w-3/4"></div>
-                  <div class="h-3 bg-white/10 rounded w-full"></div>
-                </div>
-              </div>
-            </div>
+            <SkeletonScenarioCard v-for="n in 4" :key="n" dark />
           </div>
         </div>
 
-        <!-- Error State -->
-        <div v-else-if="error" class="max-w-md mx-auto text-center py-8">
-          <div class="w-14 h-14 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
-            <svg class="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-            </svg>
-          </div>
-          <h3 class="text-base font-semibold text-white mb-1">Failed to load scenarios</h3>
-          <p class="text-sm text-white/50 mb-4">{{ error }}</p>
-          <button @click="loadScenarios"
-            class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
-            Try Again
-          </button>
+        <div v-else data-tour="scenarios" class="max-w-2xl mx-auto">
+          <ScenarioTemplateGallery
+            ref="scenarioSection"
+            variant="dark"
+            hero-first
+            @select="openScenarioDetail"
+          />
         </div>
-
-        <!-- Empty State -->
-        <div v-else-if="scenarios.length === 0" class="max-w-md mx-auto text-center py-8">
-          <div class="w-16 h-16 rounded-full bg-[rgba(32,104,255,0.15)] flex items-center justify-center mx-auto mb-4">
-            <span class="text-3xl">🐟</span>
-          </div>
-          <h3 class="text-base font-semibold text-white mb-1">No scenarios available</h3>
-          <p class="text-sm text-white/50">Check back soon — scenarios are being configured.</p>
-        </div>
-
-        <!-- Scenario Cards -->
-        <TransitionGroup
-          v-else
-          ref="scenarioSection"
-          tag="div"
-          class="grid grid-cols-1 gap-3 md:gap-4 max-w-2xl mx-auto md:grid-cols-2"
-          :css="false"
-          @before-enter="onStaggerBeforeEnter"
-          @enter="onStaggerEnter"
-        >
-          <button
-            v-for="(scenario, i) in showCards ? scenarios : []"
-            :key="scenario.id"
-            :data-index="i"
-            @click="launchScenario(scenario.id)"
-            class="text-left rounded-lg transition-all duration-300 cursor-pointer border"
-            :class="[
-              scenario.hero
-                ? 'md:col-span-2 p-6 bg-[rgba(32,104,255,0.15)] border-[rgba(32,104,255,0.3)] hover:bg-[rgba(32,104,255,0.25)]'
-                : 'p-5 bg-white/5 border-white/10 hover:bg-white/10',
-            ]"
-          >
-            <div class="flex items-start gap-3">
-              <span :class="scenario.hero ? 'text-3xl' : 'text-2xl'">{{ resolveIcon(scenario.icon) }}</span>
-              <div>
-                <h3 :class="scenario.hero ? 'text-base font-semibold text-white' : 'text-sm font-semibold text-white'">{{ scenario.name }}</h3>
-                <p :class="scenario.hero ? 'text-sm text-white/50 mt-1.5' : 'text-xs text-white/50 mt-1'">{{ scenario.description }}</p>
-              </div>
-            </div>
-          </button>
-
-          <!-- Custom simulation card -->
-          <button
-            v-if="showCards && scenarios.length"
-            key="custom"
-            :data-index="scenarios.length"
-            @click="launchScenario('custom')"
-            class="text-left rounded-lg transition-all duration-300 cursor-pointer border p-5 border-dashed border-white/20 hover:bg-white/10 hover:border-white/30 group"
-          >
-            <div class="flex items-start gap-3">
-              <span class="text-2xl opacity-60 group-hover:opacity-100 transition-opacity">
-                <svg class="w-6 h-6 text-white/50 group-hover:text-[#2068FF] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </span>
-              <div>
-                <h3 class="text-sm font-semibold text-white/80 group-hover:text-white transition-colors">Custom Simulation</h3>
-                <p class="text-xs text-white/40 mt-1">Bring your own seed document and configure a simulation from scratch.</p>
-              </div>
-            </div>
-          </button>
-        </TransitionGroup>
       </div>
     </section>
 
@@ -385,7 +418,7 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="bg-[#050505] border-t border-b border-white/5 px-4 md:px-6 py-6">
       <div class="max-w-5xl mx-auto">
-        <p class="text-[10px] uppercase tracking-[2px] text-white/30 text-center mb-4">Built for GTM teams who ship</p>
+        <p class="text-[10px] uppercase tracking-[2px] text-white/30 text-center mb-4">{{ t('landing.builtFor') }}</p>
         <div class="flex flex-wrap justify-center gap-3 md:gap-4">
           <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-white/50">
             <span class="w-1.5 h-1.5 rounded-full bg-[#2068FF]"></span> Sales Development
@@ -409,9 +442,12 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 3. HOW IT WORKS                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section class="px-4 md:px-6 py-10 md:py-16 bg-[var(--color-bg)]">
+    <section data-tour="how-it-works" class="px-4 md:px-6 py-10 md:py-16 bg-[var(--color-bg)]">
       <div class="max-w-4xl mx-auto text-center">
-        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8">How It Works</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-6 md:mb-8 inline-flex items-center gap-2">
+          {{ t('landing.howItWorks') }}
+          <ContextualHelp featureKey="oasis-simulation" size="sm" />
+        </h2>
         <TransitionGroup
           tag="div"
           class="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8"
@@ -433,23 +469,23 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 4. STATS BANNER                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section ref="statsBanner" class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
+    <section ref="statsBanner" data-tour="stats" class="bg-[#050505] text-white px-4 md:px-6 py-8 md:py-10">
       <div class="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 text-center">
         <div>
-          <div class="text-2xl font-semibold text-[#2068FF]">{{ agentDisplay >= 1000000 ? `${Math.floor(agentDisplay / 1000000)}M+` : agentDisplay.toLocaleString() }}</div>
-          <div class="text-xs text-white/40 mt-1">Max Agents</div>
+          <div class="text-2xl font-semibold text-[#2068FF]">{{ formatCompactNumber(agentDisplay) }}</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.maxAgents') }}</div>
         </div>
         <div>
           <div class="text-2xl font-semibold text-[#ff5600]">{{ actionDisplay > 0 ? `${actionDisplay}` : '0' }}</div>
-          <div class="text-xs text-white/40 mt-1">Action Types</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.actionTypes') }}</div>
         </div>
         <div>
           <div class="text-2xl font-semibold text-[#A0F]">{{ toolDisplay > 0 ? `${toolDisplay}` : '0' }}</div>
-          <div class="text-xs text-white/40 mt-1">Analysis Tools</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.analysisTools') }}</div>
         </div>
         <div>
           <div class="text-2xl font-semibold text-[#090]">{{ platformDisplay > 0 ? `${platformDisplay}` : '0' }}</div>
-          <div class="text-xs text-white/40 mt-1">Platforms</div>
+          <div class="text-xs text-white/40 mt-1">{{ t('landing.stats.platforms') }}</div>
         </div>
       </div>
     </section>
@@ -457,46 +493,49 @@ const year = new Date().getFullYear()
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 5. AGENT PERSONAS                                                  -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
-      <div class="max-w-5xl mx-auto">
-        <div class="text-center mb-10 md:mb-14">
-          <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Meet the Swarm</h2>
-          <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
-            Every agent is a unique buyer persona with realistic demographics, motivations, and objection patterns drawn from your ICP.
+    <LazyComponent min-height="320px">
+      <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
+        <div class="max-w-5xl mx-auto">
+          <div class="text-center mb-10 md:mb-14">
+            <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">{{ t('landing.meetTheSwarm') }}</h2>
+            <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
+              {{ t('landing.meetTheSwarmDesc') }}
+            </p>
+          </div>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div
+              v-for="persona in personas"
+              :key="persona.role"
+              class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 card-interactive"
+            >
+              <div class="text-3xl mb-3">{{ persona.emoji }}</div>
+              <h3 class="text-sm font-semibold text-[var(--color-text)]">{{ persona.role }}</h3>
+              <p class="text-[11px] text-[var(--color-text-muted)] mt-0.5">{{ persona.company }}</p>
+              <p class="text-xs text-[var(--color-text-secondary)] mt-2 italic">"{{ persona.trait }}"</p>
+            </div>
+          </div>
+          <p class="text-center text-xs text-[var(--color-text-muted)] mt-6">
+            {{ t('landing.plusThousands') }}
           </p>
         </div>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div
-            v-for="persona in personas"
-            :key="persona.role"
-            class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 hover:shadow-md transition-shadow"
-          >
-            <div class="text-3xl mb-3">{{ persona.emoji }}</div>
-            <h3 class="text-sm font-semibold text-[var(--color-text)]">{{ persona.role }}</h3>
-            <p class="text-[11px] text-[var(--color-text-muted)] mt-0.5">{{ persona.company }}</p>
-            <p class="text-xs text-[var(--color-text-secondary)] mt-2 italic">"{{ persona.trait }}"</p>
-          </div>
-        </div>
-        <p class="text-center text-xs text-[var(--color-text-muted)] mt-6">
-          + thousands more generated from your ICP distribution
-        </p>
-      </div>
-    </section>
+      </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 6. CAPABILITIES                                                    -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
       <div class="max-w-5xl mx-auto">
-        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10 md:mb-14">What You Can Simulate</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10 md:mb-14">{{ t('landing.whatYouCanSimulate') }}</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
           <div class="flex gap-4">
             <div class="shrink-0 w-10 h-10 rounded-lg bg-[rgba(32,104,255,0.1)] flex items-center justify-center">
               <svg class="w-5 h-5 text-[#2068FF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Outbound Email Testing</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Test subject lines, messaging angles, and cadence sequences against hundreds of AI personas before sending a single real email.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.outbound') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.outboundDesc') }}</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -504,8 +543,8 @@ const year = new Date().getFullYear()
               <svg class="w-5 h-5 text-[#ff5600]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Signal Validation</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Test whether your sales signals actually predict buying behavior. Identify false positives before routing them to reps.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.signal') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.signalDesc') }}</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -513,8 +552,8 @@ const year = new Date().getFullYear()
               <svg class="w-5 h-5 text-[#A0F]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Pricing Impact</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Predict churn risk, competitive switching, and sentiment before rolling out pricing changes to real customers.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.pricing') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.pricingDesc') }}</p>
             </div>
           </div>
           <div class="flex gap-4">
@@ -522,17 +561,19 @@ const year = new Date().getFullYear()
               <svg class="w-5 h-5 text-[#090]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" /></svg>
             </div>
             <div>
-              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">Personalization Ranking</h3>
-              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">Rank message variants by simulated engagement, not LLM self-assessment. Find the best tone, length, and CTA for each segment.</p>
+              <h3 class="text-sm font-semibold text-[var(--color-text)] mb-1">{{ t('landing.capabilities.personalization') }}</h3>
+              <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ t('landing.capabilities.personalizationDesc') }}</p>
             </div>
           </div>
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 7. BEFORE / AFTER COMPARISON                                       -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="400px">
     <section class="bg-[#050505] text-white px-4 md:px-6 py-14 md:py-20">
       <div class="max-w-5xl mx-auto">
         <h2 class="text-xl md:text-2xl font-semibold text-center mb-3">Traditional Testing vs. Swarm Simulation</h2>
@@ -605,10 +646,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 8. SIMULATION PIPELINE                                             -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-10 md:mb-14">
@@ -655,10 +698,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 9. TECHNOLOGY STACK                                                -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="250px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
       <div class="max-w-4xl mx-auto text-center">
         <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Powered by Open-Source Intelligence</h2>
@@ -689,10 +734,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 10. USE CASES BY ROLE                                              -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="400px">
     <section class="bg-[#050505] text-white px-4 md:px-6 py-14 md:py-20">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-10 md:mb-14">
@@ -732,10 +779,12 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- 11. SAMPLE REPORT PREVIEW                                          -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="400px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg)]">
       <div class="max-w-5xl mx-auto">
         <div class="text-center mb-10 md:mb-14">
@@ -814,13 +863,30 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- 12. FAQ                                                            -->
+    <!-- 12. SCENARIO LAUNCHER                                              -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <section class="px-4 md:px-6 py-14 md:py-20 bg-gradient-to-b from-[var(--color-bg)] to-[var(--color-bg-alt)]">
+      <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-10 md:mb-14">
+          <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] mb-3">Ready to Launch?</h2>
+          <p class="text-sm text-[var(--color-text-secondary)] max-w-xl mx-auto">
+            Pick a pre-built GTM scenario and launch with one click, or customize the parameters to match your exact use case.
+          </p>
+        </div>
+        <GtmScenarioLauncher />
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- 13. FAQ                                                            -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <LazyComponent min-height="300px">
     <section class="px-4 md:px-6 py-14 md:py-20 bg-[var(--color-bg-alt)]">
       <div class="max-w-3xl mx-auto">
-        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10">Frequently Asked Questions</h2>
+        <h2 class="text-xl md:text-2xl font-semibold text-[var(--color-text)] text-center mb-10">{{ t('landing.faq') }}</h2>
         <div class="space-y-3">
           <div
             v-for="(faq, i) in faqs"
@@ -833,37 +899,40 @@ const year = new Date().getFullYear()
             >
               <span class="text-sm font-semibold text-[var(--color-text)] pr-4">{{ faq.q }}</span>
               <svg
-                class="w-5 h-5 shrink-0 text-[var(--color-text-muted)] transition-transform duration-200"
-                :class="{ 'rotate-180': openFaq === i }"
+                class="chevron-rotate w-5 h-5 shrink-0 text-[var(--color-text-muted)]"
+                :data-open="openFaq === i"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
               >
                 <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
               </svg>
             </button>
-            <Transition name="faq">
-              <div v-if="openFaq === i" class="px-5 pb-4">
-                <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ faq.a }}</p>
+            <div class="accordion-body" :data-open="openFaq === i">
+              <div>
+                <div class="px-5 pb-4">
+                  <p class="text-xs text-[var(--color-text-secondary)] leading-relaxed">{{ faq.a }}</p>
+                </div>
               </div>
-            </Transition>
+            </div>
           </div>
         </div>
       </div>
     </section>
+    </LazyComponent>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
-    <!-- 13. CTA                                                            -->
+    <!-- 14. CTA                                                            -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <section class="bg-gradient-to-b from-[#050505] to-[#1a1a3e] text-white px-4 md:px-6 py-16 md:py-24">
       <div class="max-w-2xl mx-auto text-center">
-        <h2 class="text-2xl md:text-3xl font-semibold mb-4">Stop guessing. Start simulating.</h2>
+        <h2 class="text-2xl md:text-3xl font-semibold mb-4">{{ t('landing.cta.title') }}</h2>
         <p class="text-sm md:text-base text-white/50 mb-8 max-w-lg mx-auto">
-          Every campaign is a production deployment today. MiroFish gives you a staging environment for your GTM strategy.
+          {{ t('landing.cta.subtitle') }}
         </p>
         <button
           @click="scrollToScenarios"
           class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-semibold px-8 py-3.5 rounded-lg transition-colors cursor-pointer"
         >
-          Try a Scenario
+          {{ t('landing.cta.button') }}
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5 12 3m0 0 7.5 7.5M12 3v18" /></svg>
         </button>
       </div>
@@ -946,6 +1015,14 @@ const year = new Date().getFullYear()
         </div>
       </div>
     </footer>
+
+    <!-- Scenario Detail Modal -->
+    <ScenarioDetailModal
+      :open="!!selectedScenarioId"
+      :scenario-id="selectedScenarioId"
+      @close="selectedScenarioId = null"
+      @launch="launchScenario"
+    />
   </div>
 </template>
 

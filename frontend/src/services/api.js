@@ -5,9 +5,27 @@
 
 import { API_BASE } from '../api/client'
 
+function getCsrfToken() {
+  const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+function csrfHeaders(method) {
+  if (method && method !== 'GET' && method !== 'HEAD') {
+    const token = getCsrfToken()
+    if (token) return { 'X-CSRFToken': token }
+  }
+  return {}
+}
+
 async function request(url, options = {}) {
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...csrfHeaders(options.method),
+      ...options.headers,
+    },
     ...options,
   })
   const data = await res.json()
@@ -53,7 +71,12 @@ export async function getScenario(id) {
 
 export async function generateOntology(formData) {
   // multipart/form-data — don't set Content-Type, let browser set boundary
-  const res = await fetch(`${API_BASE}/graph/ontology/generate`, { method: 'POST', body: formData })
+  const res = await fetch(`${API_BASE}/graph/ontology/generate`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: csrfHeaders('POST'),
+    body: formData,
+  })
   const data = await res.json()
   if (!res.ok || data.success === false) throw new Error(data.error || 'Ontology generation failed')
   return data

@@ -7,8 +7,14 @@ from flask import Blueprint
 graph_bp = Blueprint('graph', __name__)
 simulation_bp = Blueprint('simulation', __name__)
 report_bp = Blueprint('report', __name__)
+memory_transfer_bp = Blueprint('memory_transfer', __name__)
 
 from . import graph  # noqa: E402, F401
 from . import simulation  # noqa: E402, F401
+from . import branches  # noqa: E402, F401
+from . import predictions  # noqa: E402, F401
 from . import report  # noqa: E402, F401
-
+from . import memory  # noqa: E402, F401
+from . import memory_transfer  # noqa: E402, F401
+from .revenue import revenue_bp  # noqa: E402, F401
+from .agents import agents_bp  # noqa: E402, F401

@@ -1,7 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import LandingView from './LandingView.vue'
+
+vi.mock('../components/landing/HeroSwarm.vue', () => ({
+  default: { template: '<div class="hero-swarm-stub" />' },
+}))
+
+vi.mock('../composables/useDemoMode', () => ({
+  useDemoMode: () => ({ isDemoMode: false }),
+}))
 
 const SCENARIOS = [
   { id: 'outbound_campaign', name: 'Outbound Campaign Pre-Testing', description: 'Test outbound emails.', icon: '📧', hero: true },
@@ -16,6 +24,8 @@ function createTestRouter() {
     routes: [
       { path: '/', component: LandingView },
       { path: '/scenarios/:id', component: { template: '<div />' } },
+      { path: '/simulations', component: { template: '<div />' } },
+      { path: '/settings', component: { template: '<div />' } },
     ],
   })
 }
@@ -24,6 +34,15 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve(SCENARIOS) }),
   ))
+  vi.stubGlobal('IntersectionObserver', class {
+    observe() {}
+    disconnect() {}
+    unobserve() {}
+  })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 describe('LandingView', () => {
@@ -34,12 +53,12 @@ describe('LandingView', () => {
     expect(wrapper.text()).toContain('MiroFish Swarm Intelligence')
   })
 
-  it('renders scenario cards after mount via TransitionGroup', async () => {
+  it('renders scenario cards after fetch', async () => {
     const router = createTestRouter()
     const wrapper = mount(LandingView, { global: { plugins: [router] } })
     await flushPromises()
-    const buttons = wrapper.findAll('button')
-    expect(buttons.length).toBe(4)
+    const scenarioButtons = wrapper.findAll('button[data-index]')
+    expect(scenarioButtons.length).toBe(5)
     expect(wrapper.text()).toContain('Outbound Campaign Pre-Testing')
   })
 
@@ -48,12 +67,12 @@ describe('LandingView', () => {
     const wrapper = mount(LandingView, { global: { plugins: [router] } })
     await flushPromises()
     const buttons = wrapper.findAll('button[data-index]')
-    expect(buttons.length).toBe(4)
+    expect(buttons.length).toBe(5)
     expect(buttons[0].attributes('data-index')).toBe('0')
     expect(buttons[3].attributes('data-index')).toBe('3')
   })
 
-  it('renders how-it-works steps with stagger', async () => {
+  it('renders how-it-works steps', async () => {
     vi.useFakeTimers()
     const router = createTestRouter()
     vi.stubGlobal('fetch', vi.fn(() =>

@@ -28,4 +28,5 @@ COPY --from=build /app/dist ./dist
 ENV PORT=3000
 EXPOSE $PORT
 
-CMD ["sh", "-c", "serve dist -l $PORT -s"]
+# exec replaces the shell so serve becomes PID 1 and receives SIGTERM
+CMD ["sh", "-c", "exec serve dist -l $PORT -s"]

@@ -4,14 +4,24 @@ import { createPinia, setActivePinia } from 'pinia'
 import ScenarioBuilderView from '../views/ScenarioBuilderView.vue'
 
 const mockPush = vi.fn()
+const mockRoute = { query: {} }
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mockPush }),
+  useRoute: () => mockRoute,
 }))
 
 vi.mock('../api/graph', () => ({
   graphApi: {
     build: vi.fn(),
   },
+}))
+
+vi.mock('../composables/useToast', () => ({
+  useToast: () => ({
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  }),
 }))
 
 import { graphApi } from '../api/graph'
@@ -41,7 +51,7 @@ function mountView(id = 'outbound_campaign') {
     global: {
       stubs: {
         'router-link': { template: '<a><slot /></a>', props: ['to'] },
-        LoadingSpinner: { template: '<div data-testid="loading">Loading...</div>', props: ['label'] },
+        SkeletonFormLayout: { template: '<div data-testid="loading">Loading...</div>' },
         ErrorState: {
           template: '<div data-testid="error"><button @click="$emit(\'retry\')">Retry</button></div>',
           props: ['title', 'message'],
@@ -57,18 +67,19 @@ describe('ScenarioBuilderView', () => {
     setActivePinia(createPinia())
     mockPush.mockReset()
     graphApi.build.mockReset()
+    mockRoute.query = {}
   })
 
-  it('shows loading spinner while fetching scenario', () => {
+  it('shows loading skeleton while fetching scenario', () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => new Promise(() => {})) // never resolves
+    store.fetchScenarioById = vi.fn(() => new Promise(() => {})) // never resolves
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="loading"]').exists()).toBe(true)
   })
 
   it('shows error state when fetch fails', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.reject(new Error('Network error')))
+    store.fetchScenarioById = vi.fn(() => Promise.reject(new Error('Network error')))
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="error"]').exists()).toBe(true)
@@ -76,7 +87,7 @@ describe('ScenarioBuilderView', () => {
 
   it('shows error when scenario not found', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(null))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(null))
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="error"]').exists()).toBe(true)
@@ -84,7 +95,7 @@ describe('ScenarioBuilderView', () => {
 
   it('pre-fills form fields from scenario template', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -96,7 +107,7 @@ describe('ScenarioBuilderView', () => {
 
   it('renders persona type toggle buttons', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -107,7 +118,7 @@ describe('ScenarioBuilderView', () => {
 
   it('renders industry mix checkboxes', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -120,7 +131,7 @@ describe('ScenarioBuilderView', () => {
 
   it('toggles persona selection on click', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -138,7 +149,7 @@ describe('ScenarioBuilderView', () => {
 
   it('toggles industry selection via checkbox', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -152,7 +163,7 @@ describe('ScenarioBuilderView', () => {
 
   it('updates agent count via slider', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -163,7 +174,7 @@ describe('ScenarioBuilderView', () => {
 
   it('switches duration on button click', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -176,7 +187,7 @@ describe('ScenarioBuilderView', () => {
 
   it('switches platform mode on button click', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     const wrapper = mountView()
     await flushPromises()
 
@@ -188,7 +199,7 @@ describe('ScenarioBuilderView', () => {
 
   it('calls graphApi.build and navigates on Run Simulation', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     graphApi.build.mockResolvedValue({ data: { task_id: 'task-abc-123' } })
 
     const wrapper = mountView()
@@ -203,16 +214,19 @@ describe('ScenarioBuilderView', () => {
       agent_count: 200,
       persona_types: MOCK_SCENARIO.agent_config.persona_types,
       industries: MOCK_SCENARIO.agent_config.firmographic_mix.industries,
+      company_sizes: [],
+      regions: [],
       duration_hours: 72,
+      minutes_per_round: 30,
       platform_mode: 'parallel',
     })
-    expect(mockPush).toHaveBeenCalledWith('/graph/task-abc-123')
+    expect(mockPush).toHaveBeenCalledWith('/workspace/task-abc-123')
   })
 
   it('disables Run Simulation when seed text is empty', async () => {
     const store = useScenariosStore()
     const emptyScenario = { ...MOCK_SCENARIO, seed_text: '' }
-    store.fetchOne = vi.fn(() => Promise.resolve(emptyScenario))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(emptyScenario))
     const wrapper = mountView()
     await flushPromises()
 
@@ -226,7 +240,7 @@ describe('ScenarioBuilderView', () => {
       ...MOCK_SCENARIO,
       agent_config: { ...MOCK_SCENARIO.agent_config, persona_types: [] },
     }
-    store.fetchOne = vi.fn(() => Promise.resolve(noPersonas))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(noPersonas))
     const wrapper = mountView()
     await flushPromises()
 
@@ -236,7 +250,7 @@ describe('ScenarioBuilderView', () => {
 
   it('shows "Starting..." while run is in progress', async () => {
     const store = useScenariosStore()
-    store.fetchOne = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
+    store.fetchScenarioById = vi.fn(() => Promise.resolve(MOCK_SCENARIO))
     graphApi.build.mockReturnValue(new Promise(() => {})) // never resolves
 
     const wrapper = mountView()

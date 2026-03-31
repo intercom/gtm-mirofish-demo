@@ -1,19 +1,26 @@
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { useTheme } from '../composables/useTheme'
+import { useI18n } from 'vue-i18n'
+import { useLanguage } from '../composables/useLanguage'
 import { useToast } from '../composables/useToast'
 import { useDemoMode } from '../composables/useDemoMode'
+import { useSettingsStore } from '../stores/settings'
+import { usePermissions } from '../composables/usePermissions'
 import { API_BASE } from '../api/client'
+import ThemeEditor from '../components/settings/ThemeEditor.vue'
+import ServiceStatus from '../components/common/ServiceStatus.vue'
+import ThemeSwitcher from '../components/common/ThemeSwitcher.vue'
+import AuditLogViewer from '../components/settings/AuditLogViewer.vue'
+import ApiKeyManagement from '../components/settings/ApiKeyManagement.vue'
+import UserManagement from '../components/settings/UserManagement.vue'
 
-const { preference: themePreference, setTheme } = useTheme()
+const settingsStore = useSettingsStore()
+
+const { t } = useI18n()
+const { locale, languages, setLanguage } = useLanguage()
 const toast = useToast()
 const { isDemoMode } = useDemoMode()
-
-const themeOptions = [
-  { id: 'system', label: 'System', icon: '💻' },
-  { id: 'light', label: 'Light', icon: '☀️' },
-  { id: 'dark', label: 'Dark', icon: '🌙' },
-]
+const { isReadOnly, can } = usePermissions()
 
 const STORAGE_KEY = 'mirofish-settings'
 
@@ -23,6 +30,7 @@ const zepKey = ref('')
 const agentCount = ref(200)
 const duration = ref(72)
 const platformMode = ref('parallel')
+const showPresence = ref(true)
 const connectionStatus = ref({ llm: null, zep: null })
 const connectionError = ref({ llm: '', zep: '' })
 
@@ -36,15 +44,15 @@ const providers = [
 ]
 
 const durations = [
-  { value: 24, label: '24 hours' },
-  { value: 48, label: '48 hours' },
-  { value: 72, label: '72 hours (recommended)' },
+  { value: 24, key: 'settings.duration24' },
+  { value: 48, key: 'settings.duration48' },
+  { value: 72, key: 'settings.duration72' },
 ]
 
 const platforms = [
-  { id: 'twitter', label: 'Twitter' },
-  { id: 'reddit', label: 'Reddit' },
-  { id: 'parallel', label: 'Both' },
+  { id: 'twitter', key: 'settings.platformTwitter' },
+  { id: 'reddit', key: 'settings.platformReddit' },
+  { id: 'parallel', key: 'settings.platformBoth' },
 ]
 
 function load() {
@@ -58,12 +66,14 @@ function load() {
     agentCount.value = s.agentCount ?? 200
     duration.value = s.duration ?? 72
     platformMode.value = s.platformMode || 'parallel'
+    showPresence.value = s.showPresence !== false
   } catch {
-    toast.error('Failed to load saved settings')
+    toast.error(t('settings.loadError'))
   }
 }
 
 function save() {
+  if (isReadOnly.value) return
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       provider: provider.value,
@@ -72,16 +82,21 @@ function save() {
       agentCount: agentCount.value,
       duration: duration.value,
       platformMode: platformMode.value,
+      showPresence: showPresence.value,
     }))
     saved.value = true
     clearTimeout(savedTimer)
     savedTimer = setTimeout(() => { saved.value = false }, 2000)
   } catch {
-    toast.error('Failed to save settings')
+    toast.error(t('settings.saveError'))
   }
 }
 
-watch([provider, apiKey, zepKey, agentCount, duration, platformMode], save, { deep: true })
+watch([provider, apiKey, zepKey, agentCount, duration, platformMode, showPresence], save, { deep: true })
+
+watch(showPresence, (val) => {
+  settingsStore.showPresence = val
+})
 
 async function testConnection(service) {
   connectionStatus.value[service] = 'testing'
@@ -101,26 +116,26 @@ async function testConnection(service) {
     const data = await res.json()
     if (data.ok) {
       connectionStatus.value[service] = 'success'
-      toast.success(`${service === 'llm' ? 'LLM' : 'Zep'} connection successful`)
+      toast.success(t('settings.connectionSuccess', { service: service === 'llm' ? 'LLM' : 'Zep' }))
     } else {
       connectionStatus.value[service] = 'error'
-      connectionError.value[service] = data.error || 'Connection failed'
-      toast.error(`${service === 'llm' ? 'LLM' : 'Zep'} connection failed`)
+      connectionError.value[service] = data.error || t('settings.connectionFailedGeneric')
+      toast.error(t('settings.connectionFailed', { service: service === 'llm' ? 'LLM' : 'Zep' }))
     }
   } catch {
     connectionStatus.value[service] = 'error'
-    connectionError.value[service] = 'Network error — is the backend running?'
-    toast.error(`${service === 'llm' ? 'LLM' : 'Zep'} connection failed`)
+    connectionError.value[service] = t('settings.networkError')
+    toast.error(t('settings.connectionFailed', { service: service === 'llm' ? 'LLM' : 'Zep' }))
   }
 }
 
 
 function testButtonLabel(service) {
   const status = connectionStatus.value[service]
-  if (status === 'testing') return 'Testing…'
-  if (status === 'success') return '✓ Connected'
-  if (status === 'error') return '✗ Failed'
-  return 'Test Connection'
+  if (status === 'testing') return t('settings.testing')
+  if (status === 'success') return t('settings.testConnected')
+  if (status === 'error') return t('settings.testFailed')
+  return t('settings.testConnection')
 }
 
 function testButtonClass(service) {
@@ -138,80 +153,110 @@ onMounted(() => {
 <template>
   <div class="max-w-2xl mx-auto px-4 md:px-6 py-6 md:py-10">
     <div class="flex items-center justify-between mb-6 md:mb-8">
-      <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">Settings</h1>
+      <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">{{ t('settings.title') }}</h1>
       <transition name="fade">
         <span v-if="saved" class="text-xs font-medium text-[#090] bg-[rgba(0,153,0,0.08)] px-3 py-1 rounded-full">
-          ✓ Saved
+          ✓ {{ t('common.saved') }}
         </span>
       </transition>
     </div>
 
     <!-- Demo Mode Banner -->
-    <section v-if="isDemoMode" class="mb-8 md:mb-10 bg-[rgba(32,104,255,0.06)] border border-[#2068FF]/20 rounded-lg p-3 md:p-4 flex items-start gap-3">
-      <svg class="w-5 h-5 text-[#2068FF] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <section v-if="isDemoMode" class="mb-8 md:mb-10 bg-[var(--color-primary-light)] border border-[var(--color-primary)]/20 rounded-lg p-3 md:p-4 flex items-start gap-3">
+      <svg class="w-5 h-5 text-[var(--color-primary)] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <p class="text-sm text-[var(--color-text-secondary)]">
-        <span class="font-semibold text-[var(--color-text)]">Demo Mode</span> — Using simulated data. API keys are not required.
+        <span class="font-semibold text-[var(--color-text)]">{{ t('settings.demoModeBanner') }}</span> — {{ t('settings.demoModeBannerDesc') }}
+      </p>
+    </section>
+
+    <!-- Service Status -->
+    <section class="mb-8 md:mb-10">
+      <ServiceStatus mode="expanded" />
+    </section>
+
+    <!-- Read-only Banner -->
+    <section v-if="isReadOnly" class="mb-8 md:mb-10 bg-[rgba(255,86,0,0.06)] border border-[#ff5600]/20 rounded-lg p-3 md:p-4 flex items-start gap-3">
+      <svg class="w-5 h-5 text-[#ff5600] shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+      </svg>
+      <p class="text-sm text-[var(--color-text-secondary)]">
+        <span class="font-semibold text-[var(--color-text)]">Read-only</span> — You can view settings but editing requires the Editor role.
       </p>
     </section>
 
     <!-- Theme -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Theme</h2>
-      <div class="flex gap-2">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.theme') }}</h2>
+      <ThemeSwitcher />
+    </section>
+
+    <!-- Custom Theme Editor -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Custom Themes</h2>
+      <ThemeEditor />
+    </section>
+
+    <!-- Language -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.language') }}</h2>
+      <div class="flex flex-wrap gap-2">
         <button
-          v-for="opt in themeOptions"
-          :key="opt.id"
-          @click="setTheme(opt.id)"
+          v-for="lang in languages"
+          :key="lang.code"
+          @click="setLanguage(lang.code)"
           class="flex items-center gap-2 px-4 py-2 rounded-lg border text-sm transition-colors cursor-pointer"
-          :class="themePreference === opt.id
-            ? 'border-[#2068FF] bg-[rgba(32,104,255,0.08)] text-[var(--color-text)]'
-            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[#2068FF]/50'"
+          :class="locale === lang.code
+            ? 'border-[var(--color-primary)] bg-[var(--color-primary-light)] text-[var(--color-text)]'
+            : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
         >
-          <span>{{ opt.icon }}</span>
-          <span>{{ opt.label }}</span>
+          <span>{{ lang.flag }}</span>
+          <span>{{ lang.label }}</span>
         </button>
       </div>
     </section>
 
     <!-- LLM Provider -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">LLM Provider</h2>
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.llmProvider') }}</h2>
       <div class="space-y-3">
         <label
           v-for="p in providers"
           :key="p.id"
-          class="flex items-center gap-3 p-3 md:p-4 rounded-lg border cursor-pointer transition-colors"
-          :class="provider === p.id
-            ? 'border-[#2068FF] bg-[rgba(32,104,255,0.04)]'
-            : 'border-[var(--color-border)] hover:border-[#2068FF]/50'"
+          class="flex items-center gap-3 p-3 md:p-4 rounded-lg border transition-colors"
+          :class="[
+            provider === p.id
+              ? 'border-[var(--color-primary)] bg-[var(--color-primary-lighter)]'
+              : 'border-[var(--color-border)] hover:border-[var(--color-primary)]/50',
+            isReadOnly ? 'cursor-default opacity-60' : 'cursor-pointer',
+          ]"
         >
-          <input type="radio" :value="p.id" v-model="provider" class="accent-[#2068FF]" />
+          <input type="radio" :value="p.id" v-model="provider" :disabled="isReadOnly" class="accent-[var(--color-primary)]" />
           <div>
             <div class="text-sm font-medium text-[var(--color-text)]">{{ p.name }}</div>
-            <div class="text-xs text-[var(--color-text-muted)]">Model: {{ p.model }}</div>
+            <div class="text-xs text-[var(--color-text-muted)]">{{ t('common.model', { model: p.model }) }}</div>
           </div>
         </label>
       </div>
 
       <div class="mt-4">
-        <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">API Key</label>
+        <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.apiKey') }}</label>
         <div class="flex flex-col sm:flex-row gap-2">
           <input
             type="password"
             v-model="apiKey"
-            :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter your API key'"
-            :disabled="isDemoMode"
-            class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
-            :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
+            :placeholder="isDemoMode ? t('settings.apiKeyDemoPlaceholder') : t('settings.apiKeyPlaceholder')"
+            :disabled="isDemoMode || isReadOnly"
+            class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+            :class="{ 'opacity-40 cursor-not-allowed': isDemoMode || isReadOnly }"
           />
           <span
             v-if="isDemoMode"
             class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
-          >Simulated</span>
+          >{{ t('common.simulated') }}</span>
           <button
-            v-else
+            v-else-if="!isReadOnly"
             @click="testConnection('llm')"
             :disabled="!apiKey || connectionStatus.llm === 'testing'"
             class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
@@ -220,28 +265,28 @@ onMounted(() => {
             {{ testButtonLabel('llm') }}
           </button>
         </div>
-        <p v-if="connectionError.llm" class="text-xs text-red-500 mt-1">{{ connectionError.llm }}</p>
+        <p v-if="connectionError.llm" class="text-xs text-[var(--color-error)] mt-1">{{ connectionError.llm }}</p>
       </div>
     </section>
 
     <!-- Zep Cloud -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Zep Cloud (Knowledge Graph)</h2>
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.zepCloud') }}</h2>
       <div class="flex flex-col sm:flex-row gap-2">
         <input
           type="password"
           v-model="zepKey"
-          :placeholder="isDemoMode ? 'Not required in demo mode' : 'Enter Zep API key'"
-          :disabled="isDemoMode"
-          class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[#2068FF]"
-          :class="{ 'opacity-40 cursor-not-allowed': isDemoMode }"
+          :placeholder="isDemoMode ? t('settings.zepKeyDemoPlaceholder') : t('settings.zepKeyPlaceholder')"
+          :disabled="isDemoMode || isReadOnly"
+          class="flex-1 border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] rounded-lg px-3 md:px-4 py-2 text-sm focus:ring-2 focus:ring-[var(--color-primary)]"
+          :class="{ 'opacity-40 cursor-not-allowed': isDemoMode || isReadOnly }"
         />
         <span
           v-if="isDemoMode"
           class="px-4 py-2 text-sm font-medium text-[#090] bg-[rgba(0,153,0,0.08)] border border-[rgba(0,153,0,0.2)] rounded-lg whitespace-nowrap text-center"
-        >Simulated</span>
+        >{{ t('common.simulated') }}</span>
         <button
-          v-else
+          v-else-if="!isReadOnly"
           @click="testConnection('zep')"
           :disabled="!zepKey || connectionStatus.zep === 'testing'"
           class="px-4 py-2 text-sm border rounded-lg transition-colors whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed"
@@ -250,83 +295,135 @@ onMounted(() => {
           {{ testButtonLabel('zep') }}
         </button>
       </div>
-      <p v-if="connectionError.zep" class="text-xs text-red-500 mt-1">{{ connectionError.zep }}</p>
+      <p v-if="connectionError.zep" class="text-xs text-[var(--color-error)] mt-1">{{ connectionError.zep }}</p>
       <p v-else-if="!isDemoMode" class="text-xs text-[var(--color-text-muted)] mt-2">
-        Sign up at
-        <a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[#2068FF] hover:underline">app.getzep.com</a>
-        — free tier is sufficient for PoC.
+        <i18n-t keypath="settings.zepSignup" tag="span">
+          <template #link><a href="https://app.getzep.com/" target="_blank" rel="noopener" class="text-[var(--color-primary)] hover:underline">app.getzep.com</a></template>
+        </i18n-t>
       </p>
+    </section>
+
+    <!-- API Keys -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">API Keys</h2>
+      <p class="text-xs text-[var(--color-text-muted)] mb-4">
+        Create keys for programmatic access to the MiroFish API. Keys use the <code class="bg-[var(--color-border)] px-1 rounded">mf_</code> prefix.
+      </p>
+      <ApiKeyManagement />
     </section>
 
     <!-- Simulation Defaults -->
     <section class="mb-8 md:mb-10">
-      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Simulation Defaults</h2>
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">{{ t('settings.simulationDefaults') }}</h2>
       <div class="space-y-6">
         <!-- Agent Count -->
         <div>
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Agent Count</label>
+          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.agentCount') }}</label>
           <input
             type="range"
             v-model.number="agentCount"
             min="10"
             max="500"
             step="10"
+            :disabled="isReadOnly"
             class="w-full accent-[var(--color-primary)]"
+            :class="{ 'opacity-40 cursor-not-allowed': isReadOnly }"
           />
           <div class="text-center text-2xl font-semibold text-[var(--color-primary)]">{{ agentCount }}</div>
         </div>
 
         <!-- Duration -->
         <div>
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Duration</label>
+          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.duration') }}</label>
           <div class="flex gap-2">
             <button
               v-for="d in durations"
               :key="d.value"
-              @click="duration = d.value"
-              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors cursor-pointer"
-              :class="duration === d.value
-                ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
+              @click="isReadOnly || (duration = d.value)"
+              :disabled="isReadOnly"
+              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors"
+              :class="[
+                duration === d.value
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50',
+                isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+              ]"
             >
-              {{ d.label }}
+              {{ t(d.key) }}
             </button>
           </div>
         </div>
 
         <!-- Platform -->
         <div>
-          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">Platform</label>
+          <label class="block text-xs uppercase tracking-wider text-[var(--color-text-muted)] mb-2">{{ t('settings.platform') }}</label>
           <div class="flex gap-2">
             <button
               v-for="p in platforms"
               :key="p.id"
-              @click="platformMode = p.id"
-              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors cursor-pointer"
-              :class="platformMode === p.id
-                ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
-                : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'"
+              @click="isReadOnly || (platformMode = p.id)"
+              :disabled="isReadOnly"
+              class="flex-1 px-3 py-2 text-sm rounded-lg border transition-colors"
+              :class="[
+                platformMode === p.id
+                  ? 'bg-[var(--color-primary)] text-white border-[var(--color-primary)]'
+                  : 'border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50',
+                isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+              ]"
             >
-              {{ p.label }}
+              {{ t(p.key) }}
             </button>
           </div>
         </div>
       </div>
 
       <p class="text-xs text-[var(--color-text-muted)] mt-4">
-        These defaults pre-fill the Scenario Builder. You can override them per-simulation.
+        {{ t('settings.defaultsHint') }}
       </p>
     </section>
 
+    <!-- Demo Features -->
+    <section class="mb-8 md:mb-10">
+      <h2 class="text-sm font-semibold text-[var(--color-text)] mb-4">Demo Features</h2>
+      <label class="flex items-center justify-between p-3 md:p-4 rounded-lg border border-[var(--color-border)] cursor-pointer transition-colors hover:border-[var(--color-primary)]/50">
+        <div>
+          <div class="text-sm font-medium text-[var(--color-text)]">Show Collaboration Presence</div>
+          <div class="text-xs text-[var(--color-text-muted)] mt-0.5">Simulates other team members viewing the app</div>
+        </div>
+        <div
+          class="relative w-10 h-6 rounded-full transition-colors shrink-0 ml-4"
+          :class="showPresence ? 'bg-[var(--color-primary)]' : 'bg-[var(--color-border-strong)]'"
+        >
+          <input type="checkbox" v-model="showPresence" class="sr-only" />
+          <div
+            class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+            :class="{ 'translate-x-4': showPresence }"
+          />
+        </div>
+      </label>
+    </section>
+
+    <!-- User Management -->
+    <section class="mb-8 md:mb-10">
+      <UserManagement />
+    </section>
+
+    <!-- Security & Audit Log -->
+    <section class="mb-8 md:mb-10">
+      <AuditLogViewer />
+    </section>
+
     <!-- Info -->
-    <section class="bg-[var(--color-primary-light)] border border-[#2068FF]/20 rounded-lg p-3 md:p-4">
+    <section class="bg-[var(--color-primary-light)] border border-[var(--color-primary)]/20 rounded-lg p-3 md:p-4">
       <p v-if="isDemoMode" class="text-xs text-[var(--color-text-secondary)]">
-        Running in demo mode with pre-generated simulation data. Switch to production mode by setting
-        <code class="bg-[var(--color-border)] px-1 rounded">DEMO_MODE=false</code> and configuring API keys.
+        <i18n-t keypath="settings.demoProdHint" tag="span">
+          <template #code><code class="bg-[var(--color-border)] px-1 rounded">DEMO_MODE=false</code></template>
+        </i18n-t>
       </p>
       <p v-else class="text-xs text-[var(--color-text-secondary)]">
-        Settings are stored locally in your browser. For Docker deployments, configure via
-        <code class="bg-[var(--color-border)] px-1 rounded">.env</code> file instead.
+        <i18n-t keypath="settings.localStorageHint" tag="span">
+          <template #code><code class="bg-[var(--color-border)] px-1 rounded">.env</code></template>
+        </i18n-t>
       </p>
     </section>
   </div>

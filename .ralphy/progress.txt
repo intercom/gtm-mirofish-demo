@@ -1,0 +1,308 @@
+Task: Build provisioning status dashboard component
+Status: Complete
+
+Created frontend/src/components/orders/ProvisioningDashboard.vue with:
+- 4 stat cards: Total Orders, Success Rate, Avg Provisioning Time, Failed Count
+- D3.js horizontal stacked bar chart showing orders by status (Pending/Validated/Provisioned/Active/Failed)
+- Sortable orders table with status badges (sortable by date and status)
+- Failed orders highlighted with red background and Retry button
+- Auto-refresh indicator (top-right corner) with toggle and elapsed timer
+- Demo data generator (50 deterministic orders) for standalone operation
+- Accepts `orders` prop for integration with future Pinia store
+- Emits `retry` and `refresh` events for parent wiring
+- Uses existing Badge component and Intercom brand tokens
+- Responsive grid layout (2-col mobile, 4-col desktop for stat cards)
+- Build verified: passes vite build with zero errors
+
+## Build report generation wizard component
+
+### Completed — 2026-03-24
+
+**Files created:**
+- `frontend/src/components/report/ReportWizard.vue` — 5-step wizard component
+- `frontend/src/views/ReportWizardView.vue` — View wrapper with page layout
+
+**Files modified:**
+- `frontend/src/router/index.js` — Added `/report/new` route (before `/report/:taskId`)
+
+**What was built:**
+ReportWizard.vue implements a step-by-step wizard for generating reports:
+1. **Select Simulation** — Lists completed simulations from the Pinia simulation store (sessionRuns). Radio-style selection with scenario name, actions count, rounds, and relative timestamp.
+2. **Report Type** — Three card options: Comprehensive Analysis, Executive Summary, Competitive Intelligence. Each with icon and description.
+3. **Customize** — Optional custom instructions textarea, checkbox grid for section inclusion (engagement, sentiment, competitive, recommendations, agent profiles), and chart preference toggle (all/essential/none). Shows summary of all selections.
+4. **Generate** — Calls POST /api/report/generate with customization payload. Progress bar with percentage, live section list as they're generated, shimmer loading states. Polls progress + sections endpoints every 3s. Error state with retry button.
+5. **Review** — Chapter tab navigation, rendered markdown content, chapter prev/next navigation, export markdown button, link to full report view, "generate another" action.
+
+**Additional features:**
+- Stepper navigation bar with completed/active/pending states
+- Back/Next footer navigation (disabled during generation/review)
+- Report preferences saved to localStorage (`mirofish_report_wizard_prefs`)
+- Uses existing composables: useSimulationStore, useToast
+- Uses existing common components: AppButton, ShimmerCard
+- Follows Intercom brand tokens (#2068FF blue, design token CSS vars)
+- Cleanup on unmount (stops polling)
+- [✓] 2026-03-26 08:29 - Agent sentiment timeline visualization
+- [✓] 2026-03-26 08:42 - Sankey diagram for agent journeys
+- [✓] 2026-03-26 08:42 - Treemap for topic distribution
+- [✓] 2026-03-26 08:42 - Geographic engagement heatmap
+- [✓] 2026-03-26 09:17 - E2E test for full simulation flow
+- [✓] 2026-03-26 09:17 - API integration tests for demo_app.py
+- [✓] 2026-03-26 09:17 - Unit tests for visualization components
+- [✓] 2026-03-26 09:17 - Unit tests for new backend endpoints
+- [✓] 2026-03-26 09:17 - Error boundary wrapper component
+- [✓] 2026-03-26 09:17 - D3 rendering performance monitoring
+- [✓] 2026-03-26 09:38 - Interactive API docs page
+- [✓] 2026-03-26 09:38 - Architecture decision records
+- [✓] 2026-03-26 09:38 - Presentation slides template (Marp)
+- [✓] 2026-03-26 09:38 - Updated README with screenshots
+- [✓] 2026-03-26 09:38 - Troubleshooting FAQ
+- [✓] 2026-03-26 09:58 - GZIP compression middleware
+- [✓] 2026-03-26 09:58 - ETag/caching for scenario data
+- [✓] 2026-03-26 09:58 - API versioning (/api/v1/)
+- [✓] 2026-03-26 09:58 - Graceful shutdown handling
+- [✓] 2026-03-26 09:58 - Background task cleanup
+- [✓] 2026-03-26 09:58 - Rate limiting middleware
+- [✓] 2026-03-26 10:11 - Favicon + OG meta tags
+- [✓] 2026-03-26 10:11 - Onboarding tour for first-time visitors
+- [✓] 2026-03-26 10:11 - Parallax hero scroll effect
+- [✓] 2026-03-26 10:11 - Smooth page transitions
+- [✓] 2026-03-26 10:11 - Micro-interaction animations
+- [✓] 2026-03-26 10:11 - Final visual QA brand consistency pass
+- [✓] 2026-03-26 10:18 - Create comprehensive CLAUDE.md with project rules and architecture
+- [✓] 2026-03-26 10:37 - Consolidate demo_app.py routes into Flask Blueprints
+- [✓] 2026-03-26 10:37 - Create health Blueprint with /api/health and /api/health/detailed
+- [✓] 2026-03-26 10:37 - Create shared backend utilities module
+- [✓] 2026-03-26 10:37 - Add request logging middleware
+- [✓] 2026-03-26 10:37 - Add CORS and error handling middleware
+- [✓] 2026-03-26 10:37 - Create backend configuration management
+- [✓] 2026-03-26 10:51 - Create Salesforce data models module
+- [✓] 2026-03-26 10:51 - Build Salesforce data generator service
+- [✓] 2026-03-26 10:51 - Create Salesforce API Blueprint
+- [✓] 2026-03-26 10:51 - Build Account detail Vue component
+- [✓] 2026-03-26 10:51 - Build Opportunity pipeline Vue component
+- [✓] 2026-03-26 10:51 - Build Lead funnel Vue component
+- [✓] 2026-03-26 10:51 - Create Salesforce Pinia store
+- [✓] 2026-03-26 10:51 - Create Salesforce API client module
+- [✓] 2026-03-26 11:03 - Build Salesforce overview dashboard section
+- [✓] 2026-03-26 11:03 - Create Salesforce data page/view
+- [✓] 2026-03-26 11:19 - Create CPQ data models
+- [✓] 2026-03-26 11:19 - Build CPQ data generator service
+- [✓] 2026-03-26 11:19 - Create CPQ API Blueprint
+- [✓] 2026-03-26 11:19 - Build Quote detail Vue component
+- [✓] 2026-03-26 11:19 - Build Product catalog Vue component
+- [✓] 2026-03-26 11:19 - Build Quote list Vue component
+- [✓] 2026-03-26 11:19 - Create CPQ Pinia store
+- [✓] 2026-03-26 11:19 - Create CPQ API client module
+- [✓] 2026-03-26 11:30 - Build discount analysis D3 chart
+- [✓] 2026-03-26 11:30 - Create CPQ page/view
+- [✓] 2026-03-26 11:48 - Create pipeline stage data model
+- [✓] 2026-03-26 11:48 - Build pipeline data generator service
+- [✓] 2026-03-26 11:48 - Create pipeline API endpoints
+- [✓] 2026-03-26 11:48 - Build funnel visualization D3 component
+- [✓] 2026-03-26 11:48 - Build conversion trend line chart
+- [✓] 2026-03-26 11:48 - Build pipeline velocity heatmap
+- [✓] 2026-03-26 11:48 - Build pipeline forecast component
+- [✓] 2026-03-26 11:48 - Create pipeline Pinia store
+- [✓] 2026-03-26 12:05 - Build pipeline waterfall chart
+- [✓] 2026-03-26 12:05 - Create Pipeline analytics view
+- [✓] 2026-03-26 12:25 - Create revenue data models
+- [✓] 2026-03-26 12:25 - Build revenue data generator service
+- [✓] 2026-03-26 12:25 - Create revenue API Blueprint
+- [✓] 2026-03-26 12:25 - Build MRR waterfall chart component
+- [✓] 2026-03-26 12:25 - Build ARR trend chart component
+- [✓] 2026-03-26 12:25 - Build cohort retention heatmap
+- [✓] 2026-03-26 12:25 - Build churn analysis component
+- [✓] 2026-03-26 12:25 - Build customer revenue treemap
+- [✓] 2026-03-26 12:32 - Create revenue Pinia store and API client
+- [✓] 2026-03-26 12:32 - Create Revenue analytics view
+- [✓] 2026-03-26 13:12 - Create order-to-cash data models
+- [✓] 2026-03-26 13:12 - Build order-to-cash data generator
+- [✓] 2026-03-26 13:12 - Create order-to-cash API Blueprint
+- [✓] 2026-03-26 13:12 - Build order timeline Vue component
+- [✓] 2026-03-26 13:12 - Build provisioning status dashboard component
+- [✓] 2026-03-26 13:12 - Build billing overview component
+- [✓] 2026-03-26 13:12 - Build order validation component
+- [✓] 2026-03-26 13:12 - Build order flow Sankey diagram
+- [✓] 2026-03-26 13:26 - Create order-to-cash Pinia store and API client
+- [✓] 2026-03-26 13:26 - Create Order-to-Cash view
+- [✓] 2026-03-26 13:42 - Create GTM dashboard layout component
+- [✓] 2026-03-26 13:42 - Build executive KPI row component
+- [✓] 2026-03-26 13:42 - Build revenue vs pipeline combo chart
+- [✓] 2026-03-26 13:42 - Build GTM health scorecard component
+- [✓] 2026-03-26 13:42 - Build activity feed component
+- [✓] 2026-03-26 13:42 - Build top accounts table component
+- [✓] 2026-03-26 13:42 - Build deal velocity gauge component
+- [✓] 2026-03-26 13:42 - Build GTM funnel summary widget
+- [✓] 2026-03-26 13:54 - Build recent deals ticker component
+- [✓] 2026-03-26 13:54 - Create GTM Dashboard view
+- [✓] 2026-03-26 14:18 - Create sync pipeline data models
+- [✓] 2026-03-26 14:18 - Build data pipeline generator service
+- [✓] 2026-03-26 14:18 - Create data pipeline API Blueprint
+- [✓] 2026-03-26 14:18 - Build dbt DAG visualization component
+- [✓] 2026-03-26 14:18 - Build sync status timeline component
+- [✓] 2026-03-26 14:18 - Build data freshness monitor component
+- [✓] 2026-03-26 14:18 - Build sync error log component
+- [✓] 2026-03-26 14:18 - Build connector health cards
+- [✓] 2026-03-26 14:30 - Create data pipeline Pinia store and API client
+- [✓] 2026-03-26 14:30 - Create Data Pipeline view
+- [✓] 2026-03-26 14:45 - Create reconciliation data models
+- [✓] 2026-03-26 14:45 - Build reconciliation data generator
+- [✓] 2026-03-26 14:45 - Create reconciliation API Blueprint
+- [✓] 2026-03-26 14:45 - Build three-way comparison table component
+- [✓] 2026-03-26 14:45 - Build discrepancy distribution chart
+- [✓] 2026-03-26 14:45 - Build reconciliation trend chart
+- [✓] 2026-03-26 14:45 - Build source comparison Venn diagram
+- [✓] 2026-03-26 14:45 - Build resolution workflow component
+- [✓] 2026-03-26 14:54 - Create reconciliation Pinia store and API client
+- [✓] 2026-03-26 14:54 - Create Reconciliation view
+- [✓] 2026-03-26 15:21 - CHECKPOINT: Verify app builds and runs after GTM data integration
+- [✓] 2026-03-26 15:42 - Install and configure camel-ai OASIS dependencies
+- [✓] 2026-03-26 15:42 - Create OASIS agent factory
+- [✓] 2026-03-26 15:42 - Create OASIS environment manager
+- [✓] 2026-03-26 15:42 - Create OASIS interaction protocol
+- [✓] 2026-03-26 15:42 - Create OASIS simulation orchestrator
+- [✓] 2026-03-26 15:42 - Create OASIS metrics collector
+- [✓] 2026-03-26 15:42 - Create OASIS demo mode fallback
+- [✓] 2026-03-26 15:42 - Wire OASIS into simulation API endpoints
+- [✓] 2026-03-26 16:03 - Install and configure Zep Cloud SDK
+- [✓] 2026-03-26 16:03 - Create Zep entity extraction service
+- [✓] 2026-03-26 16:03 - Create Zep graph memory service
+- [✓] 2026-03-26 16:03 - Create Zep-powered knowledge graph API
+- [✓] 2026-03-26 16:03 - Build knowledge graph visualization component
+- [✓] 2026-03-26 16:03 - Build temporal knowledge timeline component
+- [✓] 2026-03-26 16:03 - Build community detection visualization
+- [✓] 2026-03-26 16:03 - Build graph search interface component
+- [✓] 2026-03-26 17:15 - Create simulation scenario templates
+- [✓] 2026-03-26 17:15 - Build simulation execution engine
+- [✓] 2026-03-26 17:15 - Create simulation state manager
+- [✓] 2026-03-26 17:15 - Create agent prompt engineering module
+- [✓] 2026-03-26 17:15 - Build real-time simulation progress API
+- [✓] 2026-03-26 17:15 - Build simulation control panel Vue component
+- [✓] 2026-03-26 17:15 - Build simulation replay viewer component
+- [✓] 2026-03-26 17:15 - Build simulation comparison component
+- [✓] 2026-03-26 17:36 - Create agent memory abstraction layer
+- [✓] 2026-03-26 17:36 - Implement temporal memory with Zep
+- [✓] 2026-03-26 17:36 - Build cross-simulation memory transfer
+- [✓] 2026-03-26 17:36 - Build agent memory viewer component
+- [✓] 2026-03-26 17:36 - Build memory diff visualization
+- [✓] 2026-03-26 17:36 - Build agent knowledge graph component
+- [✓] 2026-03-26 17:36 - Create memory persistence API endpoints
+- [✓] 2026-03-26 17:36 - Build memory configuration panel
+- [✓] 2026-03-26 17:57 - Create ReportAgent tool definitions
+- [✓] 2026-03-26 17:57 - Build ReportAgent execution engine
+- [✓] 2026-03-26 17:57 - Create report templates and formatting
+- [✓] 2026-03-26 17:57 - Build report generation API
+- [✓] 2026-03-26 17:57 - Build report viewer Vue component
+- [✓] 2026-03-26 17:57 - Build report generation wizard component
+- [✓] 2026-03-26 17:57 - Build tool call transparency component
+- [✓] 2026-03-26 17:57 - Update report view with new components
+- [✓] 2026-03-26 18:14 - Implement WebSocket server for simulation streaming
+- [✓] 2026-03-26 18:14 - Build WebSocket client composable
+- [✓] 2026-03-26 18:14 - Build live simulation feed component
+- [✓] 2026-03-26 18:14 - Build live metrics dashboard component
+- [✓] 2026-03-26 18:14 - Build simulation workspace layout
+- [✓] 2026-03-26 18:36 - Create persona generator from Zep graph data
+- [✓] 2026-03-26 18:36 - Build persona customization API
+- [✓] 2026-03-26 18:36 - Build persona card Vue component
+- [✓] 2026-03-26 18:36 - Build team composition editor component
+- [✓] 2026-03-26 18:36 - Build persona generation wizard
+- [✓] 2026-03-26 18:58 - Create unified service availability checker
+- [✓] 2026-03-26 18:58 - Create graceful degradation middleware
+- [✓] 2026-03-26 18:58 - Build comprehensive mock data layer
+- [✓] 2026-03-26 18:58 - Build service status indicator Vue component
+- [✓] 2026-03-26 18:58 - Build demo mode onboarding overlay
+- [✓] 2026-03-26 19:22 - Create agent interaction graph data processor
+- [✓] 2026-03-26 19:22 - Build agent network force graph component
+- [✓] 2026-03-26 19:22 - Build adjacency matrix heatmap component
+- [✓] 2026-03-26 19:22 - Build information flow animation component
+- [✓] 2026-03-26 19:22 - Build centrality analysis component
+- [✓] 2026-03-26 19:22 - Build cluster visualization component
+- [✓] 2026-03-26 19:22 - Build communication pattern timeline
+- [✓] 2026-03-26 19:22 - Create Network Analysis view
+- [✓] 2026-03-26 19:36 - Build data flow animation engine
+- [✓] 2026-03-26 19:36 - Build animated pipeline flow component
+- [✓] 2026-03-26 19:36 - Build animated revenue waterfall component
+- [✓] 2026-03-26 19:36 - Build animated Sankey flow component
+- [✓] 2026-03-26 19:36 - Build animated org chart with information flow
+- [✓] 2026-03-26 19:36 - Build animated deal lifecycle component
+- [✓] 2026-03-26 19:36 - Build animated metric counter component
+- [✓] 2026-03-26 19:36 - Create Animated Visualizations showcase view
+- [✓] 2026-03-26 20:16 - CHECKPOINT: Verify app builds and runs after OASIS and visualization integration
+- [✓] 2026-03-26 20:35 - Create dashboard configuration data model
+- [✓] 2026-03-26 20:35 - Create dashboard persistence API
+- [✓] 2026-03-26 20:35 - Build widget registry
+- [✓] 2026-03-26 20:35 - Build KPI card widget component
+- [✓] 2026-03-26 20:35 - Build chart widgets (line, bar, donut)
+- [✓] 2026-03-26 20:35 - Build table and text widgets
+- [✓] 2026-03-26 20:35 - Build drag-and-drop grid layout
+- [✓] 2026-03-26 20:35 - Build widget picker panel
+- [✓] 2026-03-26 20:50 - Build dashboard Pinia store
+- [✓] 2026-03-26 20:50 - Create Dashboard Builder view
+- [✓] 2026-03-26 21:08 - Build timeline scrubber composable
+- [✓] 2026-03-26 21:08 - Build timeline scrubber UI component
+- [✓] 2026-03-26 21:08 - Build synchronized chart wrapper component
+- [✓] 2026-03-26 21:08 - Build timeline event markers component
+- [✓] 2026-03-26 21:08 - Build snapshot comparison component
+- [✓] 2026-03-26 21:08 - Build timeline annotations component
+- [✓] 2026-03-26 21:08 - Build multi-metric synchronized view component
+- [✓] 2026-03-26 21:08 - Integrate timeline scrubber into simulation workspace
+- [✓] 2026-03-26 21:21 - Build radar chart component
+- [✓] 2026-03-26 21:21 - Build parallel coordinates chart component
+- [✓] 2026-03-26 21:21 - Build chord diagram component
+- [✓] 2026-03-26 21:21 - Build sunburst chart component
+- [✓] 2026-03-26 21:21 - Build streamgraph component
+- [✓] 2026-03-26 21:21 - Build bullet chart component
+- [✓] 2026-03-26 21:21 - Build calendar heatmap component
+- [✓] 2026-03-26 21:21 - Build small multiples chart component
+- [✓] 2026-03-26 21:27 - Build chart theme and utility library
+- [✓] 2026-03-26 21:27 - Create Charts Gallery view
+- [✓] 2026-03-26 21:46 - Create comparison data service
+- [✓] 2026-03-26 21:46 - Build side-by-side comparison layout component
+- [✓] 2026-03-26 21:46 - Build comparison metrics table component
+- [✓] 2026-03-26 21:46 - Build comparative chart overlays
+- [✓] 2026-03-26 21:46 - Build A/B scenario builder component
+- [✓] 2026-03-26 21:46 - Build comparison radar chart component
+- [✓] 2026-03-26 21:46 - Build comparison timeline component
+- [✓] 2026-03-26 21:46 - Create Comparison view
+- [✓] 2026-03-26 22:13 - Build navigation mini-map component
+- [✓] 2026-03-26 22:13 - Build global activity feed service
+- [✓] 2026-03-26 22:13 - Build global activity feed component
+- [✓] 2026-03-26 22:13 - Build notification toast system
+- [✓] 2026-03-26 22:13 - Build breadcrumb navigation component
+- [✓] 2026-03-26 22:13 - Build quick search/command palette component
+- [✓] 2026-03-26 22:13 - Build system status bar component
+- [✓] 2026-03-26 22:13 - Integrate mini-map and activity feed into app layout
+- [✓] 2026-03-26 22:45 - Create long-term memory consolidation service
+- [✓] 2026-03-26 22:45 - Build memory-augmented agent prompts
+- [✓] 2026-03-26 22:45 - Build agent belief system tracker
+- [✓] 2026-03-26 22:45 - Build agent relationship tracker
+- [✓] 2026-03-26 22:45 - Build memory search and retrieval component
+- [✓] 2026-03-26 22:45 - Build belief evolution chart component
+- [✓] 2026-03-26 22:45 - Build relationship network evolution animation
+- [✓] 2026-03-26 22:45 - Create agent intelligence API endpoints
+- [✓] 2026-03-26 23:07 - Create personality dynamics engine
+- [✓] 2026-03-26 23:07 - Create dynamic sentiment engine
+- [✓] 2026-03-26 23:07 - Create personality-aware prompt modification
+- [✓] 2026-03-26 23:07 - Build personality radar chart evolution component
+- [✓] 2026-03-26 23:07 - Build sentiment arc visualization component
+- [✓] 2026-03-26 23:07 - Build agent mood indicator component
+- [✓] 2026-03-26 23:07 - Build personality comparison matrix component
+- [✓] 2026-03-26 23:07 - Create personality dynamics API endpoints
+- [✓] 2026-03-26 23:29 - Create coalition detection algorithm
+- [✓] 2026-03-26 23:29 - Create coalition labeling service
+- [✓] 2026-03-26 23:29 - Build coalition visualization component
+- [✓] 2026-03-26 23:29 - Build coalition evolution timeline component
+- [✓] 2026-03-26 23:29 - Build polarization index gauge component
+- [✓] 2026-03-26 23:29 - Build swing agent profile component
+- [✓] 2026-03-26 23:29 - Build consensus tracking component
+- [✓] 2026-03-26 23:29 - Create coalition API endpoints
+- [✓] 2026-03-26 23:53 - Create agent behavior prediction model
+- [✓] 2026-03-26 23:53 - Create behavior anomaly detector
+- [✓] 2026-03-26 23:53 - Build prediction dashboard component
+- [✓] 2026-03-26 23:53 - Build anomaly highlight component
+- [✓] 2026-03-26 23:53 - Build what-if prediction panel component
+- [✓] 2026-03-26 23:53 - Build agent behavior patterns component
+- [✓] 2026-03-26 23:53 - Build influence flow chart component
+- [✓] 2026-03-26 23:53 - Create prediction API endpoints
+- [✓] 2026-03-30 11:42 - E2E test: settings and service configuration
+- [✓] 2026-03-30 18:47 - Add i18n to date and number formatting

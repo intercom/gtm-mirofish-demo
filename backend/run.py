@@ -2,6 +2,7 @@
 MiroFish Backend 启动入口
 """
 
+import logging
 import os
 import sys
 
@@ -20,29 +21,34 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import create_app
 from app.config import Config
+from app.services.diagnostics import run_diagnostics
 
 
 def main():
     """主函数"""
-    # 验证配置
-    errors = Config.validate()
-    if errors:
-        print("配置错误:")
-        for err in errors:
+    # Run startup diagnostics (replaces hard-fail Config.validate)
+    diag = run_diagnostics()
+    if not diag.ok:
+        print("\nStartup aborted — critical diagnostics failed:")
+        for err in diag.errors:
             print(f"  - {err}")
-        print("\n请检查 .env 文件中的配置")
         sys.exit(1)
+
+    for warn in Config.warnings():
+        print(f"  ⚠ {warn}")
 
     # 创建应用
     app = create_app()
 
     # 获取运行配置
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
-    port = int(os.environ.get('FLASK_PORT', 5001))
+    port = Config.PORT
     debug = Config.DEBUG
 
     # 启动服务
     app.run(host=host, port=port, debug=debug, threaded=True)
+
+    logging.getLogger('mirofish.shutdown').info("Server stopped — shutdown complete")
 
 
 if __name__ == '__main__':

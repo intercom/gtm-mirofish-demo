@@ -2,10 +2,21 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '../auth'
 
+vi.mock('../../api/auth', () => ({
+  authApi: {
+    me: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
+}))
+
+import { authApi } from '../../api/auth'
+
 describe('useAuthStore', () => {
   beforeEach(() => {
     localStorage.clear()
     setActivePinia(createPinia())
+    vi.clearAllMocks()
   })
 
   it('initialises as unauthenticated', () => {
@@ -59,26 +70,43 @@ describe('useAuthStore', () => {
   })
 
   it('checkAuth validates token against API', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ user: { name: 'Eve', email: 'eve@intercom.io' } }),
-    }))
+    authApi.me.mockResolvedValue({
+      data: { user: { name: 'Eve', email: 'eve@intercom.io' } },
+    })
     const store = useAuthStore()
     store.setAuth({ name: 'temp' }, 'tok-valid')
     const result = await store.checkAuth()
     expect(result).toBe(true)
     expect(store.user.name).toBe('Eve')
-    vi.unstubAllGlobals()
   })
 
-  it('checkAuth logs out on 401', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401 }))
+  it('checkAuth logs out on API error', async () => {
+    authApi.me.mockRejectedValue({ message: 'Unauthorized', status: 401 })
     const store = useAuthStore()
     store.setAuth({ name: 'temp' }, 'tok-expired')
     const result = await store.checkAuth()
     expect(result).toBe(false)
     expect(store.isAuthenticated).toBe(false)
-    vi.unstubAllGlobals()
+  })
+
+  it('login calls API and stores result', async () => {
+    authApi.login.mockResolvedValue({
+      data: { user: { name: 'Frank', email: 'frank@intercom.io' }, token: 'tok-new' },
+    })
+    const store = useAuthStore()
+    const user = await store.login({ email: 'frank@intercom.io' })
+    expect(user.name).toBe('Frank')
+    expect(store.isAuthenticated).toBe(true)
+    expect(store.token).toBe('tok-new')
+  })
+
+  it('logoutAndNotify calls API then clears state', async () => {
+    authApi.logout.mockResolvedValue({ data: { ok: true } })
+    const store = useAuthStore()
+    store.setAuth({ name: 'Grace' }, 'tok-bye')
+    await store.logoutAndNotify()
+    expect(store.isAuthenticated).toBe(false)
+    expect(authApi.logout).toHaveBeenCalled()
   })
 
   it('handles corrupted localStorage gracefully', () => {
@@ -87,5 +115,17 @@ describe('useAuthStore', () => {
     const store = useAuthStore()
     expect(store.user).toBeNull()
     expect(store.isAuthenticated).toBe(false)
+  })
+
+  it('tracks loading state during checkAuth', async () => {
+    let resolveMe
+    authApi.me.mockReturnValue(new Promise((r) => { resolveMe = r }))
+    const store = useAuthStore()
+    store.setAuth({ name: 'temp' }, 'tok-123')
+    const promise = store.checkAuth()
+    expect(store.loading).toBe(true)
+    resolveMe({ data: { user: { name: 'Heidi' } } })
+    await promise
+    expect(store.loading).toBe(false)
   })
 })

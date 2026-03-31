@@ -1,0 +1,209 @@
+{
+  "dashboard_id": "demo-preset-dashboard-001",
+  "simulation_id": "demo-preset-sim-001",
+  "title": "GTM Campaign Simulation — Coalition Consensus Dashboard",
+  "widgets": [
+    {
+      "id": "w1",
+      "type": "metric_card",
+      "title": "Campaign Effectiveness",
+      "position": {"row": 0, "col": 0, "width": 3, "height": 1},
+      "data": {
+        "metrics": [
+          {"label": "Total Interactions", "value": 1224, "format": "number"},
+          {"label": "Consensus Score", "value": 0.89, "format": "percent"},
+          {"label": "Belief Changes", "value": 4, "format": "number"},
+          {"label": "Projected Improvement", "value": 0.55, "format": "percent", "highlight": true}
+        ]
+      }
+    },
+    {
+      "id": "w2",
+      "type": "sentiment_timeline",
+      "title": "Coalition Sentiment Convergence",
+      "position": {"row": 1, "col": 0, "width": 2, "height": 1},
+      "data": {
+        "series": [
+          {
+            "name": "Growth Coalition",
+            "color": "#2068FF",
+            "values": [
+              {"round": 6, "value": 0.82},
+              {"round": 24, "value": 0.75},
+              {"round": 48, "value": 0.68},
+              {"round": 72, "value": 0.72},
+              {"round": 96, "value": 0.74},
+              {"round": 120, "value": 0.69},
+              {"round": 144, "value": 0.70}
+            ]
+          },
+          {
+            "name": "Conservation Coalition",
+            "color": "#ff5600",
+            "values": [
+              {"round": 6, "value": -0.45},
+              {"round": 24, "value": -0.61},
+              {"round": 48, "value": -0.42},
+              {"round": 72, "value": 0.12},
+              {"round": 96, "value": 0.52},
+              {"round": 120, "value": 0.65},
+              {"round": 144, "value": 0.69}
+            ]
+          },
+          {
+            "name": "Overall Consensus",
+            "color": "#050505",
+            "values": [
+              {"round": 6, "value": 0.18},
+              {"round": 24, "value": 0.05},
+              {"round": 48, "value": 0.15},
+              {"round": 72, "value": 0.45},
+              {"round": 96, "value": 0.64},
+              {"round": 120, "value": 0.68},
+              {"round": 144, "value": 0.70}
+            ]
+          }
+        ],
+        "annotations": [
+          {"round": 48, "label": "One-size-fits-all rejected"},
+          {"round": 72, "label": "4-track proposal introduced"},
+          {"round": 96, "label": "Conservation coalition joins consensus"}
+        ]
+      }
+    },
+    {
+      "id": "w3",
+      "type": "influence_network",
+      "title": "Agent Influence Network",
+      "position": {"row": 1, "col": 2, "width": 1, "height": 1},
+      "data": {
+        "top_influencers": [
+          {"name": "David Kim", "score": 0.95, "role": "Consensus architect"},
+          {"name": "Sarah Chen", "score": 0.92, "role": "Growth champion"},
+          {"name": "Priya Patel", "score": 0.87, "role": "ROI analyst"},
+          {"name": "Elena Vasquez", "score": 0.83, "role": "Compliance advocate"},
+          {"name": "Catherine Hayes", "score": 0.81, "role": "CFO convert"}
+        ],
+        "key_edges": [
+          {"from": "Sarah Chen", "to": "Anika Sharma", "label": "Pilot data persuasion"},
+          {"from": "Priya Patel", "to": "Catherine Hayes", "label": "TCO analysis"},
+          {"from": "Elena Vasquez", "to": "Marcus Johnson", "label": "Compliance-first data"},
+          {"from": "David Kim", "to": "Nathan Lee", "label": "API ecosystem review"}
+        ]
+      }
+    },
+    {
+      "id": "w4",
+      "type": "engagement_heatmap",
+      "title": "Agent Activity Heatmap",
+      "position": {"row": 2, "col": 0, "width": 2, "height": 1},
+      "data": {
+        "agents": ["Sarah Chen", "Marcus Johnson", "Priya Patel", "David Kim", "Rachel Torres", "James Wright", "Anika Sharma", "Tom O'Brien", "Elena Vasquez", "Michael Chang", "Lisa Park", "Sofia Martinez", "Robert Williams", "Nathan Lee", "Catherine Hayes"],
+        "buckets": ["R1-24", "R25-48", "R49-72", "R73-96", "R97-120", "R121-144"],
+        "values": [
+          [0.85, 0.72, 0.68, 0.55, 0.48, 0.42],
+          [0.45, 0.62, 0.55, 0.78, 0.82, 0.71],
+          [0.78, 0.88, 0.65, 0.72, 0.58, 0.45],
+          [0.35, 0.58, 0.95, 0.82, 0.75, 0.62],
+          [0.52, 0.68, 0.48, 0.42, 0.38, 0.35],
+          [0.38, 0.45, 0.52, 0.65, 0.78, 0.72],
+          [0.32, 0.48, 0.58, 0.72, 0.55, 0.42],
+          [0.62, 0.55, 0.48, 0.42, 0.38, 0.35],
+          [0.28, 0.42, 0.72, 0.85, 0.68, 0.52],
+          [0.72, 0.82, 0.58, 0.45, 0.38, 0.32],
+          [0.35, 0.42, 0.55, 0.62, 0.75, 0.68],
+          [0.28, 0.35, 0.48, 0.55, 0.72, 0.82],
+          [0.22, 0.32, 0.42, 0.52, 0.62, 0.55],
+          [0.42, 0.58, 0.72, 0.65, 0.52, 0.45],
+          [0.35, 0.48, 0.55, 0.82, 0.65, 0.52]
+        ],
+        "color_scale": {"min": 0, "max": 1, "low_color": "#1e3a5f", "high_color": "#ff5600"}
+      }
+    },
+    {
+      "id": "w5",
+      "type": "belief_tracker",
+      "title": "Key Belief Changes",
+      "position": {"row": 2, "col": 2, "width": 1, "height": 1},
+      "data": {
+        "changes": [
+          {
+            "agent": "Anika Sharma",
+            "round": 64,
+            "before": "AI chatbots are unreliable",
+            "after": "Fin's benchmarks are credible with proper pilots",
+            "catalyst": "Sarah Chen's unfiltered pilot data"
+          },
+          {
+            "agent": "Catherine Hayes",
+            "round": 84,
+            "before": "Migration is a cost center",
+            "after": "87-day payback — the risk is NOT switching",
+            "catalyst": "Priya's cost-per-resolution analysis"
+          },
+          {
+            "agent": "Marcus Johnson",
+            "round": 96,
+            "before": "Aggressive outbound too risky for Healthcare",
+            "after": "Compliance-first messaging enables growth",
+            "catalyst": "Elena's 31% vs 12% engagement data"
+          },
+          {
+            "agent": "Nathan Lee",
+            "round": 72,
+            "before": "Vendor lock-in is unacceptable",
+            "after": "API ecosystem is extensible enough",
+            "catalyst": "David's integration analysis"
+          }
+        ]
+      }
+    },
+    {
+      "id": "w6",
+      "type": "strategy_comparison",
+      "title": "Strategy Impact Comparison",
+      "position": {"row": 3, "col": 0, "width": 3, "height": 1},
+      "data": {
+        "strategies": [
+          {
+            "name": "One-Size-Fits-All (Rejected)",
+            "metrics": {
+              "open_rate": 0.243,
+              "meeting_rate": 0.032,
+              "spam_rate": 0.082,
+              "unsubscribe_rate": 0.041
+            }
+          },
+          {
+            "name": "Growth-Only (Coalition A)",
+            "metrics": {
+              "open_rate": 0.347,
+              "meeting_rate": 0.048,
+              "spam_rate": 0.117,
+              "unsubscribe_rate": 0.058
+            }
+          },
+          {
+            "name": "Conservation-Only (Coalition B)",
+            "metrics": {
+              "open_rate": 0.198,
+              "meeting_rate": 0.051,
+              "spam_rate": 0.014,
+              "unsubscribe_rate": 0.022
+            }
+          },
+          {
+            "name": "Consensus Strategy (Adopted)",
+            "metrics": {
+              "open_rate": 0.338,
+              "meeting_rate": 0.054,
+              "spam_rate": 0.028,
+              "unsubscribe_rate": 0.032
+            },
+            "highlight": true
+          }
+        ]
+      }
+    }
+  ]
+}

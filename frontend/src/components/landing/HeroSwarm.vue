@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { forceSimulation, forceX, forceY, forceManyBody, forceCollide } from 'd3'
+import { forceSimulation, forceX, forceY, forceManyBody, forceCollide } from 'd3-force'
+import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
+
+const { measure, trackFrame } = useD3PerfMonitor()
 
 const canvasRef = ref(null)
 let simulation = null
@@ -8,16 +11,22 @@ let animationId = null
 let particles = []
 
 const COLORS = ['#2068FF', '#ff5600', '#AA00FF']
-const PARTICLE_COUNT = 30
-const LINE_DISTANCE = 120
 const LINE_OPACITY_MIN = 0.08
 const LINE_OPACITY_MAX = 0.12
 const PARTICLE_OPACITY = 0.35
 const PARTICLE_RADIUS_MIN = 2
 const PARTICLE_RADIUS_MAX = 5
 
-function initParticles(width, height) {
-  return Array.from({ length: PARTICLE_COUNT }, () => ({
+function getMobileParams() {
+  const mobile = window.innerWidth <= 640
+  return {
+    particleCount: mobile ? 15 : 30,
+    lineDistance: mobile ? 80 : 120,
+  }
+}
+
+function initParticles(width, height, count) {
+  return Array.from({ length: count }, () => ({
     x: Math.random() * width,
     y: Math.random() * height,
     vx: 0,
@@ -27,7 +36,7 @@ function initParticles(width, height) {
   }))
 }
 
-function draw(ctx, width, height) {
+function draw(ctx, width, height, lineDistance) {
   ctx.clearRect(0, 0, width, height)
 
   for (let i = 0; i < particles.length; i++) {
@@ -35,8 +44,8 @@ function draw(ctx, width, height) {
       const dx = particles[i].x - particles[j].x
       const dy = particles[i].y - particles[j].y
       const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < LINE_DISTANCE) {
-        const t = 1 - dist / LINE_DISTANCE
+      if (dist < lineDistance) {
+        const t = 1 - dist / lineDistance
         const opacity = LINE_OPACITY_MIN + t * (LINE_OPACITY_MAX - LINE_OPACITY_MIN)
         ctx.beginPath()
         ctx.moveTo(particles[i].x, particles[i].y)
@@ -73,7 +82,8 @@ function startAnimation(canvas) {
   }
 
   let { width, height } = resize()
-  particles = initParticles(width, height)
+  const { particleCount, lineDistance } = getMobileParams()
+  particles = initParticles(width, height, particleCount)
 
   simulation = forceSimulation(particles)
     .force('x', forceX(width / 2).strength(0.002))
@@ -95,7 +105,8 @@ function startAnimation(canvas) {
     })
 
   function loop() {
-    draw(ctx, width, height)
+    measure('HeroSwarm', () => draw(ctx, width, height, lineDistance))
+    trackFrame('HeroSwarm')
     animationId = requestAnimationFrame(loop)
   }
   animationId = requestAnimationFrame(loop)

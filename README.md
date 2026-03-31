@@ -25,6 +25,7 @@ An Intercom-branded fork of [MiroFish](https://github.com/666ghj/MiroFish) — a
 - [GTM Scenarios](#gtm-scenarios)
 - [Development Guide](#development-guide)
 - [Deployment](#deployment)
+- [Documentation](#documentation)
 - [API Reference](#api-reference)
 - [Contributing](#contributing)
 - [License](#license)
@@ -66,26 +67,87 @@ Scenario cards with "How It Works" section and key stats.
 
 ![Landing Page](docs/screenshots/landing.png)
 
-### Knowledge Graph
-D3.js force-directed graph with entity type coloring (Topics, Personas, Relationships, Companies), zoom/pan, and click-to-inspect node details. Built from scenario seed text via Zep GraphRAG.
+### Scenario Builder
+Configure agent populations, industries, and simulation parameters before launching a run.
 
-![Knowledge Graph](docs/screenshots/graph.png)
+![Scenario Builder](docs/screenshots/scenario-builder.png)
+
+### Simulation Workspace
+Unified tabbed workspace with Knowledge Graph (D3.js force-directed graph with entity type coloring, zoom/pan, and click-to-inspect), live simulation progress, and network analysis.
+
+![Workspace](docs/screenshots/workspace.png)
+
+### Agent Profile
+Individual agent persona detail with belief system, personality traits, relationship graph, and interview capability.
+
+![Agent Profile](docs/screenshots/agent-profile.png)
+
+### Report Explorer
+Multi-chapter evidence-based predictive report with section navigation, chart visualizations, and export options.
+
+![Report](docs/screenshots/report.png)
+
+### Chat with Simulation
+Conversational interface for querying the simulated world. Ask about simulation findings, persona engagement, messaging effectiveness, and recommended next steps.
+
+![Chat](docs/screenshots/chat.png)
+
+### Simulation History
+Persistent simulation history with search, filter, and status tracking across all past runs.
+
+![Simulations](docs/screenshots/simulations.png)
+
+### Settings
+Configure LLM provider (Claude, GPT-4o, or Gemini), theme preference, and API keys. In demo mode, API keys are not required.
+
+![Settings](docs/screenshots/settings.png)
 
 ---
 
 ## Features
 
+### Core Simulation
 - **4 Pre-Built GTM Scenarios** — Outbound campaign pre-testing (hero), signal validation, pricing simulation, personalization optimization
+- **Scenario Marketplace** — Browse, filter, and discover simulation templates with guided walkthroughs
 - **Multi-LLM Support** — Claude (Anthropic), OpenAI (GPT-4o), Google Gemini — switchable in settings
+- **Async Task System** — All long-running operations (graph build, simulation, report gen) return task IDs for progress polling
+- **Report Agent** — AI-powered report generation with section-by-section streaming, tool-call logging, and report wizard for custom reports
+- **Agent Interviews** — Chat with individual simulated agents or batch-interview entire populations
+
+### Analytics & Intelligence
+- **GTM Dashboard** — Executive KPI dashboard with revenue pipeline, deal velocity, health scorecards, and customizable widget grid
+- **Dashboard Builder** — Drag-and-drop custom dashboard creation with 9 widget types (KPI cards, line/bar/donut charts, funnels, gauges, tables, text)
+- **Analytics Suite** — Cohort analysis, segment performance, anomaly detection, and AI-powered insight generation
+- **Simulation Comparison** — Side-by-side A/B scenario comparison with radar charts, timeline overlays, and statistical tables
+- **Simulation Replay** — Step-through playback of completed simulations with timeline scrubbing
+
+### Visualization
+- **D3.js Chart Library** — 11 chart types: bar, line, donut, radar, sunburst, chord diagram, stream graph, parallel coordinates, bullet, calendar heatmap, and small multiples
+- **Knowledge Graphs** — Force-directed graph visualization with entity type coloring, zoom/pan, click-to-inspect, and 3D rendering
+- **Network Analysis** — Community detection, interaction graphs, and organizational chart views
+- **Charts Gallery** — Interactive showcase of all available D3 visualization components
+
+### Agent System
+- **Agent Creation Wizard** — Multi-step wizard for building custom agent personas (basic info, expertise, personality traits, preview)
+- **Belief System Tracker** — Monitor how agent beliefs evolve during simulation rounds
+- **Agent Personality Dynamics** — Big Five personality model with trait evolution over time
+- **Coalition Detection** — Identify emergent agent groups and alliances during simulations
+
+### GTM Operations
+- **CPQ Module** — Configure-Price-Quote with product catalog, discount analysis, and quote management
+- **Revenue Pipeline** — Revenue tracking, deal management, and pipeline stage visualization
+- **Campaign Management** — Campaign generation with ROI comparison, cost modeling, and attribution analysis
+- **Salesforce Integration** — SFDC data sync with reconciliation and pipeline synchronization
+
+### Platform
+- **27 Interactive Views** — Full application with landing, scenarios, workspace, agents, analytics, dashboards, reports, comparison, replay, charts gallery, API docs, and more
+- **60+ Composables** — Reusable Vue composition functions for animations, caching, keyboard shortcuts, offline mode, service workers, WebSocket, SSE, and more
+- **Command Palette** — Keyboard-driven navigation (`Cmd+K`) with searchable actions
 - **Intercom Branding** — Full Intercom design language with brand colors (#2068FF blue, #050505 navy, #ff5600 Fin orange), typography, and logo
 - **Real GTM Seed Data** — Anonymized data from Intercom's actual GTM models (accounts, signals, templates, personas)
-- **8 Interactive Views** — Landing, Scenario Builder, Knowledge Graph, Live Simulation, Report Explorer, Chat, Settings, Simulation History
-- **D3.js Knowledge Graphs** — Force-directed graph visualization with entity type coloring, zoom/pan, and click-to-inspect
-- **Async Task System** — All long-running operations (graph build, simulation, report gen) return task IDs for progress polling
-- **Report Agent** — AI-powered report generation with section-by-section streaming and tool-call logging
-- **Agent Interviews** — Chat with individual simulated agents or batch-interview entire populations
 - **Optional Auth** — Google OAuth / Okta SSO with @intercom.io email enforcement (toggle via `.env`, disabled by default)
 - **Docker Deployment** — Single `docker compose up` for local development
+- **Interactive API Docs** — Built-in API documentation view at `/api-docs`
 
 ---
 
@@ -286,25 +348,28 @@ For parallel processing with a secondary LLM provider:
 ## Architecture
 
 ```
-                          +-----------------------------------------+
-                          |              Frontend (Vue 3)            |
-                          |  Vite + Tailwind + Pinia + D3.js        |
-                          |  Port 3000                              |
-                          +---+-----+-----+-----+-----+-----+------+
-                              |     |     |     |     |     |
-                         /api/graph  |  /api/sim |  /api/report  /api/gtm
-                              |     |     |     |     |     |
-                          +---v-----v-----v-----v-----v-----v------+
-                          |             Backend (Flask)             |
-                          |  OASIS Simulation + Zep GraphRAG        |
-                          |  Port 5001                              |
-                          +-----+-------------+-------------+------+
-                                |             |             |
-                          +-----v-----+ +----v------+ +----v------+
-                          | Zep Cloud | | LLM API   | | GTM Seed  |
-                          | (GraphRAG | | Claude /  | | Data      |
-                          |  Memory)  | | GPT / Gem | | (JSON)    |
-                          +-----------+ +-----------+ +-----------+
+                    +--------------------------------------------------+
+                    |                Frontend (Vue 3)                    |
+                    |  Vite + Tailwind + Pinia + D3.js + Vue Router     |
+                    |  27 views, 60+ composables, 40 stores            |
+                    |  Port 3000                                        |
+                    +--+-----+-----+-----+-----+-----+-----+-----+----+
+                       |     |     |     |     |     |     |     |
+                  /api/graph |  /api/sim | /api/report | /api/gtm |
+                       | /api/agents | /api/analytics | /api/campaigns
+                       |     |     |     |     |     |     |     |
+                    +--v-----v-----v-----v-----v-----v-----v-----v----+
+                    |              Backend (Flask)                      |
+                    |  49 API modules, 70+ services                    |
+                    |  OASIS Simulation + Zep GraphRAG + GTM Ops       |
+                    |  Port 5001                                       |
+                    +----+----------+----------+----------+-----------+
+                         |          |          |          |
+                   +-----v----+ +--v------+ +-v-------+ +v----------+
+                   | Zep Cloud| | LLM API | | GTM Seed| | In-Memory |
+                   | (GraphRAG| | Claude/ | | Data    | | Cache &   |
+                   |  Memory) | | GPT/Gem | | (JSON)  | | Sessions  |
+                   +----------+ +---------+ +---------+ +-----------+
 ```
 
 ### Data Flow
@@ -421,28 +486,113 @@ gtm-mirofish-demo/
 │   ├── app/
 │   │   ├── __init__.py         # Flask app factory, blueprint registration
 │   │   ├── config.py           # Multi-LLM provider configuration
-│   │   ├── api/
+│   │   ├── api/                # 49 Flask Blueprint modules
 │   │   │   ├── graph.py        # Knowledge graph CRUD + build routes
 │   │   │   ├── simulation.py   # OASIS simulation lifecycle routes
 │   │   │   ├── report.py       # Report generation + chat routes
-│   │   │   └── gtm_scenarios.py # GTM scenario template API
+│   │   │   ├── settings.py     # Settings and config routes
+│   │   │   ├── gtm_scenarios.py # GTM scenario template API
+│   │   │   ├── agents.py       # Agent CRUD and management
+│   │   │   ├── analytics.py    # Analytics and metrics endpoints
+│   │   │   ├── auth.py         # Authentication routes
+│   │   │   ├── beliefs.py      # Agent belief system tracking
+│   │   │   ├── campaigns.py    # Campaign management
+│   │   │   ├── comparison.py   # Simulation comparison
+│   │   │   ├── cpq.py          # Configure-Price-Quote
+│   │   │   ├── deals.py        # Deal management
+│   │   │   ├── gtm_dashboard.py # GTM dashboard data
+│   │   │   ├── insights.py     # AI-powered insights
+│   │   │   ├── memory.py       # Agent memory management
+│   │   │   ├── metrics.py      # Metrics collection
+│   │   │   ├── pipeline.py     # Sales pipeline data
+│   │   │   ├── revenue.py      # Revenue tracking
+│   │   │   ├── salesforce.py   # SFDC integration
+│   │   │   └── ...             # 25+ additional modules
 │   │   ├── models/             # Project + task persistence
-│   │   ├── services/           # Core business logic (READ-ONLY)
-│   │   └── utils/              # LLM client, file parser, logger
+│   │   ├── services/           # 70+ business logic modules
+│   │   │   ├── graph_builder.py
+│   │   │   ├── simulation_runner.py
+│   │   │   ├── simulation_manager.py
+│   │   │   ├── report_agent.py
+│   │   │   ├── agent_factory.py      # Agent creation and management
+│   │   │   ├── belief_tracker.py     # Agent belief evolution
+│   │   │   ├── coalition_detector.py # Emergent group detection
+│   │   │   ├── debate_engine.py      # Agent debate orchestration
+│   │   │   ├── insight_generator.py  # AI insight generation
+│   │   │   ├── whatif_engine.py      # What-if scenario analysis
+│   │   │   ├── anomaly_detector.py   # Anomaly detection
+│   │   │   ├── sentiment_dynamics.py # Sentiment evolution tracking
+│   │   │   └── ...
+│   │   └── utils/
+│   │       ├── llm_client.py   # Multi-provider LLM abstraction
+│   │       ├── file_parser.py  # PDF/MD/TXT file processing
+│   │       ├── logger.py       # Logging configuration
+│   │       ├── retry.py        # Retry logic decorator
+│   │       ├── pagination.py   # API pagination utilities
+│   │       ├── responses.py    # Standardized response helpers
+│   │       ├── decorators.py   # Route decorators
+│   │       ├── degradation.py  # Graceful degradation utilities
+│   │       └── zep_paging.py   # Zep pagination utilities
 │   ├── auth/                   # OAuth middleware (Google/Okta)
 │   ├── gtm_scenarios/          # Pre-built scenario JSON files
 │   ├── gtm_seed_data/          # Anonymized GTM data
 │   ├── scripts/                # Utility scripts for direct simulation
+│   ├── demo_app.py             # Lightweight mock server for Docker/demos
 │   ├── run.py                  # Backend entry point
 │   └── pyproject.toml          # Python dependencies (uv)
-├── frontend/                   # Vue 3 frontend (complete rebuild)
+├── frontend/                   # Vue 3 frontend
 │   ├── src/
+│   │   ├── api/                # 45 API modules built on shared Axios client
+│   │   │   ├── client.js       # Axios base client with error normalization
+│   │   │   ├── graph.js        # Knowledge graph API calls
+│   │   │   ├── simulation.js   # Simulation lifecycle API calls
+│   │   │   ├── report.js       # Report generation API calls
+│   │   │   ├── scenarios.js    # GTM scenario API calls
+│   │   │   ├── chat.js         # Chat/interview API calls
+│   │   │   ├── agents.js       # Agent management
+│   │   │   ├── analytics.js    # Analytics data
+│   │   │   ├── campaigns.js    # Campaign management
+│   │   │   ├── comparison.js   # Simulation comparison
+│   │   │   ├── dashboards.js   # Dashboard configuration
+│   │   │   ├── pipeline.js     # Sales pipeline
+│   │   │   ├── revenue.js      # Revenue data
+│   │   │   └── ...             # 30+ additional modules
 │   │   ├── assets/
-│   │   │   └── brand-tokens.css # Intercom design tokens
-│   │   ├── components/layout/  # AppNav, AppFooter
-│   │   └── views/              # 8 views (Landing through Settings)
+│   │   │   └── brand-tokens.css # Intercom design tokens (CSS variables)
+│   │   ├── components/         # Feature-grouped Vue components
+│   │   │   ├── agents/         # Agent creation wizard (4 step components)
+│   │   │   ├── analytics/      # Anomaly dashboard, cohort analysis, AI analyst
+│   │   │   ├── campaigns/      # Attribution, cost modeling, ROI comparison
+│   │   │   ├── charts/         # 11 D3.js chart components
+│   │   │   ├── common/         # 25+ reusable UI primitives
+│   │   │   ├── comparison/     # A/B scenario builder, radar, timeline
+│   │   │   ├── cpq/            # Product catalog, quotes, discounts
+│   │   │   ├── dashboard/      # GTM dashboard layout + 9 widget types
+│   │   │   ├── demo/           # PresenterToolbar (demo mode)
+│   │   │   ├── graph/          # Agent knowledge graph, community view
+│   │   │   ├── insights/       # AI analyst, insight cards
+│   │   │   ├── landing/        # HeroSwarm animation
+│   │   │   ├── layout/         # AppLayout, AppNav, AppFooter, MobileNav
+│   │   │   ├── navigation/     # Navigation mini-map
+│   │   │   ├── orders/         # Billing overview
+│   │   │   ├── report/         # Report charts and visualization
+│   │   │   ├── simulation/     # GraphPanel, SimulationPanel, PhaseNav
+│   │   │   └── ui/             # ConfirmDialog, EmptyState, LoadingSpinner
+│   │   ├── composables/        # 60+ Vue composition functions
+│   │   ├── stores/             # 40 Pinia state management modules
+│   │   ├── views/              # 27 route-level page components
+│   │   └── router/             # Vue Router configuration
 │   ├── package.json
 │   └── vite.config.js          # Proxy /api -> backend:5001
+├── docs/
+│   ├── adr/                    # Architecture Decision Records (11 ADRs)
+│   ├── scenarios/              # GTM scenario documentation (4 guides)
+│   ├── screenshots/            # Application screenshots (8 images)
+│   ├── slides/                 # Demo deck and presentation materials
+│   ├── architecture.md         # Detailed architecture documentation
+│   ├── deployment.md           # Deployment guide
+│   ├── demo-script.md          # Demo walkthrough script
+│   └── troubleshooting.md      # Extended troubleshooting guide
 ├── docker-compose.yml          # Two-service Docker setup
 └── .env.example                # All environment variables
 ```
@@ -463,22 +613,80 @@ The Vite dev server proxies all `/api` requests to `http://localhost:5001` (conf
 
 **Conventions:**
 - All components use Composition API with `<script setup>`
-- Styling uses Tailwind CSS utility classes with brand tokens from `src/assets/brand-tokens.css`
-- API requests use the `/api` prefix, which Vite proxies to the Flask backend
-- State management via Pinia stores
-- Routing via Vue Router
+- Tailwind CSS v4 via `@tailwindcss/vite` plugin — no `tailwind.config.js`; design tokens live in `src/assets/brand-tokens.css` as CSS variables
+- API requests go through modules in `src/api/` which build on the shared Axios client in `src/api/client.js`
+- State management via Pinia stores in `src/stores/`
+- Reusable logic via composables in `src/composables/`
+- Routing via Vue Router with lazy-loaded views for code splitting
+
+**Composables** (`src/composables/`):
+
+60+ reusable composition functions, grouped by category:
+
+| Category | Key Composables | Purpose |
+|----------|----------------|---------|
+| **Core** | `useDemoMode`, `useDemoPreset`, `useTheme`, `useToast`, `useSession` | App-wide state (demo mode, theming, notifications, sessions) |
+| **Simulation** | `useSimulationPolling`, `useSimulationSSE`, `useSimulationStream`, `useSimulationState`, `useSimulationCache`, `useReplay` | Simulation lifecycle, real-time updates, caching, and playback |
+| **Data** | `useApiCache`, `useReportCache`, `useSimulationCache`, `useComparisonData`, `usePagination`, `useSortableTable` | API caching, pagination, data comparison |
+| **UI/UX** | `useCountUp`, `useChartEntrance`, `useFlowAnimation`, `useMicroInteractions`, `useStaggerAnimation`, `useParallax`, `useFormAnimations` | Animations, transitions, micro-interactions |
+| **Navigation** | `useCommandPalette`, `useKeyboardShortcuts`, `useNavigationShortcuts`, `useBreadcrumbs`, `usePageTransition` | Keyboard navigation, command palette, breadcrumbs |
+| **Dashboard** | `useDashboardLayout`, `useDragAndDrop`, `useActivityFeed`, `useMetricsCollector` | Dashboard grid, drag-and-drop, activity feeds |
+| **Reports** | `useReportCache`, `useReportShortcuts`, `useReportTheme` | Report navigation, theming, and keyboard shortcuts |
+| **Visualization** | `useForceGraph3D`, `useD3PerfMonitor`, `useMobileChart`, `useTimelineScrubber`, `useTimelineSync` | 3D graph rendering, D3 performance, timeline controls |
+| **Platform** | `useAuth`, `usePermissions`, `useLocale`, `useLanguage`, `useOnboardingTour` | Auth, permissions, i18n, onboarding |
+| **Resilience** | `useOfflineMode`, `useOnlineStatus`, `useServiceWorker`, `useServiceHealth`, `useServiceStatus`, `usePwaInstall` | Offline support, service workers, PWA install |
+| **Real-time** | `useWebSocket`, `useSimulationSSE`, `usePullToRefresh`, `useResourcePreload`, `useLazyLoad` | WebSocket, SSE, lazy loading, resource preloading |
+
+**Pinia Stores** (`src/stores/`):
+
+40 state management modules, grouped by domain:
+
+| Domain | Stores | Purpose |
+|--------|--------|---------|
+| **Core** | `auth`, `settings`, `session`, `toast`, `notifications`, `navigation` | Authentication, app config, notifications |
+| **Simulation** | `simulation`, `scenarios`, `graph`, `agents`, `personas`, `beliefs`, `personality`, `relationships`, `coalition` | Simulation lifecycle, agent state, social dynamics |
+| **GTM Ops** | `pipeline`, `revenue`, `salesforce`, `cpq`, `orders`, `reconciliation`, `attribution`, `dataPipeline` | Sales pipeline, revenue, SFDC, CPQ |
+| **Analytics** | `metrics`, `insights`, `dashboards`, `aggregation` | Metrics, AI insights, dashboard config |
+| **Content** | `report`, `reportBuilder`, `templates`, `whatif` | Reports, templates, what-if scenarios |
+| **Platform** | `users`, `locale`, `theme`, `themes`, `tutorial`, `activity`, `memoryTransfer` | User management, i18n, theming, activity |
+
+**API Client** (`src/api/`):
+
+The frontend uses a modular API layer built on Axios with 45 domain-specific modules. `client.js` creates a shared instance with `baseURL` from `VITE_API_URL` (defaults to `/api`) and a response interceptor that normalizes errors to `{ message, status, data }`. Modules cover graph, simulation, report, scenarios, chat, agents, analytics, campaigns, comparison, cpq, dashboards, deals, insights, memory, metrics, pipeline, revenue, salesforce, and more.
 
 **Frontend Views:**
 
 | Route | View | Purpose |
 |-------|------|---------|
 | `/` | LandingView | Scenario cards, "How It Works" section |
+| `/scenarios` | ScenariosView | Scenario list and filtering |
 | `/scenarios/:id` | ScenarioBuilderView | Configure and launch a simulation |
-| `/workspace/:taskId` | SimulationWorkspaceView | Unified tabbed workspace (Graph + Simulation) |
+| `/scenarios/:id/walkthrough` | ScenarioWalkthroughView | Guided scenario walkthrough |
+| `/marketplace` | ScenarioMarketplaceView | Browse and discover scenario templates |
+| `/workspace/:taskId` | SimulationWorkspaceView | Unified tabbed workspace (Graph + Simulation + Network) |
+| `/workspace/:taskId/agent/:agentId` | AgentProfileView | Individual agent persona detail and interview |
+| `/agents` | AgentsView | Agent management and creation |
 | `/simulations` | SimulationsView | Persistent simulation history with search/filter |
+| `/replay/:taskId` | ReplayView | Step-through simulation replay with timeline |
+| `/comparison` | ComparisonView | Side-by-side simulation comparison |
+| `/compare` | CompareView | A/B scenario comparison builder |
 | `/report/:taskId` | ReportView | Multi-chapter report explorer |
+| `/report/new` | ReportWizardView | Guided report creation wizard |
 | `/chat/:taskId` | ChatView | Q&A with simulated world |
+| `/knowledge-graph/:graphId?` | KnowledgeGraphView | Standalone knowledge graph explorer |
+| `/network/:taskId` | — | Redirects to `/workspace/:taskId?tab=network` |
+| `/dashboard` | GtmDashboardView | Executive GTM dashboard with KPIs |
+| `/dashboard-builder` | DashboardBuilderView | Drag-and-drop custom dashboard creation |
+| `/analytics` | AnalyticsView | Cohort analysis, segments, anomaly detection |
+| `/visualizations` | VisualizationsView | D3 visualization gallery |
+| `/charts` | ChartsGalleryView | Interactive chart component showcase |
+| `/org-chart` | OrgChartView | Organizational chart view |
+| `/api-docs` | ApiDocsView | Interactive API documentation |
 | `/settings` | SettingsView | LLM provider, API keys, theme |
+| `/login` | LoginView | OAuth login page |
+| `/permission-denied` | PermissionDeniedView | Access denied error page |
+
+> **Redirects:** `/graph/:taskId` and `/simulation/:taskId` load the workspace with the appropriate tab. `/network/:taskId` redirects to the workspace network tab. All routes use lazy loading for code splitting.
 
 **Intercom Design Tokens:**
 - Primary blue: `#2068FF`
@@ -490,7 +698,7 @@ The Vite dev server proxies all `/api` requests to `http://localhost:5001` (conf
 
 ### Backend Development
 
-The backend is a minimally patched fork of the MiroFish Flask server.
+The backend has grown from a minimal MiroFish fork into a comprehensive GTM operations platform with 49 API modules and 70+ services.
 
 ```bash
 cd backend
@@ -501,11 +709,14 @@ uv run python run.py # Start on http://localhost:5001
 The backend validates `LLM_API_KEY` and `ZEP_API_KEY` on startup. If either is missing, it exits with an error.
 
 **Conventions:**
-- Services in `app/services/` are **read-only** — do not modify
-- New GTM-specific routes go in `app/api/gtm_scenarios.py`
+- Core MiroFish services in `app/services/` (graph_builder, simulation_runner, simulation_manager, oasis_*, zep_*) are **read-only** — do not modify
+- New API routes go in `app/api/` as Flask Blueprints, registered in `app/__init__.py`
+- All LLM calls go through `app/utils/llm_client.py` (multi-provider abstraction)
 - Configuration is resolved via `app/config.py` from `.env`
 - All routes return JSON with `{success: bool, data: ..., error: ...}` shape
 - Async operations return a `task_id` for polling via `/api/graph/task/<task_id>`
+- Standardized response helpers available in `app/utils/responses.py`
+- Route decorators for auth/permissions in `app/utils/decorators.py`
 
 ### Running with Docker
 
@@ -543,11 +754,29 @@ pnpm test          # If test runner is configured
 
 This project is designed to run locally or in any Docker-compatible environment. See [Quick Start](#quick-start) for setup instructions.
 
+For detailed deployment documentation, see [docs/deployment.md](docs/deployment.md).
+
+---
+
+## Documentation
+
+Additional documentation lives in the `docs/` directory:
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/architecture.md) | Detailed architecture documentation |
+| [Deployment](docs/deployment.md) | Production deployment guide |
+| [Demo Script](docs/demo-script.md) | Step-by-step demo walkthrough |
+| [Troubleshooting](docs/troubleshooting.md) | Extended troubleshooting guide |
+| [ADRs](docs/adr/) | Architecture Decision Records (11 records) |
+| [Scenarios](docs/scenarios/) | Per-scenario deep-dive documentation |
+| [Slides](docs/slides/) | Presentation materials |
+
 ---
 
 ## API Reference
 
-All endpoints are prefixed with `/api`. The backend registers four blueprint groups.
+All endpoints are prefixed with `/api`. The backend registers 49 blueprint modules organized into functional groups. Below are the core APIs — the full endpoint list is available at `/api-docs` in the running application.
 
 ### Health Check
 
@@ -663,6 +892,78 @@ Pre-built GTM scenario templates and seed data.
 | GET | `/api/gtm/scenarios/<scenario_id>/seed-text` | Get ready-to-use seed text for graph building |
 | GET | `/api/gtm/seed-data/<data_type>` | Get seed data by type (`account_profiles`, `signal_definitions`, `email_templates`, `persona_templates`) |
 
+### Agents (`/api/v1/agents`)
+
+Agent lifecycle management and intelligence.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/agents` | List all custom agents |
+| POST | `/api/v1/agents` | Create a new agent |
+| GET | `/api/v1/agents/<agent_id>` | Get agent details |
+| PUT | `/api/v1/agents/<agent_id>` | Update agent configuration |
+| DELETE | `/api/v1/agents/<agent_id>` | Delete an agent |
+
+### Analytics & Insights (`/api/v1/analytics`, `/api/v1/insights`)
+
+Analytics dashboards, metrics, and AI-powered insights.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/analytics/overview` | Analytics overview dashboard data |
+| GET | `/api/v1/analytics/cohorts` | Cohort analysis data |
+| GET | `/api/v1/analytics/segments` | Segment performance data |
+| GET | `/api/v1/insights` | AI-generated insights |
+| GET | `/api/v1/metrics` | Collected metrics data |
+| GET | `/api/v1/attribution` | Campaign attribution analysis |
+
+### GTM Dashboard (`/api/v1/gtm-dashboard`)
+
+Executive GTM dashboard with pipeline and revenue data.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/gtm-dashboard/overview` | Dashboard overview with KPIs |
+| GET | `/api/v1/gtm-dashboard/pipeline` | Revenue pipeline data |
+| GET | `/api/v1/gtm-dashboard/deals` | Deal management data |
+
+### Comparison (`/api/v1/comparison`)
+
+Side-by-side simulation comparison.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/comparison/compare` | Compare two or more simulations |
+| GET | `/api/v1/comparison/<comparison_id>` | Get comparison results |
+
+### Additional API Groups
+
+The backend includes 30+ additional API modules. Key groups:
+
+| API Group | Prefix | Purpose |
+|-----------|--------|---------|
+| Beliefs | `/api/v1/beliefs` | Agent belief system tracking and evolution |
+| Campaigns | `/api/v1/campaigns` | Campaign management and generation |
+| CPQ | `/api/v1/cpq` | Configure-Price-Quote (products, quotes, discounts) |
+| Deals | `/api/v1/deals` | Deal lifecycle management |
+| Memory | `/api/v1/memory` | Agent memory management and transfer |
+| Personality | `/api/v1/personality` | Agent personality dynamics (Big Five model) |
+| Pipeline | `/api/v1/pipeline` | Sales pipeline data and sync |
+| Revenue | `/api/v1/revenue` | Revenue tracking and forecasting |
+| Salesforce | `/api/v1/salesforce` | SFDC data integration |
+| Sessions | `/api/v1/sessions` | User session management |
+| Team | `/api/v1/team` | Team management |
+| Templates | `/api/v1/templates` | Scenario and report templates |
+| Users | `/api/v1/users` | User management and roles |
+| Audit Log | `/api/v1/audit` | Audit trail for actions |
+| Batch | `/api/v1/batch` | Batch operation execution |
+| Cache | `/api/v1/cache` | Cache management |
+| Data Pipeline | `/api/v1/data-pipeline` | Data pipeline status and sync |
+| Predictions | `/api/v1/predictions` | Predictive model outputs |
+| Report Builder | `/api/v1/report-builder` | Custom report builder |
+| Debate | `/api/v1/debate` | Agent debate orchestration |
+| Decisions | `/api/v1/decisions` | Decision tracking and explainability |
+
 ---
 
 ## Contributing
@@ -676,13 +977,14 @@ Pre-built GTM scenario templates and seed data.
 
 ### Guidelines
 
-- **Backend services are read-only** — `backend/app/services/` contains the core MiroFish simulation logic and should not be modified
+- **Core MiroFish services are read-only** — `backend/app/services/` modules for graph_builder, simulation_runner, simulation_manager, and oasis_* should not be modified
 - **Frontend uses Composition API** — All Vue components must use `<script setup>` syntax
 - **Use Intercom brand tokens** — Reference `frontend/src/assets/brand-tokens.css` for colors and spacing (primary blue `#2068FF`, navy `#050505`, fin orange `#ff5600`, accent purple `#A0F`)
 - **Use pnpm** for frontend package management (not npm or yarn)
 - **Use uv** for backend package management
 - **API responses** follow the `{success: bool, data: ..., error: ...}` convention
 - **API routes** — All frontend API requests use the `/api` prefix, which Vite proxies to the Flask backend
+- **ADRs** — Record significant architecture decisions in `docs/adr/` following the existing format
 - Keep commits focused — one logical change per commit
 
 ### Submitting Changes

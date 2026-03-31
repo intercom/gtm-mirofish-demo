@@ -1,0 +1,32 @@
+{
+  "id": "ai_adoption_strategy",
+  "name": "AI Adoption Strategy for GTM",
+  "description": "Team discusses implementing AI across GTM workflows — from AI SDRs to predictive scoring — simulating adoption barriers and productivity gains.",
+  "category": "operations",
+  "icon": "cpu",
+  "seed_text": "Intercom's GTM leadership is evaluating a comprehensive AI adoption strategy across the revenue organization. The goal is to increase rep productivity by 40% without proportional headcount growth, enabling the team to scale from $240M to $400M ARR with the current 280-person GTM org.\n\nAI initiatives under consideration:\n1. AI SDR (Conversica/11x.ai): Automate top-of-funnel outreach — previous pilot with Conversica achieved 74% open rates but 0% meetings booked. New vendor (11x.ai) claims 3-5% meeting conversion.\n2. AI-Assisted Discovery: Use call intelligence (Gong + GPT) to auto-generate discovery summaries, identify buying signals, and suggest next-best-actions. Pilot showed AEs save 45 min/day but quality of insights varies.\n3. Predictive Lead Scoring: Replace the current MQL model (12% conversion) with an ML-based scoring model trained on closed-won patterns. Data science team estimates 22% conversion rate with the new model.\n4. AI Deal Coaching: Real-time deal risk scoring using CRM activity patterns + call sentiment analysis. Early prototype flagged 8 of 11 deals that eventually churned from pipeline.\n5. AI-Generated Proposals: Auto-generate SOWs and proposals from CRM data + call transcripts. Current avg time from verbal agreement to proposal sent: 4.2 days. AI target: same day.\n6. CS Copilot: AI assistant for CSMs that summarizes account health, drafts QBR decks, and identifies expansion triggers. Would allow CSM ratio to go from 1:85 to 1:120.\n\nConcerns raised by the team:\n- Reps fear AI will replace their jobs — union of concerns from 3 recent all-hands\n- Data quality: CRM hygiene is poor — 34% of opportunity fields are incomplete\n- Integration complexity: Current tech stack is Salesforce + Outreach + Gong + Intercom — adding more AI tools creates vendor sprawl\n- ROI measurement: How do we attribute productivity gains to AI vs other factors?\n\nThe simulation should model adoption curves for each AI initiative, predict productivity impact, identify resistance points, and recommend a phased rollout strategy.",
+  "agent_config": {
+    "count": 200,
+    "persona_types": ["CRO", "VP of Sales Ops", "Account Executive", "SDR Manager", "Data Scientist", "Customer Success Manager"],
+    "firmographic_mix": {
+      "industries": ["SaaS", "Fintech", "E-commerce"],
+      "company_sizes": ["500-2000", "2000-5000"],
+      "regions": ["North America", "EMEA"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "AI initiative prioritization matrix by ROI and feasibility",
+    "Adoption curve prediction per initiative",
+    "Rep productivity gain forecast by role",
+    "Change management risk assessment",
+    "Data quality remediation requirements",
+    "Phased rollout timeline recommendation",
+    "Total cost of ownership vs headcount savings analysis",
+    "Rep sentiment prediction under different rollout approaches"
+  ]
+}

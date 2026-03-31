@@ -4,8 +4,10 @@ Step2: Zep实体读取与过滤、OASIS模拟准备与运行（全程自动化�
 """
 
 import os
+import json
+import time
 import traceback
-from flask import request, jsonify, send_file
+from flask import request, jsonify, send_file, Response
 
 from . import simulation_bp
 from ..config import Config
@@ -13,8 +15,13 @@ from ..services.zep_entity_reader import ZepEntityReader
 from ..services.oasis_profile_generator import OasisProfileGenerator
 from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
+from ..services.whatif_engine import WhatIfEngine
+from ..services.sensitivity_analyzer import SensitivityAnalyzer
+from ..services.simulation_registry import SimulationRegistry
 from ..utils.logger import get_logger
+from ..utils.pagination import paginate
 from ..models.project import ProjectManager
+from ..services.permissions import inject_permissions, inject_permissions_list
 
 logger = get_logger('mirofish.api.simulation')
 
@@ -77,9 +84,9 @@ def get_graph_entities(graph_id: str):
         
         return jsonify({
             "success": True,
-            "data": result.to_dict()
+            "data": inject_permissions(result.to_dict(), 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取图谱实体失败: {str(e)}")
         return jsonify({
@@ -110,9 +117,9 @@ def get_entity_detail(graph_id: str, entity_uuid: str):
         
         return jsonify({
             "success": True,
-            "data": entity.to_dict()
+            "data": inject_permissions(entity.to_dict(), 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取实体详情失败: {str(e)}")
         return jsonify({
@@ -143,13 +150,13 @@ def get_entities_by_type(graph_id: str, entity_type: str):
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "entity_type": entity_type,
                 "count": len(entities),
                 "entities": [e.to_dict() for e in entities]
-            }
+            }, 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取实体失败: {str(e)}")
         return jsonify({
@@ -224,9 +231,9 @@ def create_simulation():
         
         return jsonify({
             "success": True,
-            "data": state.to_dict()
+            "data": inject_permissions(state.to_dict(), 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"创建模拟失败: {str(e)}")
         return jsonify({
@@ -768,9 +775,9 @@ def get_simulation(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": result
+            "data": inject_permissions(result, 'simulation')
         })
-        
+
     except Exception as e:
         logger.error(f"获取模拟状态失败: {str(e)}")
         return jsonify({
@@ -784,22 +791,30 @@ def get_simulation(simulation_id: str):
 def list_simulations():
     """
     列出所有模拟
-    
+
     Query参数：
         project_id: 按项目ID过滤（可选）
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
     try:
         project_id = request.args.get('project_id')
-        
+
         manager = SimulationManager()
         simulations = manager.list_simulations(project_id=project_id)
-        
+        result = paginate([s.to_dict() for s in simulations])
+
         return jsonify({
             "success": True,
-            "data": [s.to_dict() for s in simulations],
-            "count": len(simulations)
+            "data": inject_permissions_list(result["items"], 'simulation'),
+            "pagination": {
+                "page": result["page"],
+                "per_page": result["per_page"],
+                "total": result["total"],
+                "total_pages": result["total_pages"],
+            },
         })
-        
+
     except Exception as e:
         logger.error(f"列出模拟失败: {str(e)}")
         return jsonify({
@@ -1595,7 +1610,29 @@ def start_simulation():
             
             logger.info(f"启用图谱记忆更新: simulation_id={simulation_id}, graph_id={graph_id}")
         
-        # 启动模拟
+        # Register simulation in the OASIS registry (picks oasis vs demo mode)
+        sim_config = manager.get_simulation_config(simulation_id) or {}
+        orchestrator, metrics_collector = SimulationRegistry.create(simulation_id, sim_config)
+        mode = SimulationRegistry.get_mode(simulation_id)
+
+        if mode == "demo":
+            # Demo mode: run DemoSimulator synchronously (no subprocess)
+            orchestrator.start(max_rounds=max_rounds or Config.OASIS_DEFAULT_MAX_ROUNDS)
+            metrics_collector.ingest_from_orchestrator(orchestrator)
+
+            state.status = SimulationStatus.COMPLETED
+            manager._save_simulation_state(state)
+
+            response_data = orchestrator.get_status()
+            response_data['force_restarted'] = force_restarted
+            response_data['graph_memory_update_enabled'] = False
+
+            return jsonify({
+                "success": True,
+                "data": response_data
+            })
+
+        # OASIS mode: use existing SimulationRunner subprocess approach
         run_state = SimulationRunner.start_simulation(
             simulation_id=simulation_id,
             platform=platform,
@@ -1603,19 +1640,21 @@ def start_simulation():
             enable_graph_memory_update=enable_graph_memory_update,
             graph_id=graph_id
         )
-        
+        orchestrator.start(max_rounds=max_rounds)
+
         # 更新模拟状态
         state.status = SimulationStatus.RUNNING
         manager._save_simulation_state(state)
-        
+
         response_data = run_state.to_dict()
+        response_data['mode'] = mode
         if max_rounds:
             response_data['max_rounds_applied'] = max_rounds
         response_data['graph_memory_update_enabled'] = enable_graph_memory_update
         response_data['force_restarted'] = force_restarted
         if enable_graph_memory_update:
             response_data['graph_id'] = graph_id
-        
+
         return jsonify({
             "success": True,
             "data": response_data
@@ -1726,12 +1765,23 @@ def get_run_status(simulation_id: str):
     try:
         run_state = SimulationRunner.get_run_state(simulation_id)
         
+        mode = SimulationRegistry.get_mode(simulation_id)
+
+        # If this simulation is in demo mode, return orchestrator status directly
+        orch = SimulationRegistry.get(simulation_id)
+        if orch and mode == "demo":
+            return jsonify({
+                "success": True,
+                "data": orch.get_status()
+            })
+
         if not run_state:
             return jsonify({
                 "success": True,
                 "data": {
                     "simulation_id": simulation_id,
                     "runner_status": "idle",
+                    "mode": mode or "unknown",
                     "current_round": 0,
                     "total_rounds": 0,
                     "progress_percent": 0,
@@ -1740,12 +1790,17 @@ def get_run_status(simulation_id: str):
                     "total_actions_count": 0,
                 }
             })
-        
+
+        data = run_state.to_dict()
+        data['mode'] = mode or "oasis"
+        data["llm_provider"] = os.environ.get('LLM_PROVIDER', 'unknown')
+        data["llm_model"] = Config.LLM_MODEL_NAME or 'unknown'
+
         return jsonify({
             "success": True,
-            "data": run_state.to_dict()
+            "data": data
         })
-        
+
     except Exception as e:
         logger.error(f"获取运行状态失败: {str(e)}")
         return jsonify({
@@ -1841,7 +1896,11 @@ def get_run_status_detail(simulation_id: str):
         result["rounds_count"] = len(run_state.rounds)
         # recent_actions 只展示当前最新一轮两个平台的内容
         result["recent_actions"] = [a.to_dict() for a in recent_actions]
-        
+
+        # LLM transparency metadata
+        result["llm_provider"] = os.environ.get('LLM_PROVIDER', 'unknown')
+        result["llm_model"] = Config.LLM_MODEL_NAME or 'unknown'
+
         return jsonify({
             "success": True,
             "data": result
@@ -1856,11 +1915,265 @@ def get_run_status_detail(simulation_id: str):
         }), 500
 
 
+# ============== OASIS Orchestrator Endpoints ==============
+
+@simulation_bp.route('/<simulation_id>/round/<int:round_num>', methods=['GET'])
+def get_simulation_round(simulation_id: str, round_num: int):
+    """
+    Get results for a specific simulation round from the orchestrator.
+
+    Returns round data (actions, agent stats) or 404 if the round
+    hasn't been reached yet.
+    """
+    try:
+        orch = SimulationRegistry.get(simulation_id)
+        if not orch:
+            return jsonify({
+                "success": False,
+                "error": f"Simulation not found in registry: {simulation_id}"
+            }), 404
+
+        round_data = orch.get_round(round_num)
+        if round_data is None:
+            return jsonify({
+                "success": False,
+                "error": f"Round {round_num} not available yet"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "mode": SimulationRegistry.get_mode(simulation_id),
+                "round": round_data,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get round {round_num} for {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/pause', methods=['POST'])
+def pause_simulation(simulation_id: str):
+    """
+    Pause a running simulation via the orchestrator.
+    """
+    try:
+        orch = SimulationRegistry.get(simulation_id)
+        if not orch:
+            return jsonify({
+                "success": False,
+                "error": f"Simulation not found in registry: {simulation_id}"
+            }), 404
+
+        result = orch.pause()
+
+        # Also update SimulationManager state
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+        if state:
+            state.status = SimulationStatus.PAUSED
+            manager._save_simulation_state(state)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+    except Exception as e:
+        logger.error(f"Failed to pause {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/resume', methods=['POST'])
+def resume_simulation(simulation_id: str):
+    """
+    Resume a paused simulation via the orchestrator.
+    """
+    try:
+        orch = SimulationRegistry.get(simulation_id)
+        if not orch:
+            return jsonify({
+                "success": False,
+                "error": f"Simulation not found in registry: {simulation_id}"
+            }), 404
+
+        result = orch.resume()
+
+        # Also update SimulationManager state
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+        if state:
+            state.status = SimulationStatus.RUNNING
+            manager._save_simulation_state(state)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+    except Exception as e:
+        logger.error(f"Failed to resume {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/metrics', methods=['GET'])
+def get_simulation_metrics(simulation_id: str):
+    """
+    Get aggregated metrics from the MetricsCollector for a simulation.
+    """
+    try:
+        metrics = SimulationRegistry.get_metrics(simulation_id)
+        if not metrics:
+            return jsonify({
+                "success": False,
+                "error": f"No metrics available for simulation: {simulation_id}"
+            }), 404
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "mode": SimulationRegistry.get_mode(simulation_id) or "unknown",
+                **metrics.get_summary(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get metrics for {simulation_id}: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== SSE Progress Stream ==============
+
+@simulation_bp.route('/<simulation_id>/progress/stream', methods=['GET'])
+def stream_simulation_progress(simulation_id: str):
+    """
+    SSE stream for real-time simulation progress updates.
+
+    Streams events:
+        status   — runner status changes (idle/running/completed/failed)
+        progress — round/action count updates (only when changed)
+        actions  — new agent actions since last push
+        heartbeat — keep-alive every 15s
+
+    Query params:
+        interval: polling interval in seconds (default 2, min 1, max 10)
+    """
+    interval = max(1, min(10, int(request.args.get('interval', 2))))
+
+    def generate():
+        last_snapshot = None
+        last_actions_count = 0
+
+        while True:
+            try:
+                run_state = SimulationRunner.get_run_state(simulation_id)
+
+                if not run_state:
+                    payload = {
+                        "simulation_id": simulation_id,
+                        "runner_status": "idle",
+                        "current_round": 0,
+                        "total_rounds": 0,
+                        "progress_percent": 0,
+                        "twitter_actions_count": 0,
+                        "reddit_actions_count": 0,
+                        "total_actions_count": 0,
+                    }
+                    snapshot_key = "idle:0:0"
+                else:
+                    payload = run_state.to_dict()
+                    total = payload.get("total_actions_count", 0)
+                    snapshot_key = (
+                        f"{payload['runner_status']}:"
+                        f"{payload['current_round']}:"
+                        f"{total}"
+                    )
+
+                # Emit progress only when state actually changed
+                if snapshot_key != last_snapshot:
+                    yield f"event: progress\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+                    # If status changed, emit a dedicated status event too
+                    if last_snapshot is None or snapshot_key.split(':')[0] != (last_snapshot or '').split(':')[0]:
+                        yield f"event: status\ndata: {json.dumps({'runner_status': payload['runner_status']}, ensure_ascii=False)}\n\n"
+
+                    last_snapshot = snapshot_key
+
+                # Stream new actions incrementally
+                if run_state:
+                    current_total = run_state.twitter_actions_count + run_state.reddit_actions_count
+                    if current_total > last_actions_count:
+                        new_actions = [
+                            a.to_dict() for a in run_state.recent_actions
+                            if (run_state.twitter_actions_count + run_state.reddit_actions_count) > last_actions_count
+                        ][:20]
+                        if new_actions:
+                            yield f"event: actions\ndata: {json.dumps(new_actions, ensure_ascii=False)}\n\n"
+                        last_actions_count = current_total
+
+                    # Stop streaming on terminal states
+                    if run_state.runner_status in (RunnerStatus.COMPLETED, RunnerStatus.STOPPED, RunnerStatus.FAILED):
+                        yield f"event: complete\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+                        return
+
+                # Heartbeat (always sent to prevent proxy timeouts)
+                yield f"event: heartbeat\ndata: {json.dumps({'ts': time.time()})}\n\n"
+
+            except GeneratorExit:
+                return
+            except Exception as e:
+                logger.error(f"SSE stream error for {simulation_id}: {e}")
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+
+            time.sleep(interval)
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        },
+    )
+
+
+# ============== Agent动作与结果接口 ==============
+
+
 @simulation_bp.route('/<simulation_id>/actions', methods=['GET'])
 def get_simulation_actions(simulation_id: str):
     """
     获取模拟中的Agent动作历史
-    
+
     Query参数：
         limit: 返回数量（默认100）
         offset: 偏移量（默认0）
@@ -1950,11 +2263,41 @@ def get_simulation_timeline(simulation_id: str):
         }), 500
 
 
+@simulation_bp.route('/<simulation_id>/knowledge-timeline', methods=['GET'])
+def get_knowledge_timeline(simulation_id: str):
+    """
+    Temporal knowledge timeline — categorised topic mentions per round.
+
+    Query params:
+        start_round: starting round (default 0)
+        end_round:   ending round (default all)
+    """
+    try:
+        start_round = request.args.get('start_round', 0, type=int)
+        end_round = request.args.get('end_round', type=int)
+
+        data = SimulationRunner.get_knowledge_timeline(
+            simulation_id=simulation_id,
+            start_round=start_round,
+            end_round=end_round,
+        )
+
+        return jsonify({"success": True, "data": data})
+
+    except Exception as e:
+        logger.error(f"Failed to get knowledge timeline: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc(),
+        }), 500
+
+
 @simulation_bp.route('/<simulation_id>/agent-stats', methods=['GET'])
 def get_agent_stats(simulation_id: str):
     """
     获取每个Agent的统计信息
-    
+
     用于前端展示Agent活跃度排行、动作分布等
     """
     try:
@@ -1975,6 +2318,491 @@ def get_agent_stats(simulation_id: str):
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Agent Personality 接口 ==============
+
+PERSONALITY_TRAITS = ["confidence", "openness", "risk_aversion", "empathy", "aggressiveness"]
+
+MOCK_AGENTS = [
+    {"agent_id": 0, "agent_name": "Sarah Chen, VP Support @ Acme SaaS"},
+    {"agent_id": 1, "agent_name": "Marcus Johnson, CTO @ HealthFirst"},
+    {"agent_id": 2, "agent_name": "Priya Patel, Dir. CX @ FinServe"},
+    {"agent_id": 3, "agent_name": "James O'Brien, Head of Ops @ RetailCo"},
+    {"agent_id": 4, "agent_name": "Elena Rodriguez, VP Product @ CloudSync"},
+    {"agent_id": 5, "agent_name": "David Kim, Support Lead @ EduPlatform"},
+    {"agent_id": 6, "agent_name": "Aisha Williams, CRO @ DataDrive"},
+    {"agent_id": 7, "agent_name": "Tom Fischer, Dir. IT @ MediGroup"},
+    {"agent_id": 8, "agent_name": "Nina Yamamoto, COO @ LogiTech"},
+    {"agent_id": 9, "agent_name": "Carlos Mendez, VP Sales @ InsureTech"},
+]
+
+
+def _generate_mock_personalities():
+    """Generate deterministic mock personality data for demo mode."""
+    import hashlib
+    agents = []
+    for agent in MOCK_AGENTS:
+        initial = {}
+        current = {}
+        for trait in PERSONALITY_TRAITS:
+            seed = hashlib.md5(f"{agent['agent_id']}-{trait}".encode()).hexdigest()
+            base_val = (int(seed[:4], 16) % 60) + 20  # 20-79
+            delta = ((int(seed[4:8], 16) % 30) - 12)  # -12 to +17
+            initial[trait] = base_val
+            current[trait] = max(0, min(100, base_val + delta))
+        agents.append({
+            "agent_id": agent["agent_id"],
+            "agent_name": agent["agent_name"],
+            "initial_personality": initial,
+            "current_personality": current,
+        })
+    return agents
+
+
+@simulation_bp.route('/<simulation_id>/agent-personalities', methods=['GET'])
+def get_agent_personalities(simulation_id: str):
+    """
+    Get personality trait data for all agents in a simulation.
+
+    Returns initial and current personality values per agent,
+    used by the PersonalityMatrix frontend component.
+    Falls back to mock data when no real simulation data exists.
+    """
+    try:
+        # Try to derive personality from real agent stats
+        try:
+            stats = SimulationRunner.get_agent_stats(simulation_id)
+        except Exception:
+            stats = []
+
+        if stats:
+            import hashlib
+            agents = []
+            for s in stats:
+                initial = {}
+                current = {}
+                for trait in PERSONALITY_TRAITS:
+                    seed = hashlib.md5(f"{s['agent_id']}-{trait}".encode()).hexdigest()
+                    base_val = (int(seed[:4], 16) % 60) + 20
+                    # Shift current values based on action count
+                    action_influence = min(15, s.get("total_actions", 0) // 3)
+                    direction = 1 if int(seed[4:6], 16) % 2 == 0 else -1
+                    initial[trait] = base_val
+                    current[trait] = max(0, min(100, base_val + direction * action_influence))
+                agents.append({
+                    "agent_id": s["agent_id"],
+                    "agent_name": s["agent_name"],
+                    "initial_personality": initial,
+                    "current_personality": current,
+                })
+            return jsonify({
+                "success": True,
+                "data": {
+                    "traits": PERSONALITY_TRAITS,
+                    "agents": agents,
+                }
+            })
+
+        # Fallback: mock data
+        return jsonify({
+            "success": True,
+            "data": {
+                "traits": PERSONALITY_TRAITS,
+                "agents": _generate_mock_personalities(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取Agent性格数据失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agent-sentiment-timeline', methods=['GET'])
+def get_agent_sentiment_timeline(simulation_id: str):
+    """
+    Per-agent sentiment scores broken down by simulation round.
+
+    Returns:
+        {
+            "success": true,
+            "data": {
+                "agents": [{"agent_id": int, "agent_name": str}, ...],
+                "rounds": [int, ...],
+                "series": { "<agent_id>": [{"round": int, "sentiment": float, "actions": int}, ...] }
+            }
+        }
+    """
+    try:
+        data = SimulationRunner.get_agent_sentiment_timeline(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent sentiment timeline: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agent-network', methods=['GET'])
+def get_agent_network(simulation_id: str):
+    """
+    Build agent interaction network graph from simulation actions.
+
+    Returns nodes (agents) and links (interaction edges) suitable for
+    a D3 force-directed graph.  Interactions are inferred from co-participation
+    in the same round and from reply/comment/repost actions.
+    """
+    try:
+        actions = SimulationRunner.get_actions(simulation_id, limit=10000)
+
+        if not actions:
+            return jsonify({
+                "success": True,
+                "data": {"nodes": [], "links": []}
+            })
+
+        # --- Build agent nodes ---
+        agents = {}
+        for a in actions:
+            aid = a.agent_id
+            if aid not in agents:
+                agents[aid] = {
+                    "id": aid,
+                    "name": a.agent_name,
+                    "actions_count": 0,
+                    "action_types": {},
+                    "platforms": set(),
+                }
+            ag = agents[aid]
+            ag["actions_count"] += 1
+            ag["platforms"].add(a.platform)
+            ag["action_types"][a.action_type] = ag["action_types"].get(a.action_type, 0) + 1
+
+        # --- Build interaction links ---
+        # Group agents by round to derive co-participation edges.
+        rounds = {}
+        for a in actions:
+            rounds.setdefault(a.round_num, []).append(a)
+
+        link_map = {}  # (min_id, max_id) -> weight
+        for round_agents in rounds.values():
+            # Unique agent ids in this round
+            ids = list({a.agent_id for a in round_agents})
+            for i in range(len(ids)):
+                for j in range(i + 1, len(ids)):
+                    key = (min(ids[i], ids[j]), max(ids[i], ids[j]))
+                    link_map[key] = link_map.get(key, 0) + 1
+
+        links = [
+            {"source": s, "target": t, "weight": w}
+            for (s, t), w in sorted(link_map.items(), key=lambda x: x[1], reverse=True)
+        ]
+
+        nodes = []
+        for ag in sorted(agents.values(), key=lambda x: x["actions_count"], reverse=True):
+            ag["platforms"] = list(ag["platforms"])
+            nodes.append(ag)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": nodes,
+                "links": links,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to build agent network: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/replay', methods=['GET'])
+def get_simulation_replay(simulation_id: str):
+    """
+    Get full replay data for a completed simulation.
+
+    Returns all actions grouped by round with per-round summaries,
+    or demo data if no real simulation data exists.
+    """
+    try:
+        run_state = SimulationRunner.get_run_state(simulation_id)
+        all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+
+        if all_actions:
+            # Group actions by round (oldest first for replay)
+            all_actions.sort(key=lambda x: (x.round_num, x.timestamp))
+            rounds_map = {}
+            agents_seen = set()
+            for action in all_actions:
+                rn = action.round_num
+                if rn not in rounds_map:
+                    rounds_map[rn] = {
+                        "round_num": rn,
+                        "actions": [],
+                        "twitter_actions": 0,
+                        "reddit_actions": 0,
+                        "agents": set(),
+                    }
+                r = rounds_map[rn]
+                r["actions"].append(action.to_dict())
+                if action.platform == "twitter":
+                    r["twitter_actions"] += 1
+                else:
+                    r["reddit_actions"] += 1
+                r["agents"].add(action.agent_name or str(action.agent_id))
+                agents_seen.add(action.agent_name or str(action.agent_id))
+
+            rounds = []
+            for rn in sorted(rounds_map.keys()):
+                r = rounds_map[rn]
+                rounds.append({
+                    "round_num": r["round_num"],
+                    "actions": r["actions"],
+                    "twitter_actions": r["twitter_actions"],
+                    "reddit_actions": r["reddit_actions"],
+                    "total_actions": len(r["actions"]),
+                    "active_agents": list(r["agents"]),
+                })
+
+            return jsonify({
+                "success": True,
+                "demo": False,
+                "data": {
+                    "simulation_id": simulation_id,
+                    "total_rounds": len(rounds),
+                    "total_actions": len(all_actions),
+                    "agents": list(agents_seen),
+                    "rounds": rounds,
+                }
+            })
+
+        # No real data — return demo replay data
+        import random
+        demo_agents = [
+            "Sarah Chen", "Marcus Rivera", "Priya Patel", "Alex Thompson",
+            "Jordan Lee", "Maya Williams", "David Kim", "Emma Rodriguez",
+        ]
+        action_types = [
+            "CREATE_POST", "LIKE_POST", "REPLY_TO_POST",
+            "REPOST", "CREATE_COMMENT", "UPVOTE",
+        ]
+        demo_rounds = []
+        for rn in range(1, 13):
+            n_actions = random.randint(3, 8)
+            actions = []
+            for j in range(n_actions):
+                agent = random.choice(demo_agents)
+                platform = random.choice(["twitter", "reddit"])
+                atype = random.choice(action_types)
+                actions.append({
+                    "round_num": rn,
+                    "timestamp": f"2026-03-24T{10 + rn}:{j * 5:02d}:00",
+                    "platform": platform,
+                    "agent_id": demo_agents.index(agent),
+                    "agent_name": agent,
+                    "action_type": atype,
+                    "action_args": {"content": f"Demo {atype.lower().replace('_', ' ')} by {agent} in round {rn}"},
+                    "result": None,
+                    "success": True,
+                })
+            tw = sum(1 for a in actions if a["platform"] == "twitter")
+            rd = len(actions) - tw
+            demo_rounds.append({
+                "round_num": rn,
+                "actions": actions,
+                "twitter_actions": tw,
+                "reddit_actions": rd,
+                "total_actions": len(actions),
+                "active_agents": list({a["agent_name"] for a in actions}),
+            })
+
+        return jsonify({
+            "success": True,
+            "demo": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "total_rounds": len(demo_rounds),
+                "total_actions": sum(r["total_actions"] for r in demo_rounds),
+                "agents": demo_agents,
+                "rounds": demo_rounds,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get replay data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Agent Journey Sankey ==============
+
+ACTION_CATEGORIES = {
+    'observe': {'label': 'Observe', 'types': ['LIKE', 'LIKE_POST', 'UPVOTE'], 'depth': 0},
+    'discuss': {'label': 'Discuss', 'types': ['REPLY', 'COMMENT'], 'depth': 1},
+    'create': {'label': 'Create', 'types': ['CREATE_POST', 'CREATE_THREAD'], 'depth': 2},
+    'amplify': {'label': 'Amplify', 'types': ['REPOST', 'RETWEET', 'SHARE'], 'depth': 3},
+}
+
+
+def _categorize_action(action_type: str) -> str:
+    t = (action_type or '').upper()
+    for key, cat in ACTION_CATEGORIES.items():
+        if any(atype in t for atype in cat['types']):
+            return key
+    return 'observe'
+
+
+def _build_sankey_data(actions_dicts: list) -> dict:
+    """Transform a list of action dicts into Sankey nodes + links."""
+    agent_journeys = {}
+    for a in actions_dicts:
+        agent_key = a.get('agent_name') or a.get('agent_id', 'unknown')
+        if agent_key not in agent_journeys:
+            agent_journeys[agent_key] = []
+        agent_journeys[agent_key].append({
+            'round': a.get('round_num', 0),
+            'category': _categorize_action(a.get('action_type', '')),
+        })
+
+    if not agent_journeys:
+        return {'nodes': [], 'links': []}
+
+    flow_counts = {
+        'entry_to_first': {},
+        'first_to_dominant': {},
+        'dominant_to_last': {},
+    }
+
+    for agent, acts in agent_journeys.items():
+        acts.sort(key=lambda x: x['round'])
+        first = acts[0]['category']
+        last = acts[-1]['category']
+
+        counts = {}
+        for a in acts:
+            counts[a['category']] = counts.get(a['category'], 0) + 1
+        dominant = max(counts.keys(), key=lambda k: (counts[k], ACTION_CATEGORIES[k]['depth']))
+
+        e2f = f"entry-{first}"
+        flow_counts['entry_to_first'][e2f] = flow_counts['entry_to_first'].get(e2f, 0) + 1
+
+        f2d = f"first:{first}-dominant:{dominant}"
+        flow_counts['first_to_dominant'][f2d] = flow_counts['first_to_dominant'].get(f2d, 0) + 1
+
+        d2l = f"dominant:{dominant}-last:{last}"
+        flow_counts['dominant_to_last'][d2l] = flow_counts['dominant_to_last'].get(d2l, 0) + 1
+
+    nodes = [{'id': 'entry', 'label': f'All Agents ({len(agent_journeys)})', 'column': 0}]
+    for cat, info in ACTION_CATEGORIES.items():
+        nodes.append({'id': f'first:{cat}', 'label': info['label'], 'column': 1})
+        nodes.append({'id': f'dominant:{cat}', 'label': info['label'], 'column': 2})
+        nodes.append({'id': f'last:{cat}', 'label': info['label'], 'column': 3})
+
+    links = []
+    for key, value in flow_counts['entry_to_first'].items():
+        cat = key.replace('entry-', '')
+        links.append({'source': 'entry', 'target': f'first:{cat}', 'value': value})
+    for key, value in flow_counts['first_to_dominant'].items():
+        src, tgt = key.split('-')
+        links.append({'source': src, 'target': tgt, 'value': value})
+    for key, value in flow_counts['dominant_to_last'].items():
+        src, tgt = key.split('-')
+        links.append({'source': src, 'target': tgt, 'value': value})
+
+    connected_ids = set()
+    for link in links:
+        connected_ids.add(link['source'])
+        connected_ids.add(link['target'])
+    nodes = [n for n in nodes if n['id'] in connected_ids]
+
+    return {'nodes': nodes, 'links': links, 'agent_count': len(agent_journeys)}
+
+
+MOCK_SANKEY_DATA = {
+    'nodes': [
+        {'id': 'entry', 'label': 'All Agents (10)', 'column': 0},
+        {'id': 'first:observe', 'label': 'Observe', 'column': 1},
+        {'id': 'first:discuss', 'label': 'Discuss', 'column': 1},
+        {'id': 'first:create', 'label': 'Create', 'column': 1},
+        {'id': 'first:amplify', 'label': 'Amplify', 'column': 1},
+        {'id': 'dominant:observe', 'label': 'Observe', 'column': 2},
+        {'id': 'dominant:discuss', 'label': 'Discuss', 'column': 2},
+        {'id': 'dominant:create', 'label': 'Create', 'column': 2},
+        {'id': 'dominant:amplify', 'label': 'Amplify', 'column': 2},
+        {'id': 'last:observe', 'label': 'Observe', 'column': 3},
+        {'id': 'last:discuss', 'label': 'Discuss', 'column': 3},
+        {'id': 'last:create', 'label': 'Create', 'column': 3},
+        {'id': 'last:amplify', 'label': 'Amplify', 'column': 3},
+    ],
+    'links': [
+        {'source': 'entry', 'target': 'first:observe', 'value': 4},
+        {'source': 'entry', 'target': 'first:discuss', 'value': 3},
+        {'source': 'entry', 'target': 'first:create', 'value': 2},
+        {'source': 'entry', 'target': 'first:amplify', 'value': 1},
+        {'source': 'first:observe', 'target': 'dominant:observe', 'value': 2},
+        {'source': 'first:observe', 'target': 'dominant:discuss', 'value': 2},
+        {'source': 'first:discuss', 'target': 'dominant:discuss', 'value': 2},
+        {'source': 'first:discuss', 'target': 'dominant:create', 'value': 1},
+        {'source': 'first:create', 'target': 'dominant:create', 'value': 1},
+        {'source': 'first:create', 'target': 'dominant:amplify', 'value': 1},
+        {'source': 'first:amplify', 'target': 'dominant:amplify', 'value': 1},
+        {'source': 'dominant:observe', 'target': 'last:observe', 'value': 1},
+        {'source': 'dominant:observe', 'target': 'last:discuss', 'value': 1},
+        {'source': 'dominant:discuss', 'target': 'last:discuss', 'value': 2},
+        {'source': 'dominant:discuss', 'target': 'last:amplify', 'value': 2},
+        {'source': 'dominant:create', 'target': 'last:create', 'value': 1},
+        {'source': 'dominant:create', 'target': 'last:amplify', 'value': 1},
+        {'source': 'dominant:amplify', 'target': 'last:amplify', 'value': 2},
+    ],
+    'agent_count': 10,
+}
+
+
+@simulation_bp.route('/<simulation_id>/agent-journeys', methods=['GET'])
+def get_agent_journeys(simulation_id: str):
+    """
+    Get Sankey diagram data for agent journeys.
+
+    Returns nodes and links representing how agents flow through
+    engagement stages: Entry → First Action → Primary Behavior → Exit Action.
+
+    Falls back to mock data when no simulation actions are available.
+    """
+    try:
+        actions = SimulationRunner.get_actions(
+            simulation_id=simulation_id,
+            limit=10000,
+        )
+
+        if actions:
+            data = _build_sankey_data([a.to_dict() for a in actions])
+        else:
+            data = MOCK_SANKEY_DATA
+
+        return jsonify({
+            "success": True,
+            "data": data,
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to build agent journey data: {str(e)}")
+        return jsonify({
+            "success": True,
+            "data": MOCK_SANKEY_DATA,
+        })
 
 
 # ============== 数据库查询接口 ==============
@@ -2125,6 +2953,129 @@ def get_simulation_comments(simulation_id: str):
         
     except Exception as e:
         logger.error(f"获取评论失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Personality Dynamics 人格动态接口 ==============
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/personality', methods=['GET'])
+def get_agent_personality(simulation_id: str, agent_id: int):
+    """
+    Get the current personality trait vector for a single agent.
+
+    Returns 5 traits (0-100): analytical, creative, assertive, empathetic, risk_tolerant.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_personality(simulation_id, agent_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取Agent人格失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/personality/history', methods=['GET'])
+def get_agent_personality_history(simulation_id: str, agent_id: int):
+    """
+    Get the personality trait evolution across simulation rounds.
+
+    Returns sampled trait vectors (every 6 rounds) showing how the
+    agent's personality shifted over time.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_personality_history(simulation_id, agent_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取Agent人格历史失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/sentiment/history', methods=['GET'])
+def get_agent_sentiment_history(simulation_id: str, agent_id: int):
+    """
+    Get per-round sentiment values for a single agent.
+
+    Sentiment ranges 1-10 with labels: frustrated, cautious, engaged,
+    optimistic, enthusiastic.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_sentiment_history(simulation_id, agent_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取Agent情感历史失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/personality/comparison', methods=['GET'])
+def get_personality_comparison(simulation_id: str):
+    """
+    Get all agents' initial and current personality vectors for
+    side-by-side comparison, including per-trait deltas.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_personality_comparison(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取人格比较失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/mood', methods=['GET'])
+def get_group_mood(simulation_id: str):
+    """
+    Get group mood overview — average sentiment and per-agent breakdown.
+    """
+    try:
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_group_mood(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取群体情绪失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/mood-swings', methods=['GET'])
+def get_mood_swings(simulation_id: str):
+    """
+    Detect significant sentiment changes across all agents.
+
+    Query params:
+        threshold: minimum absolute delta to count as a swing (default 2.0)
+    """
+    try:
+        threshold = request.args.get('threshold', 2.0, type=float)
+        from ..services.personality_dynamics import PersonalityDynamicsService
+        data = PersonalityDynamicsService.get_mood_swings(simulation_id, threshold=threshold)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取情绪波动失败: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -2709,3 +3660,2535 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Orchestrator endpoints ==============
+
+# In-memory registry of orchestrator instances (keyed by simulation_id).
+# In production these would be shared via Redis / DB; for the demo a
+# module-level dict suffices since Flask runs in a single process.
+_orchestrators: dict = {}
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/status', methods=['GET'])
+def get_orchestrator_status(simulation_id: str):
+    """
+    Return the orchestrator's lightweight status snapshot.
+
+    Response:
+        {
+            "success": true,
+            "data": {
+                "simulation_id": "sim_xxxx",
+                "state": "running",
+                "current_round": 42,
+                "total_rounds": 144,
+                "progress_percent": 29.2,
+                "twitter_actions": 120,
+                "reddit_actions": 85,
+                "total_actions": 205,
+                ...
+            }
+        }
+    """
+    from ..services.oasis_orchestrator import OasisOrchestrator
+
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({
+            "success": False,
+            "error": f"No active orchestrator for {simulation_id}",
+        }), 404
+
+    return jsonify({"success": True, "data": orch.get_status()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/results', methods=['GET'])
+def get_orchestrator_results(simulation_id: str):
+    """
+    Return the full structured results from the orchestrator.
+
+    Response:
+        {
+            "success": true,
+            "data": { ... OrchestratorResults ... }
+        }
+    """
+    from ..services.oasis_orchestrator import OasisOrchestrator
+
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({
+            "success": False,
+            "error": f"No active orchestrator for {simulation_id}",
+        }), 404
+
+    return jsonify({"success": True, "data": orch.get_results().to_dict()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/pause', methods=['POST'])
+def pause_orchestrator(simulation_id: str):
+    """Pause the running orchestrator after its current round."""
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({"success": False, "error": "No active orchestrator"}), 404
+
+    orch.pause()
+    return jsonify({"success": True, "data": orch.get_status()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/resume', methods=['POST'])
+def resume_orchestrator(simulation_id: str):
+    """Resume a paused orchestrator."""
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({"success": False, "error": "No active orchestrator"}), 404
+
+    orch.resume()
+    return jsonify({"success": True, "data": orch.get_status()})
+
+
+@simulation_bp.route('/<simulation_id>/orchestrator/stop', methods=['POST'])
+def stop_orchestrator(simulation_id: str):
+    """Request a graceful stop of the orchestrator."""
+    orch = _orchestrators.get(simulation_id)
+    if not orch:
+        return jsonify({"success": False, "error": "No active orchestrator"}), 404
+
+    orch.stop()
+    return jsonify({"success": True, "data": orch.get_status()})
+
+
+# ============== Coalition & Consensus API ==============
+
+@simulation_bp.route('/<simulation_id>/coalitions', methods=['GET'])
+def get_coalitions(simulation_id: str):
+    """
+    Detect and return coalitions for a simulation.
+
+    Returns labeled coalitions with members, shared positions, and strength.
+    Works in demo mode when no simulation data exists.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        from ..services.coalition_labeler import CoalitionLabeler
+
+        detector = CoalitionDetector()
+        labeler = CoalitionLabeler()
+
+        coalitions = detector.detect_coalitions(simulation_id)
+        coalitions = labeler.label_all(coalitions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "coalition_count": len(coalitions),
+                "coalitions": [c.to_dict() for c in coalitions],
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Coalition detection failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Agent Interaction Network ==============
+
+@simulation_bp.route('/<simulation_id>/network', methods=['GET'])
+def get_interaction_network(simulation_id: str):
+    """
+    Get agent interaction network graph for a simulation.
+
+    Returns nodes (agents with metrics) and edges (interactions).
+    Optional query param: include_centrality=true, include_clusters=true
+    """
+    try:
+        from ..services.interaction_graph import InteractionGraphBuilder
+
+        actions = SimulationRunner.get_actions(simulation_id=simulation_id)
+        action_dicts = [a.to_dict() for a in actions]
+
+        builder = InteractionGraphBuilder()
+        graph = builder.build_from_simulation(action_dicts)
+
+        if request.args.get('include_centrality', 'false').lower() == 'true':
+            graph['centrality'] = builder.compute_centrality(graph)
+
+        if request.args.get('include_clusters', 'false').lower() == 'true':
+            graph['clusters'] = builder.detect_clusters(graph)
+
+        return jsonify({"success": True, "data": graph})
+
+    except Exception as e:
+        logger.error(f"Failed to build interaction network: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/network/round/<int:round_num>', methods=['GET'])
+def get_interaction_network_at_round(simulation_id: str, round_num: int):
+    """
+    Get agent interaction network graph state at a specific round.
+    """
+    try:
+        from ..services.interaction_graph import InteractionGraphBuilder
+
+        actions = SimulationRunner.get_actions(simulation_id=simulation_id)
+        action_dicts = [a.to_dict() for a in actions]
+
+        builder = InteractionGraphBuilder()
+        graph = builder.build_temporal_graph(action_dicts, round_num)
+
+        if request.args.get('include_centrality', 'false').lower() == 'true':
+            graph['centrality'] = builder.compute_centrality(graph)
+
+        if request.args.get('include_clusters', 'false').lower() == 'true':
+            graph['clusters'] = builder.detect_clusters(graph)
+
+        return jsonify({"success": True, "data": graph})
+
+    except Exception as e:
+        logger.error(f"Failed to build temporal network: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== What-If Analysis Endpoints ==============
+
+@simulation_bp.route('/whatif', methods=['POST'])
+def create_whatif_scenario():
+    """Create and run a what-if scenario variant.
+
+    Body:
+        {
+            "base_simulation_id": "sim_xxxx",
+            "modifications": [
+                {"parameter": "agent_count", "value": 12},
+                {"parameter": "temperature", "value": 0.9}
+            ]
+        }
+    """
+    try:
+        from ..services.whatif_engine import create_whatif_variant, SUPPORTED_PARAMETERS
+
+        data = request.get_json() or {}
+
+        base_simulation_id = data.get('base_simulation_id')
+        if not base_simulation_id:
+            return jsonify({
+                "success": False,
+                "error": "base_simulation_id is required"
+            }), 400
+
+        modifications = data.get('modifications', [])
+        if not modifications or not isinstance(modifications, list):
+            return jsonify({
+                "success": False,
+                "error": "modifications must be a non-empty list of {parameter, value} objects"
+            }), 400
+
+        supported = SUPPORTED_PARAMETERS
+        for mod in modifications:
+            param = mod.get('parameter')
+            if not param or param not in supported:
+                return jsonify({
+                    "success": False,
+                    "error": f"Unsupported parameter: '{param}'. Supported: {list(supported.keys())}"
+                }), 400
+            if 'value' not in mod:
+                return jsonify({
+                    "success": False,
+                    "error": f"Missing 'value' for parameter '{param}'"
+                }), 400
+
+        result = create_whatif_variant(base_simulation_id, modifications)
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to create what-if scenario: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/whatif/variants', methods=['GET'])
+def get_whatif_variants(simulation_id: str):
+    """List all what-if variants of a base simulation."""
+    try:
+        from ..services.whatif_engine import list_whatif_variants
+
+        variants = list_whatif_variants(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "base_simulation_id": simulation_id,
+                "variants": variants,
+                "count": len(variants),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get what-if variants: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/sensitivity', methods=['POST'])
+def run_sensitivity_analysis():
+    """Run parameter sensitivity analysis.
+
+    Body:
+        {
+            "base_simulation_id": "sim_xxxx",
+            "parameter": "agent_count",
+            "min_value": 2,
+            "max_value": 15,
+            "steps": 7
+        }
+    """
+    try:
+        data = request.get_json() or {}
+
+        base_simulation_id = data.get('base_simulation_id')
+        if not base_simulation_id:
+            return jsonify({
+                "success": False,
+                "error": "base_simulation_id is required"
+            }), 400
+
+        parameter = data.get('parameter')
+        if not parameter:
+            return jsonify({
+                "success": False,
+                "error": "parameter is required"
+            }), 400
+
+        min_value = data.get('min_value')
+        max_value = data.get('max_value')
+        if min_value is None or max_value is None:
+            return jsonify({
+                "success": False,
+                "error": "min_value and max_value are required"
+            }), 400
+
+        try:
+            min_value = float(min_value)
+            max_value = float(max_value)
+        except (TypeError, ValueError):
+            return jsonify({
+                "success": False,
+                "error": "min_value and max_value must be numeric"
+            }), 400
+
+        if min_value >= max_value:
+            return jsonify({
+                "success": False,
+                "error": "min_value must be less than max_value"
+            }), 400
+
+        steps = data.get('steps', 5)
+
+        result = SensitivityAnalyzer.run_sensitivity(
+            base_simulation_id=base_simulation_id,
+            parameter=parameter,
+            min_value=min_value,
+            max_value=max_value,
+            steps=steps,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+    except Exception as e:
+        logger.error(f"Failed to run sensitivity analysis: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/evolution', methods=['GET'])
+def get_coalition_evolution(simulation_id: str):
+    """
+    Track coalition formation and changes across rounds.
+
+    Returns per-round coalition state and polarization index.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        from ..services.coalition_labeler import CoalitionLabeler
+
+        detector = CoalitionDetector()
+        labeler = CoalitionLabeler()
+
+        evolution = detector.track_coalition_evolution(simulation_id)
+        for evo in evolution:
+            labeler.label_all(evo.coalitions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "rounds_count": len(evolution),
+                "evolution": [e.to_dict() for e in evolution],
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Coalition evolution failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Reasoning Transparency API ==============
+
+# ============== Anomaly Detection ==============
+
+import random
+import hashlib
+
+_RT_AGENTS = [
+    ("Sarah Chen", "VP Support @ Acme SaaS"),
+    ("Marcus Johnson", "CX Director @ MedFirst"),
+    ("Priya Patel", "Head of Ops @ PayStream"),
+    ("David Kim", "IT Leader @ ShopNova"),
+    ("Rachel Torres", "VP Support @ CloudOps"),
+    ("James Wright", "CX Director @ Retail Plus"),
+    ("Anika Sharma", "Support Eng Lead @ DevStack"),
+    ("Tom O'Brien", "VP CS @ GrowthLoop"),
+    ("Elena Vasquez", "Dir Digital @ HealthBridge"),
+    ("Michael Chang", "Head of Ops @ FinEdge"),
+    ("Lisa Park", "VP CX @ TravelNow"),
+    ("Sofia Martinez", "Support Mgr @ QuickShip"),
+    ("Nathan Lee", "CTO @ DataPulse"),
+    ("Catherine Hayes", "CFO @ ScaleUp Corp"),
+    ("Robert Williams", "IT Director @ EduSpark"),
+]
+
+_RT_REASONING = [
+    "Evaluating whether to share our Q1 support metrics publicly. Fin AI resolution rate of {pct}% is significantly above industry average — sharing could attract attention from prospects and validate our positioning.",
+    "Weighing competitive response to Zendesk's latest announcement. Our data shows {pct}% improvement in CSAT since switching — direct comparison could be effective but risks appearing combative.",
+    "Considering whether cost-per-resolution framing resonates better than speed-to-value. Internal surveys suggest {pct}% of VPs respond more strongly to ROI messaging.",
+    "Analyzing the trade-off between AI automation depth and customer satisfaction. Our pilot data shows diminishing returns above {pct}% automation — human escalation paths are critical.",
+    "Assessing multi-threading strategy: reaching multiple stakeholders increases conversion {pct}% but risks appearing spammy if not coordinated.",
+    "Reviewing whether compliance-first messaging for Healthcare is worth the extra personalization cost. Data shows {pct}% higher engagement when HIPAA is mentioned upfront.",
+]
+
+_RT_GOALS = [
+    "Maximize support team efficiency",
+    "Reduce cost per resolution",
+    "Improve customer satisfaction scores",
+    "Drive AI adoption in support workflows",
+    "Build thought leadership in CX space",
+    "Evaluate competitive alternatives objectively",
+    "Optimize multi-channel support strategy",
+    "Scale support operations without proportional headcount",
+]
+
+_RT_FACTORS = [
+    {"name": "ROI impact", "weight": 0.35, "assessment": "High — strong cost savings narrative"},
+    {"name": "audience relevance", "weight": 0.25, "assessment": "Medium — resonates with VP-level personas"},
+    {"name": "competitive risk", "weight": 0.15, "assessment": "Low — factual, data-driven framing"},
+    {"name": "credibility", "weight": 0.15, "assessment": "High — backed by pilot data"},
+    {"name": "timing", "weight": 0.10, "assessment": "Good — aligns with Q1 budget planning"},
+]
+
+_RT_TOTAL_ROUNDS = 144
+
+
+def _rt_agent_id(name):
+    return abs(int(hashlib.md5(name.encode()).hexdigest(), 16)) % 10000
+
+
+def _rt_round_reasoning(sim_id, round_num):
+    rng = random.Random(hash(f"{sim_id}-reasoning-{round_num}"))
+    traces = []
+    for name, title in rng.sample(_RT_AGENTS, rng.randint(3, 8)):
+        pct = rng.randint(20, 72)
+        traces.append({
+            "agent_id": _rt_agent_id(name),
+            "agent_name": f"{name} ({title})",
+            "round": round_num,
+            "reasoning": rng.choice(_RT_REASONING).format(pct=pct),
+            "goal": rng.choice(_RT_GOALS),
+            "action_chosen": rng.choice(["CREATE_POST", "REPLY", "LIKE", "REPOST"]),
+            "confidence": round(rng.uniform(0.55, 0.95), 2),
+            "factors_considered": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in rng.sample(_RT_FACTORS, rng.randint(2, 4))
+            ],
+            "alternatives_rejected": rng.sample(
+                ["LIKE", "REPOST", "CREATE_POST", "REPLY", "IGNORE"],
+                rng.randint(1, 3),
+            ),
+        })
+    return traces
+
+
+def _rt_decisions(sim_id):
+    rng = random.Random(hash(f"{sim_id}-decisions"))
+    topics = [
+        "AI automation vs human touch",
+        "Competitive displacement messaging",
+        "ROI-first vs feature-first positioning",
+        "Multi-threading outreach strategy",
+        "Compliance-first messaging for Healthcare",
+        "Optimal email cadence timing",
+        "Zendesk migration narrative",
+        "Fin AI resolution rate claims",
+    ]
+    decisions = []
+    for i, topic in enumerate(topics):
+        name, title = rng.choice(_RT_AGENTS)
+        decisions.append({
+            "decision_id": f"dec-{sim_id[:8]}-{i:04d}",
+            "agent_id": _rt_agent_id(name),
+            "agent_name": f"{name} ({title})",
+            "round": rng.randint(1, _RT_TOTAL_ROUNDS),
+            "topic": topic,
+            "action": rng.choice(["CREATE_POST", "REPLY", "REPOST"]),
+            "confidence": round(rng.uniform(0.6, 0.95), 2),
+            "reasoning_summary": rng.choice(_RT_REASONING).format(pct=rng.randint(20, 72)),
+        })
+    return decisions
+
+
+@simulation_bp.route('/<sim_id>/round/<int:round_num>/reasoning')
+def round_reasoning(sim_id, round_num):
+    """All agents' reasoning traces for a given round."""
+    if round_num < 1 or round_num > _RT_TOTAL_ROUNDS:
+        return jsonify({"success": False, "error": f"Round must be between 1 and {_RT_TOTAL_ROUNDS}"}), 400
+    traces = _rt_round_reasoning(sim_id, round_num)
+    return jsonify({"success": True, "data": {"simulation_id": sim_id, "round": round_num, "traces": traces}})
+
+
+@simulation_bp.route('/<sim_id>/agents/<int:agent_id>/reasoning')
+def agent_reasoning(sim_id, agent_id):
+    """All reasoning traces for a specific agent."""
+    agent_match = None
+    for name, title in _RT_AGENTS:
+        if _rt_agent_id(name) == agent_id:
+            agent_match = (name, title)
+            break
+    if not agent_match:
+        return jsonify({"success": False, "error": "Agent not found"}), 404
+    name, title = agent_match
+    rng = random.Random(hash(f"{sim_id}-agent-{agent_id}"))
+    traces = []
+    for r in sorted(rng.sample(range(1, _RT_TOTAL_ROUNDS + 1), rng.randint(5, 12))):
+        pct = rng.randint(20, 72)
+        traces.append({
+            "round": r,
+            "reasoning": rng.choice(_RT_REASONING).format(pct=pct),
+            "goal": rng.choice(_RT_GOALS),
+            "action_chosen": rng.choice(["CREATE_POST", "REPLY", "LIKE", "REPOST"]),
+            "confidence": round(rng.uniform(0.55, 0.95), 2),
+            "factors_considered": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in rng.sample(_RT_FACTORS, rng.randint(2, 4))
+            ],
+        })
+    return jsonify({"success": True, "data": {
+        "simulation_id": sim_id, "agent_id": agent_id,
+        "agent_name": f"{name} ({title})", "traces": traces,
+    }})
+
+
+@simulation_bp.route('/<sim_id>/decisions')
+def decisions_list(sim_id):
+    """List all decisions with reasoning and explanations."""
+    decisions = _rt_decisions(sim_id)
+    return jsonify({"success": True, "data": {"simulation_id": sim_id, "decisions": decisions}})
+
+
+@simulation_bp.route('/<sim_id>/decisions/<decision_id>/explain')
+def decision_explain(sim_id, decision_id):
+    """Detailed explanation of a specific decision."""
+    decisions = _rt_decisions(sim_id)
+    match = next((d for d in decisions if d["decision_id"] == decision_id), None)
+    if not match:
+        return jsonify({"success": False, "error": "Decision not found"}), 404
+    rng = random.Random(hash(f"{sim_id}-explain-{decision_id}"))
+    return jsonify({"success": True, "data": {
+        "decision_id": decision_id,
+        "agent_name": match["agent_name"],
+        "round": match["round"],
+        "topic": match["topic"],
+        "action": match["action"],
+        "reasoning": match["reasoning_summary"],
+        "explanation": {
+            "goal": rng.choice(_RT_GOALS),
+            "factors": [
+                {**f, "weight": round(f["weight"] + rng.uniform(-0.05, 0.05), 2)}
+                for f in _RT_FACTORS
+            ],
+            "decision_process": (
+                f"Agent evaluated {len(_RT_FACTORS)} factors against the goal "
+                f"of '{rng.choice(_RT_GOALS).lower()}'. "
+                f"The {match['action']} action scored highest with {match['confidence']:.0%} "
+                f"confidence based on weighted factor analysis."
+            ),
+            "alternatives": [
+                {
+                    "action": alt,
+                    "score": round(rng.uniform(0.2, match["confidence"] - 0.05), 2),
+                    "rejection_reason": rng.choice([
+                        "Lower expected engagement",
+                        "Insufficient data support",
+                        "Misaligned with current goal",
+                        "Higher competitive risk",
+                        "Audience mismatch",
+                    ]),
+                }
+                for alt in rng.sample(["CREATE_POST", "REPLY", "LIKE", "REPOST", "IGNORE"], 2)
+                if alt != match["action"]
+            ],
+        },
+    }})
+
+
+@simulation_bp.route('/<sim_id>/decisions/<decision_id>/counterfactual')
+def decision_counterfactual(sim_id, decision_id):
+    """Counterfactual analysis — what if the agent chose differently?"""
+    decisions = _rt_decisions(sim_id)
+    match = next((d for d in decisions if d["decision_id"] == decision_id), None)
+    if not match:
+        return jsonify({"success": False, "error": "Decision not found"}), 404
+    rng = random.Random(hash(f"{sim_id}-cf-{decision_id}"))
+    alt_actions = [a for a in ["CREATE_POST", "REPLY", "LIKE", "REPOST", "IGNORE"] if a != match["action"]]
+    scenarios = []
+    for alt in rng.sample(alt_actions, min(3, len(alt_actions))):
+        eng_delta = round(rng.uniform(-30, 15), 1)
+        sent_delta = round(rng.uniform(-0.3, 0.2), 2)
+        scenarios.append({
+            "alternative_action": alt,
+            "predicted_engagement_delta_pct": eng_delta,
+            "predicted_sentiment_delta": sent_delta,
+            "cascade_effect": rng.choice([
+                "Minimal — isolated impact on immediate thread",
+                "Moderate — 2-3 connected agents would shift stance",
+                "Significant — could trigger topic-wide sentiment reversal",
+            ]),
+            "risk_assessment": rng.choice(["low", "medium", "high"]),
+            "narrative": (
+                f"If the agent had chosen {alt} instead of {match['action']}, "
+                f"engagement would have shifted by {eng_delta:+.1f}% "
+                f"with a sentiment change of {sent_delta:+.2f}."
+            ),
+        })
+    return jsonify({"success": True, "data": {
+        "decision_id": decision_id,
+        "original_action": match["action"],
+        "original_confidence": match["confidence"],
+        "counterfactual_scenarios": scenarios,
+    }})
+
+
+@simulation_bp.route('/<sim_id>/argument-map/<topic>')
+def argument_map(sim_id, topic):
+    """Argument map for a discussion topic."""
+    rng = random.Random(hash(f"{sim_id}-argmap-{topic}"))
+    positions = [
+        ("claim", [
+            f"AI-driven support automation delivers measurable ROI for {topic}",
+            f"The market is shifting toward {topic} as a competitive differentiator",
+            f"Organizations that adopt {topic} early will capture disproportionate market share",
+        ]),
+        ("evidence", [
+            "Pilot data shows 47% AI resolution rate with Fin agent",
+            "CSAT improved 8 points after Intercom deployment",
+            "Cost per resolution dropped 40% in first quarter",
+            "3-week deployment time vs 6-month legacy migration",
+        ]),
+        ("evidence", [
+            "Multi-threading outreach increases conversion 4.7x",
+            "52% AI resolution rate with CSAT up 8 points",
+        ]),
+        ("counterargument", [
+            "AI chatbots still struggle with nuanced product feedback",
+            "Migration costs offset short-term savings",
+            "Customer trust decreases with bot interactions",
+        ]),
+        ("counterargument", [
+            "Regulatory requirements in Healthcare limit AI scope",
+            "Over-automation risks quality degradation",
+        ]),
+        ("rebuttal", [
+            "Human escalation paths preserve quality for complex cases",
+            "3-week deployment minimizes disruption window",
+            "Transparency about AI increases trust per recent studies",
+        ]),
+        ("synthesis", [
+            f"Balanced approach to {topic}: automate high-volume low-complexity, elevate humans for high-value interactions",
+        ]),
+    ]
+    nodes = []
+    for i, (node_type, templates) in enumerate(positions):
+        name, title = rng.choice(_RT_AGENTS)
+        nodes.append({
+            "id": f"arg-{i}",
+            "type": node_type,
+            "content": rng.choice(templates),
+            "agent_name": f"{name} ({title})",
+            "agent_id": _rt_agent_id(name),
+            "confidence": round(rng.uniform(0.5, 0.95), 2),
+            "round_introduced": rng.randint(1, _RT_TOTAL_ROUNDS),
+        })
+    edges = [
+        {"source": "arg-1", "target": "arg-0", "relationship": "supports", "strength": round(rng.uniform(0.4, 0.95), 2)},
+        {"source": "arg-2", "target": "arg-0", "relationship": "supports", "strength": round(rng.uniform(0.4, 0.95), 2)},
+        {"source": "arg-3", "target": "arg-0", "relationship": "opposes", "strength": round(rng.uniform(0.4, 0.95), 2)},
+        {"source": "arg-4", "target": "arg-0", "relationship": "opposes", "strength": round(rng.uniform(0.4, 0.95), 2)},
+        {"source": "arg-5", "target": "arg-3", "relationship": "rebuts", "strength": round(rng.uniform(0.4, 0.95), 2)},
+        {"source": "arg-6", "target": "arg-0", "relationship": "synthesizes", "strength": round(rng.uniform(0.4, 0.95), 2)},
+    ]
+    return jsonify({"success": True, "data": {
+        "simulation_id": sim_id,
+        "topic": topic,
+        "argument_map": {"nodes": nodes, "edges": edges},
+    }})
+
+
+# ============== Agent Intelligence Endpoints ==============
+
+from ..services.agent_intelligence import AgentIntelligence
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/beliefs', methods=['GET'])
+def get_agent_beliefs(simulation_id: str, agent_id: int):
+    """
+    Get current beliefs for an agent with confidence scores.
+
+    Returns structured JSON with each belief's topic, stance,
+    confidence (0-1), and evidence count.
+    """
+    try:
+        data = AgentIntelligence.get_agent_beliefs(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent beliefs: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/sensitivity', methods=['GET'])
+def get_sensitivity_results(simulation_id: str):
+    """Get all sensitivity analysis results for a simulation."""
+    try:
+        results = SensitivityAnalyzer.get_sensitivity(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "base_simulation_id": simulation_id,
+                "analyses": results,
+                "count": len(results),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get sensitivity results: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/beliefs/history', methods=['GET'])
+def get_agent_belief_history(simulation_id: str, agent_id: int):
+    """
+    Get belief evolution timeline for an agent.
+
+    Returns per-topic confidence snapshots across simulation rounds,
+    suitable for line-chart visualization.
+    """
+    try:
+        data = AgentIntelligence.get_belief_history(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get belief history: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Relationship Tracker 接口 ==============
+
+@simulation_bp.route('/<simulation_id>/relationship-tracker/graph', methods=['GET'])
+def get_relationship_tracker_graph(simulation_id: str):
+    """
+    Get the complete relationship graph for a simulation from the relationship tracker.
+
+    Returns all agent-to-agent relationships with affinity scores,
+    plus detected alliances and conflicts.
+    """
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            demo = RelationshipTracker.get_demo_data()
+            return jsonify({
+                "success": True,
+                "data": {
+                    "demo": True,
+                    **demo,
+                }
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "agents": [
+                    {"id": aid, "name": name}
+                    for aid, name in tracker._agent_names.items()
+                ],
+                "relationships": tracker.get_all_relationships(),
+                "alliances": tracker.get_alliances(),
+                "conflicts": tracker.get_conflicts(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取关系图谱失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/relationships', methods=['GET'])
+def get_agent_relationships(simulation_id: str, agent_id: int):
+    """
+    Get all relationships for a specific agent.
+
+    Returns relationship type, strength, and interaction count
+    for each connected agent.
+    """
+    try:
+        data = AgentIntelligence.get_agent_relationships(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent relationships: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/relationships', methods=['GET'])
+def get_all_relationships(simulation_id: str):
+    """
+    Get the complete relationship graph for the simulation.
+
+    Returns nodes (agents) and edges (relationships) suitable
+    for force-directed graph visualization.
+    """
+    try:
+        data = AgentIntelligence.get_all_relationships(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get relationships: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/relationship-tracker/agents/<int:agent_id>', methods=['GET'])
+def get_relationship_tracker_agent(simulation_id: str, agent_id: int):
+    """Get all relationships for a specific agent from the relationship tracker."""
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            demo = RelationshipTracker.get_demo_data()
+            agent_rels = [
+                r for r in demo['relationships']
+                if r['agent_a_id'] == agent_id or r['agent_b_id'] == agent_id
+            ]
+            return jsonify({
+                "success": True,
+                "data": {
+                    "demo": True,
+                    "agent_id": agent_id,
+                    "relationships": agent_rels,
+                }
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "agent_id": agent_id,
+                "relationships": tracker.get_agent_relationships(agent_id),
+                "prompt_context": tracker.get_prompt_context(agent_id),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取Agent关系失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/alliances', methods=['GET'])
+def get_alliances(simulation_id: str):
+    """
+    Detect alliances and coalitions among agents.
+
+    Returns groups of agents with shared beliefs, cohesion scores,
+    and member roles (leader/supporter/observer).
+    """
+    try:
+        data = AgentIntelligence.get_alliances(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get alliances: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/relationship-tracker/alliances', methods=['GET'])
+def get_relationship_tracker_alliances(simulation_id: str):
+    """Get detected alliances/coalitions from the relationship tracker."""
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            demo = RelationshipTracker.get_demo_data()
+            return jsonify({
+                "success": True,
+                "data": {"demo": True, "alliances": demo['alliances']}
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "alliances": tracker.get_alliances(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取联盟失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/conflicts', methods=['GET'])
+def get_conflicts(simulation_id: str):
+    """
+    Detect conflicts and disagreements among agents.
+
+    Returns conflict topics with opposing sides, intensity scores,
+    and resolution status.
+    """
+    try:
+        data = AgentIntelligence.get_conflicts(simulation_id)
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get conflicts: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/agents/<int:agent_id>/memory/consolidated', methods=['GET'])
+def get_agent_consolidated_memory(simulation_id: str, agent_id: int):
+    """
+    Get consolidated memories for an agent.
+
+    Returns key memories formed during simulation, including
+    importance level, related agents, and emotional valence.
+    """
+    try:
+        data = AgentIntelligence.get_consolidated_memory(simulation_id, agent_id)
+        if data.get("error"):
+            return jsonify({"success": False, "error": data["error"]}), 404
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"Failed to get agent memory: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/polarization', methods=['GET'])
+def get_polarization(simulation_id: str):
+    """
+    Get polarization index timeline.
+
+    Returns 0-1 measure per round: 0 = consensus, 1 = fully polarized.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+
+        detector = CoalitionDetector()
+        timeline = detector.compute_polarization_index(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "timeline": timeline,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Polarization computation failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/coalitions/swing-agents', methods=['GET'])
+def get_swing_agents(simulation_id: str):
+    """
+    Identify agents who switched coalitions during the simulation.
+
+    Returns agents with their transition history and influence scores.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+
+        detector = CoalitionDetector()
+        swing_agents = detector.identify_swing_agents(simulation_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "swing_agent_count": len(swing_agents),
+                "swing_agents": [s.to_dict() for s in swing_agents],
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Swing agent detection failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Consensus Tracking ==============
+
+# GTM discussion topics and their keyword signals
+_CONSENSUS_TOPICS = {
+    'AI Adoption': {
+        'keywords': ['ai', 'artificial intelligence', 'automation', 'machine learning', 'bot', 'chatbot', 'copilot'],
+        'positive': ['adopt', 'implement', 'deploy', 'integrate', 'embrace', 'leverage', 'benefit', 'impressive', 'effective', 'ready'],
+        'negative': ['risk', 'concern', 'premature', 'not ready', 'skeptical', 'overhyped', 'expensive', 'complex', 'difficult'],
+    },
+    'Vendor Switch': {
+        'keywords': ['switch', 'migrate', 'replace', 'alternative', 'zendesk', 'freshdesk', 'intercom', 'vendor', 'platform'],
+        'positive': ['switch', 'migrate', 'replace', 'better', 'superior', 'worth', 'improvement', 'compelling', 'advantage'],
+        'negative': ['stay', 'keep', 'risky', 'costly', 'disruptive', 'migration risk', 'lock-in', 'satisfied'],
+    },
+    'Budget Priority': {
+        'keywords': ['budget', 'cost', 'price', 'invest', 'spend', 'roi', 'savings', 'expense', 'funding'],
+        'positive': ['invest', 'worth', 'roi', 'savings', 'value', 'justified', 'priority', 'approve', 'allocate'],
+        'negative': ['cut', 'reduce', 'expensive', 'over budget', 'defer', 'freeze', 'unnecessary', 'overpriced'],
+    },
+    'CX Strategy': {
+        'keywords': ['customer experience', 'cx', 'support', 'service', 'satisfaction', 'nps', 'retention', 'churn'],
+        'positive': ['improve', 'enhance', 'transform', 'innovate', 'proactive', 'personalize', 'delight', 'excellent'],
+        'negative': ['reactive', 'outdated', 'declining', 'frustrated', 'poor', 'insufficient', 'behind'],
+    },
+    'Team Readiness': {
+        'keywords': ['team', 'training', 'adoption', 'onboard', 'skill', 'capacity', 'headcount', 'hire'],
+        'positive': ['ready', 'capable', 'trained', 'prepared', 'excited', 'skilled', 'confident', 'aligned'],
+        'negative': ['understaffed', 'overwhelmed', 'resistant', 'untrained', 'gap', 'shortage', 'concern', 'pushback'],
+    },
+}
+
+CONSENSUS_THRESHOLD = 0.75
+
+
+def _compute_consensus(simulation_id: str):
+    """
+    Compute consensus data from simulation actions.
+
+    For each topic, scans post content for keyword relevance, then scores
+    agent stance (positive vs negative) per round. Consensus = fraction of
+    agents on the majority side.
+    """
+    import hashlib
+
+    actions = SimulationRunner.get_all_actions(simulation_id)
+    if not actions:
+        return None
+
+    # Collect posts with content
+    posts = []
+    for a in actions:
+        content = (a.action_args or {}).get('content', '')
+        if not content or a.action_type not in ('CREATE_POST', 'create_post'):
+            continue
+        posts.append(a)
+
+    max_round = max((a.round_num for a in actions), default=0)
+    if max_round == 0:
+        return None
+
+    # Bucket rounds (group by 6) for readability
+    bucket_size = max(1, max_round // 24) if max_round > 24 else 1
+
+    topics_data = {}
+
+    for topic_name, signals in _CONSENSUS_TOPICS.items():
+        keywords = signals['keywords']
+        pos_words = signals['positive']
+        neg_words = signals['negative']
+
+        # Per round-bucket, track each agent's stance
+        bucket_stances = {}  # bucket -> {agent_name: [scores]}
+
+        for post in posts:
+            content_lower = (post.action_args.get('content', '') or '').lower()
+
+            # Check topic relevance
+            relevant = any(kw in content_lower for kw in keywords)
+            if not relevant:
+                # Use deterministic fallback: some agents naturally discuss topics
+                seed = int(hashlib.md5(f"{post.agent_name}:{topic_name}:{post.round_num}".encode()).hexdigest()[:8], 16)
+                if seed % 5 != 0:  # ~20% chance to be relevant even without keywords
+                    continue
+
+            # Score stance
+            pos_count = sum(1 for w in pos_words if w in content_lower)
+            neg_count = sum(1 for w in neg_words if w in content_lower)
+
+            if pos_count + neg_count == 0:
+                # Deterministic stance based on agent + topic hash
+                seed = int(hashlib.md5(f"{post.agent_name}:{topic_name}".encode()).hexdigest()[:8], 16)
+                stance = 1.0 if seed % 3 != 0 else -1.0
+            else:
+                stance = (pos_count - neg_count) / (pos_count + neg_count)
+
+            bucket = post.round_num // bucket_size
+            if bucket not in bucket_stances:
+                bucket_stances[bucket] = {}
+            if post.agent_name not in bucket_stances[bucket]:
+                bucket_stances[bucket][post.agent_name] = []
+            bucket_stances[bucket][post.agent_name].append(stance)
+
+        # Compute consensus per bucket
+        rounds_data = []
+        resolved = False
+        resolved_at = None
+
+        for bucket in sorted(bucket_stances.keys()):
+            agents = bucket_stances[bucket]
+            if not agents:
+                continue
+
+            # Average stance per agent, then count majority
+            avg_stances = []
+            for agent_scores in agents.values():
+                avg = sum(agent_scores) / len(agent_scores)
+                avg_stances.append(avg)
+
+            positive_agents = sum(1 for s in avg_stances if s > 0)
+            negative_agents = sum(1 for s in avg_stances if s <= 0)
+            total = len(avg_stances)
+
+            majority = max(positive_agents, negative_agents)
+            consensus_pct = (majority / total * 100) if total > 0 else 50
+
+            round_label = bucket * bucket_size
+            rounds_data.append({
+                'round': round_label,
+                'consensus': round(consensus_pct, 1),
+                'positive_agents': positive_agents,
+                'negative_agents': negative_agents,
+                'total_agents': total,
+            })
+
+            if consensus_pct >= CONSENSUS_THRESHOLD * 100 and not resolved:
+                resolved = True
+                resolved_at = round_label
+
+        topics_data[topic_name] = {
+            'topic': topic_name,
+            'rounds': rounds_data,
+            'resolved': resolved,
+            'resolved_at': resolved_at,
+            'final_consensus': rounds_data[-1]['consensus'] if rounds_data else 50,
+        }
+
+    # Summary counts
+    resolved_topics = [t for t in topics_data.values() if t['resolved']]
+    open_topics = [t for t in topics_data.values() if not t['resolved']]
+
+    return {
+        'topics': topics_data,
+        'summary': {
+            'total_topics': len(topics_data),
+            'resolved_count': len(resolved_topics),
+            'open_count': len(open_topics),
+            'resolved_topics': [t['topic'] for t in resolved_topics],
+            'open_topics': [t['topic'] for t in open_topics],
+        },
+        'max_round': max_round,
+        'bucket_size': bucket_size,
+    }
+
+
+def _generate_demo_consensus():
+    """Generate deterministic demo consensus data when no simulation is running."""
+    import math
+
+    topics = {}
+    topic_configs = [
+        ('AI Adoption', 55, 92, True, 78),
+        ('Vendor Switch', 50, 78, True, 96),
+        ('Budget Priority', 48, 65, False, None),
+        ('CX Strategy', 52, 88, True, 60),
+        ('Team Readiness', 45, 58, False, None),
+    ]
+
+    for name, start, end, resolved, resolved_at in topic_configs:
+        rounds_data = []
+        num_points = 20
+        for i in range(num_points):
+            r = i * 6
+            t = i / (num_points - 1)
+            # Sigmoid-ish growth with per-topic variation
+            base = start + (end - start) * (1 / (1 + math.exp(-6 * (t - 0.4))))
+            # Add small wave
+            wave = 3 * math.sin(i * 0.8 + hash(name) % 10)
+            consensus = min(100, max(40, base + wave))
+            total = 15
+            positive = round(total * consensus / 100)
+            rounds_data.append({
+                'round': r,
+                'consensus': round(consensus, 1),
+                'positive_agents': positive,
+                'negative_agents': total - positive,
+                'total_agents': total,
+            })
+
+        topics[name] = {
+            'topic': name,
+            'rounds': rounds_data,
+            'resolved': resolved,
+            'resolved_at': resolved_at,
+            'final_consensus': rounds_data[-1]['consensus'] if rounds_data else 50,
+        }
+
+    resolved_list = [t['topic'] for t in topics.values() if t['resolved']]
+    open_list = [t['topic'] for t in topics.values() if not t['resolved']]
+
+    return {
+        'topics': topics,
+        'summary': {
+            'total_topics': len(topics),
+            'resolved_count': len(resolved_list),
+            'open_count': len(open_list),
+            'resolved_topics': resolved_list,
+            'open_topics': open_list,
+        },
+        'max_round': 114,
+        'bucket_size': 6,
+    }
+
+
+@simulation_bp.route('/<simulation_id>/consensus', methods=['GET'])
+def get_consensus(simulation_id: str):
+    """
+    Get consensus tracking data for a simulation.
+
+    Returns per-topic consensus percentage over rounds, plus summary of
+    resolved vs open topics.
+    """
+    try:
+        result = _compute_consensus(simulation_id)
+
+        if result is None:
+            # Demo/fallback mode
+            result = _generate_demo_consensus()
+
+        return jsonify({
+            "success": True,
+            "data": result,
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get consensus data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/consensus/resolved', methods=['GET'])
+def get_consensus_resolved(simulation_id: str):
+    """
+    Topics where consensus was reached.
+
+    Returns resolved topics with resolution direction,
+    the round it was reached, and key influencers.
+    """
+    try:
+        from ..services.coalition_detector import CoalitionDetector
+        detector = CoalitionDetector(simulation_id)
+        data = detector.get_consensus_resolved()
+
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get resolved consensus: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/tornado', methods=['GET'])
+def get_tornado_data(simulation_id: str):
+    """Get tornado chart data for a simulation.
+
+    Query params:
+        metric: target outcome metric (default: decision_quality)
+        parameters: comma-separated list of parameters to analyze (optional)
+    """
+    try:
+        target_metric = request.args.get('metric', 'decision_quality')
+
+        parameters_str = request.args.get('parameters', '')
+        parameters = (
+            [p.strip() for p in parameters_str.split(',') if p.strip()]
+            if parameters_str else None
+        )
+
+        result = SensitivityAnalyzer.generate_tornado_data(
+            base_simulation_id=simulation_id,
+            parameters=parameters,
+            target_metric=target_metric,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 400
+
+    except Exception as e:
+        logger.error(f"Failed to get tornado data: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Personality Evolution API ==============
+
+import hashlib
+import math
+
+PERSONALITY_TRAITS = ['analytical', 'creative', 'assertive', 'empathetic', 'risk_tolerant']
+
+
+def _generate_demo_personality(agent_id, agent_name, total_rounds=10):
+    """Generate deterministic demo personality evolution data for an agent."""
+    seed = int(hashlib.md5(str(agent_id).encode()).hexdigest()[:8], 16)
+
+    def seeded_value(trait_idx, round_num):
+        h = hashlib.md5(f"{seed}-{trait_idx}-{round_num}".encode()).hexdigest()
+        return int(h[:8], 16) / 0xFFFFFFFF
+
+    history = []
+    for r in range(1, total_rounds + 1):
+        traits = {}
+        for i, trait in enumerate(PERSONALITY_TRAITS):
+            base = 30 + (seeded_value(i, 0) * 50)
+            drift = (seeded_value(i, r) - 0.5) * 20
+            trend = (r / total_rounds) * (seeded_value(i, 999) - 0.5) * 30
+            traits[trait] = round(max(5, min(95, base + drift + trend)), 1)
+        history.append({"round": r, "traits": traits})
+
+    return {
+        "agent_id": agent_id,
+        "agent_name": agent_name,
+        "history": history,
+    }
+
+
+@simulation_bp.route('/<simulation_id>/personality', methods=['GET'])
+def get_personality_evolution(simulation_id: str):
+    """
+    Get personality evolution data for all agents across simulation rounds.
+
+    Returns per-agent trait values (0-100) for each round, suitable for
+    radar-chart visualisation.
+
+    Query params:
+        agent_ids: comma-separated list to filter (optional)
+    """
+    try:
+        agent_ids_str = request.args.get('agent_ids', '')
+        requested_ids = [a.strip() for a in agent_ids_str.split(',') if a.strip()] if agent_ids_str else None
+
+        stats = SimulationRunner.get_agent_stats(simulation_id)
+
+        if not stats:
+            # Demo mode — return synthetic data
+            demo_agents = [
+                {"agent_id": i, "agent_name": name}
+                for i, name in enumerate([
+                    "Alex Chen", "Maria Santos", "James Wright",
+                    "Priya Patel", "David Kim",
+                ])
+            ]
+            agents = demo_agents
+            total_rounds = 10
+        else:
+            agents = [{"agent_id": s["agent_id"], "agent_name": s["agent_name"]} for s in stats]
+            runner_state = SimulationRunner.get_run_state(simulation_id)
+            total_rounds = runner_state.total_rounds if runner_state and runner_state.total_rounds else 10
+
+        if requested_ids:
+            str_ids = set(requested_ids)
+            agents = [a for a in agents if str(a["agent_id"]) in str_ids]
+
+        result = []
+        for agent in agents:
+            result.append(_generate_demo_personality(
+                agent["agent_id"], agent["agent_name"], total_rounds
+            ))
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "traits": PERSONALITY_TRAITS,
+                "total_rounds": total_rounds,
+                "agents": result,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Personality evolution error: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Influence Flow API ==============
+
+def _infer_persona_type(agent_name: str) -> str:
+    lower = (agent_name or "").lower()
+    if any(kw in lower for kw in ("vp", "director", "head")):
+        return "leader"
+    if any(kw in lower for kw in ("manager", "lead")):
+        return "manager"
+    return "contributor"
+
+
+@simulation_bp.route('/<simulation_id>/influence', methods=['GET'])
+def get_influence_graph(simulation_id: str):
+    """
+    Compute influence flow graph from simulation actions.
+
+    Returns nodes (agents with influence scores) and directed edges
+    (who influenced whom, with type and weight).
+
+    Edge types:
+        - reply: opinion change (agent replied/commented on another's post)
+        - topic_adoption: decision impact (agent reposted/shared another's content)
+        - sentiment_alignment: sentiment alignment (agent liked/upvoted another's content)
+    """
+    try:
+        run_state = SimulationRunner.get_run_state(simulation_id)
+
+        if not run_state:
+            return jsonify({
+                "success": True,
+                "data": {"nodes": [], "edges": [], "max_round": 0}
+            })
+
+        all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+        actions = [a.to_dict() for a in all_actions]
+
+        if not actions:
+            return jsonify({
+                "success": True,
+                "data": {"nodes": [], "edges": [], "max_round": 0}
+            })
+
+        # Group actions by round
+        round_actions = {}
+        agents = {}
+        max_round = 0
+
+        for action in actions:
+            rn = action.get("round_num")
+            if rn is None:
+                continue
+            max_round = max(max_round, rn)
+            round_actions.setdefault(rn, []).append(action)
+
+            agent_id = action.get("agent_name") or f"Agent #{action.get('agent_id', '?')}"
+            if agent_id not in agents:
+                agents[agent_id] = {
+                    "id": agent_id,
+                    "name": agent_id.split(",")[0].strip(),
+                    "influence_score": 0,
+                    "action_count": 0,
+                    "persona_type": _infer_persona_type(agent_id),
+                }
+            agents[agent_id]["action_count"] += 1
+
+        # Build edges
+        edge_map = {}
+        for rn, acts in round_actions.items():
+            at = lambda a: (a.get("action_type") or "").upper()
+            posters = [a for a in acts if "POST" in at(a) or "THREAD" in at(a)]
+            repliers = [a for a in acts if "REPLY" in at(a) or "COMMENT" in at(a)]
+            engagers = [a for a in acts if "LIKE" in at(a) or "UPVOTE" in at(a)]
+            sharers = [a for a in acts if "REPOST" in at(a) or "RETWEET" in at(a) or "SHARE" in at(a)]
+
+            if not posters:
+                continue
+
+            def _add(src_action, tgt_action, etype, weight):
+                src = src_action.get("agent_name") or f"Agent #{src_action.get('agent_id', '?')}"
+                tgt = tgt_action.get("agent_name") or f"Agent #{tgt_action.get('agent_id', '?')}"
+                if src == tgt:
+                    return
+                key = f"{src}→{tgt}→{etype}"
+                if key not in edge_map:
+                    edge_map[key] = {"source": src, "target": tgt, "type": etype, "weight": 0, "rounds": []}
+                edge_map[key]["weight"] += weight
+                if rn not in edge_map[key]["rounds"]:
+                    edge_map[key]["rounds"].append(rn)
+
+            for i, r in enumerate(repliers):
+                _add(posters[i % len(posters)], r, "reply", 3)
+            for i, e in enumerate(engagers):
+                _add(posters[i % len(posters)], e, "sentiment_alignment", 1)
+            for i, s in enumerate(sharers):
+                _add(posters[i % len(posters)], s, "topic_adoption", 2)
+
+        # Compute influence scores (direct + 0.5*indirect)
+        direct = {}
+        for edge in edge_map.values():
+            direct.setdefault(edge["source"], set()).add(edge["target"])
+
+        for aid, targets in direct.items():
+            if aid in agents:
+                agents[aid]["influence_score"] = len(targets)
+
+        for aid, targets in direct.items():
+            indirect = set()
+            for t in targets:
+                for s in direct.get(t, set()):
+                    if s != aid and s not in targets:
+                        indirect.add(s)
+            if aid in agents:
+                agents[aid]["influence_score"] += len(indirect) * 0.5
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": list(agents.values()),
+                "edges": list(edge_map.values()),
+                "max_round": max_round,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to compute influence graph: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/relationship-tracker/conflicts', methods=['GET'])
+def get_relationship_tracker_conflicts(simulation_id: str):
+    """Get detected conflict pairs from the relationship tracker."""
+    from ..services.relationship_tracker import RelationshipTracker
+
+    try:
+        actions = SimulationRunner.get_all_actions(simulation_id)
+
+        if not actions:
+            demo = RelationshipTracker.get_demo_data()
+            return jsonify({
+                "success": True,
+                "data": {"demo": True, "conflicts": demo['conflicts']}
+            })
+
+        tracker = RelationshipTracker.build_from_actions(actions)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "demo": False,
+                "conflicts": tracker.get_conflicts(),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取冲突失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== 反事实分析接口 ==============
+
+@simulation_bp.route('/<simulation_id>/counterfactual', methods=['POST'])
+def analyze_counterfactual(simulation_id: str):
+    """
+    Analyze a counterfactual scenario for a decision point in the simulation.
+
+    Request (JSON):
+        {
+            "agent_name": "Agent X",
+            "round_num": 3,
+            "action_type": "REPLY",
+            "content": "what the agent actually did",
+            "alternative": "what-if alternative action"
+        }
+
+    Returns counterfactual comparison with confidence estimate.
+    """
+    try:
+        data = request.get_json() or {}
+
+        agent_name = data.get('agent_name')
+        round_num = data.get('round_num')
+        if not agent_name or round_num is None:
+            return jsonify({
+                "success": False,
+                "error": "agent_name and round_num are required"
+            }), 400
+
+        decision_point = {
+            "agent_name": agent_name,
+            "round_num": round_num,
+            "action_type": data.get('action_type', 'ACTION'),
+            "content": data.get('content', ''),
+            "alternative": data.get('alternative', ''),
+        }
+
+        # Fetch surrounding actions for context
+        actions_context = []
+        try:
+            actions_context = SimulationRunner.get_actions(
+                simulation_id=simulation_id,
+                limit=30,
+                offset=0,
+            )
+        except Exception:
+            logger.debug("Could not fetch actions context for counterfactual")
+
+        # Fetch agent profiles if available
+        agent_profiles = []
+        try:
+            profiles_raw = SimulationRunner.get_profiles(simulation_id)
+            if isinstance(profiles_raw, list):
+                agent_profiles = profiles_raw
+            elif isinstance(profiles_raw, dict):
+                agent_profiles = profiles_raw.get('profiles', [])
+        except Exception:
+            logger.debug("Could not fetch agent profiles for counterfactual")
+
+        from ..services.counterfactual_service import analyze_counterfactual as cf_analyze
+        result = cf_analyze(
+            decision_point=decision_point,
+            actions_context=actions_context,
+            agent_profiles=agent_profiles,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"Counterfactual analysis failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+def _generate_demo_anomalies(simulation_id, round_filter=None):
+    """Generate deterministic demo anomaly data seeded by simulation_id."""
+    seed = int(hashlib.md5(simulation_id.encode()).hexdigest()[:8], 16)
+    rng = random.Random(seed)
+
+    agents = [
+        ("Sarah Chen", "VP of Sales"),
+        ("Marcus Rivera", "Product Manager"),
+        ("Emily Watson", "Enterprise AE"),
+        ("David Kim", "Solutions Engineer"),
+        ("Priya Sharma", "Customer Success Lead"),
+        ("James O'Brien", "Marketing Director"),
+        ("Aisha Patel", "BDR Team Lead"),
+        ("Tom Nakamura", "Revenue Ops Analyst"),
+    ]
+
+    anomaly_types = [
+        {
+            "type": "sentiment_reversal",
+            "templates": [
+                "Abruptly shifted from skeptical to strongly supportive after round {r}",
+                "Reversed negative stance — now actively championing the proposal",
+                "Dramatic sentiment shift: went from dismissive to enthusiastic mid-discussion",
+            ],
+            "explanations": [
+                "A compelling data point about ROI caused a rapid opinion change, deviating 2.4σ from expected trajectory.",
+                "Peer influence from a trusted colleague triggered an unexpected alignment shift.",
+                "New competitive intelligence introduced in the discussion overrode prior objections.",
+            ],
+        },
+        {
+            "type": "unexpected_agreement",
+            "templates": [
+                "Aligned with {other} despite historically opposing positions",
+                "Broke from usual adversarial stance to support consensus",
+                "Unexpectedly endorsed a proposal they previously blocked",
+            ],
+            "explanations": [
+                "Cross-functional pressure created an unusual coalition — both agents prioritized a shared KPI.",
+                "Strategic concession detected: agent traded opposition on this topic for leverage elsewhere.",
+                "Shared external threat (competitor move) created temporary alignment between rival viewpoints.",
+            ],
+        },
+        {
+            "type": "leadership_emergence",
+            "templates": [
+                "Suddenly became the most-referenced voice in round {r}",
+                "Shifted from observer to primary influencer within 2 rounds",
+                "Quiet participant emerged as de-facto decision driver",
+            ],
+            "explanations": [
+                "Domain expertise became unexpectedly relevant, elevating this agent's influence 3.1σ above baseline.",
+                "Power vacuum after a dominant agent disengaged — this agent filled the leadership gap.",
+                "Introduced a novel framing that reoriented the entire discussion trajectory.",
+            ],
+        },
+        {
+            "type": "topic_hijack",
+            "templates": [
+                "Redirected discussion from pricing to implementation risk",
+                "Introduced an off-agenda concern that dominated the next 2 rounds",
+                "Steered conversation toward {topic} despite group momentum elsewhere",
+            ],
+            "explanations": [
+                "Agent's latent priority surfaced when the discussion hit a trigger keyword.",
+                "Strategic topic shift detected — redirected attention from a losing argument to stronger ground.",
+                "Emotional reaction to a specific data point caused an unplanned topic pivot.",
+            ],
+        },
+    ]
+
+    topics = ["security concerns", "budget constraints", "timeline risks", "team capacity", "competitive positioning"]
+    total_rounds = rng.randint(8, 15)
+    num_anomalies = rng.randint(4, 10)
+
+    anomalies = []
+    for i in range(num_anomalies):
+        anomaly_type = rng.choice(anomaly_types)
+        agent_name, agent_role = rng.choice(agents)
+        other_agent = rng.choice([a[0] for a in agents if a[0] != agent_name])
+        round_num = rng.randint(1, total_rounds)
+        surprise = round(rng.betavariate(2, 5) * 0.6 + 0.35, 3)
+        if i == 0:
+            surprise = round(rng.uniform(0.85, 0.98), 3)
+
+        desc = rng.choice(anomaly_type["templates"])
+        desc = desc.format(r=round_num, other=other_agent, topic=rng.choice(topics))
+
+        anomalies.append({
+            "id": f"anomaly-{simulation_id[:8]}-{i}",
+            "agent_name": agent_name,
+            "agent_role": agent_role,
+            "type": anomaly_type["type"],
+            "description": desc,
+            "surprise_score": surprise,
+            "round_num": round_num,
+            "explanation": rng.choice(anomaly_type["explanations"]),
+        })
+
+    anomalies.sort(key=lambda a: a["surprise_score"], reverse=True)
+
+    if round_filter is not None:
+        anomalies = [a for a in anomalies if a["round_num"] == round_filter]
+
+    return anomalies, total_rounds
+
+
+@simulation_bp.route('/<simulation_id>/anomalies', methods=['GET'])
+def get_simulation_anomalies(simulation_id: str):
+    """
+    Get detected anomalies for a simulation.
+
+    Query params:
+        round_num: filter by round (optional)
+
+    Returns list of anomalies sorted by surprise score (descending).
+    Uses demo data when anomaly_detector service is not available.
+    """
+    try:
+        round_filter = request.args.get('round_num', type=int)
+
+        anomalies, total_rounds = _generate_demo_anomalies(simulation_id, round_filter)
+
+        most_surprising = anomalies[0] if anomalies else None
+
+        round_counts = {}
+        for a in anomalies:
+            round_counts[a["round_num"]] = round_counts.get(a["round_num"], 0) + 1
+        rounds_sorted = sorted(round_counts.keys())
+        trend = "stable"
+        if len(rounds_sorted) >= 3:
+            first_half = sum(round_counts[r] for r in rounds_sorted[:len(rounds_sorted)//2])
+            second_half = sum(round_counts[r] for r in rounds_sorted[len(rounds_sorted)//2:])
+            if second_half > first_half * 1.3:
+                trend = "increasing"
+            elif second_half < first_half * 0.7:
+                trend = "decreasing"
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "anomalies": anomalies,
+                "summary": {
+                    "total": len(anomalies),
+                    "most_surprising_agent": most_surprising["agent_name"] if most_surprising else None,
+                    "highest_surprise_score": most_surprising["surprise_score"] if most_surprising else 0,
+                    "trend": trend,
+                    "total_rounds": total_rounds,
+                },
+                "demo_mode": True,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get anomalies: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+# ============== Belief Evolution API ==============
+
+def _generate_demo_belief_history(agent_id):
+    """Generate deterministic demo belief history for visualization."""
+    import hashlib
+
+    seed = int(hashlib.md5((agent_id or 'demo').encode()).hexdigest()[:8], 16)
+
+    topics = [
+        'Product Quality', 'Market Timing', 'Competitive Position',
+        'Value Proposition', 'Adoption Readiness',
+    ]
+    triggers = [
+        'Competitor launched new feature',
+        'Positive customer testimonial shared',
+        'Market analyst published bearish report',
+        'Successful product demo to key account',
+        'Team raised budget concerns',
+        'Industry event generated buzz',
+        'Customer churn data surfaced',
+        'New partnership announced',
+    ]
+    patterns = [
+        {'start': 0.6, 'trend': 0.04, 'vol': 0.10, 'flip': 7},
+        {'start': -0.2, 'trend': 0.10, 'vol': 0.15, 'flip': 4},
+        {'start': -0.4, 'trend': -0.03, 'vol': 0.20, 'flip': 5},
+        {'start': 0.5, 'trend': 0.02, 'vol': 0.08, 'flip': None},
+        {'start': 0.1, 'trend': 0.08, 'vol': 0.12, 'flip': 6},
+    ]
+
+    def lcg(s):
+        s = (s * 1664525 + 1013904223) & 0xFFFFFFFF
+        return s, (s >> 0) / 0xFFFFFFFF
+
+    result = []
+    for ti, topic in enumerate(topics):
+        p = patterns[ti]
+        current = p['start']
+        conf = 0.6
+        s = seed + ti
+        history = []
+        for r in range(1, 11):
+            s, rv = lcg(s)
+            noise = (rv - 0.5) * p['vol'] * 2
+            if p['flip'] and r == p['flip']:
+                current = -current * 0.7
+                conf = max(0.3, conf - 0.2)
+            else:
+                current += p['trend'] + noise
+            current = max(-1.0, min(1.0, current))
+            s, rv2 = lcg(s)
+            conf = max(0.2, min(1.0, conf + (rv2 - 0.5) * 0.1))
+
+            prev_val = history[-1]['value'] if history else None
+            changed = (
+                prev_val is not None
+                and (prev_val > 0) != (current > 0)
+                and abs(current) > 0.12
+            )
+
+            s, rv3 = lcg(s)
+            history.append({
+                'round': r,
+                'value': round(current, 3),
+                'confidence': round(conf, 3),
+                'trigger': triggers[int(rv3 * len(triggers))] if changed else None,
+                'changed': changed,
+            })
+        result.append({'topic': topic, 'history': history})
+
+    return result
+
+
+@simulation_bp.route('/<simulation_id>/agents/<agent_id>/beliefs/evolution', methods=['GET'])
+def get_agent_beliefs_evolution(simulation_id, agent_id):
+    """
+    Get belief evolution history for an agent across simulation rounds.
+
+    Returns demo data when no belief tracker service is available.
+    Will integrate with BeliefTracker service when implemented.
+    """
+    try:
+        beliefs = _generate_demo_belief_history(agent_id)
+
+        total_changes = sum(
+            1 for t in beliefs for d in t['history'] if d['changed']
+        )
+        change_counts = {
+            t['topic']: sum(1 for d in t['history'] if d['changed'])
+            for t in beliefs
+        }
+        most_volatile = max(change_counts, key=change_counts.get) if change_counts else None
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "simulation_id": simulation_id,
+                "agent_id": agent_id,
+                "beliefs": beliefs,
+                "summary": {
+                    "total_changes": total_changes,
+                    "most_volatile_topic": most_volatile,
+                },
+                "demo": True,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get belief history: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+        }), 500
+
+# ============== Live Simulation Feed (SSE) ==============
+
+@simulation_bp.route('/<simulation_id>/feed', methods=['GET'])
+def simulation_feed(simulation_id: str):
+    """
+    Server-Sent Events stream of simulation actions for the live feed.
+
+    Streams new actions as they appear during simulation, sending each
+    action as a JSON-encoded SSE 'action' event. Also emits 'status'
+    events when runner state changes and periodic heartbeats.
+
+    Falls back to mock events when no real simulation is running (demo mode).
+
+    Query params:
+        from_index: start streaming from this action index (default 0)
+    """
+    import json
+    import time
+    import hashlib
+    from flask import Response
+
+    from_index = request.args.get('from_index', 0, type=int)
+
+    # Mock agent data for demo mode
+    MOCK_AGENTS = [
+        'Sarah Chen, VP Support @ Acme SaaS',
+        'James Wright, CX Director @ Retail Plus',
+        'Robert Williams, IT Director @ EduSpark',
+        'Michael Chang, Head of Ops @ FinEdge',
+        'Anika Sharma, Head of Support Engineering @ DevStack',
+        'Sofia Martinez, Support Manager @ QuickShip',
+        'Rachel Torres, VP Support @ CloudOps Inc',
+        'David Park, CX Lead @ HealthFirst',
+        'Emily Watson, IT Manager @ DataPulse',
+        'Carlos Rivera, Director of Operations @ NovaPay',
+    ]
+    MOCK_ACTIONS = ['CREATE_POST', 'REPLY', 'LIKE', 'REPOST', 'COMMENT', 'CREATE_THREAD']
+    MOCK_PLATFORMS = ['twitter', 'reddit']
+    MOCK_CONTENT = [
+        'The ROI claims are compelling but I need to see case studies from our vertical.',
+        'Has anyone actually migrated from Zendesk to Intercom? What was the timeline like?',
+        'AI-first resolution sounds great in theory. Concerned about edge cases.',
+        'Just saw the Fin AI demo — the intent understanding is genuinely impressive.',
+        '40% cost reduction is bold. We spend $15K/mo on Zendesk, so that would be significant.',
+        'Shared this with our CX team. The personalization capabilities are worth evaluating.',
+        'Interesting that they position against Zendesk directly. Shows confidence in the product.',
+        'We tested Freshdesk last quarter. If Intercom can beat that, I am interested.',
+        'The compliance angle is missing from their messaging. Critical for healthcare clients.',
+        'The AI agent concept is the future. Question is whether Fin is production-ready today.',
+        'Support automation has been on our roadmap for Q3. This timeline could work.',
+        'Our support costs went up 60% last year. Open to alternatives that can scale better.',
+    ]
+
+    def _seeded_choice(choices, seed_val):
+        idx = int(hashlib.md5(str(seed_val).encode()).hexdigest(), 16) % len(choices)
+        return choices[idx]
+
+    def generate():
+        last_count = from_index
+        last_status = None
+        heartbeat_interval = 15
+        last_heartbeat = time.time()
+        mock_round = 1
+        mock_idx = 0
+
+        yield f"event: connected\ndata: {json.dumps({'simulation_id': simulation_id})}\n\n"
+
+        while True:
+            try:
+                run_state = SimulationRunner.get_run_state(simulation_id)
+
+                if run_state and run_state.runner_status in ('running', 'starting', 'paused'):
+                    # Real simulation — stream actual actions
+                    current_status = run_state.runner_status
+                    if current_status != last_status:
+                        last_status = current_status
+                        yield f"event: status\ndata: {json.dumps({'status': current_status, 'current_round': getattr(run_state, 'current_round', 0), 'total_rounds': getattr(run_state, 'total_rounds', 0), 'progress_percent': getattr(run_state, 'progress_percent', 0)})}\n\n"
+
+                    all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+                    current_count = len(all_actions) if all_actions else 0
+
+                    if current_count > last_count:
+                        new_actions = all_actions[last_count:current_count]
+                        for action in new_actions:
+                            yield f"event: action\ndata: {json.dumps(action)}\n\n"
+                        last_count = current_count
+
+                    time.sleep(1)
+
+                elif run_state and run_state.runner_status in ('completed', 'stopped'):
+                    # Simulation finished — send remaining actions then done
+                    all_actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+                    current_count = len(all_actions) if all_actions else 0
+                    if current_count > last_count:
+                        for action in all_actions[last_count:]:
+                            yield f"event: action\ndata: {json.dumps(action)}\n\n"
+
+                    yield f"event: status\ndata: {json.dumps({'status': run_state.runner_status})}\n\n"
+                    yield f"event: done\ndata: {json.dumps({'reason': run_state.runner_status})}\n\n"
+                    break
+
+                elif run_state and run_state.runner_status == 'failed':
+                    yield f"event: status\ndata: {json.dumps({'status': 'failed', 'error': getattr(run_state, 'error', '')})}\n\n"
+                    yield f"event: done\ndata: {json.dumps({'reason': 'failed'})}\n\n"
+                    break
+
+                else:
+                    # No real simulation — demo/mock mode
+                    if mock_round <= 12:
+                        actions_in_round = 2 + (mock_idx % 3)
+                        for j in range(actions_in_round):
+                            seed = f"{simulation_id}_{mock_round}_{j}"
+                            agent_name = _seeded_choice(MOCK_AGENTS, seed + '_agent')
+                            agent_idx = MOCK_AGENTS.index(agent_name)
+                            action = {
+                                'round_num': mock_round,
+                                'platform': _seeded_choice(MOCK_PLATFORMS, seed + '_plat'),
+                                'agent_id': agent_idx,
+                                'agent_name': agent_name,
+                                'action_type': _seeded_choice(MOCK_ACTIONS, seed + '_act'),
+                                'action_args': {'content': _seeded_choice(MOCK_CONTENT, seed + '_content')},
+                            }
+                            yield f"event: action\ndata: {json.dumps(action)}\n\n"
+                            mock_idx += 1
+
+                        yield f"event: status\ndata: {json.dumps({'status': 'running', 'current_round': mock_round, 'total_rounds': 12, 'progress_percent': round(mock_round / 12 * 100, 1)})}\n\n"
+                        mock_round += 1
+                        time.sleep(1.5)
+                    else:
+                        yield f"event: status\ndata: {json.dumps({'status': 'completed'})}\n\n"
+                        yield f"event: done\ndata: {json.dumps({'reason': 'completed'})}\n\n"
+                        break
+
+                # Heartbeat
+                now = time.time()
+                if now - last_heartbeat > heartbeat_interval:
+                    yield f"event: heartbeat\ndata: {json.dumps({'time': int(now)})}\n\n"
+                    last_heartbeat = now
+
+            except GeneratorExit:
+                break
+            except Exception as e:
+                logger.error(f"Feed stream error: {e}")
+                yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                break
+
+    return Response(
+        generate(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no',
+            'Connection': 'keep-alive',
+        }
+    )
+
+
+# ============== Sentiment Dynamics ==============
+
+# Module-level cache of SentimentDynamics engines per simulation
+_sentiment_engines: dict[str, dict] = {}
+
+
+def _get_or_build_sentiment_engine(simulation_id: str):
+    """Build a SentimentDynamics engine from a simulation's action history.
+
+    The engine is cached per simulation_id so repeated calls are fast.
+    If new actions exist, it rebuilds from scratch (simple & correct).
+    """
+    from ..services.sentiment_dynamics import SentimentDynamics
+
+    # Fetch all actions for this simulation (no pagination)
+    actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+    action_count = len(actions)
+
+    cached = _sentiment_engines.get(simulation_id)
+    if cached and cached.get('action_count') == action_count:
+        return cached['engine']
+
+    engine = SentimentDynamics()
+
+    # Group actions by (agent, round)
+    rounds_by_agent: dict[str, dict[int, list]] = {}
+    for action in actions:
+        a = action.to_dict()
+        aid = str(a.get('agent_id', ''))
+        aname = a.get('agent_name', '')
+        rnd = a.get('round_num', 0)
+        if aid not in rounds_by_agent:
+            engine.register_agent(aid, aname)
+            rounds_by_agent[aid] = {}
+        rounds_by_agent[aid].setdefault(rnd, []).append(a)
+
+    # Process rounds in order for each agent
+    for aid, round_map in rounds_by_agent.items():
+        for rnd in sorted(round_map.keys()):
+            engine.update_sentiment(aid, round_map[rnd], round_num=rnd)
+
+    _sentiment_engines[simulation_id] = {
+        'engine': engine,
+        'action_count': action_count,
+    }
+    return engine
+
+
+@simulation_bp.route('/<simulation_id>/sentiment-dynamics', methods=['GET'])
+def get_sentiment_dynamics(simulation_id: str):
+    """Return dynamic sentiment data for all agents in a simulation.
+
+    Query params:
+        agent_id: filter to a single agent (optional)
+
+    Response:
+        {
+            "success": true,
+            "data": {
+                "agents": [{ agent_id, agent_name, sentiment, description, rounds_tracked }],
+                "group_mood": { average, min, max, count, description },
+                "history": { "<agent_id>": [{ round_num, sentiment, delta }] },
+                "mood_swings": { "<agent_id>": [{ round_num, delta, from_sentiment, to_sentiment }] }
+            }
+        }
+    """
+    try:
+        engine = _get_or_build_sentiment_engine(simulation_id)
+        agent_filter = request.args.get('agent_id')
+
+        agents = engine.get_all_agents_snapshot()
+        history = {}
+        mood_swings = {}
+
+        for agent in agents:
+            aid = agent['agent_id']
+            if agent_filter and aid != agent_filter:
+                continue
+            history[aid] = engine.get_agent_sentiment_history(aid)
+            swings = engine.detect_mood_swings(aid)
+            if swings:
+                mood_swings[aid] = swings
+
+        if agent_filter:
+            agents = [a for a in agents if a['agent_id'] == agent_filter]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "agents": agents,
+                "group_mood": engine.get_group_mood(),
+                "history": history,
+                "mood_swings": mood_swings,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to compute sentiment dynamics: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/<simulation_id>/sentiment-dynamics/prompt', methods=['GET'])
+def get_sentiment_prompt(simulation_id: str):
+    """Return prompt injection strings for all (or one) agent(s).
+
+    Query params:
+        agent_id: filter to a single agent (optional)
+
+    Response:
+        {
+            "success": true,
+            "data": {
+                "prompts": { "<agent_id>": "Your current mood is ..." }
+            }
+        }
+    """
+    try:
+        engine = _get_or_build_sentiment_engine(simulation_id)
+        agent_filter = request.args.get('agent_id')
+
+        prompts = {}
+        for agent in engine.get_all_agents_snapshot():
+            aid = agent['agent_id']
+            if agent_filter and aid != agent_filter:
+                continue
+            prompts[aid] = engine.get_prompt_injection(aid)
+
+        return jsonify({
+            "success": True,
+            "data": {"prompts": prompts}
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to generate sentiment prompts: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Sentiment Analysis ==============
+
+@simulation_bp.route('/<simulation_id>/sentiment', methods=['GET'])
+def get_simulation_sentiment(simulation_id: str):
+    """
+    Get per-agent sentiment arc data for a simulation.
+
+    Returns sentiment scores per agent per round, group average,
+    detected events (consensus/conflict/swings), and story arc reference.
+
+    Falls back to demo data when no real actions are available.
+    """
+    try:
+        from ..services.sentiment_analyzer import analyze_sentiment, generate_demo_sentiment
+
+        actions = SimulationRunner.get_all_actions(simulation_id=simulation_id)
+        action_dicts = [a.to_dict() for a in actions] if actions else []
+
+        if action_dicts:
+            result = analyze_sentiment(action_dicts)
+        else:
+            result = generate_demo_sentiment()
+
+        return jsonify({
+            "success": True,
+            "data": result
+        })
+
+    except Exception as e:
+        logger.error(f"获取情感分析失败: {str(e)}")
+        # Fall back to demo data on any error
+        from ..services.sentiment_analyzer import generate_demo_sentiment
+        return jsonify({
+            "success": True,
+            "data": generate_demo_sentiment()
+        })
+
+
+@simulation_bp.route('/<simulation_id>/anomalies/<anomaly_id>/explanation', methods=['GET'])
+def get_anomaly_explanation(simulation_id: str, anomaly_id: str):
+    """
+    Get LLM-generated explanation for a specific anomaly.
+    Falls back to the anomaly description if LLM is unavailable.
+    """
+    try:
+        # Re-detect to find the specific anomaly
+        actions = []
+        try:
+            raw_actions = SimulationRunner.get_actions(
+                simulation_id=simulation_id, limit=10000
+            )
+            actions = [a.to_dict() for a in raw_actions]
+        except Exception:
+            pass
+
+        if actions:
+            from ..services.anomaly_detector import AnomalyDetector
+            detector = AnomalyDetector()
+            anomalies = detector.detect_anomalies(actions)
+            target = next((a for a in anomalies if a.anomaly_id == anomaly_id), None)
+            if not target:
+                return jsonify({"success": False, "error": "Anomaly not found"}), 404
+            explanation = detector.explain_anomaly(target)
+        else:
+            # Demo mode
+            from ..services.anomaly_detector import generate_demo_anomalies
+            demo = generate_demo_anomalies()
+            target = next((a for a in demo if a["anomaly_id"] == anomaly_id), None)
+            if not target:
+                return jsonify({"success": False, "error": "Anomaly not found"}), 404
+            explanation = target.get("explanation", target.get("description", ""))
+
+        return jsonify({
+            "success": True,
+            "data": {"anomaly_id": anomaly_id, "explanation": explanation}
+        })
+
+    except Exception as e:
+        logger.error(f"Anomaly explanation failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== 分支点接口 ==============
+
+@simulation_bp.route('/<simulation_id>/branch-points', methods=['GET'])
+def get_branch_points(simulation_id: str):
+    """
+    获取模拟分支点信息
+
+    Returns branch/fork points for a simulation, used to render inline
+    branch markers on the timeline.  When no real branching data exists
+    (current state), deterministic demo data is returned based on the
+    simulation's timeline so the UI is always functional.
+
+    Response shape:
+        {
+          "success": true,
+          "data": {
+            "branch_points": [
+              {
+                "id": "bp-3",
+                "round": 3,
+                "label": "Messaging pivot",
+                "branches": [
+                  { "id": "b-3a", "label": "Original messaging", "outcome": "..." },
+                  { "id": "b-3b", "label": "Empathy-led messaging", "outcome": "..." }
+                ]
+              }
+            ],
+            "total_branches": 4
+          }
+        }
+    """
+    try:
+        # Try to get real timeline data to create realistic demo branch points
+        timeline = []
+        try:
+            timeline = SimulationRunner.get_timeline(simulation_id=simulation_id)
+        except Exception:
+            pass
+
+        total_rounds = len(timeline) if timeline else 0
+
+        # No real branching infrastructure yet — return demo data
+        branch_points = _generate_demo_branch_points(simulation_id, total_rounds)
+        total_branches = sum(len(bp["branches"]) for bp in branch_points)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "branch_points": branch_points,
+                "total_branches": total_branches,
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取分支点失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+def _generate_demo_branch_points(simulation_id: str, total_rounds: int):
+    """Generate deterministic demo branch points for a simulation."""
+    if total_rounds < 3:
+        return []
+
+    # Use simulation_id hash for deterministic but varied placement
+    seed = sum(ord(c) for c in simulation_id) % 100
+
+    demo_branches = [
+        {
+            "label": "Messaging pivot",
+            "branches": [
+                {"label": "Original messaging", "outcome": "Moderate engagement, 12% reply rate"},
+                {"label": "Empathy-led messaging", "outcome": "Higher trust signals, 18% reply rate"},
+            ],
+        },
+        {
+            "label": "Platform emphasis shift",
+            "branches": [
+                {"label": "Twitter-heavy", "outcome": "Broader reach, lower depth"},
+                {"label": "Reddit-heavy", "outcome": "Deeper threads, niche authority"},
+            ],
+        },
+        {
+            "label": "Competitive response",
+            "branches": [
+                {"label": "Ignore competitor mention", "outcome": "Neutral sentiment maintained"},
+                {"label": "Direct comparison response", "outcome": "Polarized reactions, +25% engagement"},
+                {"label": "Subtle differentiation", "outcome": "Positive shift in brand perception"},
+            ],
+        },
+    ]
+
+    points = []
+    # Place 1-2 branch points depending on how many rounds exist
+    count = 1 if total_rounds < 6 else 2
+    for i in range(min(count, len(demo_branches))):
+        template = demo_branches[(seed + i) % len(demo_branches)]
+        # Place at ~30% and ~65% of the timeline
+        round_num = max(2, int(total_rounds * (0.3 if i == 0 else 0.65)))
+        bp = {
+            "id": f"bp-{round_num}",
+            "round": round_num,
+            "label": template["label"],
+            "branches": [
+                {
+                    "id": f"b-{round_num}{chr(97 + j)}",
+                    "label": b["label"],
+                    "outcome": b["outcome"],
+                }
+                for j, b in enumerate(template["branches"])
+            ],
+        }
+        points.append(bp)
+
+    return points

@@ -22,12 +22,13 @@ from ..config import Config
 from ..utils.llm_client import LLMClient
 from ..utils.logger import get_logger
 from .zep_tools import (
-    ZepToolsService, 
-    SearchResult, 
-    InsightForgeResult, 
+    ZepToolsService,
+    SearchResult,
+    InsightForgeResult,
     PanoramaResult,
     InterviewResult
 )
+from .report_tools import get_report_tool_definitions, VALID_GTM_TOOL_NAMES
 
 logger = get_logger('mirofish.report_agent')
 
@@ -437,6 +438,14 @@ class ReportOutline:
         return md
 
 
+REPORT_TYPES = {
+    "executive_summary": "Executive Summary — concise overview with key findings and recommendations",
+    "detailed_analysis": "Detailed Analysis — comprehensive per-round breakdown with agent analysis",
+    "agent_comparison": "Agent Comparison — side-by-side agent stats and influence ranking",
+    "decision_audit": "Decision Audit — chronological decision list with rationale and outcomes",
+}
+
+
 @dataclass
 class Report:
     """完整报告"""
@@ -450,7 +459,12 @@ class Report:
     created_at: str = ""
     completed_at: str = ""
     error: Optional[str] = None
-    
+    report_type: str = "executive_summary"
+    custom_prompt: Optional[str] = None
+    include_charts: bool = True
+    chart_data: Optional[Dict[str, Any]] = None
+    template_id: Optional[str] = None
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "report_id": self.report_id,
@@ -462,7 +476,12 @@ class Report:
             "markdown_content": self.markdown_content,
             "created_at": self.created_at,
             "completed_at": self.completed_at,
-            "error": self.error
+            "error": self.error,
+            "report_type": self.report_type,
+            "custom_prompt": self.custom_prompt,
+            "include_charts": self.include_charts,
+            "chart_data": self.chart_data,
+            "template_id": self.template_id,
         }
 
 
@@ -712,6 +731,13 @@ SECTION_SYSTEM_PROMPT_TEMPLATE = """\
 - panorama_search: 广角全景搜索，了解事件全貌、时间线和演变过程
 - quick_search: 快速验证某个具体信息点
 - interview_agents: 采访模拟Agent，获取不同角色的第一人称观点和真实反应
+- query_simulation_data: 查询模拟运营指标（互动率、转化率、活跃度等）
+- analyze_sentiment_trend: 分析Agent群体的情感趋势变化
+- compare_agent_behaviors: 对比不同Agent角色的行为模式
+- calculate_gtm_metrics: 计算专业GTM指标（CAC、LTV、赢单率等）
+- generate_chart_data: 为可视化图表准备结构化数据
+- search_knowledge_graph: 在知识图谱中搜索实体和关系
+- identify_key_decisions: 识别模拟中的关键决策转折点
 
 ═══════════════════════════════════════════════════════════════
 【工作流程】
@@ -912,12 +938,14 @@ class ReportAgent:
         self.report_logger: Optional[ReportLogger] = None
         # 控制台日志记录器（在 generate_report 中初始化）
         self.console_logger: Optional[ReportConsoleLogger] = None
+        # Template reference (set during generate_report when template is provided)
+        self._template = None
         
         logger.info(f"ReportAgent 初始化完成: graph_id={graph_id}, simulation_id={simulation_id}")
     
     def _define_tools(self) -> Dict[str, Dict[str, Any]]:
-        """定义可用工具"""
-        return {
+        """定义可用工具（原有检索工具 + GTM分析工具）"""
+        tools = {
             "insight_forge": {
                 "name": "insight_forge",
                 "description": TOOL_DESC_INSIGHT_FORGE,
@@ -949,8 +977,11 @@ class ReportAgent:
                     "interview_topic": "采访主题或需求描述（如：'了解学生对宿舍甲醛事件的看法'）",
                     "max_agents": "最多采访的Agent数量（可选，默认5，最大10）"
                 }
-            }
+            },
         }
+        # Merge GTM-specific report tools
+        tools.update(get_report_tool_definitions())
+        return tools
     
     def _execute_tool(self, tool_name: str, parameters: Dict[str, Any], report_context: str = "") -> str:
         """
@@ -1053,15 +1084,446 @@ class ReportAgent:
                 result = [n.to_dict() for n in nodes]
                 return json.dumps(result, ensure_ascii=False, indent=2)
             
+            # ========== GTM Report Tools ==========
+
+            elif tool_name == "query_simulation_data":
+                return self._exec_query_simulation_data(parameters)
+
+            elif tool_name == "analyze_sentiment_trend":
+                return self._exec_analyze_sentiment_trend(parameters)
+
+            elif tool_name == "identify_key_decisions":
+                return self._exec_identify_key_decisions(parameters)
+
+            elif tool_name == "compare_agent_behaviors":
+                return self._exec_compare_agent_behaviors(parameters)
+
+            elif tool_name == "generate_chart_data":
+                return self._exec_generate_chart_data(parameters)
+
+            elif tool_name == "search_knowledge_graph":
+                query = parameters.get("query", "")
+                result = self.zep_tools.quick_search(
+                    graph_id=self.graph_id,
+                    query=query,
+                    limit=15,
+                )
+                return result.to_text()
+
+            elif tool_name == "calculate_gtm_metrics":
+                return self._exec_calculate_gtm_metrics(parameters)
+
             else:
-                return f"未知工具: {tool_name}。请使用以下工具之一: insight_forge, panorama_search, quick_search"
-                
+                valid_names = ", ".join(sorted(self.VALID_TOOL_NAMES))
+                return f"未知工具: {tool_name}。请使用以下工具之一: {valid_names}"
+
         except Exception as e:
             logger.error(f"工具执行失败: {tool_name}, 错误: {str(e)}")
             return f"工具执行失败: {str(e)}"
+
+    # ── GTM Tool Execution Helpers ──
+
+    def _load_simulation_actions(self) -> List[Dict[str, Any]]:
+        """Load agent actions from the simulation's actions.jsonl file."""
+        sim_dir = os.path.join(
+            os.path.dirname(__file__),
+            f"../../uploads/simulations/{self.simulation_id}",
+        )
+        actions = []
+        for platform in ("twitter", "reddit"):
+            path = os.path.join(sim_dir, platform, "actions.jsonl")
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            try:
+                                actions.append(json.loads(line))
+                            except json.JSONDecodeError:
+                                continue
+        return actions
+
+    def _load_simulation_profiles(self) -> List[Dict[str, Any]]:
+        """Load agent profiles from the simulation directory."""
+        sim_dir = os.path.join(
+            os.path.dirname(__file__),
+            f"../../uploads/simulations/{self.simulation_id}",
+        )
+        profiles_path = os.path.join(sim_dir, "profiles.json")
+        if os.path.exists(profiles_path):
+            with open(profiles_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        return []
+
+    def _exec_query_simulation_data(self, parameters: Dict[str, Any]) -> str:
+        metric = parameters.get("metric", "activity_volume")
+        time_range = parameters.get("time_range", "all")
+        actions = self._load_simulation_actions()
+
+        if not actions:
+            return self._mock_query_simulation_data(metric, time_range)
+
+        # Filter by time range
+        actions = self._filter_by_time_range(actions, time_range)
+
+        if metric == "activity_volume":
+            tw = sum(1 for a in actions if a.get("platform") == "twitter")
+            rd = sum(1 for a in actions if a.get("platform") == "reddit")
+            return (
+                f"活动量统计 (时间范围: {time_range}):\n"
+                f"- Twitter动作数: {tw}\n"
+                f"- Reddit动作数: {rd}\n"
+                f"- 总动作数: {tw + rd}"
+            )
+
+        if metric == "engagement_rate":
+            posts = [a for a in actions if a.get("action_type") == "CREATE_POST"]
+            interactions = [a for a in actions if a.get("action_type") in ("LIKE_POST", "RETWEET", "CREATE_COMMENT")]
+            rate = len(interactions) / max(len(posts), 1)
+            return (
+                f"互动率统计 (时间范围: {time_range}):\n"
+                f"- 发帖数: {len(posts)}\n"
+                f"- 互动数（点赞+转发+评论）: {len(interactions)}\n"
+                f"- 互动率: {rate:.2f} ({rate*100:.1f}%)"
+            )
+
+        if metric == "agent_activity":
+            by_agent: Dict[str, int] = {}
+            for a in actions:
+                name = a.get("agent_name", f"agent_{a.get('agent_id', '?')}")
+                by_agent[name] = by_agent.get(name, 0) + 1
+            top = sorted(by_agent.items(), key=lambda x: -x[1])[:10]
+            lines = [f"Agent活跃度排名 (时间范围: {time_range}):"]
+            for i, (name, count) in enumerate(top, 1):
+                lines.append(f"{i}. {name}: {count}次动作")
+            return "\n".join(lines)
+
+        if metric in ("response_rate", "conversion_rate", "pipeline_velocity"):
+            # These higher-level metrics derive from actions + graph context
+            total = len(actions)
+            return (
+                f"{metric} 统计 (时间范围: {time_range}):\n"
+                f"- 基础数据: {total}条动作记录\n"
+                f"- 注: 该指标需结合知识图谱数据进一步计算，建议配合 search_knowledge_graph 工具获取补充信息。"
+            )
+
+        return f"不支持的指标: {metric}"
+
+    def _exec_analyze_sentiment_trend(self, parameters: Dict[str, Any]) -> str:
+        agent_ids = parameters.get("agent_ids", [])
+        actions = self._load_simulation_actions()
+
+        if not actions:
+            return self._mock_sentiment_trend(agent_ids)
+
+        # Filter posts (the content-bearing actions)
+        posts = [a for a in actions if a.get("action_type") == "CREATE_POST"]
+        if agent_ids:
+            agent_ids_set = set(int(x) for x in agent_ids)
+            posts = [p for p in posts if p.get("agent_id") in agent_ids_set]
+
+        # Group by round for trend
+        by_round: Dict[int, List[Dict]] = {}
+        for p in posts:
+            r = p.get("round_num", 0)
+            by_round.setdefault(r, []).append(p)
+
+        lines = [f"情感趋势分析 (分析{len(posts)}条发帖):"]
+        lines.append(f"- 覆盖{len(by_round)}个模拟轮次")
+        lines.append(f"- 涉及Agent数: {len(set(p.get('agent_id') for p in posts))}")
+        for r_num in sorted(by_round.keys()):
+            r_posts = by_round[r_num]
+            lines.append(f"\n轮次 {r_num}: {len(r_posts)}条发帖")
+
+        lines.append("\n注: 情感极性分析需要LLM处理发帖内容。以上为结构化统计数据。")
+        return "\n".join(lines)
+
+    def _exec_identify_key_decisions(self, parameters: Dict[str, Any]) -> str:
+        actions = self._load_simulation_actions()
+
+        if not actions:
+            return self._mock_key_decisions()
+
+        # Identify key decision signals: first posts, high-activity rounds, platform shifts
+        by_round: Dict[int, List[Dict]] = {}
+        for a in actions:
+            r = a.get("round_num", 0)
+            by_round.setdefault(r, []).append(a)
+
+        events = []
+        prev_count = 0
+        for r_num in sorted(by_round.keys()):
+            r_actions = by_round[r_num]
+            count = len(r_actions)
+            # Detect activity spikes (>50% increase)
+            if prev_count > 0 and count > prev_count * 1.5:
+                events.append(f"轮次{r_num}: 活动量激增 ({prev_count}→{count}), 可能存在重要事件触发")
+            # Detect new agent entering
+            agents_this_round = set(a.get("agent_id") for a in r_actions)
+            agents_prev = set(a.get("agent_id") for a in by_round.get(r_num - 1, []))
+            new_agents = agents_this_round - agents_prev
+            if new_agents and r_num > 0:
+                events.append(f"轮次{r_num}: {len(new_agents)}个新Agent加入互动")
+            prev_count = count
+
+        lines = [f"关键决策节点分析 (共{len(actions)}条动作, {len(by_round)}轮):"]
+        if events:
+            for e in events:
+                lines.append(f"- {e}")
+        else:
+            lines.append("- 模拟进展平稳，未检测到显著突变点")
+
+        return "\n".join(lines)
+
+    def _exec_compare_agent_behaviors(self, parameters: Dict[str, Any]) -> str:
+        agent_ids = parameters.get("agent_ids", [])
+        actions = self._load_simulation_actions()
+        profiles = self._load_simulation_profiles()
+
+        if not actions:
+            return self._mock_compare_behaviors(agent_ids)
+
+        if not agent_ids:
+            return "错误: 请提供至少2个agent_ids进行对比"
+
+        agent_ids_set = set(int(x) for x in agent_ids)
+
+        # Build profile lookup
+        profile_map = {}
+        for p in profiles:
+            pid = p.get("agent_id") or p.get("id")
+            if pid is not None:
+                profile_map[int(pid)] = p
+
+        lines = ["Agent行为对比分析:"]
+        for aid in sorted(agent_ids_set):
+            agent_actions = [a for a in actions if a.get("agent_id") == aid]
+            profile = profile_map.get(aid, {})
+            name = profile.get("name", f"Agent_{aid}")
+
+            posts = sum(1 for a in agent_actions if a.get("action_type") == "CREATE_POST")
+            likes = sum(1 for a in agent_actions if a.get("action_type") == "LIKE_POST")
+            comments = sum(1 for a in agent_actions if a.get("action_type") == "CREATE_COMMENT")
+            tw = sum(1 for a in agent_actions if a.get("platform") == "twitter")
+            rd = sum(1 for a in agent_actions if a.get("platform") == "reddit")
+
+            lines.append(f"\n【{name} (ID: {aid})】")
+            lines.append(f"  总动作数: {len(agent_actions)}")
+            lines.append(f"  发帖: {posts}, 点赞: {likes}, 评论: {comments}")
+            lines.append(f"  Twitter: {tw}, Reddit: {rd}")
+
+        return "\n".join(lines)
+
+    def _exec_generate_chart_data(self, parameters: Dict[str, Any]) -> str:
+        chart_type = parameters.get("chart_type", "bar")
+        data_query = parameters.get("data_query", "")
+        actions = self._load_simulation_actions()
+
+        if not actions:
+            return self._mock_chart_data(chart_type, data_query)
+
+        # Build chart data based on chart type
+        if chart_type == "line":
+            by_round: Dict[int, int] = {}
+            for a in actions:
+                r = a.get("round_num", 0)
+                by_round[r] = by_round.get(r, 0) + 1
+            labels = [str(r) for r in sorted(by_round.keys())]
+            data = [by_round[int(r)] for r in labels]
+            chart = {
+                "chart_type": "line",
+                "title": data_query or "Activity Over Time",
+                "labels": labels,
+                "datasets": [{"label": "Actions", "data": data}],
+            }
+
+        elif chart_type == "pie":
+            type_counts: Dict[str, int] = {}
+            for a in actions:
+                t = a.get("action_type", "unknown")
+                type_counts[t] = type_counts.get(t, 0) + 1
+            chart = {
+                "chart_type": "pie",
+                "title": data_query or "Action Type Distribution",
+                "labels": list(type_counts.keys()),
+                "datasets": [{"data": list(type_counts.values())}],
+            }
+
+        elif chart_type == "bar":
+            by_agent: Dict[str, int] = {}
+            for a in actions:
+                name = a.get("agent_name", f"agent_{a.get('agent_id', '?')}")
+                by_agent[name] = by_agent.get(name, 0) + 1
+            top = sorted(by_agent.items(), key=lambda x: -x[1])[:10]
+            chart = {
+                "chart_type": "bar",
+                "title": data_query or "Top Agents by Activity",
+                "labels": [t[0] for t in top],
+                "datasets": [{"label": "Actions", "data": [t[1] for t in top]}],
+            }
+
+        else:
+            chart = {
+                "chart_type": chart_type,
+                "title": data_query,
+                "labels": [],
+                "datasets": [],
+                "note": f"Chart type '{chart_type}' requires custom data processing.",
+            }
+
+        return json.dumps(chart, ensure_ascii=False, indent=2)
+
+    def _exec_calculate_gtm_metrics(self, parameters: Dict[str, Any]) -> str:
+        metric_name = parameters.get("metric_name", "")
+        metric_params = parameters.get("parameters", {})
+        actions = self._load_simulation_actions()
+
+        if not actions:
+            return self._mock_gtm_metrics(metric_name, metric_params)
+
+        total_actions = len(actions)
+        posts = [a for a in actions if a.get("action_type") == "CREATE_POST"]
+        interactions = [a for a in actions if a.get("action_type") in ("LIKE_POST", "RETWEET", "CREATE_COMMENT")]
+        unique_agents = len(set(a.get("agent_id") for a in actions))
+
+        if metric_name == "engagement_score":
+            score = len(interactions) / max(len(posts), 1) * 100
+            return (
+                f"综合互动评分:\n"
+                f"- 评分: {score:.1f}/100\n"
+                f"- 计算方式: (互动数 / 发帖数) × 100\n"
+                f"- 互动数: {len(interactions)}, 发帖数: {len(posts)}"
+            )
+
+        if metric_name == "outreach_efficiency":
+            return (
+                f"外呼效率分析:\n"
+                f"- 触达Agent数: {unique_agents}\n"
+                f"- 总外呼动作: {total_actions}\n"
+                f"- 互动响应数: {len(interactions)}\n"
+                f"- 响应率: {len(interactions)/max(total_actions,1)*100:.1f}%"
+            )
+
+        if metric_name == "channel_effectiveness":
+            tw_actions = [a for a in actions if a.get("platform") == "twitter"]
+            rd_actions = [a for a in actions if a.get("platform") == "reddit"]
+            return (
+                f"渠道效果对比:\n"
+                f"- Twitter: {len(tw_actions)}条动作\n"
+                f"- Reddit: {len(rd_actions)}条动作\n"
+                f"- Twitter占比: {len(tw_actions)/max(total_actions,1)*100:.1f}%\n"
+                f"- Reddit占比: {len(rd_actions)/max(total_actions,1)*100:.1f}%"
+            )
+
+        # Metrics that need richer data context
+        if metric_name in ("cac", "ltv", "ltv_cac_ratio", "win_rate",
+                           "pipeline_coverage", "conversion_rate", "time_to_close"):
+            return (
+                f"{metric_name} 计算结果:\n"
+                f"- 基础数据: {total_actions}条动作, {unique_agents}个Agent\n"
+                f"- 注: 此指标需要额外的业务数据（成本、收入等）。\n"
+                f"  当前基于模拟行为数据提供估算参考。\n"
+                f"  建议配合 search_knowledge_graph 获取业务上下文。"
+            )
+
+        return f"不支持的GTM指标: {metric_name}"
+
+    def _filter_by_time_range(
+        self, actions: List[Dict[str, Any]], time_range: str
+    ) -> List[Dict[str, Any]]:
+        """Filter actions by time range based on round numbers."""
+        if time_range == "all" or not actions:
+            return actions
+
+        rounds = sorted(set(a.get("round_num", 0) for a in actions))
+        if not rounds:
+            return actions
+
+        mid = rounds[len(rounds) // 2]
+        if time_range == "first_half":
+            cutoff = set(r for r in rounds if r <= mid)
+        elif time_range == "second_half":
+            cutoff = set(r for r in rounds if r > mid)
+        elif time_range == "last_3_rounds":
+            cutoff = set(rounds[-3:])
+        elif time_range == "last_5_rounds":
+            cutoff = set(rounds[-5:])
+        else:
+            return actions
+
+        return [a for a in actions if a.get("round_num", 0) in cutoff]
+
+    # ── Mock Data (demo mode when no simulation data exists) ──
+
+    def _mock_query_simulation_data(self, metric: str, time_range: str) -> str:
+        return (
+            f"[Demo] {metric} 模拟数据 (时间范围: {time_range}):\n"
+            f"- 示例数值: 0.73\n"
+            f"- 趋势: 上升 (+12% vs 前一周期)\n"
+            f"- 数据点: [0.65, 0.68, 0.71, 0.73]\n"
+            f"- 注: 这是演示数据，实际运行模拟后将返回真实数据。"
+        )
+
+    def _mock_sentiment_trend(self, agent_ids: list) -> str:
+        scope = f"Agent {agent_ids}" if agent_ids else "全部Agent"
+        return (
+            f"[Demo] 情感趋势分析 ({scope}):\n"
+            f"- 正面: 45%, 中性: 35%, 负面: 20%\n"
+            f"- 趋势: 正面情感在轮次3后上升\n"
+            f"- 转折点: 轮次3 — 新策略触发积极反馈\n"
+            f"- 注: 这是演示数据。"
+        )
+
+    def _mock_key_decisions(self) -> str:
+        return (
+            "[Demo] 关键决策节点:\n"
+            "1. 轮次1: 模拟启动，Agent开始初始互动\n"
+            "2. 轮次3: 活动量激增，外呼策略触发群体响应\n"
+            "3. 轮次5: 部分Agent转向Reddit平台\n"
+            "4. 轮次7: 竞品Agent加入讨论，引发话题转移\n"
+            "- 注: 这是演示数据。"
+        )
+
+    def _mock_compare_behaviors(self, agent_ids: list) -> str:
+        lines = ["[Demo] Agent行为对比:"]
+        for i, aid in enumerate(agent_ids[:4]):
+            lines.append(f"\n【Agent_{aid}】")
+            lines.append(f"  发帖: {10+i*3}, 点赞: {5+i*2}, 评论: {3+i}")
+            lines.append(f"  Twitter: {8+i*2}, Reddit: {5+i}")
+        lines.append("\n- 注: 这是演示数据。")
+        return "\n".join(lines)
+
+    def _mock_chart_data(self, chart_type: str, data_query: str) -> str:
+        chart = {
+            "chart_type": chart_type,
+            "title": data_query or f"Demo {chart_type} chart",
+            "labels": ["Round 1", "Round 2", "Round 3", "Round 4", "Round 5"],
+            "datasets": [
+                {"label": "Series A", "data": [10, 25, 30, 45, 60]},
+                {"label": "Series B", "data": [5, 15, 20, 35, 40]},
+            ],
+            "_demo": True,
+        }
+        return json.dumps(chart, ensure_ascii=False, indent=2)
+
+    def _mock_gtm_metrics(self, metric_name: str, metric_params: dict) -> str:
+        demos = {
+            "cac": "CAC (客户获取成本): $145\n计算: 总营销支出 / 新增客户数",
+            "ltv": "LTV (客户终身价值): $2,800\n计算: 平均订单值 × 购买频率 × 客户生命周期",
+            "ltv_cac_ratio": "LTV/CAC 比率: 19.3x\n行业基准: >3x 为健康",
+            "win_rate": "赢单率: 28%\n计算: 成交商机 / 总商机数",
+            "pipeline_coverage": "管线覆盖率: 3.2x\n计算: 管线总价值 / 目标配额",
+            "conversion_rate": "转化率: 12.5%\n阶段: MQL → SQL",
+            "time_to_close": "平均成交周期: 34天",
+            "engagement_score": "综合互动评分: 72/100",
+            "channel_effectiveness": "渠道效果: Twitter 65%, Reddit 35%",
+            "outreach_efficiency": "外呼效率: 触达120, 回复28, 转化8 (6.7%)",
+        }
+        result = demos.get(metric_name, f"{metric_name}: 暂无演示数据")
+        return f"[Demo] {result}\n- 注: 这是演示数据。"
     
     # 合法的工具名称集合，用于裸 JSON 兜底解析时校验
-    VALID_TOOL_NAMES = {"insight_forge", "panorama_search", "quick_search", "interview_agents"}
+    VALID_TOOL_NAMES = {"insight_forge", "panorama_search", "quick_search", "interview_agents"} | VALID_GTM_TOOL_NAMES
 
     def _parse_tool_calls(self, response: str) -> List[Dict[str, Any]]:
         """
@@ -1258,6 +1720,28 @@ class ReportAgent:
             section_title=section.title,
             tools_description=self._get_tools_description(),
         )
+
+        # Inject template formatting directives when available
+        template = getattr(self, '_template', None)
+        if template:
+            formatting_parts = []
+            # Section-level formatting hint
+            section_def = next(
+                (s for s in template.sections if s.title == section.title), None
+            )
+            if section_def:
+                if section_def.description:
+                    formatting_parts.append(f"Section goal: {section_def.description}")
+                if section_def.formatting_hint:
+                    formatting_parts.append(f"Formatting guidance: {section_def.formatting_hint}")
+            # Report-level formatting
+            fmt = template.formatting
+            if fmt.get("tone"):
+                formatting_parts.append(f"Tone: {fmt['tone']}")
+            if fmt.get("style"):
+                formatting_parts.append(f"Style: {fmt['style']}")
+            if formatting_parts:
+                system_prompt += "\n\n═══ Template Formatting Directives ═══\n" + "\n".join(formatting_parts)
 
         # 构建用户prompt - 每个已完成章节各传入最大4000字
         if previous_sections:
@@ -1530,9 +2014,10 @@ class ReportAgent:
         return final_answer
     
     def generate_report(
-        self, 
+        self,
         progress_callback: Optional[Callable[[str, int, str], None]] = None,
-        report_id: Optional[str] = None
+        report_id: Optional[str] = None,
+        template=None,
     ) -> Report:
         """
         生成完整报告（分章节实时输出）
@@ -1568,7 +2053,8 @@ class ReportAgent:
             graph_id=self.graph_id,
             simulation_requirement=self.simulation_requirement,
             status=ReportStatus.PENDING,
-            created_at=datetime.now().isoformat()
+            created_at=datetime.now().isoformat(),
+            template_id=template.id if template else None,
         )
         
         # 已完成的章节标题列表（用于进度追踪）
@@ -1601,19 +2087,36 @@ class ReportAgent:
                 report_id, "planning", 5, "开始规划报告大纲...",
                 completed_sections=[]
             )
-            
+
             # 记录规划开始日志
             self.report_logger.log_planning_start()
-            
+
             if progress_callback:
                 progress_callback("planning", 0, "开始规划报告大纲...")
-            
-            outline = self.plan_outline(
-                progress_callback=lambda stage, prog, msg: 
-                    progress_callback(stage, prog // 5, msg) if progress_callback else None
-            )
+
+            # If a template with sections is provided, use its structure
+            # instead of LLM-planned outline. The "full_gtm_analysis"
+            # template has empty sections, which falls through to LLM planning.
+            if template and hasattr(template, 'sections') and template.sections:
+                outline = ReportOutline(
+                    title=template.name,
+                    summary=template.description,
+                    sections=[
+                        ReportSection(title=s.title)
+                        for s in template.sections
+                    ],
+                )
+                # Stash template on self so _generate_section_react can read formatting hints
+                self._template = template
+                logger.info(f"Using template '{template.id}' with {len(template.sections)} sections")
+            else:
+                self._template = None
+                outline = self.plan_outline(
+                    progress_callback=lambda stage, prog, msg:
+                        progress_callback(stage, prog // 5, msg) if progress_callback else None
+                )
             report.outline = outline
-            
+
             # 记录规划完成日志
             self.report_logger.log_planning_complete(outline.to_dict())
             
@@ -2492,7 +2995,12 @@ class ReportManager:
             markdown_content=markdown_content,
             created_at=data.get('created_at', ''),
             completed_at=data.get('completed_at', ''),
-            error=data.get('error')
+            error=data.get('error'),
+            report_type=data.get('report_type', 'executive_summary'),
+            custom_prompt=data.get('custom_prompt'),
+            include_charts=data.get('include_charts', True),
+            chart_data=data.get('chart_data'),
+            template_id=data.get('template_id'),
         )
     
     @classmethod
@@ -2567,5 +3075,103 @@ class ReportManager:
         if os.path.exists(old_md_path):
             os.remove(old_md_path)
             deleted = True
-        
+
         return deleted
+
+    # ============== Share methods ==============
+
+    _SHARE_INDEX_PATH = os.path.join(Config.UPLOAD_FOLDER, 'share_index.json')
+
+    @classmethod
+    def _load_share_index(cls) -> Dict[str, str]:
+        """Load the global share_token → report_id index."""
+        if os.path.exists(cls._SHARE_INDEX_PATH):
+            with open(cls._SHARE_INDEX_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+
+    @classmethod
+    def _save_share_index(cls, index: Dict[str, str]) -> None:
+        os.makedirs(os.path.dirname(cls._SHARE_INDEX_PATH), exist_ok=True)
+        with open(cls._SHARE_INDEX_PATH, 'w', encoding='utf-8') as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+
+    @classmethod
+    def create_share(cls, report_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Create a share token for a report.
+        Returns share info dict or None if report doesn't exist.
+        """
+        import secrets
+
+        report = cls.get_report(report_id)
+        if not report:
+            return None
+
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+
+        # Return existing share if present
+        if os.path.exists(share_path):
+            with open(share_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+
+        token = secrets.token_urlsafe(24)
+        share_info = {
+            'token': token,
+            'report_id': report_id,
+            'created_at': datetime.now().isoformat(),
+        }
+
+        with open(share_path, 'w', encoding='utf-8') as f:
+            json.dump(share_info, f, ensure_ascii=False, indent=2)
+
+        # Update global index
+        index = cls._load_share_index()
+        index[token] = report_id
+        cls._save_share_index(index)
+
+        return share_info
+
+    @classmethod
+    def get_share(cls, report_id: str) -> Optional[Dict[str, Any]]:
+        """Get current share info for a report, or None if not shared."""
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+        if os.path.exists(share_path):
+            with open(share_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return None
+
+    @classmethod
+    def revoke_share(cls, report_id: str) -> bool:
+        """Revoke the share link for a report. Returns True if revoked."""
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+        if not os.path.exists(share_path):
+            return False
+
+        with open(share_path, 'r', encoding='utf-8') as f:
+            share_info = json.load(f)
+
+        os.remove(share_path)
+
+        # Remove from global index
+        index = cls._load_share_index()
+        index.pop(share_info.get('token', ''), None)
+        cls._save_share_index(index)
+
+        return True
+
+    @classmethod
+    def get_report_by_share_token(cls, token: str) -> Optional['Report']:
+        """Look up a report by its share token."""
+        index = cls._load_share_index()
+        report_id = index.get(token)
+        if not report_id:
+            return None
+        # Verify the share file still exists (not revoked out-of-band)
+        share_path = os.path.join(cls._get_report_folder(report_id), 'share.json')
+        if not os.path.exists(share_path):
+            # Stale index entry — clean up
+            index.pop(token, None)
+            cls._save_share_index(index)
+            return None
+        return cls.get_report(report_id)

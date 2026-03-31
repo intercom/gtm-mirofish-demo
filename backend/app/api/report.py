@@ -10,105 +10,169 @@ from flask import request, jsonify, send_file
 
 from . import report_bp
 from ..config import Config
-from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
+from ..services.cache import cached_response
+from ..services.report_agent import (
+    ReportAgent, ReportManager, ReportStatus, REPORT_TYPES,
+)
+from ..services.report_templates import (
+    generate_demo_report, CHART_DATA_DEMO,
+    list_templates, get_template, get_template_dict,
+)
 from ..services.simulation_manager import SimulationManager
+from ..services.data_sources import DataSourceService
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
 from ..utils.logger import get_logger
+from ..utils.pagination import paginate
+from ..services.permissions import inject_permissions, inject_permissions_list
 
 logger = get_logger('mirofish.api.report')
 
 
+def _is_demo_mode() -> bool:
+    """Check if we should operate in demo mode (no LLM key configured)."""
+    return not Config.LLM_API_KEY
+
+
 # ============== 报告生成接口 ==============
+
+@report_bp.route('/types', methods=['GET'])
+def list_report_types():
+    """List available report types."""
+    return jsonify({
+        "success": True,
+        "data": {
+            "types": [
+                {"id": k, "description": v}
+                for k, v in REPORT_TYPES.items()
+            ],
+            "default": "executive_summary",
+        }
+    })
+
 
 @report_bp.route('/generate', methods=['POST'])
 def generate_report():
     """
     生成模拟分析报告（异步任务）
-    
-    这是一个耗时操作，接口会立即返回task_id，
-    使用 GET /api/report/generate/status 查询进度
-    
+
     请求（JSON）：
         {
-            "simulation_id": "sim_xxxx",    // 必填，模拟ID
-            "force_regenerate": false        // 可选，强制重新生成
+            "simulation_id": "sim_xxxx",          // 必填，模拟ID
+            "report_type": "executive_summary",   // 可选，报告类型
+            "custom_prompt": "Focus on ...",      // 可选，自定义生成指令
+            "include_charts": true,               // 可选，是否包含图表数据
+            "force_regenerate": false              // 可选，强制重新生成
         }
-    
+
     返回：
         {
             "success": true,
             "data": {
                 "simulation_id": "sim_xxxx",
+                "report_id": "report_xxxx",
                 "task_id": "task_xxxx",
                 "status": "generating",
-                "message": "报告生成任务已启动"
+                "demo_mode": false
             }
         }
     """
     try:
         data = request.get_json() or {}
-        
+
         simulation_id = data.get('simulation_id')
         if not simulation_id:
             return jsonify({
                 "success": False,
                 "error": "请提供 simulation_id"
             }), 400
-        
-        force_regenerate = data.get('force_regenerate', False)
-        
-        # 获取模拟信息
-        manager = SimulationManager()
-        state = manager.get_simulation(simulation_id)
-        
-        if not state:
+
+        report_type = data.get('report_type', 'executive_summary')
+        if report_type not in REPORT_TYPES:
             return jsonify({
                 "success": False,
-                "error": f"模拟不存在: {simulation_id}"
-            }), 404
-        
+                "error": f"不支持的报告类型: {report_type}. 可选: {list(REPORT_TYPES.keys())}"
+            }), 400
+
+        template_id = data.get('template_id')
+        custom_prompt = data.get('custom_prompt')
+        include_charts = data.get('include_charts', True)
+        force_regenerate = data.get('force_regenerate', False)
+
         # 检查是否已有报告
         if not force_regenerate:
             existing_report = ReportManager.get_report_by_simulation(simulation_id)
             if existing_report and existing_report.status == ReportStatus.COMPLETED:
                 return jsonify({
                     "success": True,
-                    "data": {
+                    "data": inject_permissions({
                         "simulation_id": simulation_id,
                         "report_id": existing_report.report_id,
                         "status": "completed",
                         "message": "报告已存在",
                         "already_generated": True
-                    }
+                    }, 'report')
                 })
-        
-        # 获取项目信息
+
+        import uuid
+        report_id = f"report_{uuid.uuid4().hex[:12]}"
+
+        # Demo mode: generate instantly from templates
+        if _is_demo_mode():
+            report = generate_demo_report(
+                report_id=report_id,
+                simulation_id=simulation_id,
+                report_type=report_type,
+                custom_prompt=custom_prompt,
+                include_charts=include_charts,
+            )
+            return jsonify({
+                "success": True,
+                "data": {
+                    "simulation_id": simulation_id,
+                    "report_id": report.report_id,
+                    "task_id": None,
+                    "status": "completed",
+                    "message": "Demo report generated from template",
+                    "demo_mode": True,
+                    "already_generated": False,
+                }
+            })
+
+        # Live mode: requires simulation + graph
+        manager = SimulationManager()
+        state = manager.get_simulation(simulation_id)
+
+        if not state:
+            return jsonify({
+                "success": False,
+                "error": f"模拟不存在: {simulation_id}"
+            }), 404
+
         project = ProjectManager.get_project(state.project_id)
         if not project:
             return jsonify({
                 "success": False,
                 "error": f"项目不存在: {state.project_id}"
             }), 404
-        
+
         graph_id = state.graph_id or project.graph_id
         if not graph_id:
             return jsonify({
                 "success": False,
                 "error": "缺少图谱ID，请确保已构建图谱"
             }), 400
-        
+
         simulation_requirement = project.simulation_requirement
         if not simulation_requirement:
             return jsonify({
                 "success": False,
                 "error": "缺少模拟需求描述"
             }), 400
-        
-        # 提前生成 report_id，以便立即返回给前端
-        import uuid
-        report_id = f"report_{uuid.uuid4().hex[:12]}"
-        
+
+        # Resolve template if provided
+        template = get_template(template_id) if template_id else None
+
         # 创建异步任务
         task_manager = TaskManager()
         task_id = task_manager.create_task(
@@ -116,11 +180,14 @@ def generate_report():
             metadata={
                 "simulation_id": simulation_id,
                 "graph_id": graph_id,
-                "report_id": report_id
+                "report_id": report_id,
+                "report_type": report_type,
+                "custom_prompt": custom_prompt,
+                "include_charts": include_charts,
+                "template_id": template_id,
             }
         )
-        
-        # 定义后台任务
+
         def run_generate():
             try:
                 task_manager.update_task(
@@ -129,31 +196,35 @@ def generate_report():
                     progress=0,
                     message="初始化Report Agent..."
                 )
-                
-                # 创建Report Agent
+
                 agent = ReportAgent(
                     graph_id=graph_id,
                     simulation_id=simulation_id,
                     simulation_requirement=simulation_requirement
                 )
-                
-                # 进度回调
+
                 def progress_callback(stage, progress, message):
                     task_manager.update_task(
                         task_id,
                         progress=progress,
                         message=f"[{stage}] {message}"
                     )
-                
-                # 生成报告（传入预先生成的 report_id）
+
                 report = agent.generate_report(
                     progress_callback=progress_callback,
-                    report_id=report_id
+                    report_id=report_id,
+                    template=template,
                 )
-                
-                # 保存报告
+
+                # Attach generation metadata
+                report.report_type = report_type
+                report.custom_prompt = custom_prompt
+                report.include_charts = include_charts
+                if include_charts:
+                    report.chart_data = CHART_DATA_DEMO
+
                 ReportManager.save_report(report)
-                
+
                 if report.status == ReportStatus.COMPLETED:
                     task_manager.complete_task(
                         task_id,
@@ -165,27 +236,27 @@ def generate_report():
                     )
                 else:
                     task_manager.fail_task(task_id, report.error or "报告生成失败")
-                
+
             except Exception as e:
                 logger.error(f"报告生成失败: {str(e)}")
                 task_manager.fail_task(task_id, str(e))
-        
-        # 启动后台线程
+
         thread = threading.Thread(target=run_generate, daemon=True)
         thread.start()
-        
+
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "simulation_id": simulation_id,
                 "report_id": report_id,
                 "task_id": task_id,
                 "status": "generating",
-                "message": "报告生成任务已启动，请通过 /api/report/generate/status 查询进度",
-                "already_generated": False
-            }
+                "message": "报告生成任务已启动",
+                "demo_mode": False,
+                "already_generated": False,
+            }, 'report')
         })
-        
+
     except Exception as e:
         logger.error(f"启动报告生成任务失败: {str(e)}")
         return jsonify({
@@ -267,6 +338,119 @@ def get_generate_status():
         }), 500
 
 
+@report_bp.route('/<report_id>/status', methods=['GET'])
+def get_report_status(report_id: str):
+    """
+    GET-based report generation status.
+
+    Returns the report's current status plus progress info if still generating.
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"报告不存在: {report_id}"
+            }), 404
+
+        result = {
+            "report_id": report_id,
+            "status": report.status.value,
+            "report_type": report.report_type,
+        }
+
+        if report.status == ReportStatus.COMPLETED:
+            result["progress"] = 100
+            result["message"] = "Report generation complete"
+            result["completed_at"] = report.completed_at
+        elif report.status == ReportStatus.FAILED:
+            result["progress"] = 0
+            result["message"] = report.error or "Generation failed"
+        else:
+            progress = ReportManager.get_progress(report_id)
+            if progress:
+                result["progress"] = progress.get("progress", 0)
+                result["message"] = progress.get("message", "")
+                result["current_section"] = progress.get("current_section")
+                result["completed_sections"] = progress.get("completed_sections", [])
+            else:
+                result["progress"] = 0
+                result["message"] = "Pending"
+
+        return jsonify({"success": True, "data": result})
+
+    except Exception as e:
+        logger.error(f"获取报告状态失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@report_bp.route('/<report_id>/tool-calls', methods=['GET'])
+def get_tool_calls(report_id: str):
+    """
+    Transparency log of tool calls the report agent made.
+
+    Filters the agent log to show only ReACT Thought/Action/Observation entries.
+    """
+    try:
+        report = ReportManager.get_report(report_id)
+        if not report:
+            return jsonify({
+                "success": False,
+                "error": f"报告不存在: {report_id}"
+            }), 404
+
+        log_data = ReportManager.get_agent_log(report_id, from_line=0)
+        all_logs = log_data.get("logs", [])
+
+        tool_actions = ("react_thought", "tool_call", "tool_result", "llm_response")
+        tool_calls = [
+            entry for entry in all_logs
+            if entry.get("action") in tool_actions
+        ]
+
+        # Compute summary stats
+        thoughts = [e for e in tool_calls if e.get("action") == "react_thought"]
+        calls = [e for e in tool_calls if e.get("action") == "tool_call"]
+        results = [e for e in tool_calls if e.get("action") == "tool_result"]
+
+        summary = {
+            "total_thoughts": len(thoughts),
+            "total_tool_calls": len(calls),
+            "total_results": len(results),
+            "tools_used": list({
+                e.get("details", {}).get("tool_name", "unknown")
+                for e in calls
+            }),
+        }
+        if all_logs:
+            first_ts = all_logs[0].get("timestamp", "")
+            last_ts = all_logs[-1].get("timestamp", "")
+            summary["started_at"] = first_ts
+            summary["ended_at"] = last_ts
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "report_id": report_id,
+                "summary": summary,
+                "tool_calls": tool_calls,
+                "count": len(tool_calls),
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"获取工具调用日志失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
 # ============== 报告获取接口 ==============
 
 @report_bp.route('/<report_id>', methods=['GET'])
@@ -299,9 +483,9 @@ def get_report(report_id: str):
         
         return jsonify({
             "success": True,
-            "data": report.to_dict()
+            "data": inject_permissions(report.to_dict(), 'report')
         })
-        
+
     except Exception as e:
         logger.error(f"获取报告失败: {str(e)}")
         return jsonify({
@@ -337,7 +521,7 @@ def get_report_by_simulation(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": report.to_dict(),
+            "data": inject_permissions(report.to_dict(), 'report'),
             "has_report": True
         })
         
@@ -351,36 +535,36 @@ def get_report_by_simulation(simulation_id: str):
 
 
 @report_bp.route('/list', methods=['GET'])
+@cached_response(ttl=30)
 def list_reports():
     """
     列出所有报告
-    
+
     Query参数：
         simulation_id: 按模拟ID过滤（可选）
-        limit: 返回数量限制（默认50）
-    
-    返回：
-        {
-            "success": true,
-            "data": [...],
-            "count": 10
-        }
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
     try:
         simulation_id = request.args.get('simulation_id')
-        limit = request.args.get('limit', 50, type=int)
-        
+
         reports = ReportManager.list_reports(
             simulation_id=simulation_id,
-            limit=limit
+            limit=9999,
         )
-        
+        result = paginate([r.to_dict() for r in reports])
+
         return jsonify({
             "success": True,
-            "data": [r.to_dict() for r in reports],
-            "count": len(reports)
+            "data": inject_permissions_list(result["items"], 'report'),
+            "pagination": {
+                "page": result["page"],
+                "per_page": result["per_page"],
+                "total": result["total"],
+                "total_pages": result["total_pages"],
+            },
         })
-        
+
     except Exception as e:
         logger.error(f"列出报告失败: {str(e)}")
         return jsonify({
@@ -393,42 +577,143 @@ def list_reports():
 @report_bp.route('/<report_id>/download', methods=['GET'])
 def download_report(report_id: str):
     """
-    下载报告（Markdown格式）
-    
-    返回Markdown文件
+    下载报告（支持多种格式）
+
+    Query参数：
+        format: md | html | pdf | json （默认 md）
+
+    返回对应格式的文件
     """
     try:
+        fmt = request.args.get('format', 'md').lower()
+        if fmt not in ('md', 'html', 'pdf', 'json'):
+            return jsonify({
+                "success": False,
+                "error": f"Unsupported format: {fmt}. Use md, html, pdf, or json."
+            }), 400
+
         report = ReportManager.get_report(report_id)
-        
+
         if not report:
             return jsonify({
                 "success": False,
                 "error": f"报告不存在: {report_id}"
             }), 404
-        
+
+        from ..services.report_exporter import export_html, export_pdf, export_json
+
+        if fmt == 'html':
+            import tempfile
+            html_content = export_html(report)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                f.write(html_content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.html", mimetype='text/html')
+
+        if fmt == 'pdf':
+            import tempfile
+            pdf_bytes = export_pdf(report)
+            with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as f:
+                f.write(pdf_bytes)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.pdf", mimetype='application/pdf')
+
+        if fmt == 'json':
+            import tempfile
+            json_content = export_json(report)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
+                f.write(json_content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.json", mimetype='application/json')
+
+        # Default: markdown
         md_path = ReportManager._get_report_markdown_path(report_id)
-        
+
         if not os.path.exists(md_path):
-            # 如果MD文件不存在，生成一个临时文件
             import tempfile
             with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False) as f:
                 f.write(report.markdown_content)
                 temp_path = f.name
-            
-            return send_file(
-                temp_path,
-                as_attachment=True,
-                download_name=f"{report_id}.md"
-            )
-        
-        return send_file(
-            md_path,
-            as_attachment=True,
-            download_name=f"{report_id}.md"
-        )
-        
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.md")
+
+        return send_file(md_path, as_attachment=True, download_name=f"{report_id}.md")
+
     except Exception as e:
         logger.error(f"下载报告失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@report_bp.route('/<report_id>/export', methods=['GET'])
+def export_report(report_id: str):
+    """
+    Export report in multiple formats.
+
+    Query params:
+        format: markdown | html | csv  (default: markdown)
+
+    Returns file download in the requested format.
+    """
+    try:
+        export_format = request.args.get('format', 'markdown').lower()
+        if export_format not in ('markdown', 'html', 'csv'):
+            return jsonify({
+                "success": False,
+                "error": f"Unsupported format: {export_format}. Use markdown, html, or csv."
+            }), 400
+
+        # Get report sections
+        sections = ReportManager.get_generated_sections(report_id)
+        if not sections:
+            report = ReportManager.get_report(report_id)
+            if not report:
+                return jsonify({
+                    "success": False,
+                    "error": f"Report not found: {report_id}"
+                }), 404
+            # Fallback: wrap full markdown as single section
+            sections = [{'content': report.markdown_content}]
+
+        import re
+        import tempfile
+        from ..services.report_exporter import ReportExporter
+
+        # Extract a title from the first section
+        title = 'Simulation Report'
+        first = sections[0].get('content', '') if isinstance(sections[0], dict) else sections[0]
+        title_match = re.search(r'^#\s+(.+)', first, re.MULTILINE)
+        if title_match:
+            title = title_match.group(1)
+
+        if export_format == 'markdown':
+            content = ReportExporter.to_markdown(sections)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.md",
+                             mimetype='text/markdown; charset=utf-8')
+
+        elif export_format == 'html':
+            content = ReportExporter.to_html(sections, title=title)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.html",
+                             mimetype='text/html; charset=utf-8')
+
+        else:  # csv
+            content = ReportExporter.to_csv(sections)
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as f:
+                f.write(content)
+                temp_path = f.name
+            return send_file(temp_path, as_attachment=True, download_name=f"{report_id}.csv",
+                             mimetype='text/csv; charset=utf-8')
+
+    except Exception as e:
+        logger.error(f"Export report failed: {str(e)}")
         return jsonify({
             "success": False,
             "error": str(e),
@@ -730,13 +1015,13 @@ def check_report_status(simulation_id: str):
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "simulation_id": simulation_id,
                 "has_report": has_report,
                 "report_status": report_status,
                 "report_id": report_id,
                 "interview_unlocked": interview_unlocked
-            }
+            }, 'report')
         })
         
     except Exception as e:
@@ -925,6 +1210,151 @@ def stream_console_log(report_id: str):
         }), 500
 
 
+# ============== Campaign Spend Visualization ==============
+
+@report_bp.route('/campaign-spend', methods=['GET'])
+def get_campaign_spend():
+    """
+    Campaign spend allocation data for treemap visualization.
+    Returns mock GTM campaign data — works without LLM key.
+    """
+    campaigns = [
+        {"name": "Zendesk Displacement Email", "channel": "Email", "spend": 45000, "budget": 50000},
+        {"name": "LinkedIn Sponsored Content", "channel": "Paid Social", "spend": 38000, "budget": 40000},
+        {"name": "AI Agent Launch Email", "channel": "Email", "spend": 32000, "budget": 35000},
+        {"name": "Google Search — Competitor", "channel": "Search", "spend": 29000, "budget": 30000},
+        {"name": "Enterprise Webinar Series", "channel": "Events", "spend": 25000, "budget": 28000},
+        {"name": "LinkedIn InMail", "channel": "Paid Social", "spend": 22000, "budget": 25000},
+        {"name": "Content SEO Program", "channel": "Content", "spend": 18000, "budget": 20000},
+        {"name": "Google Display Retargeting", "channel": "Search", "spend": 15000, "budget": 18000},
+        {"name": "SDR Direct Outreach", "channel": "Outbound", "spend": 12000, "budget": 15000},
+    ]
+
+    total_spend = sum(c["spend"] for c in campaigns)
+    total_budget = sum(c["budget"] for c in campaigns)
+
+    channels = {}
+    for c in campaigns:
+        ch = c["channel"]
+        if ch not in channels:
+            channels[ch] = {"budget": 0, "spend": 0}
+        channels[ch]["budget"] += c["budget"]
+        channels[ch]["spend"] += c["spend"]
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "total_budget": total_budget,
+            "total_spend": total_spend,
+            "campaigns": campaigns,
+            "channels": channels,
+        }
+    })
+
+
+# ============== 报告模板接口 ==============
+
+@report_bp.route('/templates', methods=['GET'])
+def list_report_templates():
+    """List all available report templates."""
+    return jsonify({
+        "success": True,
+        "data": list_templates()
+    })
+
+
+@report_bp.route('/templates/<template_id>', methods=['GET'])
+def get_report_template(template_id: str):
+    """Get a specific report template with full section definitions."""
+    template = get_template_dict(template_id)
+    if not template:
+        return jsonify({
+            "success": False,
+            "error": f"Template not found: {template_id}"
+        }), 404
+
+    return jsonify({
+        "success": True,
+        "data": template
+    })
+
+
+# ============== Report Sharing ==============
+
+@report_bp.route('/<report_id>/share', methods=['POST'])
+def create_share_link(report_id: str):
+    """Create a shareable link for a report."""
+    try:
+        share_info = ReportManager.create_share(report_id)
+        if not share_info:
+            return jsonify({"success": False, "error": "Report not found"}), 404
+
+        return jsonify({"success": True, "data": share_info})
+    except Exception as e:
+        logger.error(f"Failed to create share link: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/<report_id>/share', methods=['GET'])
+def get_share_link(report_id: str):
+    """Get current share info for a report."""
+    try:
+        share_info = ReportManager.get_share(report_id)
+        return jsonify({
+            "success": True,
+            "data": share_info,
+            "is_shared": share_info is not None,
+        })
+    except Exception as e:
+        logger.error(f"Failed to get share info: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/<report_id>/share', methods=['DELETE'])
+def revoke_share_link(report_id: str):
+    """Revoke the share link for a report."""
+    try:
+        revoked = ReportManager.revoke_share(report_id)
+        if not revoked:
+            return jsonify({"success": False, "error": "No active share link"}), 404
+
+        return jsonify({"success": True, "message": "Share link revoked"})
+    except Exception as e:
+        logger.error(f"Failed to revoke share link: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/shared/<token>', methods=['GET'])
+def get_shared_report(token: str):
+    """
+    Public endpoint: access a report via share token.
+    Returns report sections for read-only viewing.
+    """
+    try:
+        report = ReportManager.get_report_by_share_token(token)
+        if not report:
+            return jsonify({"success": False, "error": "Invalid or expired share link"}), 404
+
+        if report.status != ReportStatus.COMPLETED:
+            return jsonify({"success": False, "error": "Report is not yet complete"}), 400
+
+        sections = ReportManager.get_generated_sections(report.report_id)
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "report_id": report.report_id,
+                "sections": sections,
+                "total_sections": len(sections),
+                "created_at": report.created_at,
+                "completed_at": report.completed_at,
+            },
+        })
+    except Exception as e:
+        logger.error(f"Failed to access shared report: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # ============== 工具调用接口（供调试使用）==============
 
 @report_bp.route('/tools/search', methods=['POST'])
@@ -1013,3 +1443,70 @@ def get_graph_statistics_tool():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Data Source Connector Endpoints ==============
+
+@report_bp.route('/data-sources', methods=['GET'])
+def list_data_sources():
+    """
+    List available report data source types.
+
+    Returns:
+        {
+            "success": true,
+            "data": [
+                {
+                    "id": "simulation",
+                    "name": "Simulation Results",
+                    "description": "...",
+                    "category": "internal",
+                    "icon": "simulation",
+                    "connected": true
+                },
+                ...
+            ]
+        }
+    """
+    try:
+        sources = DataSourceService.list_sources()
+        return jsonify({"success": True, "data": sources})
+    except Exception as e:
+        logger.error(f"Failed to list data sources: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@report_bp.route('/data-sources/<source_type>/preview', methods=['GET'])
+def preview_data_source(source_type: str):
+    """
+    Get preview data for a data source type.
+
+    Query params:
+        simulation_id: required when source_type is "simulation"
+
+    Returns:
+        {
+            "success": true,
+            "data": {
+                "source_type": "simulation",
+                "is_mock": false,
+                "metrics": [...],
+                "sample_rows": [...]
+            }
+        }
+    """
+    try:
+        source = DataSourceService.get_source(source_type)
+        if not source:
+            return jsonify({
+                "success": False,
+                "error": f"Unknown data source type: {source_type}"
+            }), 404
+
+        simulation_id = request.args.get('simulation_id')
+        preview = DataSourceService.get_preview(source_type, simulation_id=simulation_id)
+
+        return jsonify({"success": True, "data": preview})
+    except Exception as e:
+        logger.error(f"Failed to get data source preview: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

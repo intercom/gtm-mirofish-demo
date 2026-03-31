@@ -1,0 +1,30 @@
+{
+  "id": "expansion_revenue",
+  "name": "Expansion Revenue Simulation",
+  "description": "Simulate upsell and cross-sell motions across existing customer segments to predict expansion revenue potential, identify optimal timing, and test packaging strategies.",
+  "category": "expansion",
+  "icon": "trending-up",
+  "seed_text": "Intercom is building an expansion revenue engine to grow ARR from the existing customer base. Current state:\n\n1. Net Revenue Retention (NRR) target is 115% but actual is 108% — a 7-point gap worth ~$12M ARR\n2. Expansion is concentrated in Enterprise segment (82% of expansion revenue) while Mid-Market and SMB are under-penetrated\n3. CSMs surface expansion opportunities manually with no systematic trigger framework\n4. Product-led expansion signals (usage limits, feature adoption) are not connected to sales motions\n\nExpansion motions being tested:\n1. Seat-based upsell: Customer approaching seat limit (80%+ utilization) — pitch additional seats with volume discount\n2. Product cross-sell: Customer using Inbox but not Fin AI — pitch Fin based on resolution rate improvement data\n3. Tier upgrade: Customer on Essential hitting feature gates — pitch Pro/Premium with ROI calculator\n4. Usage-based expansion: Customer exceeding message/resolution limits — pitch next usage tier before overage charges\n5. Multi-product bundle: Customer using single product — pitch platform bundle at 20% discount vs a-la-carte\n\nCustomer health context:\n- Health Score A customers: 35% accept upsell within 30 days of trigger\n- Health Score B customers: 18% accept, but 12% churn risk if approached too aggressively\n- Health Score C customers: 5% accept, significant churn risk — stabilize before expanding\n- At-risk (Score D) customers should be excluded from expansion motions entirely\n\nTiming signals from internal data:\n- Best expansion window: 60-90 days after onboarding milestone completion\n- Worst timing: Within 30 days of a support escalation or billing dispute\n- Contract renewal window (90 days out) sees 2.3x higher conversion than cold outreach\n- Usage surge (30%+ increase in 14 days) correlates with 28% expansion conversion\n\nCompetitive context:\n- Zendesk offers aggressive bundle discounts to retain expanding accounts\n- Freshdesk targets Intercom SMB accounts with lower-cost alternatives during contract gaps\n- HubSpot Service Hub bundles CX with marketing/sales suite at perceived lower total cost\n\nThe simulation should predict: Expansion conversion rates by segment and motion type, optimal timing windows, revenue impact per motion, churn risk from mis-timed expansion attempts, and competitive vulnerability during expansion conversations.",
+  "agent_config": {
+    "count": 300,
+    "persona_types": ["CSM", "Account Executive", "VP Customer Success", "CFO", "Product Champion"],
+    "firmographic_mix": {
+      "segments": ["SMB", "Mid-Market", "Enterprise"],
+      "arr_ranges": ["$5K-20K", "$20K-100K", "$100K-500K"],
+      "health_scores": ["A", "B", "C"],
+      "tenure": ["<6 months", "6-18 months", "18+ months"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 72,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Expansion conversion rate by segment and motion type",
+    "Optimal timing window analysis per customer health tier",
+    "Revenue impact forecast per expansion motion",
+    "Churn risk assessment from mis-timed expansion attempts",
+    "Competitive vulnerability mapping during expansion conversations"
+  ]
+}

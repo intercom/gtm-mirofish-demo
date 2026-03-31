@@ -6,20 +6,104 @@
 import os
 import traceback
 import threading
+from collections import defaultdict
 from flask import request, jsonify
 
 from . import graph_bp
 from ..config import Config
+from ..services.cache import cached_response
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
+from ..services.community_detection import CommunityDetector
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
+from ..utils.pagination import paginate
 from ..models.task import TaskManager, TaskStatus
 from ..models.project import ProjectManager, ProjectStatus
+from ..services.permissions import inject_permissions, inject_permissions_list
 
 # 获取日志器
 logger = get_logger('mirofish.api')
+
+
+def is_zep_available() -> bool:
+    """Check if Zep Cloud is configured and available."""
+    return bool(Config.ZEP_API_KEY)
+
+
+# ============== Mock data for demo mode ==============
+
+def _mock_entities():
+    """GTM-themed mock entities for when Zep is not configured."""
+    return [
+        {"uuid": "mock-ent-001", "name": "Intercom", "labels": ["Entity", "Company"],
+         "summary": "Leading customer messaging platform for B2B SaaS companies.", "attributes": {}},
+        {"uuid": "mock-ent-002", "name": "Zendesk", "labels": ["Entity", "Company"],
+         "summary": "Enterprise customer service and support platform.", "attributes": {}},
+        {"uuid": "mock-ent-003", "name": "Product-Led Growth", "labels": ["Entity", "Strategy"],
+         "summary": "Growth strategy where product usage drives acquisition and retention.", "attributes": {}},
+        {"uuid": "mock-ent-004", "name": "Enterprise Segment", "labels": ["Entity", "Segment"],
+         "summary": "Companies with 500+ employees and complex support needs.", "attributes": {}},
+        {"uuid": "mock-ent-005", "name": "SMB Segment", "labels": ["Entity", "Segment"],
+         "summary": "Small-to-medium businesses with 10-500 employees.", "attributes": {}},
+        {"uuid": "mock-ent-006", "name": "AI Chatbot", "labels": ["Entity", "Product"],
+         "summary": "AI-powered conversational support reducing ticket volume by 40%.", "attributes": {}},
+        {"uuid": "mock-ent-007", "name": "Customer Success Manager", "labels": ["Entity", "Role"],
+         "summary": "Post-sales role focused on retention and expansion revenue.", "attributes": {}},
+        {"uuid": "mock-ent-008", "name": "HubSpot", "labels": ["Entity", "Company"],
+         "summary": "CRM and marketing automation platform expanding into service.", "attributes": {}},
+        {"uuid": "mock-ent-009", "name": "Churn Risk Model", "labels": ["Entity", "Product"],
+         "summary": "Predictive model identifying accounts likely to churn within 90 days.", "attributes": {}},
+        {"uuid": "mock-ent-010", "name": "Series D Funding", "labels": ["Entity", "Event"],
+         "summary": "$150M funding round to accelerate AI and international expansion.", "attributes": {}},
+    ]
+
+
+def _mock_edges():
+    """GTM-themed mock relationships."""
+    return [
+        {"uuid": "mock-edge-001", "name": "COMPETES_WITH", "fact": "Intercom competes with Zendesk in the customer messaging space.",
+         "source_node_uuid": "mock-ent-001", "target_node_uuid": "mock-ent-002",
+         "source_node_name": "Intercom", "target_node_name": "Zendesk",
+         "created_at": "2025-01-15T10:00:00Z", "valid_at": "2025-01-15T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-002", "name": "ADOPTS_STRATEGY", "fact": "Intercom adopts product-led growth as primary GTM motion.",
+         "source_node_uuid": "mock-ent-001", "target_node_uuid": "mock-ent-003",
+         "source_node_name": "Intercom", "target_node_name": "Product-Led Growth",
+         "created_at": "2025-02-01T10:00:00Z", "valid_at": "2025-02-01T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-003", "name": "TARGETS", "fact": "Intercom targets the enterprise segment for expansion revenue.",
+         "source_node_uuid": "mock-ent-001", "target_node_uuid": "mock-ent-004",
+         "source_node_name": "Intercom", "target_node_name": "Enterprise Segment",
+         "created_at": "2025-03-01T10:00:00Z", "valid_at": "2025-03-01T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-004", "name": "LAUNCHES", "fact": "Intercom launches AI Chatbot to reduce support ticket volume.",
+         "source_node_uuid": "mock-ent-001", "target_node_uuid": "mock-ent-006",
+         "source_node_name": "Intercom", "target_node_name": "AI Chatbot",
+         "created_at": "2025-04-10T10:00:00Z", "valid_at": "2025-04-10T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-005", "name": "SERVES", "fact": "Customer Success Manager serves the enterprise segment accounts.",
+         "source_node_uuid": "mock-ent-007", "target_node_uuid": "mock-ent-004",
+         "source_node_name": "Customer Success Manager", "target_node_name": "Enterprise Segment",
+         "created_at": "2025-01-20T10:00:00Z", "valid_at": "2025-01-20T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-006", "name": "COMPETES_WITH", "fact": "Intercom competes with HubSpot Service Hub in the SMB market.",
+         "source_node_uuid": "mock-ent-001", "target_node_uuid": "mock-ent-008",
+         "source_node_name": "Intercom", "target_node_name": "HubSpot",
+         "created_at": "2025-02-15T10:00:00Z", "valid_at": "2025-02-15T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-007", "name": "TARGETS", "fact": "HubSpot targets the SMB segment with bundled CRM and service.",
+         "source_node_uuid": "mock-ent-008", "target_node_uuid": "mock-ent-005",
+         "source_node_name": "HubSpot", "target_node_name": "SMB Segment",
+         "created_at": "2025-03-05T10:00:00Z", "valid_at": "2025-03-05T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-008", "name": "USES", "fact": "Churn Risk Model uses AI Chatbot engagement data as input signal.",
+         "source_node_uuid": "mock-ent-009", "target_node_uuid": "mock-ent-006",
+         "source_node_name": "Churn Risk Model", "target_node_name": "AI Chatbot",
+         "created_at": "2025-05-01T10:00:00Z", "valid_at": "2025-05-01T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-009", "name": "FUNDS", "fact": "Series D Funding accelerates Intercom's AI product roadmap.",
+         "source_node_uuid": "mock-ent-010", "target_node_uuid": "mock-ent-001",
+         "source_node_name": "Series D Funding", "target_node_name": "Intercom",
+         "created_at": "2025-06-01T10:00:00Z", "valid_at": "2025-06-01T10:00:00Z", "invalid_at": None, "expired_at": None},
+        {"uuid": "mock-edge-010", "name": "REPLACED_BY", "fact": "Product-Led Growth replaced traditional enterprise sales as primary motion.",
+         "source_node_uuid": "mock-ent-003", "target_node_uuid": "mock-ent-004",
+         "source_node_name": "Product-Led Growth", "target_node_name": "Enterprise Segment",
+         "created_at": "2024-06-01T10:00:00Z", "valid_at": "2024-06-01T10:00:00Z", "invalid_at": "2025-03-01T10:00:00Z", "expired_at": "2025-03-01T10:00:00Z"},
+    ]
 
 
 def allowed_file(filename: str) -> bool:
@@ -47,22 +131,32 @@ def get_project(project_id: str):
     
     return jsonify({
         "success": True,
-        "data": project.to_dict()
+        "data": inject_permissions(project.to_dict(), 'project')
     })
 
 
 @graph_bp.route('/project/list', methods=['GET'])
+@cached_response(ttl=30)
 def list_projects():
     """
     列出所有项目
+
+    Query参数：
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
-    limit = request.args.get('limit', 50, type=int)
-    projects = ProjectManager.list_projects(limit=limit)
-    
+    projects = ProjectManager.list_projects(limit=9999)
+    result = paginate([p.to_dict() for p in projects])
+
     return jsonify({
         "success": True,
-        "data": [p.to_dict() for p in projects],
-        "count": len(projects)
+        "data": inject_permissions_list(result["items"], 'project'),
+        "pagination": {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "total_pages": result["total_pages"],
+        },
     })
 
 
@@ -112,7 +206,7 @@ def reset_project(project_id: str):
     return jsonify({
         "success": True,
         "message": f"项目已重置: {project_id}",
-        "data": project.to_dict()
+        "data": inject_permissions(project.to_dict(), 'project')
     })
 
 
@@ -236,14 +330,14 @@ def generate_ontology():
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "project_id": project.project_id,
                 "project_name": project.name,
                 "ontology": project.ontology,
                 "analysis_summary": project.analysis_summary,
                 "files": project.files,
                 "total_text_length": project.total_text_length
-            }
+            }, 'project')
         })
         
     except Exception as e:
@@ -509,11 +603,11 @@ def build_graph():
         
         return jsonify({
             "success": True,
-            "data": {
+            "data": inject_permissions({
                 "project_id": project_id,
                 "task_id": task_id,
                 "message": "图谱构建任务已启动，请通过 /task/{task_id} 查询进度"
-            }
+            }, 'project')
         })
         
     except Exception as e:
@@ -549,44 +643,220 @@ def get_task(task_id: str):
 def list_tasks():
     """
     列出所有任务
+
+    Query参数：
+        page: 页码（默认1）
+        per_page: 每页数量（默认20，最大100）
     """
     tasks = TaskManager().list_tasks()
-    
+    result = paginate([t.to_dict() for t in tasks])
+
     return jsonify({
         "success": True,
-        "data": [t.to_dict() for t in tasks],
-        "count": len(tasks)
+        "data": result["items"],
+        "pagination": {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "total_pages": result["total_pages"],
+        },
     })
 
 
 # ============== 图谱数据接口 ==============
 
 @graph_bp.route('/data/<graph_id>', methods=['GET'])
+@cached_response(ttl=900)
 def get_graph_data(graph_id: str):
     """
     获取图谱数据（节点和边）
+    Falls back to demo data when ZEP_API_KEY is not configured.
     """
     try:
         if not Config.ZEP_API_KEY:
             return jsonify({
-                "success": False,
-                "error": "ZEP_API_KEY未配置"
-            }), 500
-        
+                "success": True,
+                "data": _demo_graph_data()
+            })
+
         builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
         graph_data = builder.get_graph_data(graph_id)
-        
+
         return jsonify({
             "success": True,
-            "data": graph_data
+            "data": inject_permissions(graph_data, 'project')
         })
-        
+
     except Exception as e:
         return jsonify({
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+@graph_bp.route('/search', methods=['POST'])
+def search_graph():
+    """
+    Graph semantic search endpoint
+
+    Request (JSON):
+        {
+            "graph_id": "mirofish_xxxx",
+            "query": "search query",
+            "limit": 10,
+            "scope": "edges"
+        }
+
+    Returns:
+        {
+            "success": true,
+            "data": {
+                "facts": [...],
+                "edges": [...],
+                "nodes": [...],
+                "query": "...",
+                "total_count": N
+            }
+        }
+    """
+    try:
+        data = request.get_json() or {}
+
+        graph_id = data.get('graph_id')
+        query = data.get('query', '').strip()
+        limit = data.get('limit', 10)
+        scope = data.get('scope', 'edges')
+
+        if not query:
+            return jsonify({
+                "success": False,
+                "error": "Please provide a search query"
+            }), 400
+
+        if not graph_id:
+            return jsonify({
+                "success": False,
+                "error": "Please provide graph_id"
+            }), 400
+
+        if not Config.ZEP_API_KEY:
+            return jsonify({
+                "success": True,
+                "data": {
+                    "facts": [],
+                    "edges": [],
+                    "nodes": [],
+                    "query": query,
+                    "total_count": 0,
+                    "demo": True
+                }
+            })
+
+        from ..services.zep_tools import ZepToolsService
+
+        tools = ZepToolsService()
+        result = tools.search_graph(
+            graph_id=graph_id,
+            query=query,
+            limit=limit,
+            scope=scope
+        )
+
+        return jsonify({
+            "success": True,
+            "data": result.to_dict()
+        })
+
+    except Exception as e:
+        logger.error(f"Graph search failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+# ============== Community Detection ==============
+
+@graph_bp.route('/communities/<graph_id>', methods=['GET'])
+def get_communities(graph_id: str):
+    """
+    Detect communities in a knowledge graph.
+    Returns community clusters with labels, members, topics, and cohesion scores.
+    Falls back to demo data when ZEP_API_KEY is not configured.
+    """
+    try:
+        detector = CommunityDetector()
+
+        if not Config.ZEP_API_KEY:
+            logger.info("ZEP_API_KEY not configured, returning demo communities")
+            demo_data = _get_demo_graph_data()
+            result = detector.detect(demo_data['nodes'], demo_data['edges'])
+            result['metadata']['demo'] = True
+            return jsonify({'success': True, 'data': result})
+
+        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+        graph_data = builder.get_graph_data(graph_id)
+
+        nodes = graph_data.get('nodes', [])
+        edges = graph_data.get('edges', [])
+        result = detector.detect(nodes, edges)
+
+        return jsonify({'success': True, 'data': result})
+
+    except Exception as e:
+        logger.error(f"Community detection failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'traceback': traceback.format_exc()
+        }), 500
+
+
+def _get_demo_graph_data():
+    """Return demo graph data for community detection when no Zep key is available."""
+    nodes = [
+        {'uuid': 'p1', 'name': 'Enterprise Buyer', 'labels': ['Entity', 'Persona'], 'summary': 'Decision-maker evaluating platform purchases for growth.'},
+        {'uuid': 'p2', 'name': 'SMB Founder', 'labels': ['Entity', 'Persona'], 'summary': 'Small business owner seeking affordable support tools.'},
+        {'uuid': 'p3', 'name': 'Developer Advocate', 'labels': ['Entity', 'Persona'], 'summary': 'Technical influencer evaluating APIs and integrations.'},
+        {'uuid': 'p4', 'name': 'VP of Support', 'labels': ['Entity', 'Persona'], 'summary': 'Senior leader responsible for support team performance.'},
+        {'uuid': 'p5', 'name': 'CX Director', 'labels': ['Entity', 'Persona'], 'summary': 'Owns customer experience strategy and CSAT metrics.'},
+        {'uuid': 'p6', 'name': 'CFO', 'labels': ['Entity', 'Persona'], 'summary': 'Financial decision-maker focused on ROI and cost reduction.'},
+        {'uuid': 't1', 'name': 'Customer Support', 'labels': ['Entity', 'Topic'], 'summary': 'Core product area for ticket management and live chat.'},
+        {'uuid': 't2', 'name': 'AI Automation', 'labels': ['Entity', 'Topic'], 'summary': 'ML-powered features that drive efficiency and enable growth.'},
+        {'uuid': 't3', 'name': 'Pricing Strategy', 'labels': ['Entity', 'Topic'], 'summary': 'Seat-based vs usage-based pricing models and packaging.'},
+        {'uuid': 't4', 'name': 'Fin AI Agent', 'labels': ['Entity', 'Topic'], 'summary': 'AI resolution engine handling frontline support queries.'},
+        {'uuid': 't5', 'name': 'Resolution Rate', 'labels': ['Entity', 'Topic'], 'summary': 'Key metric for support queries resolved without escalation.'},
+        {'uuid': 't6', 'name': 'Cost Reduction', 'labels': ['Entity', 'Topic'], 'summary': 'Strategies to lower support cost via automation.'},
+        {'uuid': 'e1', 'name': 'Product-Led Growth', 'labels': ['Entity', 'Process'], 'summary': 'GTM motion focusing on self-serve onboarding.'},
+        {'uuid': 'e2', 'name': 'Sales-Led Motion', 'labels': ['Entity', 'Process'], 'summary': 'Enterprise sales cycle with demos and procurement.'},
+        {'uuid': 'e3', 'name': 'ROI Analysis', 'labels': ['Entity', 'Process'], 'summary': 'Quantitative assessment of cost savings and gains.'},
+        {'uuid': 'e4', 'name': 'Contract Renewal', 'labels': ['Entity', 'Event'], 'summary': 'Renewal negotiation risk and close opportunity.'},
+    ]
+    edges = [
+        {'source_node_uuid': 'p1', 'target_node_uuid': 't1', 'name': 'evaluates'},
+        {'source_node_uuid': 'p1', 'target_node_uuid': 'e2', 'name': 'engages_via'},
+        {'source_node_uuid': 'p2', 'target_node_uuid': 'e1', 'name': 'converts_through'},
+        {'source_node_uuid': 'p2', 'target_node_uuid': 't3', 'name': 'influenced_by'},
+        {'source_node_uuid': 'p3', 'target_node_uuid': 't2', 'name': 'integrates'},
+        {'source_node_uuid': 'p3', 'target_node_uuid': 'e1', 'name': 'tests'},
+        {'source_node_uuid': 'p4', 'target_node_uuid': 't1', 'name': 'owns'},
+        {'source_node_uuid': 'p4', 'target_node_uuid': 't5', 'name': 'monitors'},
+        {'source_node_uuid': 'p4', 'target_node_uuid': 't4', 'name': 'depends_on'},
+        {'source_node_uuid': 'p5', 'target_node_uuid': 't1', 'name': 'drives'},
+        {'source_node_uuid': 'p5', 'target_node_uuid': 't5', 'name': 'monitors'},
+        {'source_node_uuid': 'p6', 'target_node_uuid': 't6', 'name': 'requires'},
+        {'source_node_uuid': 'p6', 'target_node_uuid': 'e3', 'name': 'requires'},
+        {'source_node_uuid': 'p6', 'target_node_uuid': 't3', 'name': 'evaluates'},
+        {'source_node_uuid': 't1', 'target_node_uuid': 't2', 'name': 'enhanced_by'},
+        {'source_node_uuid': 't2', 'target_node_uuid': 't4', 'name': 'enables'},
+        {'source_node_uuid': 't4', 'target_node_uuid': 't5', 'name': 'produces'},
+        {'source_node_uuid': 't6', 'target_node_uuid': 't2', 'name': 'depends_on'},
+        {'source_node_uuid': 'e2', 'target_node_uuid': 'e4', 'name': 'leads_to'},
+        {'source_node_uuid': 'e3', 'target_node_uuid': 't6', 'name': 'validates'},
+    ]
+    return {'nodes': nodes, 'edges': edges}
+
 
 
 @graph_bp.route('/delete/<graph_id>', methods=['DELETE'])
@@ -600,18 +870,713 @@ def delete_graph(graph_id: str):
                 "success": False,
                 "error": "ZEP_API_KEY未配置"
             }), 500
-        
+
         builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
         builder.delete_graph(graph_id)
-        
+
         return jsonify({
             "success": True,
             "message": f"图谱已删除: {graph_id}"
         })
-        
+
     except Exception as e:
         return jsonify({
             "success": False,
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Knowledge Graph API Endpoints ==============
+
+
+@graph_bp.route('/entities', methods=['GET'])
+def list_entities():
+    """
+    List entities from knowledge graph with optional type filter.
+
+    Query params:
+        graph_id: required — the Zep graph to query
+        type: optional — filter by entity type label (e.g. "Company", "Product")
+    """
+    graph_id = request.args.get('graph_id')
+    entity_type = request.args.get('type')
+
+    if not is_zep_available() or not graph_id:
+        entities = _mock_entities()
+        if entity_type:
+            entities = [e for e in entities if entity_type in e["labels"]]
+        return jsonify({
+            "success": True,
+            "source": "mock",
+            "data": {
+                "entities": entities,
+                "count": len(entities),
+                "entity_types": list({l for e in entities for l in e["labels"] if l not in ("Entity", "Node")}),
+            }
+        })
+
+    try:
+        from ..services.zep_entity_reader import ZepEntityReader
+        reader = ZepEntityReader(api_key=Config.ZEP_API_KEY)
+        type_filter = [entity_type] if entity_type else None
+        result = reader.filter_defined_entities(
+            graph_id=graph_id,
+            defined_entity_types=type_filter,
+            enrich_with_edges=False,
+        )
+        entities = [e.to_dict() for e in result.entities]
+        return jsonify({
+            "success": True,
+            "source": "zep",
+            "data": {
+                "entities": entities,
+                "count": result.filtered_count,
+                "entity_types": list(result.entity_types),
+            }
+        })
+    except Exception as e:
+        logger.error(f"list_entities failed: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@graph_bp.route('/entities/<name>/relationships', methods=['GET'])
+def entity_relationships(name: str):
+    """
+    Get an entity's relationships by entity name.
+
+    Query params:
+        graph_id: required — the Zep graph to query
+    """
+    graph_id = request.args.get('graph_id')
+
+    if not is_zep_available() or not graph_id:
+        edges = _mock_edges()
+        related = [e for e in edges if e["source_node_name"] == name or e["target_node_name"] == name]
+        return jsonify({
+            "success": True,
+            "source": "mock",
+            "data": {
+                "entity_name": name,
+                "relationships": related,
+                "count": len(related),
+            }
+        })
+
+    try:
+        from ..services.zep_entity_reader import ZepEntityReader
+        reader = ZepEntityReader(api_key=Config.ZEP_API_KEY)
+
+        all_nodes = reader.get_all_nodes(graph_id)
+        target_node = next((n for n in all_nodes if n["name"] == name), None)
+        if not target_node:
+            return jsonify({"success": False, "error": f"Entity not found: {name}"}), 404
+
+        all_edges = reader.get_all_edges(graph_id)
+        node_map = {n["uuid"]: n["name"] for n in all_nodes}
+        relationships = []
+        for edge in all_edges:
+            if edge["source_node_uuid"] == target_node["uuid"] or edge["target_node_uuid"] == target_node["uuid"]:
+                relationships.append({
+                    **edge,
+                    "source_node_name": node_map.get(edge["source_node_uuid"], ""),
+                    "target_node_name": node_map.get(edge["target_node_uuid"], ""),
+                })
+
+        return jsonify({
+            "success": True,
+            "source": "zep",
+            "data": {
+                "entity_name": name,
+                "entity": target_node,
+                "relationships": relationships,
+                "count": len(relationships),
+            }
+        })
+    except Exception as e:
+        logger.error(f"entity_relationships failed: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@graph_bp.route('/search', methods=['GET'])
+def search_knowledge_graph():
+    """
+    Natural language search over the knowledge graph.
+
+    Query params:
+        graph_id: required — the Zep graph to query
+        q: required — the search query
+        limit: optional — max results (default 10)
+    """
+    graph_id = request.args.get('graph_id')
+    query = request.args.get('q', '').strip()
+    limit = request.args.get('limit', 10, type=int)
+
+    if not query:
+        return jsonify({"success": False, "error": "Query parameter 'q' is required"}), 400
+
+    if not is_zep_available() or not graph_id:
+        query_lower = query.lower()
+        all_edges = _mock_edges()
+        all_entities = _mock_entities()
+        matched_edges = [e for e in all_edges if query_lower in e["fact"].lower()][:limit]
+        matched_entities = [e for e in all_entities if query_lower in e["name"].lower() or query_lower in e["summary"].lower()][:limit]
+        facts = [e["fact"] for e in matched_edges]
+        if not facts and not matched_entities:
+            facts = [e["fact"] for e in all_edges[:limit]]
+            matched_entities = all_entities[:limit]
+        return jsonify({
+            "success": True,
+            "source": "mock",
+            "data": {
+                "query": query,
+                "facts": facts,
+                "edges": matched_edges,
+                "nodes": matched_entities,
+                "total_count": len(facts) + len(matched_entities),
+            }
+        })
+
+    try:
+        from ..services.zep_tools import ZepToolsService
+        service = ZepToolsService(api_key=Config.ZEP_API_KEY)
+        result = service.search_graph(graph_id=graph_id, query=query, limit=limit)
+        return jsonify({
+            "success": True,
+            "source": "zep",
+            "data": result.to_dict(),
+        })
+    except Exception as e:
+        logger.error(f"search_knowledge_graph failed: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@graph_bp.route('/communities', methods=['GET'])
+def list_communities():
+    """
+    Detect communities/clusters in the knowledge graph.
+    Groups entities by type label and detects connected components.
+
+    Query params:
+        graph_id: required — the Zep graph to query
+    """
+    graph_id = request.args.get('graph_id')
+
+    if not is_zep_available() or not graph_id:
+        entities = _mock_entities()
+        edges = _mock_edges()
+        communities = _detect_communities(entities, edges)
+        return jsonify({
+            "success": True,
+            "source": "mock",
+            "data": {
+                "communities": communities,
+                "count": len(communities),
+            }
+        })
+
+    try:
+        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+        graph_data = builder.get_graph_data(graph_id)
+        communities = _detect_communities(graph_data["nodes"], graph_data["edges"])
+        return jsonify({
+            "success": True,
+            "source": "zep",
+            "data": {
+                "communities": communities,
+                "count": len(communities),
+            }
+        })
+    except Exception as e:
+        logger.error(f"get_communities failed: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _detect_communities(nodes, edges):
+    """
+    Build communities from graph data using connected-component analysis.
+    Each component becomes a community, labelled by the most common entity type.
+    """
+    uuid_to_node = {n["uuid"]: n for n in nodes}
+
+    # Build adjacency list
+    adj = defaultdict(set)
+    for edge in edges:
+        src, tgt = edge.get("source_node_uuid"), edge.get("target_node_uuid")
+        if src in uuid_to_node and tgt in uuid_to_node:
+            adj[src].add(tgt)
+            adj[tgt].add(src)
+
+    # BFS to find connected components
+    visited = set()
+    components = []
+    for node in nodes:
+        uid = node["uuid"]
+        if uid in visited:
+            continue
+        component = []
+        queue = [uid]
+        while queue:
+            current = queue.pop(0)
+            if current in visited:
+                continue
+            visited.add(current)
+            component.append(current)
+            for neighbor in adj.get(current, []):
+                if neighbor not in visited:
+                    queue.append(neighbor)
+        components.append(component)
+
+    # Build community objects
+    communities = []
+    for i, member_uuids in enumerate(components):
+        members = [uuid_to_node[u] for u in member_uuids if u in uuid_to_node]
+        type_counts = defaultdict(int)
+        for m in members:
+            for label in m.get("labels", []):
+                if label not in ("Entity", "Node"):
+                    type_counts[label] += 1
+        dominant_type = max(type_counts, key=type_counts.get) if type_counts else "Unknown"
+        communities.append({
+            "id": i,
+            "label": dominant_type,
+            "member_count": len(members),
+            "members": [{"uuid": m["uuid"], "name": m["name"], "labels": m.get("labels", [])} for m in members],
+            "entity_types": dict(type_counts),
+        })
+
+    communities.sort(key=lambda c: c["member_count"], reverse=True)
+    return communities
+
+
+@graph_bp.route('/temporal', methods=['GET'])
+def get_temporal_facts():
+    """
+    Temporal facts with optional time range filter.
+
+    Query params:
+        graph_id: required — the Zep graph to query
+        start: optional — ISO 8601 start date filter
+        end: optional — ISO 8601 end date filter
+    """
+    graph_id = request.args.get('graph_id')
+    start_filter = request.args.get('start', '')
+    end_filter = request.args.get('end', '')
+
+    if not is_zep_available() or not graph_id:
+        edges = _mock_edges()
+        filtered = _filter_temporal(edges, start_filter, end_filter)
+        return jsonify({
+            "success": True,
+            "source": "mock",
+            "data": {
+                "facts": filtered,
+                "count": len(filtered),
+                "filters": {"start": start_filter or None, "end": end_filter or None},
+            }
+        })
+
+    try:
+        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+        graph_data = builder.get_graph_data(graph_id)
+        node_map = {n["uuid"]: n["name"] for n in graph_data["nodes"]}
+
+        temporal_edges = []
+        for edge in graph_data["edges"]:
+            temporal_edges.append({
+                "uuid": edge["uuid"],
+                "name": edge.get("name", ""),
+                "fact": edge.get("fact", ""),
+                "source_node_name": node_map.get(edge["source_node_uuid"], ""),
+                "target_node_name": node_map.get(edge["target_node_uuid"], ""),
+                "created_at": edge.get("created_at"),
+                "valid_at": edge.get("valid_at"),
+                "invalid_at": edge.get("invalid_at"),
+                "expired_at": edge.get("expired_at"),
+            })
+
+        filtered = _filter_temporal(temporal_edges, start_filter, end_filter)
+        return jsonify({
+            "success": True,
+            "source": "zep",
+            "data": {
+                "facts": filtered,
+                "count": len(filtered),
+                "filters": {"start": start_filter or None, "end": end_filter or None},
+            }
+        })
+    except Exception as e:
+        logger.error(f"get_temporal_facts failed: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _filter_temporal(edges, start_filter, end_filter):
+    """Filter edges by time range using valid_at / created_at fields."""
+    if not start_filter and not end_filter:
+        return edges
+
+    filtered = []
+    for edge in edges:
+        ts = edge.get("valid_at") or edge.get("created_at") or ""
+        ts_str = str(ts) if ts else ""
+        if not ts_str:
+            continue
+        if start_filter and ts_str < start_filter:
+            continue
+        if end_filter and ts_str > end_filter:
+            continue
+        filtered.append(edge)
+    return filtered
+
+
+@graph_bp.route('/stats', methods=['GET'])
+def get_graph_stats():
+    """
+    Graph statistics: entity count, relationship count, community count, type breakdown.
+
+    Query params:
+        graph_id: required — the Zep graph to query
+    """
+    graph_id = request.args.get('graph_id')
+
+    if not is_zep_available() or not graph_id:
+        entities = _mock_entities()
+        edges = _mock_edges()
+        communities = _detect_communities(entities, edges)
+        type_counts = defaultdict(int)
+        for e in entities:
+            for label in e.get("labels", []):
+                if label not in ("Entity", "Node"):
+                    type_counts[label] += 1
+        relationship_types = defaultdict(int)
+        for edge in edges:
+            relationship_types[edge["name"]] += 1
+        return jsonify({
+            "success": True,
+            "source": "mock",
+            "data": {
+                "entity_count": len(entities),
+                "relationship_count": len(edges),
+                "community_count": len(communities),
+                "entity_types": dict(type_counts),
+                "relationship_types": dict(relationship_types),
+            }
+        })
+
+    try:
+        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+        graph_data = builder.get_graph_data(graph_id)
+        nodes = graph_data["nodes"]
+        edges = graph_data["edges"]
+        communities = _detect_communities(nodes, edges)
+
+        type_counts = defaultdict(int)
+        for n in nodes:
+            for label in n.get("labels", []):
+                if label not in ("Entity", "Node"):
+                    type_counts[label] += 1
+        relationship_types = defaultdict(int)
+        for edge in edges:
+            relationship_types[edge.get("name", "unknown")] += 1
+
+        return jsonify({
+            "success": True,
+            "source": "zep",
+            "data": {
+                "entity_count": graph_data["node_count"],
+                "relationship_count": graph_data["edge_count"],
+                "community_count": len(communities),
+                "entity_types": dict(type_counts),
+                "relationship_types": dict(relationship_types),
+            }
+        })
+    except Exception as e:
+        logger.error(f"get_graph_stats failed: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ============== Topic Distribution (Treemap) ==============
+
+TOPIC_DISTRIBUTION_DEMO = {
+    "name": "Topics",
+    "children": [
+        {
+            "name": "Product",
+            "children": [
+                {"name": "AI Agent Capabilities", "value": 28},
+                {"name": "Pricing & Packaging", "value": 19},
+                {"name": "Platform Integration", "value": 14},
+                {"name": "Self-Serve Onboarding", "value": 8},
+            ],
+        },
+        {
+            "name": "Market",
+            "children": [
+                {"name": "Competitive Displacement", "value": 22},
+                {"name": "Enterprise Expansion", "value": 16},
+                {"name": "SMB Acquisition", "value": 11},
+            ],
+        },
+        {
+            "name": "Customer",
+            "children": [
+                {"name": "Support Automation ROI", "value": 25},
+                {"name": "Churn Risk Signals", "value": 13},
+                {"name": "NPS & Satisfaction", "value": 9},
+            ],
+        },
+        {
+            "name": "Operations",
+            "children": [
+                {"name": "Sales Cycle Length", "value": 17},
+                {"name": "Pipeline Velocity", "value": 12},
+                {"name": "Rep Enablement", "value": 6},
+            ],
+        },
+    ],
+}
+
+GENERIC_LABELS = {"Entity", "Node"}
+
+
+def _compute_topic_distribution(graph_data):
+    """Build treemap hierarchy from graph nodes grouped by label with degree-based weights."""
+    nodes = graph_data.get("nodes", [])
+    edges = graph_data.get("edges", [])
+
+    # Compute degree centrality per node
+    degree = {}
+    for n in nodes:
+        degree[n["uuid"]] = 0
+    for e in edges:
+        src = e.get("source_node_uuid")
+        tgt = e.get("target_node_uuid")
+        if src in degree:
+            degree[src] += 1
+        if tgt in degree:
+            degree[tgt] += 1
+
+    # Group nodes by their primary label
+    groups = {}
+    for n in nodes:
+        meaningful = [l for l in (n.get("labels") or []) if l not in GENERIC_LABELS]
+        label = meaningful[0] if meaningful else "Other"
+        if label not in groups:
+            groups[label] = []
+        weight = 1 + degree.get(n["uuid"], 0)
+        groups[label].append({
+            "name": n.get("name") or n["uuid"][:8],
+            "value": weight,
+        })
+
+    # Sort children within each group by value descending
+    children = []
+    for label, items in sorted(groups.items(), key=lambda x: -sum(i["value"] for i in x[1])):
+        items.sort(key=lambda x: -x["value"])
+        children.append({"name": label, "children": items})
+
+    return {"name": "Topics", "children": children}
+
+
+@graph_bp.route('/topic-distribution/<graph_id>', methods=['GET'])
+def get_topic_distribution(graph_id: str):
+    """
+    Get topic distribution data for treemap visualization.
+    Falls back to demo data when ZEP_API_KEY is not configured.
+    """
+    try:
+        if not Config.ZEP_API_KEY:
+            return jsonify({
+                "success": True,
+                "data": TOPIC_DISTRIBUTION_DEMO,
+                "demo": True,
+            })
+
+        builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+        graph_data = builder.get_graph_data(graph_id)
+        distribution = _compute_topic_distribution(graph_data)
+
+        return jsonify({
+            "success": True,
+            "data": distribution,
+            "demo": False,
+        })
+
+    except Exception as e:
+        logger.warning(f"Failed to compute topic distribution, falling back to demo: {e}")
+        return jsonify({
+            "success": True,
+            "data": TOPIC_DISTRIBUTION_DEMO,
+            "demo": True,
+        })
+
+
+# ============== Knowledge Graph: Entities ==============
+
+@graph_bp.route('/entities/<graph_id>', methods=['GET'])
+def get_graph_entities(graph_id: str):
+    """
+    Get entities from a knowledge graph with optional type filtering.
+
+    Query params:
+        type: filter by entity type label (e.g. "Persona", "Topic")
+        q: search entity names (case-insensitive substring)
+    """
+    try:
+        entity_type = request.args.get('type', '')
+        query = request.args.get('q', '').strip().lower()
+
+        if not Config.ZEP_API_KEY:
+            data = _demo_graph_data()
+        else:
+            builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+            data = builder.get_graph_data(graph_id)
+
+        nodes = data.get('nodes', [])
+        edges = data.get('edges', [])
+
+        if entity_type:
+            nodes = [n for n in nodes if entity_type in (n.get('labels') or [])]
+
+        if query:
+            nodes = [n for n in nodes if query in (n.get('name') or '').lower()]
+
+        node_uuids = {n['uuid'] for n in nodes}
+        filtered_edges = [
+            e for e in edges
+            if e.get('source_node_uuid') in node_uuids
+            and e.get('target_node_uuid') in node_uuids
+        ]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": nodes,
+                "edges": filtered_edges,
+                "node_count": len(nodes),
+                "edge_count": len(filtered_edges),
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Knowledge Graph: Search ==============
+
+@graph_bp.route('/search/<graph_id>', methods=['GET'])
+def search_graph_by_id(graph_id: str):
+    """
+    Search entities and facts in the knowledge graph.
+
+    Query params:
+        q: search query (required)
+    """
+    try:
+        query = request.args.get('q', '').strip().lower()
+        if not query:
+            return jsonify({
+                "success": False,
+                "error": "Search query 'q' is required"
+            }), 400
+
+        if not Config.ZEP_API_KEY:
+            data = _demo_graph_data()
+        else:
+            builder = GraphBuilderService(api_key=Config.ZEP_API_KEY)
+            data = builder.get_graph_data(graph_id)
+
+        nodes = data.get('nodes', [])
+        edges = data.get('edges', [])
+
+        matched_nodes = [
+            n for n in nodes
+            if query in (n.get('name') or '').lower()
+            or query in (n.get('summary') or '').lower()
+        ]
+
+        matched_edges = [
+            e for e in edges
+            if query in (e.get('fact') or '').lower()
+            or query in (e.get('name') or '').lower()
+        ]
+
+        matched_node_uuids = {n['uuid'] for n in matched_nodes}
+        for e in matched_edges:
+            matched_node_uuids.add(e['source_node_uuid'])
+            matched_node_uuids.add(e['target_node_uuid'])
+
+        context_nodes = [n for n in nodes if n['uuid'] in matched_node_uuids]
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "nodes": context_nodes,
+                "edges": matched_edges,
+                "matched_node_ids": [n['uuid'] for n in matched_nodes],
+                "matched_edge_ids": [e['uuid'] for e in matched_edges],
+                "node_count": len(context_nodes),
+                "edge_count": len(matched_edges),
+            }
+        })
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+# ============== Demo/Mock Data ==============
+
+def _demo_graph_data():
+    """Return mock knowledge graph data when no Zep API key is configured."""
+    nodes = [
+        {"uuid": "p1", "name": "Enterprise Buyer", "labels": ["Entity", "Persona"], "summary": "Decision-maker at large organizations evaluating platform purchases.", "attributes": {}, "created_at": None},
+        {"uuid": "p2", "name": "SMB Founder", "labels": ["Entity", "Persona"], "summary": "Small business owner seeking affordable customer support tools.", "attributes": {}, "created_at": None},
+        {"uuid": "p3", "name": "Developer Advocate", "labels": ["Entity", "Persona"], "summary": "Technical influencer evaluating APIs and integrations.", "attributes": {}, "created_at": None},
+        {"uuid": "p4", "name": "VP of Support", "labels": ["Entity", "Persona"], "summary": "Senior leader responsible for support team performance.", "attributes": {}, "created_at": None},
+        {"uuid": "p5", "name": "CX Director", "labels": ["Entity", "Persona"], "summary": "Owns end-to-end customer experience strategy.", "attributes": {}, "created_at": None},
+        {"uuid": "p6", "name": "Product Manager", "labels": ["Entity", "Persona"], "summary": "Defines product roadmap based on customer insights.", "attributes": {}, "created_at": None},
+        {"uuid": "t1", "name": "Customer Support", "labels": ["Entity", "Topic"], "summary": "Core product area for ticket management and live chat.", "attributes": {}, "created_at": None},
+        {"uuid": "t2", "name": "AI Automation", "labels": ["Entity", "Topic"], "summary": "Machine learning-powered features like Fin AI agent.", "attributes": {}, "created_at": None},
+        {"uuid": "t3", "name": "Pricing Strategy", "labels": ["Entity", "Topic"], "summary": "Seat-based vs usage-based pricing models.", "attributes": {}, "created_at": None},
+        {"uuid": "t4", "name": "Competitor Analysis", "labels": ["Entity", "Topic"], "summary": "Comparative positioning against Zendesk, Freshdesk.", "attributes": {}, "created_at": None},
+        {"uuid": "t5", "name": "Fin AI Agent", "labels": ["Entity", "Topic"], "summary": "AI-powered resolution engine for frontline support.", "attributes": {}, "created_at": None},
+        {"uuid": "t6", "name": "Knowledge Base", "labels": ["Entity", "Topic"], "summary": "Self-service article library powering AI agents.", "attributes": {}, "created_at": None},
+        {"uuid": "e1", "name": "Product-Led Growth", "labels": ["Entity", "Process"], "summary": "GTM motion focusing on self-serve onboarding.", "attributes": {}, "created_at": None},
+        {"uuid": "e2", "name": "Sales-Led Motion", "labels": ["Entity", "Process"], "summary": "Enterprise sales cycle with demos and pilots.", "attributes": {}, "created_at": None},
+        {"uuid": "e3", "name": "Churn Risk", "labels": ["Entity", "Event"], "summary": "Signals indicating potential customer attrition.", "attributes": {}, "created_at": None},
+        {"uuid": "f1", "name": "Messenger Widget", "labels": ["Entity", "Feature"], "summary": "Embeddable chat widget for web and mobile apps.", "attributes": {}, "created_at": None},
+        {"uuid": "f2", "name": "Team Inbox", "labels": ["Entity", "Feature"], "summary": "Shared workspace for collaborative conversation handling.", "attributes": {}, "created_at": None},
+        {"uuid": "f3", "name": "Help Center", "labels": ["Entity", "Feature"], "summary": "Public-facing knowledge base and article search.", "attributes": {}, "created_at": None},
+    ]
+    edges = [
+        {"uuid": "ed1", "source_node_uuid": "p1", "target_node_uuid": "t1", "name": "evaluates", "fact": "Enterprise buyers evaluate customer support platforms.", "fact_type": "evaluates", "source_node_name": "Enterprise Buyer", "target_node_name": "Customer Support", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed2", "source_node_uuid": "p1", "target_node_uuid": "e2", "name": "engages_via", "fact": "Enterprise buyers engage through sales-led motions.", "fact_type": "engages_via", "source_node_name": "Enterprise Buyer", "target_node_name": "Sales-Led Motion", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed3", "source_node_uuid": "p2", "target_node_uuid": "e1", "name": "converts_through", "fact": "SMB founders convert through product-led flows.", "fact_type": "converts_through", "source_node_name": "SMB Founder", "target_node_name": "Product-Led Growth", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed4", "source_node_uuid": "p2", "target_node_uuid": "t3", "name": "influenced_by", "fact": "SMB founders are highly price-sensitive.", "fact_type": "influenced_by", "source_node_name": "SMB Founder", "target_node_name": "Pricing Strategy", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed5", "source_node_uuid": "p3", "target_node_uuid": "f1", "name": "integrates", "fact": "Developer advocates embed the Messenger widget.", "fact_type": "integrates", "source_node_name": "Developer Advocate", "target_node_name": "Messenger Widget", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed6", "source_node_uuid": "p4", "target_node_uuid": "f2", "name": "depends_on", "fact": "VP of Support depends on Team Inbox for management.", "fact_type": "depends_on", "source_node_name": "VP of Support", "target_node_name": "Team Inbox", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed7", "source_node_uuid": "p4", "target_node_uuid": "t1", "name": "owns", "fact": "VP of Support owns the customer support function.", "fact_type": "owns", "source_node_name": "VP of Support", "target_node_name": "Customer Support", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed8", "source_node_uuid": "p5", "target_node_uuid": "e3", "name": "monitors", "fact": "CX Director monitors churn risk signals.", "fact_type": "monitors", "source_node_name": "CX Director", "target_node_name": "Churn Risk", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed9", "source_node_uuid": "p6", "target_node_uuid": "t5", "name": "drives", "fact": "Product Manager drives Fin AI Agent roadmap.", "fact_type": "drives", "source_node_name": "Product Manager", "target_node_name": "Fin AI Agent", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed10", "source_node_uuid": "t1", "target_node_uuid": "t2", "name": "enhanced_by", "fact": "Customer support is enhanced by AI automation.", "fact_type": "enhanced_by", "source_node_name": "Customer Support", "target_node_name": "AI Automation", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed11", "source_node_uuid": "t2", "target_node_uuid": "t5", "name": "enables", "fact": "AI automation powers the Fin AI Agent.", "fact_type": "enables", "source_node_name": "AI Automation", "target_node_name": "Fin AI Agent", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed12", "source_node_uuid": "t6", "target_node_uuid": "t5", "name": "supports", "fact": "Knowledge base articles power Fin AI responses.", "fact_type": "supports", "source_node_name": "Knowledge Base", "target_node_name": "Fin AI Agent", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed13", "source_node_uuid": "t6", "target_node_uuid": "f3", "name": "enables", "fact": "Knowledge base content enables Help Center.", "fact_type": "enables", "source_node_name": "Knowledge Base", "target_node_name": "Help Center", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed14", "source_node_uuid": "t4", "target_node_uuid": "t3", "name": "informs", "fact": "Competitor analysis informs pricing strategy.", "fact_type": "informs", "source_node_name": "Competitor Analysis", "target_node_name": "Pricing Strategy", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+        {"uuid": "ed15", "source_node_uuid": "e3", "target_node_uuid": "e1", "name": "blocks", "fact": "Churn risk threatens product-led growth.", "fact_type": "blocks", "source_node_name": "Churn Risk", "target_node_name": "Product-Led Growth", "attributes": {}, "created_at": None, "valid_at": None, "invalid_at": None, "expired_at": None, "episodes": []},
+    ]
+    return {
+        "graph_id": "demo",
+        "nodes": nodes,
+        "edges": edges,
+        "node_count": len(nodes),
+        "edge_count": len(edges),
+    }

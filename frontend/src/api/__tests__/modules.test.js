@@ -33,7 +33,7 @@ describe('graphApi', () => {
     })
 
     graphApi.build({ project_id: 'p1' })
-    expect(mockClient.post).toHaveBeenCalledWith('/graph/build', { project_id: 'p1' })
+    expect(mockClient.post).toHaveBeenCalledWith('/gtm/simulate', { project_id: 'p1' })
 
     graphApi.getTask('t1')
     expect(mockClient.get).toHaveBeenCalledWith('/graph/task/t1')
@@ -196,5 +196,46 @@ describe('chatApi', () => {
     const data = { simulation_id: 's1', message: 'hello' }
     chatApi.send(data)
     expect(mockClient.post).toHaveBeenCalledWith('/report/chat', data)
+  })
+})
+
+describe('cpqApi', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('wraps product endpoints', async () => {
+    const { cpqApi } = await import('../cpq')
+
+    cpqApi.getProducts({ family: 'Support' })
+    expect(mockClient.get).toHaveBeenCalledWith('/cpq/products', { params: { family: 'Support' } })
+  })
+
+  it('wraps quote list and detail endpoints', async () => {
+    const { cpqApi } = await import('../cpq')
+
+    cpqApi.getQuotes({ status: 'Review', page: 1 })
+    expect(mockClient.get).toHaveBeenCalledWith('/cpq/quotes', { params: { status: 'Review', page: 1 } })
+
+    cpqApi.getQuote('q-100')
+    expect(mockClient.get).toHaveBeenCalledWith('/cpq/quotes/q-100')
+
+    cpqApi.getPdfPreview('q-100')
+    expect(mockClient.get).toHaveBeenCalledWith('/cpq/quotes/q-100/pdf-preview')
+  })
+
+  it('wraps quote action endpoints', async () => {
+    const { cpqApi } = await import('../cpq')
+
+    cpqApi.approveQuote('q-100')
+    expect(mockClient.post).toHaveBeenCalledWith('/cpq/quotes/q-100/approve')
+
+    cpqApi.rejectQuote('q-100', 'Discount too high')
+    expect(mockClient.post).toHaveBeenCalledWith('/cpq/quotes/q-100/reject', { reason: 'Discount too high' })
+  })
+
+  it('wraps stats endpoint', async () => {
+    const { cpqApi } = await import('../cpq')
+
+    cpqApi.getCpqStats()
+    expect(mockClient.get).toHaveBeenCalledWith('/cpq/stats')
   })
 })

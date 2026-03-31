@@ -1,0 +1,30 @@
+{
+  "id": "competitive_response",
+  "name": "Competitive Response Simulation",
+  "description": "Simulate executive team response to a major competitor launching an AI feature matching Fin at 50% lower price. Six leaders with conflicting priorities must align on strategy.",
+  "category": "competitive",
+  "icon": "shield",
+  "seed_text": "URGENT COMPETITIVE THREAT — A major competitor has just launched an AI-powered customer support agent that directly mirrors Intercom's Fin capabilities at roughly 50% of the price. The announcement dropped 48 hours ago and is generating significant social media buzz, with industry analysts calling it 'the most aggressive pricing move in the CS platform space this year.'\n\nImmediate impact:\n- Three enterprise prospects in late-stage evaluation ($180K, $240K, and $95K ARR deals) have paused procurement to evaluate the competitor's offering\n- Customer Success has logged 14 inbound inquiries from existing accounts asking about price parity and feature comparison\n- Two mid-market customers (combined $65K ARR) have requested competitive quotes from the rival vendor\n- Social media sentiment tracking shows a 340% spike in competitor mentions alongside Intercom over the past 48 hours\n- A prominent SaaS analyst published a blog post titled 'Is Fin Worth 2x?' that is trending on LinkedIn\n\nThe executive team must convene a war-room response within the next 5 hours. Six leaders participate, each with a distinct departmental lens and strong opinions:\n\n1. CEO — Focused on long-term brand positioning and investor narrative. Concerned about appearing reactive. Wants to protect premium positioning but cannot afford to lose marquee deals.\n2. VP Sales — Under immediate pressure from the three paused deals. Strongly advocates for aggressive price matching or bundling to prevent pipeline erosion. Willing to sacrifice margin short-term.\n3. VP Marketing — Wants to control the narrative before it spirals. Proposes a rapid differentiation campaign emphasizing Fin's superior resolution rates, ecosystem integrations, and enterprise readiness. Opposes price matching as 'a race to the bottom.'\n4. VP Product — Believes the competitor's feature parity is overstated. Has data showing Fin's resolution accuracy is 23% higher and wants to accelerate the Q3 roadmap to widen the gap. Resists reactive feature announcements.\n5. VP Customer Success — Primary concern is existing customer retention. Wants immediate proactive outreach to at-risk accounts with loyalty incentives and ROI documentation. Fears that silence will be interpreted as weakness.\n6. Finance Director — Modeling the revenue impact of various response strategies. A 10% across-the-board price cut would reduce ARR by $4.2M. Needs to understand margin implications before endorsing any discounting.\n\nThe team must reach consensus on:\n- Threat assessment: Is this a genuine existential risk or a short-term noise event?\n- Response strategy: Price match, feature differentiation, hybrid approach, or strategic patience?\n- Customer communications: What messaging goes to existing customers vs. active prospects vs. public market?\n- Budget allocation: How much emergency budget (if any) to authorize for competitive response?\n- Timeline: What actions happen in 24 hours vs. 1 week vs. 1 quarter?\n\nConstraints: Q2 board meeting is in 3 weeks. Any pricing changes need CFO sign-off and 2-week implementation lead time. Marketing has $150K in uncommitted Q2 budget that could be redirected.",
+  "agent_config": {
+    "count": 6,
+    "persona_types": ["CEO", "VP Sales", "VP Marketing", "VP Product", "VP Customer Success", "Finance Director"],
+    "firmographic_mix": {
+      "segments": ["Executive Leadership"],
+      "departments": ["Executive", "Sales", "Marketing", "Product", "Customer Success", "Finance"],
+      "decision_styles": ["Strategic", "Revenue-driven", "Brand-driven", "Data-driven", "Customer-driven", "Margin-driven"]
+    }
+  },
+  "simulation_config": {
+    "total_hours": 5,
+    "minutes_per_round": 30,
+    "platform_mode": "parallel"
+  },
+  "expected_outputs": [
+    "Threat level assessment with supporting evidence",
+    "Recommended response strategy (price match vs. differentiation vs. hybrid)",
+    "Customer communication plan for existing accounts and active prospects",
+    "Budget impact analysis across response scenarios",
+    "24-hour, 1-week, and 1-quarter action timeline",
+    "Consensus score and unresolved disagreements between leaders"
+  ]
+}

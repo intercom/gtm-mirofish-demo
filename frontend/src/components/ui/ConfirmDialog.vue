@@ -1,4 +1,6 @@
 <script setup>
+import { useId } from 'vue'
+
 defineProps({
   modelValue: { type: Boolean, required: true },
   title: { type: String, required: true },
@@ -9,6 +11,8 @@ defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'confirm', 'cancel'])
+const titleId = `confirm-title-${useId()}`
+const descId = `confirm-desc-${useId()}`
 
 function close() {
   emit('update:modelValue', false)
@@ -27,7 +31,12 @@ function confirm() {
       <div
         v-if="modelValue"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        role="alertdialog"
+        aria-modal="true"
+        :aria-labelledby="titleId"
+        :aria-describedby="descId"
         @click.self="close"
+        @keydown.escape="close"
       >
         <Transition name="confirm-modal" appear>
           <div
@@ -35,21 +44,21 @@ function confirm() {
             class="bg-[var(--color-surface)] rounded-xl shadow-xl w-full max-w-md mx-4"
           >
             <div class="px-6 pt-6 pb-2">
-              <h3 class="text-lg font-semibold text-[var(--color-text)]">{{ title }}</h3>
+              <h3 :id="titleId" class="text-lg font-semibold text-[var(--color-text)]">{{ title }}</h3>
             </div>
             <div class="px-6 pb-6">
-              <p class="text-sm text-[var(--color-text-secondary)]">{{ message }}</p>
+              <p :id="descId" class="text-sm text-[var(--color-text-secondary)]">{{ message }}</p>
             </div>
             <div class="flex items-center justify-end gap-3 px-6 pb-6">
               <button
-                class="px-4 py-2 text-sm font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] transition-colors cursor-pointer"
+                class="btn-interactive px-4 py-2 text-sm font-medium rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface)] cursor-pointer"
                 @click="close"
               >
                 {{ cancelLabel }}
               </button>
               <button
-                class="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors cursor-pointer"
-                :class="destructive ? 'bg-red-600 hover:bg-red-700' : 'bg-[#2068FF] hover:bg-[#1a5ae0]'"
+                class="btn-interactive px-4 py-2 text-sm font-medium rounded-lg text-white cursor-pointer hover:shadow-md hover:-translate-y-px"
+                :class="destructive ? 'bg-[var(--color-destructive)] hover:bg-[var(--color-destructive-hover)]' : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]'"
                 @click="confirm"
               >
                 {{ confirmLabel }}

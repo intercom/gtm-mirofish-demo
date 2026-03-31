@@ -9,9 +9,10 @@ defineProps({
 </script>
 
 <template>
-  <span class="inline-flex items-center gap-2 text-xs">
+  <span class="inline-flex items-center gap-2 text-xs" role="status">
     <span
       class="w-2 h-2 rounded-full shrink-0"
+      aria-hidden="true"
       :class="{
         'bg-[var(--color-success)] animate-pulse': status === 'running',
         'bg-[var(--color-primary)]': status === 'complete',

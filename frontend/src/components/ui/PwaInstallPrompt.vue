@@ -2,16 +2,15 @@
 import { ref, watch } from 'vue'
 import { usePwaInstall } from '../../composables/usePwaInstall'
 
-const { canInstall, isInstalled, wasDismissed, promptInstall, dismiss } = usePwaInstall()
+const { showPrompt, isIosDevice, promptInstall, dismiss } = usePwaInstall()
 
 const visible = ref(false)
 const installing = ref(false)
 
 watch(
-  () => canInstall.value && !isInstalled.value && !wasDismissed.value,
+  showPrompt,
   (show) => {
     if (show) {
-      // Small delay so the banner doesn't flash on page load
       setTimeout(() => { visible.value = true }, 2000)
     } else {
       visible.value = false
@@ -54,7 +53,12 @@ function handleDismiss() {
           />
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold leading-tight">Install MiroFish</p>
-            <p class="text-xs text-white/60 mt-0.5">
+            <p v-if="isIosDevice" class="text-xs text-white/60 mt-0.5">
+              Tap
+              <svg class="inline-block w-3.5 h-3.5 align-text-bottom" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              then <strong>"Add to Home Screen"</strong> to install.
+            </p>
+            <p v-else class="text-xs text-white/60 mt-0.5">
               Add to your home screen for quick access and offline use.
             </p>
           </div>
@@ -66,7 +70,7 @@ function handleDismiss() {
             &times;
           </button>
         </div>
-        <div class="flex gap-2 mt-3">
+        <div v-if="!isIosDevice" class="flex gap-2 mt-3">
           <button
             @click="handleDismiss"
             class="flex-1 text-xs font-medium py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white/70 cursor-pointer transition-colors"
@@ -78,7 +82,15 @@ function handleDismiss() {
             :disabled="installing"
             class="flex-1 text-xs font-semibold py-2 px-3 rounded-lg bg-[#2068FF] hover:bg-[#1a5ae0] text-white cursor-pointer transition-colors disabled:opacity-50"
           >
-            {{ installing ? 'Installing...' : 'Install' }}
+            {{ installing ? 'Installing…' : 'Install' }}
+          </button>
+        </div>
+        <div v-else class="flex gap-2 mt-3">
+          <button
+            @click="handleDismiss"
+            class="w-full text-xs font-medium py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white/70 cursor-pointer transition-colors"
+          >
+            Got it
           </button>
         </div>
       </div>

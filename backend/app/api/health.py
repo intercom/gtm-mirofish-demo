@@ -14,7 +14,7 @@ from flask import Blueprint, jsonify
 from ..config import Config
 from ..utils.degradation import health_tracker
 
-health_bp = Blueprint('health', __name__, url_prefix='/api/health')
+health_bp = Blueprint('health', __name__, url_prefix='/api/v1/health')
 
 _start_time = time.time()
 

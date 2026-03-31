@@ -26,7 +26,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger("mirofish.api.report_builder")
 
-report_builder_bp = Blueprint("report_builder", __name__, url_prefix="/api/report-builder")
+report_builder_bp = Blueprint("report_builder", __name__, url_prefix="/api/v1/report-builder")
 
 
 # ============== Template endpoints ==============

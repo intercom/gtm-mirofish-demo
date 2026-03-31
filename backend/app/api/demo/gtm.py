@@ -20,13 +20,13 @@ def _load_scenarios():
     return scenarios
 
 
-@gtm_demo_bp.route("/api/gtm/scenarios")
+@gtm_demo_bp.route("/api/v1/gtm/scenarios")
 def list_scenarios():
     from flask import jsonify
     return jsonify({"scenarios": _load_scenarios()})
 
 
-@gtm_demo_bp.route("/api/gtm/scenarios/<scenario_id>")
+@gtm_demo_bp.route("/api/v1/gtm/scenarios/<scenario_id>")
 def get_scenario(scenario_id):
     from flask import jsonify
     for s in _load_scenarios():
@@ -35,7 +35,7 @@ def get_scenario(scenario_id):
     return _err("Scenario not found", 404)
 
 
-@gtm_demo_bp.route("/api/gtm/scenarios/<scenario_id>/seed-text")
+@gtm_demo_bp.route("/api/v1/gtm/scenarios/<scenario_id>/seed-text")
 def get_seed_text(scenario_id):
     for s in _load_scenarios():
         if s["id"] == scenario_id:
@@ -43,7 +43,7 @@ def get_seed_text(scenario_id):
     return _err("Scenario not found", 404)
 
 
-@gtm_demo_bp.route("/api/gtm/seed-data/<data_type>")
+@gtm_demo_bp.route("/api/v1/gtm/seed-data/<data_type>")
 def get_seed_data(data_type):
     samples = {
         "companies": [

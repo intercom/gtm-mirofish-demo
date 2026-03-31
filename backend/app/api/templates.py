@@ -16,7 +16,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.templates')
 
-templates_bp = Blueprint('templates', __name__, url_prefix='/api/templates')
+templates_bp = Blueprint('templates', __name__, url_prefix='/api/v1/templates')
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), '../../data/templates')
 

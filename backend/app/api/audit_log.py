@@ -10,7 +10,7 @@ import io
 from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request, Response
 
-audit_log_bp = Blueprint('audit_log', __name__, url_prefix='/api/audit')
+audit_log_bp = Blueprint('audit_log', __name__, url_prefix='/api/v1/audit')
 
 # In-memory audit log storage (newest first on retrieval)
 _audit_entries = []

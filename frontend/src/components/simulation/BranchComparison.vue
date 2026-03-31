@@ -126,7 +126,7 @@ async function fetchComparison() {
   error.value = null
   try {
     const ids = selectedBranchIds.value.join(',')
-    const { data } = await client.get(`/v1/branches/comparison/${props.simulationId}`, {
+    const { data } = await client.get(`/branches/comparison/${props.simulationId}`, {
       params: ids ? { branch_ids: ids } : {},
     })
     comparisonData.value = data

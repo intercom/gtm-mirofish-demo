@@ -9,17 +9,17 @@ from . import (
 health_demo_bp = Blueprint('demo_health', __name__)
 
 
-@health_demo_bp.route("/api/health")
+@health_demo_bp.route("/api/v1/health")
 def health():
     return jsonify({"status": "ok", "mode": "demo"})
 
 
-@health_demo_bp.route("/api/auth/logout")
+@health_demo_bp.route("/api/v1/auth/logout")
 def auth_logout():
     return jsonify({"ok": True})
 
 
-@health_demo_bp.route("/api/demo/speed", methods=["GET", "POST"])
+@health_demo_bp.route("/api/v1/demo/speed", methods=["GET", "POST"])
 def demo_speed():
     if request.method == "POST":
         body = request.get_json(silent=True) or {}
@@ -28,7 +28,7 @@ def demo_speed():
     return _ok({"speed": _config["demo_speed"]})
 
 
-@health_demo_bp.route("/api/demo/skip/<phase>", methods=["POST"])
+@health_demo_bp.route("/api/v1/demo/skip/<phase>", methods=["POST"])
 def demo_skip(phase):
     """Instantly complete a phase by backdating its start time."""
     if phase == "graph":
@@ -46,7 +46,7 @@ def demo_skip(phase):
     return _err(f"Unknown phase: {phase}")
 
 
-@health_demo_bp.route("/api/demo/reset", methods=["POST"])
+@health_demo_bp.route("/api/v1/demo/reset", methods=["POST"])
 def demo_reset():
     """Clear all in-memory state for a fresh demo."""
     _graph_tasks.clear()

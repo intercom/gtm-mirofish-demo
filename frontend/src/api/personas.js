@@ -1,10 +1,10 @@
 import client from './client'
 
 export const personasApi = {
-  list: () => client.get('/v1/personas'),
-  generate: (payload) => client.post('/v1/personas/generate', payload),
-  get: (id) => client.get(`/v1/personas/${id}`),
-  update: (id, data) => client.put(`/v1/personas/${id}`, data),
+  list: () => client.get('/personas'),
+  generate: (payload) => client.post('/personas/generate', payload),
+  get: (id) => client.get(`/personas/${id}`),
+  update: (id, data) => client.put(`/personas/${id}`, data),
   enhance: (id, simulationContext) =>
-    client.post(`/v1/personas/${id}/enhance`, { simulation_context: simulationContext }),
+    client.post(`/personas/${id}/enhance`, { simulation_context: simulationContext }),
 }

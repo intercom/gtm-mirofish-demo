@@ -12,7 +12,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.api.temporal_memory')
 
-temporal_memory_bp = Blueprint('temporal_memory', __name__, url_prefix='/api/temporal-memory')
+temporal_memory_bp = Blueprint('temporal_memory', __name__, url_prefix='/api/v1/temporal-memory')
 
 # Lazy singleton — created on first request so Config is loaded
 _memory: TemporalMemory | None = None

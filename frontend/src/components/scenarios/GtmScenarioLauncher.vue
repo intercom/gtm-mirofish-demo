@@ -95,8 +95,8 @@ async function quickLaunch(scenario) {
       platform_mode: detail.simulation_config?.platform_mode || 'parallel',
     }
 
-    const { data } = await graphApi.build(config)
-    const taskId = data.task_id
+    const { data: res } = await graphApi.build(config)
+    const taskId = res.data?.task_id || res.task_id
 
     simulationStore.setScenarioConfig({
       scenarioId: scenario.id,

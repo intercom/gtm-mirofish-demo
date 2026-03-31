@@ -47,7 +47,7 @@ function startConnectivityCheck() {
     if (state.value !== 'offline') return
     state.value = 'reconnecting'
     try {
-      const res = await fetch('/api/health', { method: 'HEAD', cache: 'no-store' })
+      const res = await fetch('/api/v1/health', { method: 'HEAD', cache: 'no-store' })
       if (res.ok) {
         handleOnline()
       } else {

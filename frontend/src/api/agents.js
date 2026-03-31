@@ -2,27 +2,27 @@ import client from './client'
 
 export const agentsApi = {
   // --- Wizard CRUD ---
-  list: () => client.get('/v1/agents'),
-  get: (id) => client.get(`/v1/agents/${id}`),
-  create: (data) => client.post('/v1/agents', data),
-  update: (id, data) => client.put(`/v1/agents/${id}`, data),
-  delete: (id) => client.delete(`/v1/agents/${id}`),
-  clone: (id) => client.post(`/v1/agents/${id}/clone`),
-  templates: () => client.get('/v1/agents/templates'),
-  generate: (data) => client.post('/v1/agents/generate', data),
-  previewResponse: (data) => client.post('/v1/agents/preview-response', data),
+  list: () => client.get('/agents'),
+  get: (id) => client.get(`/agents/${id}`),
+  create: (data) => client.post('/agents', data),
+  update: (id, data) => client.put(`/agents/${id}`, data),
+  delete: (id) => client.delete(`/agents/${id}`),
+  clone: (id) => client.post(`/agents/${id}/clone`),
+  templates: () => client.get('/agents/templates'),
+  generate: (data) => client.post('/agents/generate', data),
+  previewResponse: (data) => client.post('/agents/preview-response', data),
 
   // --- Archetypes ---
   listArchetypes: () =>
-    client.get('/v1/agents/archetypes'),
+    client.get('/agents/archetypes'),
   getArchetype: (archetypeId) =>
-    client.get(`/v1/agents/archetypes/${archetypeId}`),
+    client.get(`/agents/archetypes/${archetypeId}`),
 
   // --- Agent Factory ---
   createFromArchetype: (data) =>
-    client.post('/v1/agents/create', data),
+    client.post('/agents/create', data),
   createBatch: (data) =>
-    client.post('/v1/agents/batch', data),
+    client.post('/agents/batch', data),
   createFromScenario: (data) =>
-    client.post('/v1/agents/from-scenario', data),
+    client.post('/agents/from-scenario', data),
 }

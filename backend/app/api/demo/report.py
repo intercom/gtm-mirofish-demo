@@ -262,7 +262,7 @@ Based on the simulation findings, we recommend the following prioritized action 
 # Report lifecycle routes
 # ---------------------------------------------------------------------------
 
-@report_demo_bp.route("/api/report/generate", methods=["POST"])
+@report_demo_bp.route("/api/v1/report/generate", methods=["POST"])
 def report_generate():
     body = request.get_json(silent=True) or {}
     sim_id = body.get("simulation_id", "demo-sim-00001")
@@ -283,7 +283,7 @@ def report_generate():
     })
 
 
-@report_demo_bp.route("/api/report/generate/status", methods=["POST"])
+@report_demo_bp.route("/api/v1/report/generate/status", methods=["POST"])
 def report_generate_status():
     body = request.get_json(silent=True) or {}
     report_id = body.get("report_id", "")
@@ -294,7 +294,7 @@ def report_generate_status():
     return _ok({"progress": pct, "status": "completed" if pct >= 100 else "generating"})
 
 
-@report_demo_bp.route("/api/report/<report_id>/progress")
+@report_demo_bp.route("/api/v1/report/<report_id>/progress")
 def report_progress(report_id):
     if report_id not in _reports:
         _reports[report_id] = {"start": time.time(), "sim_id": "unknown"}
@@ -325,7 +325,7 @@ def report_progress(report_id):
     })
 
 
-@report_demo_bp.route("/api/report/<report_id>/sections")
+@report_demo_bp.route("/api/v1/report/<report_id>/sections")
 def report_sections(report_id):
     if report_id not in _reports:
         _reports[report_id] = {"start": time.time(), "sim_id": "unknown"}
@@ -341,14 +341,14 @@ def report_sections(report_id):
     })
 
 
-@report_demo_bp.route("/api/report/<report_id>/section/<int:section_index>")
+@report_demo_bp.route("/api/v1/report/<report_id>/section/<int:section_index>")
 def report_section(report_id, section_index):
     if 0 <= section_index < len(REPORT_SECTIONS):
         return _ok(REPORT_SECTIONS[section_index])
     return _err("Section not found", 404)
 
 
-@report_demo_bp.route("/api/report/<report_id>")
+@report_demo_bp.route("/api/v1/report/<report_id>")
 def report_get(report_id):
     return _ok({
         "report_id": report_id,
@@ -357,7 +357,7 @@ def report_get(report_id):
     })
 
 
-@report_demo_bp.route("/api/report/by-simulation/<sim_id>")
+@report_demo_bp.route("/api/v1/report/by-simulation/<sim_id>")
 def report_by_simulation(sim_id):
     report_id = f"demo-report-{sim_id.split('-')[-1]}"
     return _ok({
@@ -366,12 +366,12 @@ def report_by_simulation(sim_id):
     })
 
 
-@report_demo_bp.route("/api/report/list")
+@report_demo_bp.route("/api/v1/report/list")
 def report_list():
     return _ok({"reports": []})
 
 
-@report_demo_bp.route("/api/report/<report_id>/download")
+@report_demo_bp.route("/api/v1/report/<report_id>/download")
 def report_download(report_id):
     full_md = "\n\n---\n\n".join(s["content"] for s in REPORT_SECTIONS)
     return Response(
@@ -381,7 +381,7 @@ def report_download(report_id):
     )
 
 
-@report_demo_bp.route("/api/report/check/<sim_id>")
+@report_demo_bp.route("/api/v1/report/check/<sim_id>")
 def report_check(sim_id):
     report_id = f"demo-report-{sim_id.split('-')[-1]}"
     if report_id in _reports and _elapsed(_reports, report_id) > REPORT_GEN_SECONDS():
@@ -397,22 +397,22 @@ def report_check(sim_id):
     })
 
 
-@report_demo_bp.route("/api/report/<report_id>/agent-log")
+@report_demo_bp.route("/api/v1/report/<report_id>/agent-log")
 def report_agent_log(report_id):
     return _ok({"logs": []})
 
 
-@report_demo_bp.route("/api/report/<report_id>/agent-log/stream")
+@report_demo_bp.route("/api/v1/report/<report_id>/agent-log/stream")
 def report_agent_log_stream(report_id):
     return _ok({"logs": []})
 
 
-@report_demo_bp.route("/api/report/<report_id>/console-log")
+@report_demo_bp.route("/api/v1/report/<report_id>/console-log")
 def report_console_log(report_id):
     return _ok({"logs": []})
 
 
-@report_demo_bp.route("/api/report/<report_id>/console-log/stream")
+@report_demo_bp.route("/api/v1/report/<report_id>/console-log/stream")
 def report_console_log_stream(report_id):
     return _ok({"logs": []})
 
@@ -509,7 +509,7 @@ Reference specific metrics and percentages from the simulation data.
 Keep responses focused and actionable. If asked about something not in the simulation data, say so honestly."""
 
 
-@report_demo_bp.route("/api/report/chat", methods=["POST"])
+@report_demo_bp.route("/api/v1/report/chat", methods=["POST"])
 def report_chat():
     body = request.get_json(silent=True) or {}
     question = (body.get("message") or body.get("question") or "")

@@ -16,14 +16,14 @@ from ..utils.logger import get_logger
 
 # Path prefixes for LLM-heavy endpoints (stricter limit)
 LLM_ENDPOINTS = (
-    '/api/simulation/start',
-    '/api/report/generate',
-    '/api/chat',
-    '/api/graph/build',
+    '/api/v1/simulation/start',
+    '/api/v1/report/generate',
+    '/api/v1/chat',
+    '/api/v1/graph/build',
 )
 
 # Paths exempt from rate limiting
-EXEMPT_PATHS = ('/health',)
+EXEMPT_PATHS = ('/health', '/api/v1/health')
 
 
 class RateLimiter:

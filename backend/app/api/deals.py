@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, jsonify, request
 
-deals_bp = Blueprint('deals', __name__, url_prefix='/api/deals')
+deals_bp = Blueprint('deals', __name__, url_prefix='/api/v1/deals')
 
 COMPANIES = [
     'Acme Corp', 'TechNova', 'BrightPath', 'CloudScale', 'DataForge',

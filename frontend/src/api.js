@@ -133,19 +133,19 @@ export function chatWithReport(simulationId, message, chatHistory = []) {
 
 export function listInsights(category) {
   const params = category ? `?category=${category}` : ''
-  return request(`${API_BASE}/v1/insights${params}`)
+  return request(`${API_BASE}/insights${params}`)
 }
 
 export function refreshInsights() {
-  return request(`${API_BASE}/v1/insights/refresh`, { method: 'POST' })
+  return request(`${API_BASE}/insights/refresh`, { method: 'POST' })
 }
 
 export function pinInsight(insightId) {
-  return request(`${API_BASE}/v1/insights/${insightId}/pin`, { method: 'POST' })
+  return request(`${API_BASE}/insights/${insightId}/pin`, { method: 'POST' })
 }
 
 export function dismissInsight(insightId) {
-  return request(`${API_BASE}/v1/insights/${insightId}/dismiss`, { method: 'POST' })
+  return request(`${API_BASE}/insights/${insightId}/dismiss`, { method: 'POST' })
 }
 
 // ── Polling helper ──

@@ -3,9 +3,9 @@ import client from './client'
 export const comparisonApi = {
   compare: (ids) =>
     client.get('/simulations/compare', { params: { ids: ids.join(',') } }),
-  listRuns: () => client.get('/v1/comparison/runs'),
+  listRuns: () => client.get('/comparison/runs'),
   getData: (runIds, metric) =>
-    client.post('/v1/comparison/data', {
+    client.post('/comparison/data', {
       run_ids: runIds,
       ...(metric && { metric }),
     }),

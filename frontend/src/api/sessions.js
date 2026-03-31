@@ -1,6 +1,6 @@
 import client from './client'
 
-const BASE = '/v1/sessions'
+const BASE = '/sessions'
 
 export const sessionsApi = {
   list: (params) => client.get(BASE, { params }),

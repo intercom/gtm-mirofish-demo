@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify
 settings_demo_bp = Blueprint('demo_settings', __name__)
 
 
-@settings_demo_bp.route("/api/settings/test-llm", methods=["POST"])
+@settings_demo_bp.route("/api/v1/settings/test-llm", methods=["POST"])
 def test_llm():
     return jsonify({
         "ok": True,
@@ -14,7 +14,7 @@ def test_llm():
     })
 
 
-@settings_demo_bp.route("/api/settings/test-zep", methods=["POST"])
+@settings_demo_bp.route("/api/v1/settings/test-zep", methods=["POST"])
 def test_zep():
     return jsonify({
         "ok": True,
@@ -22,6 +22,6 @@ def test_zep():
     })
 
 
-@settings_demo_bp.route("/api/settings/auth-status")
+@settings_demo_bp.route("/api/v1/settings/auth-status")
 def auth_status():
     return jsonify({"authEnabled": False})

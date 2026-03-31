@@ -8,12 +8,12 @@ const lastChecked = ref(null)
 let pollTimer = null
 let activeInstances = 0
 
-const POLL_INTERVAL = 30_000
+const POLL_INTERVAL = 120_000
 
 async function fetchHealth() {
   try {
     loading.value = true
-    const res = await client.get('/v1/health/services')
+    const res = await client.get('/health/services')
     services.value = res.data.services || {}
     lastChecked.value = Date.now()
   } catch {

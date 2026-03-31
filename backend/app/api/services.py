@@ -15,11 +15,23 @@ def _check_llm():
     if not api_key:
         return {'status': 'unconfigured', 'message': 'LLM_API_KEY not set'}
 
+    provider = current_app.config.get('LLM_PROVIDER', '').lower()
     base_url = current_app.config.get('LLM_BASE_URL')
     try:
-        client = OpenAI(api_key=api_key, base_url=base_url, timeout=10)
-        client.models.list()
-        return {'status': 'ok'}
+        if provider == 'anthropic':
+            import httpx
+            resp = httpx.get(
+                'https://api.anthropic.com/v1/models',
+                headers={'x-api-key': api_key, 'anthropic-version': '2023-06-01'},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                return {'status': 'ok'}
+            return {'status': 'error', 'message': f'HTTP {resp.status_code}'}
+        else:
+            client = OpenAI(api_key=api_key, base_url=base_url, timeout=10)
+            client.models.list()
+            return {'status': 'ok'}
     except Exception as e:
         return {'status': 'error', 'message': str(e)}
 
@@ -33,7 +45,7 @@ def _check_zep():
     try:
         import httpx
         resp = httpx.get(
-            'https://api.getzep.com/api/v2/users',
+            'https://api.getzep.com/api/v2/sessions',
             headers={'Authorization': f'Api-Key {api_key}'},
             timeout=10,
             params={'limit': 1},

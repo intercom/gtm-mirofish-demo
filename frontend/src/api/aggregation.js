@@ -8,7 +8,7 @@ export const aggregationApi = {
    * @param {object} params - Additional params (e.g. { metric: 'total_actions' } for ci mode)
    */
   aggregate: (ids, mode = 'metrics', params = {}) =>
-    client.get('/v1/simulations/aggregate', {
+    client.get('/simulations/aggregate', {
       params: { ids: ids.join(','), mode, ...params },
     }),
 }

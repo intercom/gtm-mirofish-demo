@@ -26,7 +26,7 @@ const showRevokeDialog = ref(false)
 
 async function fetchScopes() {
   try {
-    const res = await fetch(`${API_BASE}/v1/api-keys/scopes`)
+    const res = await fetch(`${API_BASE}/api-keys/scopes`)
     const data = await res.json()
     if (data.ok) scopes.value = data.data
   } catch {
@@ -37,7 +37,7 @@ async function fetchScopes() {
 async function fetchKeys() {
   loading.value = true
   try {
-    const res = await fetch(`${API_BASE}/v1/api-keys`)
+    const res = await fetch(`${API_BASE}/api-keys`)
     const data = await res.json()
     if (data.ok) keys.value = data.data
   } catch {
@@ -53,7 +53,7 @@ async function generateKey() {
 
   creating.value = true
   try {
-    const res = await fetch(`${API_BASE}/v1/api-keys`, {
+    const res = await fetch(`${API_BASE}/api-keys`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, scopes: newKeyScopes.value }),
@@ -83,7 +83,7 @@ function promptRevoke(key) {
 async function confirmRevoke() {
   if (!revokeTarget.value) return
   try {
-    const res = await fetch(`${API_BASE}/v1/api-keys/${revokeTarget.value.id}`, {
+    const res = await fetch(`${API_BASE}/api-keys/${revokeTarget.value.id}`, {
       method: 'DELETE',
     })
     const data = await res.json()

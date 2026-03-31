@@ -59,7 +59,7 @@ async function flush() {
       requests: deduped.map((item, i) => ({
         id: String(i),
         method: item.method,
-        path: `/api${item.path}`,
+        path: `/api/v1${item.path}`,
         body: item.body,
       })),
     })

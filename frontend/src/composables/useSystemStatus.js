@@ -2,7 +2,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import client, { API_BASE } from '../api/client'
 import { useSimulationStore } from '../stores/simulation'
 
-const HEALTH_POLL_INTERVAL = 15_000
+const HEALTH_POLL_INTERVAL = 60_000
 const MAX_RESPONSE_TIMES = 10
 
 // Shared state across all consumers
@@ -46,7 +46,7 @@ function installInterceptor() {
 async function checkHealth() {
   try {
     const start = performance.now()
-    const res = await fetch(`${API_BASE}/health`)
+    const res = await fetch('/api/v1/health')
     const duration = Math.round(performance.now() - start)
     responseTimes.value = [...responseTimes.value.slice(-(MAX_RESPONSE_TIMES - 1)), duration]
     lastHealthCheck.value = Date.now()

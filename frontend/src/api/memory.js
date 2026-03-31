@@ -1,6 +1,6 @@
 import client from './client'
 
-const PREFIX = '/v1/memory'
+const PREFIX = '/memory'
 
 export const memoryApi = {
   search: (graphId, data) =>

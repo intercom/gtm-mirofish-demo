@@ -17,7 +17,7 @@ let subscribers = 0
 async function check() {
   loading.value = true
   try {
-    const { data } = await client.get('/api/v1/services/status')
+    const { data } = await client.get('/services/status')
     services.value = data.services
     lastChecked.value = Date.now()
   } catch {

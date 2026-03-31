@@ -1,6 +1,6 @@
 import client from './client'
 
-const BASE = '/api/v1/dashboards'
+const BASE = '/dashboards'
 
 export const dashboardsApi = {
   list: () => client.get(BASE),

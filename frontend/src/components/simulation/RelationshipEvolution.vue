@@ -67,9 +67,9 @@ async function fetchData() {
   try {
     const { data } = await client.get(`/simulation/${props.taskId}/relationships`)
     const d = data.data || data
-    nodes.value = d.nodes
-    snapshots.value = d.snapshots
-    edgeHistory.value = d.edge_history
+    nodes.value = d.nodes || []
+    snapshots.value = d.snapshots || []
+    edgeHistory.value = d.edge_history || {}
     currentBucket.value = 0
     await nextTick()
     renderGraph()

@@ -115,7 +115,7 @@ function fmtPct(val) {
 async function runOptimization() {
   optimizing.value = true
   try {
-    const { data: res } = await client.post('/v1/campaigns/cost-model/optimize', {
+    const { data: res } = await client.post('/campaigns/cost-model/optimize', {
       channels: channels.value,
       funnel: funnel.value,
       totalBudget: totalBudget.value,

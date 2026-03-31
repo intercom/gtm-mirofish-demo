@@ -16,7 +16,7 @@ from ..utils.logger import get_logger
 logger = get_logger('mirofish.reconciliation')
 
 reconciliation_bp = Blueprint(
-    'reconciliation', __name__, url_prefix='/api/reconciliation'
+    'reconciliation', __name__, url_prefix='/api/v1/reconciliation'
 )
 
 # ---------------------------------------------------------------------------

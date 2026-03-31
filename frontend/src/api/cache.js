@@ -1,6 +1,6 @@
 import client from './client'
 
-const BASE = '/v1/cache/simulations'
+const BASE = '/cache/simulations'
 
 export const cacheApi = {
   list: () => client.get(BASE),

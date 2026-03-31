@@ -1,8 +1,8 @@
 import client from './client'
 
 export const insightsApi = {
-  get: (params) => client.get('/v1/insights', { params }),
-  generate: (data) => client.post('/v1/insights', data),
-  types: () => client.get('/v1/insights/types'),
-  chat: (data) => client.post('/v1/insights/chat', data),
+  get: (params) => client.get('/insights', { params }),
+  generate: (data) => client.post('/insights', data),
+  types: () => client.get('/insights/types'),
+  chat: (data) => client.post('/insights/chat', data),
 }

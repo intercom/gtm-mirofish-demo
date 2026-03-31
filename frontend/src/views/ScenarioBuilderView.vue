@@ -422,7 +422,7 @@ async function runSimulation() {
   error.value = ''
 
   try {
-    const { data } = await graphApi.build({
+    const { data: res } = await graphApi.build({
       seed_text: seedText.value,
       agent_count: agentCount.value,
       persona_types: selectedPersonas.value,
@@ -434,7 +434,7 @@ async function runSimulation() {
       platform_mode: platformMode.value,
       memory_config: memoryConfig.value,
     })
-    const taskId = data.task_id
+    const taskId = res.data?.task_id || res.task_id
     simulationStore.setScenarioConfig({
       scenarioId: props.id,
       scenarioName: scenario.value?.name || (props.id === 'custom' ? 'Custom Simulation' : 'Untitled Scenario'),

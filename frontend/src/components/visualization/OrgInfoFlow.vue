@@ -42,7 +42,7 @@ const nodeFlows = computed(() => {
 
 async function fetchData() {
   try {
-    const res = await client.get('/v1/org-chart', { params: { time: timePoint.value } })
+    const res = await client.get('/org-chart', { params: { time: timePoint.value } })
     const d = res.data.data || res.data
     orgData.value = d.tree
     flows.value = d.flows

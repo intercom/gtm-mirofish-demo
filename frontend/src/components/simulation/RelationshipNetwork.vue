@@ -103,7 +103,7 @@ function renderForceGraph(container, containerWidth) {
   // Determine alliance membership for coloring
   const allianceMap = new Map()
   const allianceColors = ['#2068FF', '#ff5600', '#009900', '#9333EA', '#0891B2']
-  props.alliances.forEach((a, i) => {
+  ;(props.alliances || []).forEach((a, i) => {
     for (const m of a.members) {
       if (!allianceMap.has(m.id)) {
         allianceMap.set(m.id, allianceColors[i % allianceColors.length])

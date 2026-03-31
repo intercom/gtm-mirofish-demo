@@ -14,7 +14,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.api.salesforce')
 
-salesforce_bp = Blueprint('salesforce', __name__, url_prefix='/api/salesforce')
+salesforce_bp = Blueprint('salesforce', __name__, url_prefix='/api/v1/salesforce')
 
 
 def _paginate(items: List[Any], page: int, per_page: int) -> dict:

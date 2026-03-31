@@ -11,7 +11,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.campaigns')
 
-campaigns_bp = Blueprint('campaigns', __name__, url_prefix='/api/campaigns')
+campaigns_bp = Blueprint('campaigns', __name__, url_prefix='/api/v1/campaigns')
 
 
 # ── Helpers ──────────────────────────────────────────────

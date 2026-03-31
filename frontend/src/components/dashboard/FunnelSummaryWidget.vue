@@ -40,9 +40,9 @@ async function fetchFunnel() {
   loading.value = true
   error.value = null
   try {
-    const { data } = await client.get('/v1/pipeline/funnel')
-    stages.value = data.stages
-    conversionRates.value = data.conversion_rates
+    const { data } = await client.get('/pipeline/funnel')
+    stages.value = data.stages || []
+    conversionRates.value = data.conversion_rates || []
   } catch (e) {
     error.value = e.message || 'Failed to load funnel data'
   } finally {

@@ -187,7 +187,9 @@ function openScenarioDetail(id) {
 async function launchPreset() {
   try {
     const ids = await loadPreset()
-    router.push(`/workspace/${ids.graphTaskId}`)
+    if (ids?.graphTaskId) {
+      router.push(`/workspace/${ids.graphTaskId}`)
+    }
   } catch {
     // error is already set in the composable
   }
@@ -200,7 +202,9 @@ function launchScenario(id) {
 
 function scrollToScenarios() {
   const el = scenarioSection.value?.$el || scenarioSection.value
-  el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (el && typeof el.scrollIntoView === 'function') {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
 }
 
 const statsBanner = ref(null)

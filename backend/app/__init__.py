@@ -244,9 +244,25 @@ def create_app(config_class=Config):
     # Error handling middleware
     register_error_handlers(app)
 
+    @app.route('/')
+    def root():
+        return jsonify({
+            'service': 'MiroFish GTM Demo API',
+            'version': 'v1',
+            'docs': '/api/v1/docs',
+            'health': '/api/v1/health',
+            'endpoints': {
+                'scenarios': 'GET /api/v1/gtm/scenarios',
+                'simulate': 'POST /api/v1/gtm/simulate',
+                'services': 'GET /api/v1/services/status',
+                'health': 'GET /api/v1/health',
+                'health_detailed': 'GET /api/v1/health/detailed',
+            },
+        })
+
     # 健康检查 — returns 503 during shutdown for load balancer draining
     @app.route('/health')
-    @app.route('/api/health')
+    @app.route('/api/v1/health')
     def health():
         if is_shutting_down():
             return {'status': 'shutting_down', 'service': 'MiroFish Backend'}, 503

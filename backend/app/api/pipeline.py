@@ -12,7 +12,7 @@ from ..services.pipeline_data_generator import (
     compute_forecast,
 )
 
-pipeline_bp = Blueprint('pipeline', __name__, url_prefix='/api/pipeline')
+pipeline_bp = Blueprint('pipeline', __name__, url_prefix='/api/v1/pipeline')
 
 
 @pipeline_bp.route('/funnel', methods=['GET'])

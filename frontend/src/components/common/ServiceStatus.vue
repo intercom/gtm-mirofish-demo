@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useServiceStatus } from '../../composables/useServiceStatus'
 import { useToast } from '../../composables/useToast'
-import { API_BASE } from '../../api/client'
+import client from '../../api/client'
 
 const props = defineProps({
   mode: {
@@ -12,7 +12,20 @@ const props = defineProps({
   },
 })
 
-const { status, loading, lastChecked, refresh } = useServiceStatus()
+const { services: rawServices, loading, lastChecked, isAllOk, isDemoMode, isBackendReachable, check: refresh } = useServiceStatus()
+
+// Build a status shape the template expects
+const status = computed(() => {
+  const svc = rawServices.value || {}
+  const allOk = isAllOk.value
+  const demo = isDemoMode.value
+  const reachable = isBackendReachable.value
+  let overall = 'unreachable'
+  if (reachable && allOk) overall = 'healthy'
+  else if (reachable && demo) overall = 'demo'
+  else if (reachable) overall = 'degraded'
+  return { overall, services: svc }
+})
 const toast = useToast()
 
 const overall = computed(() => status.value?.overall ?? 'unreachable')
@@ -37,25 +50,36 @@ const tooltipText = computed(() => {
   return map[overall.value] || 'Unknown'
 })
 
+function normalizeStatus(raw) {
+  if (raw === 'ok' || raw === 'connected') return 'connected'
+  if (raw === 'unconfigured') return 'demo'
+  if (raw === 'error') return 'error'
+  return 'unknown'
+}
+
 const services = computed(() => {
   const s = status.value?.services ?? {}
   return [
     {
       key: 'llm',
       label: 'LLM Provider',
-      status: s.llm?.status ?? 'unknown',
-      detail: s.llm?.provider !== 'none' ? `${s.llm?.provider} — ${s.llm?.model}` : 'Not configured',
+      status: normalizeStatus(s.llm?.status),
+      detail: s.llm?.status === 'ok' || s.llm?.status === 'connected'
+        ? 'Anthropic Claude — Connected'
+        : s.llm?.message || 'Not configured',
     },
     {
       key: 'zep',
       label: 'Zep Cloud',
-      status: s.zep?.status ?? 'unknown',
-      detail: s.zep?.status === 'connected' ? 'Knowledge graph ready' : 'Using local fallback',
+      status: normalizeStatus(s.zep?.status),
+      detail: s.zep?.status === 'ok' || s.zep?.status === 'connected'
+        ? 'Knowledge graph ready'
+        : s.zep?.message || 'Using local fallback',
     },
     {
       key: 'oasis',
       label: 'OASIS Engine',
-      status: s.oasis?.status ?? 'unknown',
+      status: normalizeStatus(s.backend?.status),
       detail: 'Simulation runtime',
     },
   ]
@@ -63,33 +87,28 @@ const services = computed(() => {
 
 const lastCheckedLabel = computed(() => {
   if (!lastChecked.value) return 'Never'
-  return lastChecked.value.toLocaleTimeString()
+  return new Date(lastChecked.value).toLocaleTimeString()
 })
 
 function statusDotClass(svcStatus) {
   const map = {
     connected: 'bg-[var(--color-success)]',
     demo: 'bg-[var(--color-fin-orange)]',
+    error: 'bg-[var(--color-error)]',
   }
-  return map[svcStatus] || 'bg-[var(--color-error)]'
+  return map[svcStatus] || 'bg-gray-400'
 }
 
 function statusLabel(svcStatus) {
-  const map = { connected: 'Connected', demo: 'Demo' }
+  const map = { connected: 'Connected', demo: 'Demo', error: 'Error' }
   return map[svcStatus] || 'Unknown'
 }
 
 async function testConnection(serviceKey) {
-  const endpoint = serviceKey === 'llm' ? `${API_BASE}/settings/test-llm` : `${API_BASE}/settings/test-zep`
-  const body = serviceKey === 'llm' ? { provider: 'openai', apiKey: 'test' } : { apiKey: 'test' }
+  const path = serviceKey === 'llm' ? '/settings/test-llm' : '/settings/test-zep'
 
   try {
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const data = await res.json()
+    const { data } = await client.post(path, {})
     if (data.ok) {
       toast.success(`${serviceKey.toUpperCase()} connection verified`)
     } else {

@@ -13,7 +13,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.team')
 
-team_bp = Blueprint('team', __name__, url_prefix='/api/gtm/team')
+team_bp = Blueprint('team', __name__, url_prefix='/api/v1/gtm/team')
 
 SEED_DATA_DIR = os.path.join(os.path.dirname(__file__), '../../gtm_seed_data')
 

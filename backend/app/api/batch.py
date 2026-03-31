@@ -13,7 +13,7 @@ MAX_BATCH_SIZE = 20
 ALLOWED_METHODS = {'GET', 'POST', 'DELETE'}
 
 
-@batch_bp.route('/api/batch', methods=['POST'])
+@batch_bp.route('/api/v1/batch', methods=['POST'])
 def batch_requests():
     data = request.get_json(silent=True)
     if not data or 'requests' not in data:

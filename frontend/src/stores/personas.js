@@ -62,7 +62,7 @@ export const usePersonasStore = defineStore('personas', () => {
     loading.value = true
     error.value = null
     try {
-      const res = await client.get(`/api/v1/personas/${id}`)
+      const res = await client.get(`/personas/${id}`)
       return res.data
     } catch (e) {
       error.value = e.message
@@ -103,7 +103,7 @@ export const usePersonasStore = defineStore('personas', () => {
   async function clonePersona(id, overrides = {}) {
     error.value = null
     try {
-      const res = await client.post(`/api/v1/personas/${id}/clone`, overrides)
+      const res = await client.post(`/personas/${id}/clone`, overrides)
       const cloned = res.data?.persona || res.data
       personas.value.push(cloned)
       return cloned

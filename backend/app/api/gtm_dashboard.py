@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 
-gtm_dashboard_bp = Blueprint('gtm_dashboard', __name__, url_prefix='/api/gtm/dashboard')
+gtm_dashboard_bp = Blueprint('gtm_dashboard', __name__, url_prefix='/api/v1/gtm/dashboard')
 
 SEED_DATA_DIR = os.path.join(os.path.dirname(__file__), '../../gtm_seed_data')
 

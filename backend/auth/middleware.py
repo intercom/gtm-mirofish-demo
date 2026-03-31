@@ -13,7 +13,7 @@ from datetime import datetime, timezone, timedelta
 import jwt
 from flask import current_app, g, jsonify, request
 
-PUBLIC_PREFIXES = ('/health', '/auth/')
+PUBLIC_PREFIXES = ('/health', '/api/v1/health', '/auth/')
 
 TOKEN_ALGORITHM = 'HS256'
 TOKEN_DEFAULT_TTL = timedelta(hours=24)

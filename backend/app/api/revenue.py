@@ -12,7 +12,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.revenue')
 
-revenue_bp = Blueprint('revenue', __name__, url_prefix='/api/revenue')
+revenue_bp = Blueprint('revenue', __name__, url_prefix='/api/v1/revenue')
 
 DEMO_ARR_DATA = [
     {"month": "2025-01", "newBusiness": 80, "expansion": 10, "churn": 5},

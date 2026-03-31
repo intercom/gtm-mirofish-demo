@@ -6,7 +6,7 @@ from flask import Blueprint, jsonify, request, session
 from app.config import Config
 from auth.audit_log import read_log, enforce_retention
 
-audit_bp = Blueprint('audit', __name__, url_prefix='/api/v1/auth')
+audit_bp = Blueprint('audit', __name__, url_prefix='/api/v1/audit')
 
 
 def _is_admin() -> bool:

@@ -11,7 +11,7 @@ import time
 
 from flask import Blueprint, current_app, jsonify, request, session
 
-auth_bp = Blueprint('api_auth', __name__, url_prefix='/api/auth')
+auth_bp = Blueprint('api_auth', __name__, url_prefix='/api/v1/auth')
 
 DEMO_USER = {
     'email': 'demo@intercom.io',

@@ -10,7 +10,7 @@ import logging
 
 from flask import Blueprint, jsonify, request
 
-errors_bp = Blueprint('errors', __name__, url_prefix='/api/errors')
+errors_bp = Blueprint('errors', __name__, url_prefix='/api/v1/errors')
 
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
 

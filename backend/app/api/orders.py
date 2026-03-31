@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, request
 
-orders_bp = Blueprint('orders', __name__, url_prefix='/api')
+orders_bp = Blueprint('orders', __name__, url_prefix='/api/v1')
 
 # ---------------------------------------------------------------------------
 # Demo data generation (deterministic, cached)

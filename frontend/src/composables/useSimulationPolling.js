@@ -242,7 +242,7 @@ export function useSimulationPolling(taskIdSource) {
       detailTimer = clearTimer(detailTimer)
     } else if (simStatus.value === 'running') {
       if (!runStatusTimer) {
-        runStatusTimer = setInterval(fetchRunStatus, 3000)
+        runStatusTimer = setInterval(fetchRunStatus, 5000)
       }
       ensureDetailPolling()
     }
@@ -301,11 +301,11 @@ export function useSimulationPolling(taskIdSource) {
     stop()
 
     fetchGraphTask()
-    graphTimer = setInterval(fetchGraphTask, 2000)
+    graphTimer = setInterval(fetchGraphTask, 5000)
 
     trySSE()
     fetchRunStatus()
-    runStatusTimer = setInterval(fetchRunStatus, 3000)
+    runStatusTimer = setInterval(fetchRunStatus, 5000)
   }
 
   function stop() {

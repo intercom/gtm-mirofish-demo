@@ -40,7 +40,7 @@ async function fetchCustomers() {
   }
   loading.value = true
   try {
-    const res = await fetch(`${API_BASE}/v1/revenue/customers`)
+    const res = await fetch(`${API_BASE}/revenue/customers`)
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const json = await res.json()
     customerData.value = json.data?.customers || []

@@ -12,14 +12,14 @@ from . import (
 graph_demo_bp = Blueprint('demo_graph', __name__)
 
 
-@graph_demo_bp.route("/api/graph/build", methods=["POST"])
+@graph_demo_bp.route("/api/v1/graph/build", methods=["POST"])
 def graph_build():
     task_id = f"demo-graph-{int(time.time()) % 100000:05d}"
     _graph_tasks[task_id] = {"start": time.time()}
     return jsonify({"success": True, "task_id": task_id, "status": "building"})
 
 
-@graph_demo_bp.route("/api/graph/task/<task_id>")
+@graph_demo_bp.route("/api/v1/graph/task/<task_id>")
 def graph_task(task_id):
     if task_id not in _graph_tasks:
         _graph_tasks[task_id] = {"start": time.time()}
@@ -55,7 +55,7 @@ def graph_task(task_id):
     })
 
 
-@graph_demo_bp.route("/api/graph/data/<graph_id>")
+@graph_demo_bp.route("/api/v1/graph/data/<graph_id>")
 def graph_data(graph_id):
     nodes, edges = _build_knowledge_graph()
     return _ok({
@@ -66,37 +66,37 @@ def graph_data(graph_id):
     })
 
 
-@graph_demo_bp.route("/api/graph/project/<project_id>")
+@graph_demo_bp.route("/api/v1/graph/project/<project_id>")
 def graph_project(project_id):
     return _ok({"project_id": project_id, "name": "Demo Project", "status": "active"})
 
 
-@graph_demo_bp.route("/api/graph/project/list")
+@graph_demo_bp.route("/api/v1/graph/project/list")
 def graph_project_list():
     return _ok({"projects": []})
 
 
-@graph_demo_bp.route("/api/graph/project/<project_id>", methods=["DELETE"])
+@graph_demo_bp.route("/api/v1/graph/project/<project_id>", methods=["DELETE"])
 def graph_project_delete(project_id):
     return _ok({"deleted": True})
 
 
-@graph_demo_bp.route("/api/graph/project/<project_id>/reset", methods=["POST"])
+@graph_demo_bp.route("/api/v1/graph/project/<project_id>/reset", methods=["POST"])
 def graph_project_reset(project_id):
     return _ok({"reset": True})
 
 
-@graph_demo_bp.route("/api/graph/ontology/generate", methods=["POST"])
+@graph_demo_bp.route("/api/v1/graph/ontology/generate", methods=["POST"])
 def graph_ontology_generate():
     return _ok({"ontology": "demo-ontology"})
 
 
-@graph_demo_bp.route("/api/graph/tasks")
+@graph_demo_bp.route("/api/v1/graph/tasks")
 def graph_tasks():
     return _ok({"tasks": []})
 
 
-@graph_demo_bp.route("/api/graph/delete/<graph_id>", methods=["DELETE"])
+@graph_demo_bp.route("/api/v1/graph/delete/<graph_id>", methods=["DELETE"])
 def graph_delete(graph_id):
     return _ok({"deleted": True})
 

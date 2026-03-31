@@ -389,12 +389,6 @@ function exportRun(run) {
             Clear
           </button>
           <router-link
-            :to="`/replay/${run.id}`"
-            class="flex-1 text-center text-xs font-medium px-3 py-2 rounded-md border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary-border)] hover:text-[var(--color-primary)] transition-colors no-underline"
-          >
-            Replay
-          </router-link>
-          <router-link
             v-if="can('create_simulations')"
             to="/"
             class="inline-flex items-center gap-1.5 bg-[#2068FF] hover:bg-[#1a5ae0] active:bg-[#1550cc] text-white text-[11px] md:text-sm font-medium min-h-[44px] md:min-h-0 px-3 md:px-4 py-2 rounded-lg transition-colors no-underline"

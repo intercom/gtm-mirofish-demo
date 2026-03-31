@@ -21,7 +21,7 @@ export async function checkConnectivity() {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), HEALTH_TIMEOUT)
   try {
-    await fetch(`${API_BASE}/health`, {
+    await fetch('/api/v1/health', {
       method: 'HEAD',
       cache: 'no-store',
       signal: controller.signal,

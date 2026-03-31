@@ -21,14 +21,14 @@ simulation_demo_bp = Blueprint('demo_simulation', __name__)
 # Simulation lifecycle
 # ---------------------------------------------------------------------------
 
-@simulation_demo_bp.route("/api/simulation/create", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/create", methods=["POST"])
 def sim_create():
     sim_id = f"demo-sim-{int(time.time()) % 100000:05d}"
     _simulations[sim_id] = {"start": time.time()}
     return _ok({"simulation_id": sim_id, "status": "created"})
 
 
-@simulation_demo_bp.route("/api/simulation/prepare", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/prepare", methods=["POST"])
 def sim_prepare():
     body = request.get_json(silent=True) or {}
     sim_id = body.get("simulation_id", list(_simulations.keys())[-1] if _simulations else "demo-sim-00001")
@@ -37,7 +37,7 @@ def sim_prepare():
     return _ok({"simulation_id": sim_id, "status": "prepared"})
 
 
-@simulation_demo_bp.route("/api/simulation/start", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/start", methods=["POST"])
 def sim_start():
     body = request.get_json(silent=True) or {}
     sim_id = body.get("simulation_id", list(_simulations.keys())[-1] if _simulations else "demo-sim-00001")
@@ -48,7 +48,7 @@ def sim_start():
     return _ok({"status": "running"})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/run-status")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/run-status")
 def sim_run_status(sim_id):
     if sim_id not in _simulations:
         _simulations[sim_id] = {"start": time.time()}
@@ -81,7 +81,7 @@ def sim_run_status(sim_id):
     })
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/run-status/detail")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/run-status/detail")
 def sim_run_status_detail(sim_id):
     if sim_id not in _simulations:
         _simulations[sim_id] = {"start": time.time()}
@@ -97,7 +97,7 @@ def sim_run_status_detail(sim_id):
     })
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/timeline")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/timeline")
 def sim_timeline(sim_id):
     if sim_id not in _simulations:
         _simulations[sim_id] = {"start": time.time()}
@@ -122,7 +122,7 @@ def sim_timeline(sim_id):
     return _ok({"timeline": timeline})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>")
 def sim_get(sim_id):
     return _ok({
         "simulation_id": sim_id,
@@ -131,93 +131,93 @@ def sim_get(sim_id):
     })
 
 
-@simulation_demo_bp.route("/api/simulation/list")
+@simulation_demo_bp.route("/api/v1/simulation/list")
 def sim_list():
     return _ok({"simulations": []})
 
 
-@simulation_demo_bp.route("/api/simulation/history")
+@simulation_demo_bp.route("/api/v1/simulation/history")
 def sim_history():
     return _ok({"history": []})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/actions")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/actions")
 def sim_actions(sim_id):
     return _ok({"actions": _generate_agent_actions(72)})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/agent-stats")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/agent-stats")
 def sim_agent_stats(sim_id):
     return _ok({"stats": []})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/posts")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/posts")
 def sim_posts(sim_id):
     return _ok({"posts": []})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/comments")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/comments")
 def sim_comments(sim_id):
     return _ok({"comments": []})
 
 
-@simulation_demo_bp.route("/api/simulation/entities/<graph_id>")
+@simulation_demo_bp.route("/api/v1/simulation/entities/<graph_id>")
 def sim_entities(graph_id):
     nodes, _ = _build_knowledge_graph()
     return _ok({"entities": nodes})
 
 
-@simulation_demo_bp.route("/api/simulation/entities/<graph_id>/<entity_uuid>")
+@simulation_demo_bp.route("/api/v1/simulation/entities/<graph_id>/<entity_uuid>")
 def sim_entity(graph_id, entity_uuid):
     return _ok({"uuid": entity_uuid, "name": "Demo Entity"})
 
 
-@simulation_demo_bp.route("/api/simulation/entities/<graph_id>/by-type/<entity_type>")
+@simulation_demo_bp.route("/api/v1/simulation/entities/<graph_id>/by-type/<entity_type>")
 def sim_entities_by_type(graph_id, entity_type):
     return _ok({"entities": []})
 
 
-@simulation_demo_bp.route("/api/simulation/prepare/status", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/prepare/status", methods=["POST"])
 def sim_prepare_status():
     return _ok({"status": "prepared"})
 
 
-@simulation_demo_bp.route("/api/simulation/stop", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/stop", methods=["POST"])
 def sim_stop():
     return _ok({"status": "stopped"})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/profiles")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/profiles")
 def sim_profiles(sim_id):
     return _ok({"profiles": []})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/profiles/realtime")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/profiles/realtime")
 def sim_profiles_realtime(sim_id):
     return _ok({"profiles": []})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/config")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/config")
 def sim_config(sim_id):
     return _ok({"config": {"total_hours": 72, "minutes_per_round": 30, "platform_mode": "parallel"}})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/config/realtime")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/config/realtime")
 def sim_config_realtime(sim_id):
     return _ok({"config": {}})
 
 
-@simulation_demo_bp.route("/api/simulation/<sim_id>/config/download")
+@simulation_demo_bp.route("/api/v1/simulation/<sim_id>/config/download")
 def sim_config_download(sim_id):
     return Response("{}", mimetype="application/json", headers={"Content-Disposition": "attachment; filename=config.json"})
 
 
-@simulation_demo_bp.route("/api/simulation/script/<script_name>/download")
+@simulation_demo_bp.route("/api/v1/simulation/script/<script_name>/download")
 def sim_script_download(script_name):
     return Response("", mimetype="text/plain", headers={"Content-Disposition": f"attachment; filename={script_name}"})
 
 
-@simulation_demo_bp.route("/api/simulation/generate-profiles", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/generate-profiles", methods=["POST"])
 def sim_generate_profiles():
     return _ok({"profiles": []})
 
@@ -302,7 +302,7 @@ def _build_persona_traits(role):
     }
 
 
-@simulation_demo_bp.route("/api/simulation/interview", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/interview", methods=["POST"])
 def sim_interview():
     body = request.get_json(silent=True) or {}
     agent_name = body.get("agent_name", "Agent")
@@ -350,27 +350,27 @@ Keep responses conversational, 2-4 paragraphs."""
     return _ok({"response": _interview_keyword_fallback(prompt, agent_role)})
 
 
-@simulation_demo_bp.route("/api/simulation/interview/batch", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/interview/batch", methods=["POST"])
 def sim_interview_batch():
     return _ok({"responses": []})
 
 
-@simulation_demo_bp.route("/api/simulation/interview/all", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/interview/all", methods=["POST"])
 def sim_interview_all():
     return _ok({"responses": []})
 
 
-@simulation_demo_bp.route("/api/simulation/interview/history", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/interview/history", methods=["POST"])
 def sim_interview_history():
     return _ok({"history": []})
 
 
-@simulation_demo_bp.route("/api/simulation/env-status", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/env-status", methods=["POST"])
 def sim_env_status():
     return _ok({"status": "active"})
 
 
-@simulation_demo_bp.route("/api/simulation/close-env", methods=["POST"])
+@simulation_demo_bp.route("/api/v1/simulation/close-env", methods=["POST"])
 def sim_close_env():
     return _ok({"closed": True})
 

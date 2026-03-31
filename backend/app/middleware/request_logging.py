@@ -14,7 +14,7 @@ from ..utils.logger import get_logger
 
 logger = get_logger('mirofish.request')
 
-SKIP_PATHS = frozenset({'/health'})
+SKIP_PATHS = frozenset({'/health', '/api/v1/health'})
 
 
 def register_request_logging(app: Flask):

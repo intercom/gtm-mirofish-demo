@@ -403,7 +403,7 @@ function renderChart() {
 
   // Cool down faster for responsive feel
   simulation.alpha(1).restart()
-  setTimeout(() => simulation.alphaTarget(0), 3000)
+  setTimeout(() => simulation?.alphaTarget(0), 3000)
 }
 
 function selectCoalition(c) {

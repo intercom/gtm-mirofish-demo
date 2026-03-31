@@ -1,12 +1,16 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const {
+  isMobile, animationDuration, staggerDelay, fontSize,
+} = useMobileChart()
 
 const props = defineProps({
   metrics: {
     type: Array,
     default: () => [],
-    // Each item: { label, actual, target, ranges: [poor, ok, good] }
   },
   title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
@@ -41,12 +45,23 @@ function render() {
   const container = chartRef.value
   if (!container || !props.metrics.length) return
 
+  const mobile = isMobile.value
+  const dur = animationDuration.value
+  const stagger = staggerDelay.value
   const containerWidth = container.clientWidth
-  const labelWidth = Math.min(140, containerWidth * 0.25)
-  const margin = { top: props.title ? 52 : 12, right: 32, bottom: 12, left: labelWidth + 16 }
+  const labelWidth = mobile
+    ? Math.min(80, containerWidth * 0.2)
+    : Math.min(140, containerWidth * 0.25)
+  const fs = fontSize.value
+  const margin = {
+    top: props.title ? (mobile ? 40 : 52) : 12,
+    right: mobile ? 24 : 32,
+    bottom: 12,
+    left: labelWidth + 16,
+  }
   const width = containerWidth - margin.left - margin.right
-  const rowHeight = 28
-  const rowGap = 16
+  const rowHeight = mobile ? 22 : 28
+  const rowGap = mobile ? 10 : 16
   const height = props.metrics.length * (rowHeight + rowGap) - rowGap
   const totalHeight = height + margin.top + margin.bottom
 
@@ -60,8 +75,8 @@ function render() {
   if (props.title) {
     svg.append('text')
       .attr('x', margin.left)
-      .attr('y', 22)
-      .attr('font-size', '14px')
+      .attr('y', mobile ? 16 : 22)
+      .attr('font-size', fs.title)
       .attr('font-weight', '600')
       .attr('fill', COLORS.text)
       .text(props.title)
@@ -70,8 +85,8 @@ function render() {
   if (props.subtitle) {
     svg.append('text')
       .attr('x', margin.left)
-      .attr('y', 40)
-      .attr('font-size', '11px')
+      .attr('y', mobile ? 30 : 40)
+      .attr('font-size', fs.subtitle)
       .attr('fill', '#888')
       .text(props.subtitle)
   }
@@ -96,17 +111,16 @@ function render() {
       .attr('y', margin.top + y + rowHeight / 2)
       .attr('dy', '0.35em')
       .attr('text-anchor', 'end')
-      .attr('font-size', '12px')
+      .attr('font-size', fs.label)
       .attr('fill', '#555')
 
-    // Truncate label to fit available space
     const labelText = metric.label
     label.text(labelText)
     while (label.node().getComputedTextLength() > labelWidth && label.text().length > 3) {
       label.text(label.text().slice(0, -4) + '...')
     }
 
-    // Range bands drawn back-to-front (good → ok → poor) as overlapping bars from 0
+    // Range bands
     const bandData = [
       { value: metric.ranges[2], fill: COLORS.rangeBands[2] },
       { value: metric.ranges[1], fill: COLORS.rangeBands[1] },
@@ -114,18 +128,21 @@ function render() {
     ]
 
     bandData.forEach((band) => {
-      row.append('rect')
+      const rect = row.append('rect')
         .attr('x', 0)
         .attr('y', 0)
-        .attr('width', 0)
         .attr('height', rowHeight)
         .attr('rx', 3)
         .attr('fill', band.fill)
-        .transition()
-        .duration(400)
-        .delay(i * 60)
-        .ease(d3.easeCubicOut)
-        .attr('width', x(band.value))
+
+      if (dur > 0) {
+        rect.attr('width', 0)
+          .transition().duration(dur * 0.6).delay(i * stagger)
+          .ease(d3.easeCubicOut)
+          .attr('width', x(band.value))
+      } else {
+        rect.attr('width', x(band.value))
+      }
     })
 
     // Actual value bar
@@ -133,49 +150,54 @@ function render() {
     const barY = (rowHeight - barHeight) / 2
     const actualColor = getActualColor(metric.actual, metric.ranges)
 
-    row.append('rect')
+    const actualBar = row.append('rect')
       .attr('x', 0)
       .attr('y', barY)
-      .attr('width', 0)
       .attr('height', barHeight)
       .attr('rx', 2)
       .attr('fill', actualColor)
       .attr('opacity', 0.9)
-      .transition()
-      .duration(600)
-      .delay(i * 60 + 200)
-      .ease(d3.easeCubicOut)
-      .attr('width', x(Math.min(metric.actual, metric.ranges[2])))
+
+    if (dur > 0) {
+      actualBar.attr('width', 0)
+        .transition().duration(dur).delay(i * stagger + dur * 0.3)
+        .ease(d3.easeCubicOut)
+        .attr('width', x(Math.min(metric.actual, metric.ranges[2])))
+    } else {
+      actualBar.attr('width', x(Math.min(metric.actual, metric.ranges[2])))
+    }
 
     // Target marker
     const markerWidth = 2.5
-    row.append('rect')
+    const marker = row.append('rect')
       .attr('x', x(metric.target) - markerWidth / 2)
       .attr('y', rowHeight * 0.1)
       .attr('width', markerWidth)
       .attr('height', rowHeight * 0.8)
       .attr('rx', 1)
       .attr('fill', COLORS.target)
-      .style('opacity', 0)
-      .transition()
-      .duration(300)
-      .delay(i * 60 + 500)
-      .style('opacity', 1)
 
-    // Value label to the right
-    row.append('text')
+    if (dur > 0) {
+      marker.style('opacity', 0)
+        .transition().duration(dur / 2).delay(i * stagger + dur * 0.8)
+        .style('opacity', 1)
+    }
+
+    // Value label
+    const valLabel = row.append('text')
       .attr('x', width + 8)
       .attr('y', rowHeight / 2)
       .attr('dy', '0.35em')
-      .attr('font-size', '11px')
+      .attr('font-size', fs.value)
       .attr('font-weight', '600')
       .attr('fill', actualColor)
-      .style('opacity', 0)
       .text(formatValue(metric.actual, metric.target))
-      .transition()
-      .duration(300)
-      .delay(i * 60 + 600)
-      .style('opacity', 1)
+
+    if (dur > 0) {
+      valLabel.style('opacity', 0)
+        .transition().duration(dur / 2).delay(i * stagger + dur)
+        .style('opacity', 1)
+    }
   })
 }
 
@@ -186,6 +208,8 @@ function formatValue(actual, target) {
 }
 
 watch(() => props.metrics, () => nextTick(render), { deep: true })
+
+watch(isMobile, () => nextTick(render))
 
 onMounted(() => {
   render()

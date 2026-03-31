@@ -1,12 +1,16 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick, toRef } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const {
+  isMobile, animationDuration, staggerDelay, fontSize, tickCount,
+} = useMobileChart()
 
 const props = defineProps({
   series: {
     type: Array,
     required: true,
-    // [{ name: 'Revenue', points: [{ x: 'Jan', y: 120 }, ...] }, ...]
   },
   title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
@@ -37,16 +41,15 @@ function render() {
   const allPoints = props.series.flatMap((s) => s.points)
   if (!allPoints.length) return
 
+  const mobile = isMobile.value
+  const dur = animationDuration.value
   const containerWidth = container.clientWidth
   const hasTitle = props.title || props.subtitle
-  const margin = {
-    top: hasTitle ? 52 : 16,
-    right: 24,
-    bottom: 40,
-    left: 48,
-  }
+  const margin = mobile
+    ? { top: hasTitle ? 40 : 12, right: 16, bottom: 32, left: 36 }
+    : { top: hasTitle ? 52 : 16, right: 24, bottom: 40, left: 48 }
   const width = containerWidth - margin.left - margin.right
-  const height = props.height
+  const height = mobile ? Math.min(props.height, 200) : props.height
   const totalHeight = height + margin.top + margin.bottom
 
   const svg = d3
@@ -57,12 +60,13 @@ function render() {
     .attr('viewBox', `0 0 ${containerWidth} ${totalHeight}`)
     .style('overflow', 'visible')
 
+  const fs = fontSize.value
   if (props.title) {
     svg
       .append('text')
       .attr('x', margin.left)
-      .attr('y', 22)
-      .attr('font-size', '14px')
+      .attr('y', mobile ? 16 : 22)
+      .attr('font-size', fs.title)
       .attr('font-weight', '600')
       .attr('fill', '#050505')
       .text(props.title)
@@ -71,8 +75,8 @@ function render() {
     svg
       .append('text')
       .attr('x', margin.left)
-      .attr('y', 40)
-      .attr('font-size', '11px')
+      .attr('y', mobile ? 30 : 40)
+      .attr('font-size', fs.subtitle)
       .attr('fill', '#888')
       .text(props.subtitle)
   }
@@ -81,7 +85,6 @@ function render() {
     .append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`)
 
-  // Determine if x values are numeric or categorical
   const xVals = allPoints.map((p) => p.x)
   const isNumeric = xVals.every((v) => typeof v === 'number')
 
@@ -99,8 +102,7 @@ function render() {
   const yMax = d3.max(allPoints, (p) => p.y) * 1.1 || 10
   const y = d3.scaleLinear().domain([0, yMax]).nice().range([height, 0])
 
-  // Grid lines
-  const yTicks = y.ticks(5)
+  const yTicks = y.ticks(tickCount.value)
   g.selectAll('.grid')
     .data(yTicks)
     .join('line')
@@ -111,7 +113,6 @@ function render() {
     .attr('stroke', 'rgba(0,0,0,0.06)')
     .attr('stroke-dasharray', '2,3')
 
-  // Y-axis labels
   g.selectAll('.y-label')
     .data(yTicks)
     .join('text')
@@ -119,23 +120,27 @@ function render() {
     .attr('y', (d) => y(d))
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
-    .attr('font-size', '10px')
+    .attr('font-size', fs.tick)
     .attr('fill', '#aaa')
     .text((d) => props.yFormat(d))
 
-  // X-axis labels
-  const xTicks = isNumeric ? x.ticks(6) : x.domain()
+  const xTickCount = mobile ? 4 : 6
+  const xTicks = isNumeric ? x.ticks(xTickCount) : x.domain()
+  // On mobile with many categorical labels, show every Nth
+  const xTickData = mobile && !isNumeric && xTicks.length > 5
+    ? xTicks.filter((_, i) => i % Math.ceil(xTicks.length / 5) === 0)
+    : xTicks
+
   g.selectAll('.x-label')
-    .data(xTicks)
+    .data(xTickData)
     .join('text')
     .attr('x', (d) => x(d))
     .attr('y', height + 20)
     .attr('text-anchor', 'middle')
-    .attr('font-size', '10px')
+    .attr('font-size', fs.tick)
     .attr('fill', '#aaa')
     .text((d) => d)
 
-  // Baseline
   g.append('line')
     .attr('x1', 0)
     .attr('x2', width)
@@ -144,8 +149,9 @@ function render() {
     .attr('stroke', 'rgba(0,0,0,0.1)')
 
   const curveType = props.curved ? d3.curveMonotoneX : d3.curveLinear
+  // On mobile with many data points, skip dots to reduce DOM nodes
+  const shouldShowDots = props.showDots && (!mobile || props.series[0].points.length <= 12)
 
-  // Draw each series
   props.series.forEach((series, si) => {
     const color = props.colors[si % props.colors.length]
     const lineGen = d3
@@ -154,7 +160,6 @@ function render() {
       .y((d) => y(d.y))
       .curve(curveType)
 
-    // Optional area fill
     if (props.showArea) {
       const areaGen = d3
         .area()
@@ -163,53 +168,65 @@ function render() {
         .y1((d) => y(d.y))
         .curve(curveType)
 
-      g.append('path')
+      const area = g.append('path')
         .datum(series.points)
         .attr('fill', color)
-        .attr('opacity', 0)
         .attr('d', areaGen)
-        .transition()
-        .duration(600)
-        .delay(si * 100)
-        .attr('opacity', 0.08)
+
+      if (dur > 0) {
+        area
+          .attr('opacity', 0)
+          .transition()
+          .duration(dur)
+          .delay(si * 100)
+          .attr('opacity', 0.08)
+      } else {
+        area.attr('opacity', 0.08)
+      }
     }
 
-    // Line path with draw animation
     const path = g
       .append('path')
       .datum(series.points)
       .attr('fill', 'none')
       .attr('stroke', color)
-      .attr('stroke-width', 2.5)
+      .attr('stroke-width', mobile ? 2 : 2.5)
       .attr('stroke-linejoin', 'round')
       .attr('stroke-linecap', 'round')
       .attr('d', lineGen)
 
-    const totalLength = path.node().getTotalLength()
-    path
-      .attr('stroke-dasharray', `${totalLength} ${totalLength}`)
-      .attr('stroke-dashoffset', totalLength)
-      .transition()
-      .duration(800)
-      .delay(si * 100)
-      .ease(d3.easeCubicOut)
-      .attr('stroke-dashoffset', 0)
+    if (dur > 0) {
+      const totalLength = path.node().getTotalLength()
+      path
+        .attr('stroke-dasharray', `${totalLength} ${totalLength}`)
+        .attr('stroke-dashoffset', totalLength)
+        .transition()
+        .duration(dur + 200)
+        .delay(si * 100)
+        .ease(d3.easeCubicOut)
+        .attr('stroke-dashoffset', 0)
+    }
 
-    // Dots
-    if (props.showDots) {
-      g.selectAll(`.dot-${si}`)
+    if (shouldShowDots) {
+      const dots = g.selectAll(`.dot-${si}`)
         .data(series.points)
         .join('circle')
         .attr('cx', (d) => x(d.x))
         .attr('cy', (d) => y(d.y))
-        .attr('r', 0)
         .attr('fill', '#fff')
         .attr('stroke', color)
-        .attr('stroke-width', 2)
-        .transition()
-        .duration(300)
-        .delay((d, i) => 800 + si * 100 + i * 40)
-        .attr('r', 3.5)
+        .attr('stroke-width', mobile ? 1.5 : 2)
+
+      if (dur > 0) {
+        dots
+          .attr('r', 0)
+          .transition()
+          .duration(dur / 2)
+          .delay((d, i) => dur + 200 + si * 100 + i * (mobile ? 20 : 40))
+          .attr('r', mobile ? 2.5 : 3.5)
+      } else {
+        dots.attr('r', mobile ? 2.5 : 3.5)
+      }
     }
   })
 
@@ -241,7 +258,7 @@ function render() {
         .append('text')
         .attr('x', -offsetX - textWidth + 24)
         .attr('y', 10)
-        .attr('font-size', '11px')
+        .attr('font-size', fontSize.value.value)
         .attr('fill', '#555')
         .text(s.name)
 
@@ -255,6 +272,8 @@ watch(
   () => nextTick(render),
   { deep: true },
 )
+
+watch(isMobile, () => nextTick(render))
 
 onMounted(() => {
   render()

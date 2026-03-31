@@ -1,12 +1,16 @@
 <script setup>
 import { ref, watch, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const {
+  isMobile, animationDuration, fontSize,
+} = useMobileChart()
 
 const props = defineProps({
   data: {
     type: Array,
     required: true,
-    // Array of { label: string, values: { seriesName: number } }
   },
   maxValue: { type: Number, default: 100 },
   levels: { type: Number, default: 5 },
@@ -19,11 +23,11 @@ let resizeObserver = null
 let resizeTimer = null
 
 const COLORS = [
-  '#2068FF', // primary
-  '#ff5600', // orange
-  '#AA00FF', // accent purple
-  '#009900', // success green
-  '#050505', // navy
+  '#2068FF',
+  '#ff5600',
+  '#AA00FF',
+  '#009900',
+  '#050505',
 ]
 
 const seriesNames = computed(() => {
@@ -57,8 +61,11 @@ function renderChart() {
   const containerWidth = container.clientWidth
   if (containerWidth === 0) return
 
-  const size = Math.min(containerWidth, 480)
-  const margin = 60
+  const mobile = isMobile.value
+  const dur = animationDuration.value
+  const gridLevels = mobile ? 3 : props.levels
+  const size = Math.min(containerWidth, mobile ? 320 : 480)
+  const margin = mobile ? 40 : 60
   const radius = (size - margin * 2) / 2
   const centerX = size / 2
   const centerY = size / 2
@@ -82,22 +89,21 @@ function renderChart() {
     .attr('transform', `translate(${centerX},${centerY})`)
 
   // Grid circles
-  for (let level = 1; level <= props.levels; level++) {
-    const r = (radius / props.levels) * level
+  for (let level = 1; level <= gridLevels; level++) {
+    const r = (radius / gridLevels) * level
     g.append('circle')
       .attr('r', r)
       .attr('fill', 'none')
       .attr('stroke', 'var(--color-border, rgba(0,0,0,0.1))')
       .attr('stroke-dasharray', '2,3')
 
-    // Level value label
     g.append('text')
       .attr('x', 4)
       .attr('y', -r)
       .attr('dy', '-0.3em')
-      .attr('font-size', '10px')
+      .attr('font-size', fontSize.value.tick)
       .attr('fill', 'var(--color-text-muted, #888)')
-      .text(Math.round((props.maxValue / props.levels) * level))
+      .text(Math.round((props.maxValue / gridLevels) * level))
   }
 
   // Axis lines + labels
@@ -111,7 +117,7 @@ function renderChart() {
       .attr('x2', x).attr('y2', y)
       .attr('stroke', 'var(--color-border, rgba(0,0,0,0.1))')
 
-    const labelDistance = radius + 18
+    const labelDistance = radius + (mobile ? 12 : 18)
     const lx = Math.cos(angle) * labelDistance
     const ly = Math.sin(angle) * labelDistance
 
@@ -123,10 +129,13 @@ function renderChart() {
         return lx > 0 ? 'start' : 'end'
       })
       .attr('dy', '0.35em')
-      .attr('font-size', '11px')
+      .attr('font-size', fontSize.value.value)
       .attr('font-weight', '500')
       .attr('fill', 'var(--color-text-secondary, #555)')
-      .text(d.label)
+      .text(() => {
+        if (mobile && d.label.length > 10) return d.label.slice(0, 9) + '\u2026'
+        return d.label
+      })
   })
 
   // Series polygons
@@ -145,31 +154,32 @@ function renderChart() {
       r: rScale(Math.min(axis.values[seriesName] ?? 0, props.maxValue)),
     }))
 
-    // Filled area
     const path = g.append('path')
       .datum(points)
       .attr('d', radarLine)
       .attr('fill', color)
       .attr('fill-opacity', 0.12)
       .attr('stroke', color)
-      .attr('stroke-width', 2)
+      .attr('stroke-width', mobile ? 1.5 : 2)
       .attr('stroke-opacity', 0.8)
 
-    // Animate: expand from center
-    const finalD = path.attr('d')
-    const zeroPoints = axes.map((_, i) => ({
-      angle: angleSlice * i,
-      r: 0,
-    }))
-    path
-      .attr('d', radarLine(zeroPoints))
-      .transition()
-      .duration(500)
-      .delay(si * 100)
-      .ease(d3.easeCubicOut)
-      .attr('d', finalD)
+    if (dur > 0) {
+      const finalD = path.attr('d')
+      const zeroPoints = axes.map((_, i) => ({
+        angle: angleSlice * i,
+        r: 0,
+      }))
+      path
+        .attr('d', radarLine(zeroPoints))
+        .transition()
+        .duration(dur * 0.8)
+        .delay(si * 100)
+        .ease(d3.easeCubicOut)
+        .attr('d', finalD)
+    }
 
-    // Data point dots
+    // Data point dots — fewer on mobile
+    const dotRadius = mobile ? 2.5 : 3.5
     axes.forEach((axis, i) => {
       const angle = angleSlice * i - Math.PI / 2
       const val = Math.min(axis.values[seriesName] ?? 0, props.maxValue)
@@ -177,41 +187,52 @@ function renderChart() {
       const cx = Math.cos(angle) * r
       const cy = Math.sin(angle) * r
 
-      g.append('circle')
+      const dot = g.append('circle')
         .attr('cx', cx)
         .attr('cy', cy)
-        .attr('r', 0)
         .attr('fill', color)
         .attr('stroke', 'var(--color-surface, #fff)')
         .attr('stroke-width', 1.5)
-        .transition()
-        .duration(300)
-        .delay(500 + si * 100)
-        .attr('r', 3.5)
+
+      if (dur > 0) {
+        dot.attr('r', 0)
+          .transition()
+          .duration(dur / 2)
+          .delay(dur * 0.8 + si * 100)
+          .attr('r', dotRadius)
+      } else {
+        dot.attr('r', dotRadius)
+      }
     })
   })
 
-  // Invisible hover targets for tooltip per axis
+  // Invisible hover/touch targets for tooltip per axis
   axes.forEach((axis, i) => {
     const angle = angleSlice * i - Math.PI / 2
     const x = Math.cos(angle) * radius
     const y = Math.sin(angle) * radius
 
-    g.append('line')
+    const target = g.append('line')
       .attr('x1', 0).attr('y1', 0)
       .attr('x2', x).attr('y2', y)
       .attr('stroke', 'transparent')
-      .attr('stroke-width', 16)
+      .attr('stroke-width', mobile ? 24 : 16)
       .attr('cursor', 'pointer')
-      .on('mouseenter', (event) => {
-        showTooltip(event, axis)
-      })
-      .on('mousemove', (event) => {
-        positionTooltip(event)
-      })
-      .on('mouseleave', () => {
-        hideTooltip()
-      })
+
+    // Mouse events
+    target
+      .on('mouseenter', (event) => showTooltip(event, axis))
+      .on('mousemove', (event) => positionTooltip(event))
+      .on('mouseleave', () => hideTooltip())
+
+    // Touch events for mobile
+    target
+      .on('touchstart', (event) => {
+        event.preventDefault()
+        const touch = event.touches[0]
+        showTooltip(touch, axis)
+      }, { passive: false })
+      .on('touchend', () => hideTooltip())
   })
 }
 
@@ -256,6 +277,8 @@ function hideTooltip() {
 watch([() => props.data, () => props.maxValue, () => props.levels, hiddenSeries], () => {
   nextTick(() => renderChart())
 }, { deep: true })
+
+watch(isMobile, () => nextTick(renderChart))
 
 onMounted(() => {
   renderChart()

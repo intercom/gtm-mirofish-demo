@@ -18,8 +18,7 @@ errorTracker.install(app, { router })
 app.mount('#app')
 
 if (import.meta.env.PROD) {
-  const { register } = useServiceWorker()
-  register()
+  useServiceWorker()
 }
 
 window.addEventListener('load', () => perfMonitor.recordPageLoad())

@@ -3532,13 +3532,13 @@
     },
     {
       "title": "Create real-time collaboration simulation display",
-      "completed": false,
+      "completed": true,
       "parallel_group": 94,
       "description": "Create frontend/src/components/simulation/CollaborationIndicator.vue — shows simulated real-time collaboration. Display: '3 agents are currently discussing...' with animated typing indicators. Show agent avatars in a connected bubble layout, with animated thought bubbles. Simulate the feel of watching a real team collaboration in real-time. Use for demo effect: makes the simulation feel alive and engaging. Works with both WebSocket (real-time) and replay mode."
     },
     {
       "title": "Build multi-user presence simulation",
-      "completed": false,
+      "completed": true,
       "parallel_group": 94,
       "description": "Create frontend/src/components/common/PresenceIndicator.vue — simulates multiple users viewing. Shows small avatar circles of 'other viewers' in the top-right of the page. Generates 2-3 fake viewer names from Intercom team members. Hover: shows 'Alice is viewing the Dashboard' tooltip. Animated: viewers occasionally change pages. This is for demo effect only — not real multi-user functionality. Toggle in settings: 'Show Collaboration Presence' (default on for demo)."
     },

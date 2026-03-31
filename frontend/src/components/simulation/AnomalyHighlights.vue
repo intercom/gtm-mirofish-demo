@@ -249,7 +249,7 @@ onUnmounted(() => {
     <!-- Content -->
     <template v-else>
       <!-- Summary cards -->
-      <div class="grid grid-cols-3 gap-3 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <div class="bg-[var(--color-tint)] rounded-md p-3 text-center">
           <div class="text-lg font-bold text-[var(--color-text)]">{{ summary.total }}</div>
           <div class="text-[10px] text-[var(--color-text-muted)] uppercase tracking-wider mt-0.5">Anomalies</div>

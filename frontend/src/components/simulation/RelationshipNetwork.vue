@@ -480,7 +480,7 @@ onUnmounted(() => {
           &times;
         </button>
       </div>
-      <div class="grid grid-cols-3 gap-2 text-center">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
         <div>
           <div class="text-[var(--color-text-muted)]">Affinity</div>
           <div

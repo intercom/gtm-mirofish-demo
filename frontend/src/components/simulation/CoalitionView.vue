@@ -496,7 +496,7 @@ onUnmounted(() => {
       <Transition name="slide-right">
         <div
           v-if="selectedCoalition"
-          class="w-72 border-l border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto p-4"
+          class="w-full sm:w-72 border-l border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto p-4"
         >
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">

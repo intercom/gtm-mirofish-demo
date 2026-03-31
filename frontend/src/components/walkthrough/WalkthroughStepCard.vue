@@ -108,7 +108,7 @@ const props = defineProps({
       </div>
 
       <!-- Simulation config -->
-      <div v-if="step.key === 'simulation_config'" class="grid grid-cols-3 gap-3">
+      <div v-if="step.key === 'simulation_config'" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div class="text-center p-3 rounded-lg bg-[var(--color-tint)]">
           <div class="text-xl font-bold text-[#2068FF]">{{ step.duration_hours }}h</div>
           <div class="text-[10px] text-[var(--color-text-muted)] mt-0.5">Duration</div>

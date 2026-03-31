@@ -22,16 +22,27 @@ const tooltipStyle = computed(() => {
   const pad = 16
   const pos = currentStep.value?.position || 'bottom'
 
+  const isMobile = window.innerWidth < 640
+
+  if (isMobile) {
+    return {
+      bottom: '1rem',
+      left: '1rem',
+      right: '1rem',
+      transform: 'none',
+    }
+  }
+
   if (pos === 'top') {
     return {
       bottom: `${window.innerHeight - r.top + pad}px`,
-      left: `${r.left + r.width / 2}px`,
+      left: `${Math.min(Math.max(r.left + r.width / 2, 180), window.innerWidth - 180)}px`,
       transform: 'translateX(-50%)',
     }
   }
   return {
     top: `${r.top + r.height + pad}px`,
-    left: `${r.left + r.width / 2}px`,
+    left: `${Math.min(Math.max(r.left + r.width / 2, 180), window.innerWidth - 180)}px`,
     transform: 'translateX(-50%)',
   }
 })

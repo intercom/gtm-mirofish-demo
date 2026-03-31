@@ -86,7 +86,7 @@ onUnmounted(() => {
         v-if="open"
         ref="popoverRef"
         :class="[
-          'absolute z-50 w-72 rounded-lg border border-[--color-border] bg-[--color-surface] shadow-lg p-4',
+          'absolute z-50 w-[calc(100vw-2rem)] sm:w-72 rounded-lg border border-[--color-border] bg-[--color-surface] shadow-lg p-4',
           'left-1/2 -translate-x-1/2',
           placement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
         ]"

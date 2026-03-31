@@ -274,7 +274,7 @@ async function sendMessage() {
     <!-- Overview Tab -->
     <div v-if="activeTab === 'overview'">
       <!-- Stats grid -->
-      <div class="grid grid-cols-3 gap-4 mb-6">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
           <div class="text-2xl font-bold text-[var(--color-text)]">{{ stats.total }}</div>
           <div class="text-xs text-[var(--color-text-muted)] mt-1">Total Actions</div>

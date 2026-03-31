@@ -73,7 +73,7 @@ onUnmounted(() => {
           background: rgba(5, 5, 5, 0.92);
           border-color: rgba(32, 104, 255, 0.3);
           backdrop-filter: blur(8px);
-          min-width: 300px;
+          min-width: min(300px, 100%);
         "
       >
         <!-- Header -->

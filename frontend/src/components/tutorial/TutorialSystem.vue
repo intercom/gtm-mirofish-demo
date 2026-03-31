@@ -185,7 +185,7 @@ onUnmounted(() => {
 
 .tutorial-tooltip {
   position: fixed;
-  width: 320px;
+  width: min(320px, calc(100vw - 2rem));
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #e5e7eb);
   border-radius: 12px;

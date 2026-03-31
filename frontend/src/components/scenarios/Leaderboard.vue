@@ -209,7 +209,7 @@ function scoreBarWidth(value) {
 
     <template v-else>
       <!-- Top 3 Podium -->
-      <div class="grid grid-cols-3 gap-3 mb-6">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
         <div
           v-for="(entry, idx) in topThree"
           :key="entry.id"

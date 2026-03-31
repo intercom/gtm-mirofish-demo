@@ -67,7 +67,7 @@ function handleKeydown(e) {
     >
       <div
         v-if="isOpen"
-        class="absolute bottom-16 right-0 w-80 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden"
+        class="absolute bottom-16 right-0 w-[calc(100vw-2rem)] sm:w-80 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl shadow-lg overflow-hidden"
       >
         <!-- Header -->
         <div class="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)] bg-[var(--color-tint)]">

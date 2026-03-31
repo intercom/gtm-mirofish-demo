@@ -16,14 +16,14 @@ function handleAction(toast) {
     <div
       aria-live="polite"
       aria-relevant="additions removals"
-      class="fixed top-4 right-4 z-[9999] flex flex-col gap-2.5 pointer-events-none"
+      class="fixed top-4 right-4 left-4 sm:left-auto z-[9999] flex flex-col gap-2.5 pointer-events-none"
     >
       <TransitionGroup name="toast">
         <div
           v-for="toast in toasts"
           :key="toast.id"
           :role="toast.type === 'error' ? 'alert' : 'status'"
-          class="toast pointer-events-auto flex flex-col rounded-lg shadow-lg overflow-hidden min-w-[300px] max-w-[420px] relative"
+          class="toast pointer-events-auto flex flex-col rounded-lg shadow-lg overflow-hidden min-w-0 w-[min(420px,calc(100vw-2rem))] relative"
           :class="[`toast--${toast.type}`]"
         >
           <div class="flex items-center gap-2.5 px-4 py-3">

@@ -97,7 +97,7 @@ onMounted(fetchContext)
   <div
     :class="[
       'gtm-context-panel border-l border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col transition-all duration-300 ease-in-out h-full',
-      collapsed ? 'w-10' : 'w-72',
+      collapsed ? 'w-10' : 'w-full sm:w-72',
     ]"
   >
     <!-- Collapse toggle -->

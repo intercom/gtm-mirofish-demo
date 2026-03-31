@@ -387,7 +387,7 @@ onUnmounted(() => {
       <Transition name="slide-in">
         <div
           v-if="selectedAgent"
-          class="absolute top-3 right-3 w-72 bg-[var(--card-bg,#fff)] border border-[var(--color-border)] rounded-xl shadow-lg p-4"
+          class="absolute top-3 right-3 w-[calc(100%-1.5rem)] sm:w-72 bg-[var(--card-bg,#fff)] border border-[var(--color-border)] rounded-xl shadow-lg p-4"
         >
           <div class="flex items-start justify-between mb-3">
             <div class="flex items-center gap-2">

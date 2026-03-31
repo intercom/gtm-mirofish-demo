@@ -906,7 +906,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Stats -->
-          <div class="grid grid-cols-3 gap-3 mb-5">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
             <div class="bg-[var(--color-tint)] rounded-lg p-3 text-center">
               <div class="text-lg font-semibold text-[var(--color-text)]">{{ animatedAgentTotal }}</div>
               <div class="text-[10px] text-[var(--color-text-muted)]">Actions</div>

@@ -147,6 +147,7 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
   top: calc(100% + 8px);
   right: 0;
   width: 340px;
+  max-width: calc(100vw - 2rem);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -154,6 +155,20 @@ onUnmounted(() => document.removeEventListener('click', onClickOutside))
   z-index: 50;
   transform-origin: top right;
   overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .panel {
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    max-height: 70vh;
+  }
 }
 
 .panel-header {

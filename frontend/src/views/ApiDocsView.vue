@@ -207,7 +207,7 @@ async function tryIt() {
 <template>
   <div class="flex h-[calc(100vh-56px)] overflow-hidden">
     <!-- Sidebar -->
-    <aside class="w-72 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto">
+    <aside class="hidden md:block w-72 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] overflow-y-auto">
       <div class="p-3 border-b border-[var(--color-border)]">
         <input
           v-model="search"

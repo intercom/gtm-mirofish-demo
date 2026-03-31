@@ -130,8 +130,8 @@ export function quantitativeColorScale(domain = [0, 1]) {
 
 // ── Number Formatters ────────────────────────────────────────────────────────
 
-export function formatCurrency(value, { decimals = 0, currency = 'USD' } = {}) {
-  return new Intl.NumberFormat('en-US', {
+export function formatCurrency(value, { decimals = 0, currency = 'USD', locale } = {}) {
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: decimals,
@@ -139,14 +139,21 @@ export function formatCurrency(value, { decimals = 0, currency = 'USD' } = {}) {
   }).format(value)
 }
 
-export function formatPercentage(value, { decimals = 1 } = {}) {
-  return `${Number(value).toFixed(decimals)}%`
+export function formatPercentage(value, { decimals = 1, locale } = {}) {
+  const formatted = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(Number(value))
+  return `${formatted}%`
 }
 
-export function formatNumber(value, { decimals = 0 } = {}) {
+export function formatNumber(value, { decimals = 0, locale } = {}) {
   if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
   if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(1)}K`
-  return Number(value).toFixed(decimals)
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value)
 }
 
 // ── Axis Formatter ───────────────────────────────────────────────────────────

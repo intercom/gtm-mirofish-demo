@@ -9,6 +9,10 @@ defineProps({
 
 defineEmits(['click'])
 
+import { useLocale } from '../../composables/useLocale'
+
+const { formatCurrency: fmtCurrency, formatDate: fmtDate } = useLocale()
+
 const tierColors = {
   Essential: 'bg-black/5 text-[--color-text-secondary]',
   Advanced: 'bg-[rgba(32,104,255,0.1)] text-[--color-primary]',
@@ -17,12 +21,7 @@ const tierColors = {
 
 function formatCurrency(value) {
   if (value == null) return '—'
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
+  return fmtCurrency(value, 'USD', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 }
 
 function healthColor(score) {
@@ -39,11 +38,7 @@ function healthTrackColor(score) {
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  return fmtDate(dateStr, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 </script>
 

@@ -3,6 +3,7 @@ import { ref, computed, defineAsyncComponent, watch, onMounted, onUnmounted } fr
 import { marked } from 'marked'
 import { API_BASE } from '../api/client'
 import { useReportShortcuts } from '../composables/useReportShortcuts'
+import { useLocale } from '../composables/useLocale'
 import { useToast } from '../composables/useToast'
 import { useOnlineStatus } from '../composables/useOnlineStatus'
 import { cacheReport, getCachedReport } from '../composables/useReportCache'
@@ -30,6 +31,7 @@ const ReportCharts = defineAsyncComponent({
 })
 
 const { resolvedTheme, themeStyles } = useReportTheme()
+const { formatShortDateTime } = useLocale()
 const showShareModal = ref(false)
 
 const props = defineProps({ taskId: String })
@@ -364,9 +366,7 @@ function handleReorder(from, to) {
 
 function formatCachedDate() {
   if (!cachedAt.value) return ''
-  return new Date(cachedAt.value).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  })
+  return formatShortDateTime(cachedAt.value)
 }
 
 watch(activeChapter, () => {

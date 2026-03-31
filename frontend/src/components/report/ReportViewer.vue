@@ -2,7 +2,10 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { marked } from 'marked'
 import * as d3 from 'd3'
+import { useLocale } from '../../composables/useLocale'
 import { reportApi } from '../../api/report'
+
+const { formatDate: fmtDate } = useLocale()
 
 const props = defineProps({
   reportId: { type: String, default: null },
@@ -376,7 +379,7 @@ const generationTime = computed(() => {
 
 const formattedDate = computed(() => {
   if (!props.createdAt) return null
-  return new Date(props.createdAt).toLocaleDateString('en-US', {
+  return fmtDate(props.createdAt, {
     year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 })

@@ -1,7 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useSimulationStore } from '../../stores/simulation'
+import { useLocale } from '../../composables/useLocale'
 import { scenariosApi } from '../../api/scenarios'
+
+const { formatShortDateTime } = useLocale()
 
 const props = defineProps({
   runs: { type: Array, default: null },
@@ -125,12 +128,7 @@ function handleSelect(entry) {
 
 function formatDate(ts) {
   if (!ts) return '-'
-  return new Date(ts).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  return formatShortDateTime(ts)
 }
 
 function scoreBarWidth(value) {

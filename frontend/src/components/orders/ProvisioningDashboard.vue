@@ -2,6 +2,9 @@
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
 import Badge from '../common/Badge.vue'
+import { useLocale } from '../../composables/useLocale'
+
+const { formatCurrency: fmtCurrency, formatDate: fmtDate } = useLocale()
 
 const props = defineProps({
   orders: {
@@ -262,15 +265,11 @@ onUnmounted(() => {
 
 // Formatters
 function formatDate(iso) {
-  return new Date(iso).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  })
+  return fmtDate(iso, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function formatCurrency(val) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency', currency: 'USD', maximumFractionDigits: 0,
-  }).format(val)
+  return fmtCurrency(val, 'USD', { maximumFractionDigits: 0 })
 }
 
 function handleRetry(orderId) {

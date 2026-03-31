@@ -2,6 +2,9 @@
 import { computed } from 'vue'
 import Badge from '../common/Badge.vue'
 import Card from '../common/Card.vue'
+import { useLocale } from '../../composables/useLocale'
+
+const { formatCurrency: fmtCurrency, formatDate: fmtDate } = useLocale()
 
 const props = defineProps({
   quote: {
@@ -26,20 +29,12 @@ const canReject = computed(() => props.quote.status === 'Review')
 const canEdit = computed(() => ['Draft', 'Review'].includes(props.quote.status))
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 2,
-  }).format(value ?? 0)
+  return fmtCurrency(value, 'USD', { minimumFractionDigits: 2 })
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return fmtDate(dateStr, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 const isExpired = computed(() => {

@@ -1,18 +1,30 @@
 import { createI18n } from 'vue-i18n'
-import en from './locales/en.json'
-import ja from './locales/ja.json'
+import en from '../locales/en.json'
+import es from '../locales/es.json'
+import fr from '../locales/fr.json'
+import de from '../locales/de.json'
+import ja from '../locales/ja.json'
+import pt from '../locales/pt.json'
 
-const STORAGE_KEY = 'mirofish-locale'
+const LOCALE_STORAGE_KEY = 'mirofish-locale'
 
-const savedLocale = typeof localStorage !== 'undefined'
-  ? localStorage.getItem(STORAGE_KEY)
-  : null
+function getInitialLanguage() {
+  try {
+    const saved = localStorage.getItem(LOCALE_STORAGE_KEY)
+    if (saved) return saved.split('-')[0]
+  } catch {}
+  const browserLang = navigator.language?.split('-')[0]
+  if (['en', 'es', 'fr', 'de', 'ja', 'pt'].includes(browserLang)) {
+    return browserLang
+  }
+  return 'en'
+}
 
 const i18n = createI18n({
   legacy: false,
-  locale: savedLocale || 'en',
+  locale: getInitialLanguage(),
   fallbackLocale: 'en',
-  messages: { en, ja },
+  messages: { en, es, fr, de, ja, pt },
 })
 
 export default i18n

@@ -1,5 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { useLocale } from '../../composables/useLocale'
+
+const { formatCurrency: fmtCurrency, formatShortDate } = useLocale()
 
 const props = defineProps({
   quotes: {
@@ -82,12 +85,12 @@ function isExpired(quote) {
 }
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value)
+  return fmtCurrency(value, 'USD', { minimumFractionDigits: 0 })
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return formatShortDate(dateStr)
 }
 
 function truncateProducts(products) {

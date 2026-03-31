@@ -131,39 +131,57 @@ function categoryColor(cat) {
 
     <!-- Scenario Cards -->
     <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <router-link
+      <div
         v-for="scenario in filteredScenarios"
         :key="scenario.id"
-        :to="`/scenarios/${scenario.id}`"
-        class="group border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-all hover:shadow-[var(--shadow-md)] hover:border-[#2068FF]/30 no-underline"
+        class="group border border-[var(--color-border)] bg-[var(--color-surface)] rounded-lg p-5 transition-all hover:shadow-[var(--shadow-md)] hover:border-[#2068FF]/30"
       >
-        <div class="flex items-start gap-3 mb-3">
-          <span class="text-2xl shrink-0">{{ resolveIcon(scenario.icon) }}</span>
-          <div class="flex-1 min-w-0">
-            <h3 class="text-sm font-semibold text-[var(--color-text)] group-hover:text-[#2068FF] transition-colors leading-snug">
-              {{ scenario.name }}
-            </h3>
-            <span
-              class="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1.5"
-              :style="{
-                backgroundColor: categoryColor(scenario.category).bg,
-                color: categoryColor(scenario.category).text,
-              }"
-            >
-              {{ categoryLabel(scenario.category) }}
-            </span>
+        <router-link
+          :to="`/scenarios/${scenario.id}`"
+          class="no-underline block"
+        >
+          <div class="flex items-start gap-3 mb-3">
+            <span class="text-2xl shrink-0">{{ resolveIcon(scenario.icon) }}</span>
+            <div class="flex-1 min-w-0">
+              <h3 class="text-sm font-semibold text-[var(--color-text)] group-hover:text-[#2068FF] transition-colors leading-snug">
+                {{ scenario.name }}
+              </h3>
+              <span
+                class="inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1.5"
+                :style="{
+                  backgroundColor: categoryColor(scenario.category).bg,
+                  color: categoryColor(scenario.category).text,
+                }"
+              >
+                {{ categoryLabel(scenario.category) }}
+              </span>
+            </div>
           </div>
+          <p class="text-xs text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
+            {{ scenario.description }}
+          </p>
+        </router-link>
+        <div class="mt-3 flex items-center gap-3">
+          <router-link
+            :to="`/scenarios/${scenario.id}`"
+            class="flex items-center gap-1 text-xs font-medium text-[#2068FF] no-underline hover:underline"
+          >
+            Configure &amp; Run
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+          </router-link>
+          <router-link
+            :to="`/scenarios/${scenario.id}/walkthrough`"
+            class="flex items-center gap-1 text-xs font-medium text-[var(--color-text-muted)] hover:text-[#2068FF] no-underline transition-colors"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5" />
+            </svg>
+            Guided Tour
+          </router-link>
         </div>
-        <p class="text-xs text-[var(--color-text-muted)] leading-relaxed line-clamp-2">
-          {{ scenario.description }}
-        </p>
-        <div class="mt-3 flex items-center gap-1 text-xs font-medium text-[#2068FF] opacity-0 group-hover:opacity-100 transition-opacity">
-          Configure &amp; Run
-          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-          </svg>
-        </div>
-      </router-link>
+      </div>
 
       <!-- No results for filter -->
       <div

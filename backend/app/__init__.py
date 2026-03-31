@@ -237,7 +237,7 @@ def create_app(config_class=Config):
     # OAuth flow (login, callback, logout, me)
     try:
         from auth.oauth_routes import auth_bp as oauth_bp
-        app.register_blueprint(oauth_bp)
+        app.register_blueprint(oauth_bp, name='oauth')
     except Exception as e:
         app.logger.debug("OAuth blueprint skipped: %s", e)
 

@@ -742,3 +742,5 @@ class CoalitionDetector:
             {"round_num": r, "polarization_index": round(0.15 + 0.06 * r + random.uniform(-0.03, 0.03), 3)}
             for r in range(1, 11)
         ]
+
+

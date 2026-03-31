@@ -12,7 +12,7 @@ const primaryTabs = [
   { to: '/', label: 'Home', icon: 'home', exact: true },
   { to: '/scenarios', label: 'Scenarios', icon: 'scenarios', exact: true },
   { to: '/simulations', label: 'Sims', icon: 'simulations', exact: false },
-  { to: '/dashboard', label: 'Dashboard', icon: 'dashboard', exact: false },
+  { to: '/m/dashboard', label: 'Dashboard', icon: 'dashboard', exact: false },
 ]
 
 const drawerSections = [

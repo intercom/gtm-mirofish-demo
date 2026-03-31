@@ -370,7 +370,13 @@ const showBreadcrumbs = computed(() => breadcrumbs.value.length > 1)
     </div>
 
     <!-- Chart container -->
-    <div ref="chartRef" class="relative w-full" style="min-height: 300px" />
+    <div
+      ref="chartRef"
+      class="relative w-full"
+      style="min-height: 300px"
+      role="img"
+      :aria-label="centerLabel ? `${centerLabel} sunburst chart` : 'Sunburst chart'"
+    />
 
     <!-- Hint -->
     <p class="text-[11px] text-[var(--color-text-muted)] mt-3 text-center">

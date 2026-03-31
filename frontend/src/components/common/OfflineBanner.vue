@@ -135,6 +135,7 @@ onUnmounted(() => {
           v-if="state !== 'reconnected'"
           @click="dismiss"
           class="absolute right-3 opacity-70 hover:opacity-100 cursor-pointer text-lg leading-none"
+          aria-label="Dismiss offline notification"
         >
           &times;
         </button>

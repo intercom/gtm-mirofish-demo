@@ -1,7 +1,7 @@
 <script setup>
-import { useId } from 'vue'
+import { useId, watch, nextTick, ref } from 'vue'
 
-defineProps({
+const props = defineProps({
   open: {
     type: Boolean,
     default: false,
@@ -11,12 +11,21 @@ defineProps({
 
 const emit = defineEmits(['close'])
 const titleId = `modal-title-${useId()}`
+const dialogRef = ref(null)
 
 function onOverlayClick(e) {
   if (e.target === e.currentTarget) {
     emit('close')
   }
 }
+
+watch(() => props.open, (isOpen) => {
+  if (isOpen) {
+    nextTick(() => {
+      dialogRef.value?.focus()
+    })
+  }
+})
 </script>
 
 <template>
@@ -34,7 +43,9 @@ function onOverlayClick(e) {
         <Transition name="modal-content" appear>
           <div
             v-if="open"
-            class="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col"
+            ref="dialogRef"
+            tabindex="-1"
+            class="bg-[var(--color-surface)] rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col focus:outline-none"
           >
             <div v-if="title || $slots.header" class="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)]">
               <slot name="header">

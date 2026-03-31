@@ -96,7 +96,7 @@ watch(isOpen, (open) => {
     @click="toggle"
     class="ai-analyst-bubble"
     :class="{ 'ai-analyst-bubble--open': isOpen }"
-    aria-label="Open AI Analyst"
+    :aria-label="isOpen ? 'Close AI Analyst' : 'Open AI Analyst'"
   >
     <svg v-if="!isOpen" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round"
@@ -109,7 +109,7 @@ watch(isOpen, (open) => {
 
   <!-- Chat panel -->
   <Transition name="analyst-panel">
-    <div v-if="isOpen" class="ai-analyst-panel">
+    <div v-if="isOpen" class="ai-analyst-panel" role="region" aria-label="AI Analyst chat">
       <!-- Header -->
       <div class="ai-analyst-header">
         <div class="flex items-center gap-2">
@@ -126,6 +126,7 @@ watch(isOpen, (open) => {
         <button
           v-if="hasMessages"
           @click="clearChat"
+          aria-label="Clear chat history"
           class="text-[10px] text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] transition-colors"
         >
           Clear
@@ -133,7 +134,7 @@ watch(isOpen, (open) => {
       </div>
 
       <!-- Messages area -->
-      <div class="ai-analyst-messages">
+      <div class="ai-analyst-messages" aria-live="polite" aria-relevant="additions">
         <!-- Suggested questions (empty state) -->
         <div v-if="!hasMessages && !sending" class="px-4 py-3">
           <p class="text-xs text-[var(--color-text-muted)] mb-3">Suggested questions:</p>
@@ -184,13 +185,14 @@ watch(isOpen, (open) => {
           </div>
 
           <!-- Typing indicator -->
-          <div v-if="sending" class="flex justify-start">
+          <div v-if="sending" class="flex justify-start" role="status">
             <div class="ai-analyst-msg-assistant">
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1" aria-hidden="true">
                 <span class="ai-analyst-dot" style="animation-delay: 0ms" />
                 <span class="ai-analyst-dot" style="animation-delay: 150ms" />
                 <span class="ai-analyst-dot" style="animation-delay: 300ms" />
               </div>
+              <span class="sr-only">AI Analyst is thinking...</span>
             </div>
           </div>
 
@@ -200,7 +202,9 @@ watch(isOpen, (open) => {
 
       <!-- Input -->
       <div class="ai-analyst-input-area">
+        <label for="ai-analyst-input" class="sr-only">Ask about your data</label>
         <input
+          id="ai-analyst-input"
           v-model="input"
           @keydown.enter.exact="send()"
           :disabled="sending"
@@ -210,6 +214,7 @@ watch(isOpen, (open) => {
         <button
           @click="send()"
           :disabled="sending || !input.trim()"
+          aria-label="Send message"
           class="ai-analyst-send"
         >
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">

@@ -75,15 +75,15 @@ function handleKeydown(e) {
             <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span class="text-sm font-semibold text-[var(--color-text)]">AI Analyst</span>
           </div>
-          <button @click="toggle" class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <button @click="toggle" aria-label="Close AI Analyst" class="text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         <!-- Messages -->
-        <div id="ai-analyst-messages" class="h-64 overflow-y-auto p-3 space-y-3">
+        <div id="ai-analyst-messages" class="h-64 overflow-y-auto p-3 space-y-3" aria-live="polite" aria-relevant="additions">
           <div
             v-for="(msg, i) in messages"
             :key="i"
@@ -99,11 +99,12 @@ function handleKeydown(e) {
               {{ msg.content }}
             </div>
           </div>
-          <div v-if="responding" class="flex justify-start">
+          <div v-if="responding" class="flex justify-start" role="status">
             <div class="bg-[var(--color-tint)] rounded-lg px-3 py-2">
-              <span class="typing-dots text-[var(--color-text-muted)]">
+              <span class="typing-dots text-[var(--color-text-muted)]" aria-hidden="true">
                 <span></span><span></span><span></span>
               </span>
+              <span class="sr-only">AI Analyst is thinking...</span>
             </div>
           </div>
         </div>
@@ -111,7 +112,9 @@ function handleKeydown(e) {
         <!-- Input -->
         <div class="border-t border-[var(--color-border)] p-3">
           <div class="flex gap-2">
+            <label for="analytics-ai-input" class="sr-only">Ask about your data</label>
             <input
+              id="analytics-ai-input"
               v-model="message"
               @keydown="handleKeydown"
               type="text"
@@ -136,7 +139,7 @@ function handleKeydown(e) {
       @click="toggle"
       class="w-12 h-12 rounded-full bg-[#2068FF] text-white shadow-lg hover:bg-[#1a5ae0] hover:shadow-xl transition-all flex items-center justify-center"
       :class="{ 'ring-2 ring-[#2068FF]/30': isOpen }"
-      title="AI Analyst"
+      :aria-label="isOpen ? 'Close AI Analyst' : 'Open AI Analyst'"
     >
       <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 0 0-2.455 2.456Z" />

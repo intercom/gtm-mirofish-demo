@@ -338,7 +338,14 @@ onUnmounted(() => {
       </h3>
     </div>
 
-    <div v-if="data.length && activeCategories.length" class="relative" ref="chartRef" style="height: 280px" />
+    <div
+      v-if="data.length && activeCategories.length"
+      class="relative"
+      ref="chartRef"
+      style="height: 280px"
+      role="img"
+      aria-label="Topic evolution stream graph"
+    />
 
     <div v-else class="flex items-center justify-center h-[240px] text-[var(--color-text-muted)] text-sm">
       <span>No stream data available</span>

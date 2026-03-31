@@ -162,23 +162,23 @@ watch(() => route.path, () => {
       :class="{ 'mobile-nav__tab--active': isTabActive(item) }"
     >
       <!-- Home -->
-      <svg v-if="item.icon === 'home'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg v-if="item.icon === 'home'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
         <polyline points="9 22 9 12 15 12 15 22" />
       </svg>
 
       <!-- Scenarios -->
-      <svg v-else-if="item.icon === 'scenarios'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg v-else-if="item.icon === 'scenarios'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" /><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
       </svg>
 
       <!-- Simulations -->
-      <svg v-else-if="item.icon === 'simulations'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg v-else-if="item.icon === 'simulations'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
       </svg>
 
       <!-- Dashboard -->
-      <svg v-else-if="item.icon === 'dashboard'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <svg v-else-if="item.icon === 'dashboard'" class="mobile-nav__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
         <rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
@@ -188,7 +188,9 @@ watch(() => route.path, () => {
       <span
         v-if="item.icon === 'simulations' && simulationStore.isActive"
         class="mobile-nav__dot"
-      />
+        aria-hidden="true"
+      ></span>
+      <span v-if="item.icon === 'simulations' && simulationStore.isActive" class="sr-only">(active)</span>
     </router-link>
 
     <!-- More button -->

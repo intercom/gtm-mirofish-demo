@@ -32,6 +32,7 @@ const { needRefresh, offlineReady, update, dismiss } = useServiceWorker()
         <button
           @click="dismiss"
           class="shrink-0 opacity-60 hover:opacity-100 text-base leading-none cursor-pointer"
+          aria-label="Dismiss update notification"
         >
           &times;
         </button>

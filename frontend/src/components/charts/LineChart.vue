@@ -291,5 +291,25 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="chartRef" class="w-full" />
+  <div
+    ref="chartRef"
+    class="w-full"
+    role="img"
+    :aria-label="title ? `${title} line chart` : 'Line chart'"
+  />
+  <table v-if="series.length" class="sr-only">
+    <caption>{{ title || 'Line chart data' }}</caption>
+    <thead>
+      <tr>
+        <th scope="col">X</th>
+        <th v-for="s in series" :key="s.name" scope="col">{{ s.name }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr v-for="(point, i) in series[0]?.points || []" :key="i">
+        <td>{{ point.x }}</td>
+        <td v-for="s in series" :key="s.name">{{ s.points[i]?.y }}</td>
+      </tr>
+    </tbody>
+  </table>
 </template>

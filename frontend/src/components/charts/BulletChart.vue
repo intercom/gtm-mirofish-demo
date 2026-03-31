@@ -228,6 +228,22 @@ onUnmounted(() => {
 
 <template>
   <div class="bg-white border border-black/10 rounded-lg p-4 md:p-6">
-    <div ref="chartRef" class="w-full" />
+    <div
+      ref="chartRef"
+      class="w-full"
+      role="img"
+      :aria-label="title ? `${title} bullet chart` : 'Bullet chart'"
+    />
+    <table v-if="metrics.length" class="sr-only">
+      <caption>{{ title || 'Bullet chart data' }}</caption>
+      <thead><tr><th scope="col">Metric</th><th scope="col">Actual</th><th scope="col">Target</th></tr></thead>
+      <tbody>
+        <tr v-for="m in metrics" :key="m.label">
+          <td>{{ m.label }}</td>
+          <td>{{ m.actual }}</td>
+          <td>{{ m.target }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>

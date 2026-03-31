@@ -10,44 +10,48 @@ from unittest.mock import patch, MagicMock
 
 from app.models.task import TaskManager, TaskStatus
 
+PREFIX = "/api/v1/gtm"
 
-# ── GET /api/gtm/scenarios ──
+
+# ── GET /api/v1/gtm/scenarios ──
 
 class TestListScenarios:
     """Tests for the scenario listing endpoint."""
 
     def test_returns_200(self, client):
-        resp = client.get("/api/v1/gtm/scenarios")
+        resp = client.get(f"{PREFIX}/scenarios")
         assert resp.status_code == 200
 
     def test_response_has_scenarios_key(self, client):
-        data = client.get("/api/v1/gtm/scenarios").get_json()
+        data = client.get(f"{PREFIX}/scenarios").get_json()
         assert "scenarios" in data
 
     def test_scenarios_is_list(self, client):
-        data = client.get("/api/v1/gtm/scenarios").get_json()
+        data = client.get(f"{PREFIX}/scenarios").get_json()
         assert isinstance(data["scenarios"], list)
 
     def test_scenarios_not_empty(self, client):
-        """There are pre-built scenario JSON files in gtm_scenarios/."""
-        data = client.get("/api/v1/gtm/scenarios").get_json()
+        """At least the 4 original pre-built scenario JSON files exist."""
+        data = client.get(f"{PREFIX}/scenarios").get_json()
         assert len(data["scenarios"]) >= 4
 
     def test_scenario_item_shape(self, client):
-        data = client.get("/api/v1/gtm/scenarios").get_json()
+        data = client.get(f"{PREFIX}/scenarios").get_json()
         item = data["scenarios"][0]
         for key in ("id", "name", "description", "category", "icon"):
             assert key in item, f"Missing key: {key}"
 
     def test_does_not_include_seed_text(self, client):
-        resp = client.get("/api/v1/gtm/scenarios")
+        resp = client.get(f"{PREFIX}/scenarios")
         for s in resp.get_json()["scenarios"]:
             assert "seed_text" not in s
 
     def test_known_scenario_ids(self, client):
-        data = client.get("/api/v1/gtm/scenarios").get_json()
+        """The 4 original scenarios must always be present (others may exist too)."""
+        data = client.get(f"{PREFIX}/scenarios").get_json()
         ids = {s["id"] for s in data["scenarios"]}
-        assert {"outbound_campaign", "pricing_simulation", "personalization", "signal_validation"} <= ids
+        expected = {"outbound_campaign", "pricing_simulation", "personalization", "signal_validation"}
+        assert expected.issubset(ids), f"Missing: {expected - ids}"
 
     def test_empty_when_dir_missing(self, app, tmp_path, monkeypatch):
         monkeypatch.setattr(
@@ -58,7 +62,7 @@ class TestListScenarios:
         from app.services.cache import cache_manager
         cache_manager.clear()
         with app.test_client() as c:
-            resp = c.get("/api/v1/gtm/scenarios")
+            resp = c.get(f"{PREFIX}/scenarios")
             assert resp.get_json()["scenarios"] == []
 
 
@@ -68,24 +72,24 @@ class TestGetScenario:
     """Tests for fetching a single scenario by ID."""
 
     def test_existing_scenario_returns_200(self, client):
-        resp = client.get("/api/v1/gtm/scenarios/outbound_campaign")
+        resp = client.get(f"{PREFIX}/scenarios/outbound_campaign")
         assert resp.status_code == 200
 
     def test_existing_scenario_has_required_fields(self, client):
-        data = client.get("/api/v1/gtm/scenarios/outbound_campaign").get_json()
+        data = client.get(f"{PREFIX}/scenarios/outbound_campaign").get_json()
         for key in ("id", "name", "description", "seed_text", "agent_config", "simulation_config"):
             assert key in data, f"Missing key: {key}"
 
     def test_existing_scenario_id_matches(self, client):
-        data = client.get("/api/v1/gtm/scenarios/outbound_campaign").get_json()
+        data = client.get(f"{PREFIX}/scenarios/outbound_campaign").get_json()
         assert data["id"] == "outbound_campaign"
 
     def test_nonexistent_scenario_returns_404(self, client):
-        resp = client.get("/api/v1/gtm/scenarios/does_not_exist")
+        resp = client.get(f"{PREFIX}/scenarios/does_not_exist")
         assert resp.status_code == 404
 
     def test_nonexistent_scenario_has_error(self, client):
-        data = client.get("/api/v1/gtm/scenarios/does_not_exist").get_json()
+        data = client.get(f"{PREFIX}/scenarios/does_not_exist").get_json()
         assert "error" in data
 
 
@@ -95,31 +99,31 @@ class TestGetSeedData:
     """Tests for the seed data endpoint."""
 
     def test_account_profiles_returns_200(self, client):
-        resp = client.get("/api/v1/gtm/seed-data/account_profiles")
+        resp = client.get(f"{PREFIX}/seed-data/account_profiles")
         assert resp.status_code == 200
 
     def test_account_profiles_is_json(self, client):
-        data = client.get("/api/v1/gtm/seed-data/account_profiles").get_json()
+        data = client.get(f"{PREFIX}/seed-data/account_profiles").get_json()
         assert data is not None
 
     def test_persona_templates_returns_200(self, client):
-        resp = client.get("/api/v1/gtm/seed-data/persona_templates")
+        resp = client.get(f"{PREFIX}/seed-data/persona_templates")
         assert resp.status_code == 200
 
     def test_signal_definitions_returns_200(self, client):
-        resp = client.get("/api/v1/gtm/seed-data/signal_definitions")
+        resp = client.get(f"{PREFIX}/seed-data/signal_definitions")
         assert resp.status_code == 200
 
     def test_email_templates_returns_200(self, client):
-        resp = client.get("/api/v1/gtm/seed-data/email_templates")
+        resp = client.get(f"{PREFIX}/seed-data/email_templates")
         assert resp.status_code == 200
 
     def test_nonexistent_type_returns_404(self, client):
-        resp = client.get("/api/v1/gtm/seed-data/nonexistent_type")
+        resp = client.get(f"{PREFIX}/seed-data/nonexistent_type")
         assert resp.status_code == 404
 
     def test_nonexistent_type_has_error(self, client):
-        data = client.get("/api/v1/gtm/seed-data/nonexistent_type").get_json()
+        data = client.get(f"{PREFIX}/seed-data/nonexistent_type").get_json()
         assert "error" in data
 
 
@@ -129,14 +133,14 @@ class TestGetScenarioSeedText:
     """Tests for the seed text extraction endpoint."""
 
     def test_existing_scenario_returns_seed_text(self, client):
-        resp = client.get("/api/v1/gtm/scenarios/outbound_campaign/seed-text")
+        resp = client.get(f"{PREFIX}/scenarios/outbound_campaign/seed-text")
         assert resp.status_code == 200
         data = resp.get_json()
         assert "seed_text" in data
         assert len(data["seed_text"]) > 0
 
     def test_nonexistent_scenario_returns_404(self, client):
-        resp = client.get("/api/v1/gtm/scenarios/nonexistent/seed-text")
+        resp = client.get(f"{PREFIX}/scenarios/nonexistent/seed-text")
         assert resp.status_code == 404
 
 
@@ -147,7 +151,7 @@ class TestSimulate:
 
     def test_missing_seed_text_returns_400(self, client):
         resp = client.post(
-            "/api/v1/gtm/simulate",
+            f"{PREFIX}/simulate",
             json={},
             content_type="application/json",
         )
@@ -158,7 +162,7 @@ class TestSimulate:
 
     def test_empty_seed_text_returns_400(self, client):
         resp = client.post(
-            "/api/v1/gtm/simulate",
+            f"{PREFIX}/simulate",
             json={"seed_text": "   "},
             content_type="application/json",
         )
@@ -171,7 +175,7 @@ class TestSimulate:
             mock_cfg.DEFAULT_CHUNK_SIZE = 500
             mock_cfg.DEFAULT_CHUNK_OVERLAP = 50
             resp = client.post(
-                "/api/v1/gtm/simulate",
+                f"{PREFIX}/simulate",
                 json={"seed_text": "Test scenario text for simulation"},
                 content_type="application/json",
             )
@@ -188,7 +192,7 @@ class TestSimulate:
         mock_pm.create_project.return_value = mock_project
 
         resp = client.post(
-            "/api/v1/gtm/simulate",
+            f"{PREFIX}/simulate",
             json={
                 "seed_text": "Run a GTM simulation for outbound campaign",
                 "agent_count": 200,
@@ -215,7 +219,7 @@ class TestSimulate:
         mock_pm.create_project.return_value = mock_project
 
         resp = client.post(
-            "/api/v1/gtm/simulate",
+            f"{PREFIX}/simulate",
             json={"seed_text": "Some seed text"},
             content_type="application/json",
         )
@@ -237,7 +241,7 @@ class TestSimulate:
         mock_pm.create_project.return_value = mock_project
 
         resp = client.post(
-            "/api/v1/gtm/simulate",
+            f"{PREFIX}/simulate",
             json={
                 "seed_text": "Seed text here",
                 "agent_count": 100,

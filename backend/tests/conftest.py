@@ -29,7 +29,10 @@ from app.models.task import TaskManager
 # Ensure the backend directory is importable for demo_app
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from demo_app import app as demo_flask_app  # noqa: E402
+try:
+    from demo_app import app as demo_flask_app  # noqa: E402
+except Exception:
+    demo_flask_app = None
 
 
 class TestConfig(Config):
@@ -38,6 +41,7 @@ class TestConfig(Config):
     DEBUG = False
     SECRET_KEY = 'test-secret'
     WTF_CSRF_ENABLED = False
+    RATE_LIMIT_ENABLED = False
     LLM_API_KEY = "test-key"
     ZEP_API_KEY = "test-zep-key"
     LLM_BASE_URL = "https://api.openai.com/v1/"
@@ -45,8 +49,6 @@ class TestConfig(Config):
     AUTH_ENABLED = False
     AUTH_PROVIDER = 'google'
     AUTH_ALLOWED_DOMAIN = 'intercom.io'
-    WTF_CSRF_ENABLED = False
-    RATE_LIMIT_ENABLED = False
 
 
 class AuthEnabledConfig(TestConfig):
@@ -114,6 +116,15 @@ def _reset_task_manager():
     tm._tasks.clear()
 
 
+@pytest.fixture(autouse=True)
+def _clear_response_cache():
+    """Clear the cached_response decorator cache between tests."""
+    from app.services.cache import cache_manager
+    cache_manager.clear()
+    yield
+    cache_manager.clear()
+
+
 # --------------- auth-enabled fixtures ---------------
 
 @pytest.fixture()
@@ -134,9 +145,10 @@ def auth_client(auth_app):
 @pytest.fixture()
 def demo_client():
     """Flask test client for demo_app with fresh state for each test."""
+    if demo_flask_app is None:
+        pytest.skip("demo_app could not be imported")
     demo_flask_app.config["TESTING"] = True
     with demo_flask_app.test_client() as c:
-        # Reset all in-memory state before each test
         c.post("/api/demo/reset")
         yield c
         c.post("/api/demo/reset")

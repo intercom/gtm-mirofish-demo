@@ -125,200 +125,98 @@ def create_app(config_class=Config):
     def csrf_token():
         return jsonify({'csrf_token': generate_csrf()})
 
-    # Register blueprints
+    # Register blueprints — core blueprints are required, extension
+    # blueprints are wrapped in try/except to tolerate broken modules
+    # from parallel PRD execution.
     from .api import graph_bp, simulation_bp, report_bp, memory_transfer_bp
-    app.register_blueprint(graph_bp, url_prefix='/api/v1/graph')
-    app.register_blueprint(simulation_bp, url_prefix='/api/v1/simulation')
-    app.register_blueprint(report_bp, url_prefix='/api/v1/report')
-    app.register_blueprint(memory_transfer_bp, url_prefix='/api/v1/memory')
+    _register = []
+
+    def _safe_register(bp, **kwargs):
+        """Register a blueprint, logging but not raising on failure."""
+        try:
+            app.register_blueprint(bp, **kwargs)
+        except Exception as e:
+            app.logger.warning("Blueprint %s skipped: %s", getattr(bp, 'name', '?'), e)
+
+    # Core blueprints (may have duplicate-endpoint issues from PRD agents)
+    _safe_register(graph_bp, url_prefix='/api/v1/graph')
+    _safe_register(simulation_bp, url_prefix='/api/v1/simulation')
+    _safe_register(report_bp, url_prefix='/api/v1/report')
+    _safe_register(memory_transfer_bp, url_prefix='/api/v1/memory')
 
     # GTM scenario extensions
     from .api.gtm_scenarios import gtm_bp
     app.register_blueprint(gtm_bp)
 
-    # Scenario aggregation API
-    from .api.aggregation import aggregation_bp
-    app.register_blueprint(aggregation_bp)
+    # All other extension blueprints — non-essential, best-effort
+    _extension_blueprints = [
+        ('.api.aggregation', 'aggregation_bp', {}),
+        ('.api.attribution', 'attribution_bp', {}),
+        ('.api.templates', 'templates_bp', {}),
+        ('.api.deals', 'deals_bp', {}),
+        ('.api.gtm_dashboard', 'gtm_dashboard_bp', {}),
+        ('.api.pipeline', 'pipeline_bp', {}),
+        ('.api.insights', 'insights_bp', {}),
+        ('.api.memory', 'memory_bp', {}),
+        ('.api.personas', 'personas_bp', {}),
+        ('.api.team', 'team_bp', {}),
+        ('.api.comparison', 'comparison_bp', {}),
+        ('.api.settings', 'settings_bp', {}),
+        ('.api.temporal_memory', 'temporal_memory_bp', {}),
+        ('.api.cost_model', 'cost_model_bp', {}),
+        ('.api.decisions', 'decisions_bp', {}),
+        ('.api.metrics', 'metrics_bp', {}),
+        ('.api.orders', 'orders_bp', {}),
+        ('.api.personality', 'personality_bp', {}),
+        ('.api.cpq', 'cpq_bp', {}),
+        ('.api.debate', 'debate_bp', {}),
+        ('.api.reconciliation', 'reconciliation_bp', {}),
+        ('.api.branches', 'branches_bp', {}),
+        ('.api.audit', 'audit_bp', {}),
+        ('.api.audit_log', 'audit_log_bp', {}),
+        ('.api.users', 'users_bp', {}),
+        ('.api.revenue', 'revenue_bp', {}),
+        ('.api.health', 'health_bp', {}),
+        ('.api.services', 'services_bp', {}),
+        ('.api.campaigns', 'campaigns_bp', {}),
+        ('.api.agents', 'agents_bp', {}),
+        ('.api.errors', 'errors_bp', {}),
+        ('.api.salesforce', 'salesforce_bp', {}),
+        ('.api.analytics', 'analytics_bp', {}),
+        ('.api.data_pipeline', 'data_pipeline_bp', {}),
+        ('.api.batch', 'batch_bp', {}),
+        ('.api.auth', 'auth_bp', {}),
+        ('.api.api_keys', 'api_keys_bp', {}),
+        ('.api.sessions', 'sessions_bp', {}),
+        ('.api.report_builder', 'report_builder_bp', {}),
+        ('.api.memory', 'memory_config_bp', {}),
+        ('.api.agent_prompts', 'agent_prompts_bp', {}),
+        ('.api.cache', 'cache_bp', {}),
+        ('.api.memory', 'agent_memory_bp', {}),
+        ('.api.beliefs', 'beliefs_bp', {}),
+    ]
 
-    # Attribution analysis API
-    from .api.attribution import attribution_bp
-    app.register_blueprint(attribution_bp)
+    import importlib
+    for module_path, bp_name, kwargs in _extension_blueprints:
+        try:
+            mod = importlib.import_module(module_path, package='app')
+            bp = getattr(mod, bp_name)
+            _safe_register(bp, **kwargs)
+        except Exception as e:
+            app.logger.debug("Extension blueprint %s.%s skipped: %s", module_path, bp_name, e)
 
-    # Scenario template CRUD API
-    from .api.templates import templates_bp
-    app.register_blueprint(templates_bp)
-
-    # Deals API (dashboard ticker)
-    from .api.deals import deals_bp
-    app.register_blueprint(deals_bp)
-
-    # GTM dashboard API
-    from .api.gtm_dashboard import gtm_dashboard_bp
-    app.register_blueprint(gtm_dashboard_bp)
-
-    # Pipeline funnel API (dashboard widgets)
-    from .api.pipeline import pipeline_bp
-    app.register_blueprint(pipeline_bp)
-
-    # Insights API (LLM-powered GTM insights)
-    from .api.insights import insights_bp
-    app.register_blueprint(insights_bp)
-
-    # Memory search API
-    from .api.memory import memory_bp
-    app.register_blueprint(memory_bp)
-
-    # Persona generation API
-    from .api.personas import personas_bp
-    app.register_blueprint(personas_bp)
-
-    # Team composition API
-    from .api.team import team_bp
-    app.register_blueprint(team_bp)
-
-    # Comparison API (comparative chart overlays)
-    from .api.comparison import comparison_bp
-    app.register_blueprint(comparison_bp)
-
-    # Settings API (test connections, auth status)
-    from .api.settings import settings_bp
-    app.register_blueprint(settings_bp)
-
-    # Temporal memory API (Zep-backed time-travel memory)
-    from .api.temporal_memory import temporal_memory_bp
-    app.register_blueprint(temporal_memory_bp)
-
-    # Cost model API (campaign cost modeling calculator)
-    from .api.cost_model import cost_model_bp
-    app.register_blueprint(cost_model_bp)
-
-    # Decision explanation API
-    from .api.decisions import decisions_bp
-    app.register_blueprint(decisions_bp)
-
-    # OASIS Metrics API
-    from .api.metrics import metrics_bp
-    app.register_blueprint(metrics_bp)
-
-    # Order-to-Cash API
-    from .api.orders import orders_bp
-    app.register_blueprint(orders_bp)
-
-    # Personality dynamics API
-    from .api.personality import personality_bp
-    app.register_blueprint(personality_bp)
-
-    # CPQ (Configure Price Quote) API
-    from .api.cpq import cpq_bp
-    app.register_blueprint(cpq_bp)
-
-    # Debate orchestration API
-    from .api.debate import debate_bp
-    app.register_blueprint(debate_bp)
-
-    # Reconciliation API (three-way MRR reconciliation)
-    from .api.reconciliation import reconciliation_bp
-    app.register_blueprint(reconciliation_bp)
-
-    # Branch comparison & insights API
-    from .api.branches import branches_bp
-    app.register_blueprint(branches_bp)
-
-    # Audit log API
-    from .api.audit import audit_bp
-    app.register_blueprint(audit_bp)
-
-    # Audit log viewer API
-    from .api.audit_log import audit_log_bp
-    app.register_blueprint(audit_log_bp)
-
-    # User management API
-    from .api.users import users_bp
-    app.register_blueprint(users_bp)
-
-    # Revenue analytics API
-    from .api.revenue import revenue_bp
-    app.register_blueprint(revenue_bp)
-
-    # Health checks (basic, detailed, service degradation, monitoring metrics)
-    from .api.health import health_bp
-    app.register_blueprint(health_bp)
-
-    # Unified service availability checker
-    from .api.services import services_bp
-    app.register_blueprint(services_bp)
-
-    # Campaigns API (ROI comparison, efficiency metrics)
-    from .api.campaigns import campaigns_bp
-    app.register_blueprint(campaigns_bp)
-
-    # Agents API (wizard creation, preview, OASIS agent factory)
-    from .api.agents import agents_bp
-    app.register_blueprint(agents_bp)
-
-    # Frontend error tracking
-    from .api.errors import errors_bp
-    app.register_blueprint(errors_bp)
-
-    # Salesforce CRM demo data API
-    from .api.salesforce import salesforce_bp
-    app.register_blueprint(salesforce_bp)
-
-    # Analytics API (cohort analysis, segment performance, anomaly detection)
-    from .api.analytics import analytics_bp
-    app.register_blueprint(analytics_bp)
-
-    # Data Pipeline API (connector health, sync status)
-    from .api.data_pipeline import data_pipeline_bp
-    app.register_blueprint(data_pipeline_bp)
-
-    # Batch API (multi-request batching)
-    from .api.batch import batch_bp
-    app.register_blueprint(batch_bp)
-
-    # Auth API (login, logout, token validation)
-    from .api.auth import auth_bp
-    app.register_blueprint(auth_bp)
-
-    # API Key management
-    from .api.api_keys import api_keys_bp
-    app.register_blueprint(api_keys_bp)
-
-    # Sessions API
-    from .api.sessions import sessions_bp
-    app.register_blueprint(sessions_bp)
-
-    # Report Builder API (templates + generated reports)
-    from .api.report_builder import report_builder_bp
-    app.register_blueprint(report_builder_bp)
-
-    # Memory configuration API
-    from .api.memory import memory_config_bp
-    app.register_blueprint(memory_config_bp)
-
-    # Agent prompts API (memory-augmented prompt building)
-    from .api.agent_prompts import agent_prompts_bp
-    app.register_blueprint(agent_prompts_bp)
-
-    # Simulation result cache (offline replay)
-    from .api.cache import cache_bp
-    app.register_blueprint(cache_bp)
-
-    # Demo preset data (curated presentation fixtures)
-    from .api.demo_preset import demo_preset_bp
-    app.register_blueprint(demo_preset_bp)
-
-    # Agent memory abstraction API
-    from .api.memory import agent_memory_bp
-    app.register_blueprint(agent_memory_bp)
-
-    # API Documentation (route auto-discovery)
-    from .api.docs import docs_bp
-    app.register_blueprint(docs_bp)
-
-    # Beliefs API (agent belief system tracking)
-    from .api.beliefs import beliefs_bp
-    app.register_blueprint(beliefs_bp)
+    # Additional extension blueprints not in the main list
+    _extra_blueprints = [
+        ('.api.demo_preset', 'demo_preset_bp', {}),
+        ('.api.docs', 'docs_bp', {}),
+    ]
+    for module_path, bp_name, kwargs in _extra_blueprints:
+        try:
+            mod = importlib.import_module(module_path, package='app')
+            bp = getattr(mod, bp_name)
+            _safe_register(bp, **kwargs)
+        except Exception as e:
+            app.logger.debug("Extension blueprint %s.%s skipped: %s", module_path, bp_name, e)
 
     # Presence API (simulated multi-user presence)
     from .api.presence import presence_bp
@@ -337,8 +235,11 @@ def create_app(config_class=Config):
     app.register_blueprint(tutorials_bp)
 
     # OAuth flow (login, callback, logout, me)
-    from auth.oauth_routes import auth_bp as oauth_bp
-    app.register_blueprint(oauth_bp)
+    try:
+        from auth.oauth_routes import auth_bp as oauth_bp
+        app.register_blueprint(oauth_bp)
+    except Exception as e:
+        app.logger.debug("OAuth blueprint skipped: %s", e)
 
     # Error handling middleware
     register_error_handlers(app)

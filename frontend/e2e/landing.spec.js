@@ -1,8 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { suppressViteOverlay, dismissTour } from './helpers.js'
 
 test.describe('Landing Page', () => {
   test.beforeEach(async ({ page }) => {
+    await suppressViteOverlay(page)
     await page.goto('/')
+    await dismissTour(page)
   })
 
   test.describe('Hero Section', () => {

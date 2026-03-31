@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { setupPage } from './helpers.js'
 
 test.describe('Navigation', () => {
   test.describe('Navbar Structure', () => {

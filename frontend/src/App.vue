@@ -20,6 +20,7 @@ import TutorialSystem from './components/tutorial/TutorialSystem.vue'
 import ScenarioWalkthrough from './components/tutorial/ScenarioWalkthrough.vue'
 import ShortcutQuickRef from './components/common/ShortcutQuickRef.vue'
 import { useTheme } from './composables/useTheme'
+import { useRTL } from './composables/useRTL'
 import { useKeyboardShortcuts } from './composables/useKeyboardShortcuts'
 import { useIntercom } from './composables/useIntercom'
 import { useDemoMode } from './composables/useDemoMode'
@@ -34,6 +35,7 @@ import { useTutorialStore } from './stores/tutorial'
 const route = useRoute()
 const router = useRouter()
 const { setRouteDefault } = useTheme()
+useRTL()
 const intercom = useIntercom()
 const { isDemoMode } = useDemoMode()
 useCommandPalette()

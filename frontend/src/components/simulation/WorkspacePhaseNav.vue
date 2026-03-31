@@ -78,6 +78,11 @@ const tabs = computed(() => {
       label: 'Coalitions',
       metric: null,
     },
+    {
+      key: 'collaboration',
+      label: 'Collaboration',
+      metric: simStatus === 'running' ? 'Live' : null,
+    },
   ]
 })
 </script>

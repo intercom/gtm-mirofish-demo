@@ -312,6 +312,10 @@ def create_app(config_class=Config):
     from .api.beliefs import beliefs_bp
     app.register_blueprint(beliefs_bp)
 
+    # Collaboration API (real-time agent collaboration network)
+    from .api.collaboration import collaboration_bp
+    app.register_blueprint(collaboration_bp)
+
     # OAuth flow (login, callback, logout, me)
     from auth.oauth_routes import auth_bp as oauth_bp
     app.register_blueprint(oauth_bp)

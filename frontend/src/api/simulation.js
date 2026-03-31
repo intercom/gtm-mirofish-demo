@@ -166,6 +166,10 @@ export const simulationApi = {
   getConflicts: (simulationId) =>
     client.get(`/simulation/${simulationId}/conflicts`),
 
+  // --- Collaboration network ---
+  getCollaboration: (simulationId) =>
+    client.get(`/simulation/${simulationId}/collaboration`),
+
   // --- SSE stream ---
   getProgressStreamUrl: (simulationId, interval = 2) =>
     `${API_BASE}/simulation/${simulationId}/progress/stream?interval=${interval}`,

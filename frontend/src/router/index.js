@@ -200,6 +200,11 @@ export const routes = [
     name: 'benchmark',
     component: () => import('../views/BenchmarkView.vue'),
   },
+  {
+    path: '/tutorials',
+    name: 'tutorials',
+    component: () => import('../views/TutorialHubView.vue'),
+  },
 ]
 
 export function createAppRouter() {

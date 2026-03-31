@@ -332,6 +332,10 @@ def create_app(config_class=Config):
     from .api.benchmark import benchmark_bp
     app.register_blueprint(benchmark_bp)
 
+    # Interactive tutorials API (catalog, steps, progress)
+    from .api.tutorials import tutorials_bp
+    app.register_blueprint(tutorials_bp)
+
     # OAuth flow (login, callback, logout, me)
     from auth.oauth_routes import auth_bp as oauth_bp
     app.register_blueprint(oauth_bp)

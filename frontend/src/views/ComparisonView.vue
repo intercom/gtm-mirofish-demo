@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useSimulationStore } from '../stores/simulation'
 import { generateMockComparison, comparisonApi } from '../api/comparison'
@@ -10,6 +11,7 @@ import ChartOverlay from '../components/comparison/ChartOverlay.vue'
 import ComparisonTimeline from '../components/comparison/ComparisonTimeline.vue'
 import AbScenarioBuilder from '../components/comparison/AbScenarioBuilder.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const store = useSimulationStore()
@@ -79,8 +81,8 @@ watch([selectedIdA, selectedIdB], () => {
     <!-- Page header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
       <div>
-        <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">Comparison</h1>
-        <p class="text-sm text-[var(--color-text-muted)] mt-1">Compare two simulations side by side</p>
+        <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">{{ t('comparison.title') }}</h1>
+        <p class="text-sm text-[var(--color-text-muted)] mt-1">{{ t('comparison.subtitle') }}</p>
       </div>
       <router-link
         to="/simulations"
@@ -89,7 +91,7 @@ watch([selectedIdA, selectedIdB], () => {
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
         </svg>
-        Back to Simulations
+        {{ t('comparison.backToSimulations') }}
       </router-link>
     </div>
 
@@ -98,13 +100,13 @@ watch([selectedIdA, selectedIdB], () => {
       <div class="flex-1 min-w-0">
         <label class="flex items-center gap-1.5 text-xs font-medium mb-1.5">
           <span class="w-2 h-2 rounded-full bg-[#2068FF]" />
-          <span class="text-[#2068FF]">Simulation A</span>
+          <span class="text-[#2068FF]">{{ t('comparison.simulationA') }}</span>
         </label>
         <select
           v-model="selectedIdA"
           class="w-full text-sm border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-2 focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
         >
-          <option value="" disabled>Select simulation...</option>
+          <option value="" disabled>{{ t('comparison.selectSimulation') }}</option>
           <option
             v-for="run in completedRuns"
             :key="run.id"
@@ -119,7 +121,7 @@ watch([selectedIdA, selectedIdB], () => {
       <button
         @click="swapSimulations"
         class="p-2 rounded-lg border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[#2068FF] hover:border-[#2068FF]/50 transition-colors shrink-0"
-        title="Swap simulations"
+        :title="t('comparison.swapSimulations')"
       >
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
@@ -129,13 +131,13 @@ watch([selectedIdA, selectedIdB], () => {
       <div class="flex-1 min-w-0">
         <label class="flex items-center gap-1.5 text-xs font-medium mb-1.5">
           <span class="w-2 h-2 rounded-full bg-[#ff5600]" />
-          <span class="text-[#ff5600]">Simulation B</span>
+          <span class="text-[#ff5600]">{{ t('comparison.simulationB') }}</span>
         </label>
         <select
           v-model="selectedIdB"
           class="w-full text-sm border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text)] px-3 py-2 focus:ring-2 focus:ring-[#2068FF] focus:border-transparent"
         >
-          <option value="" disabled>Select simulation...</option>
+          <option value="" disabled>{{ t('comparison.selectSimulation') }}</option>
           <option
             v-for="run in completedRuns"
             :key="run.id"
@@ -155,15 +157,15 @@ watch([selectedIdA, selectedIdB], () => {
           <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
         </svg>
       </div>
-      <h2 class="text-base font-semibold text-[var(--color-text)] mb-2">Need at least two simulations</h2>
+      <h2 class="text-base font-semibold text-[var(--color-text)] mb-2">{{ t('comparison.needTwoSimulations') }}</h2>
       <p class="text-sm text-[var(--color-text-secondary)] mb-6 max-w-sm mx-auto">
-        Run at least two simulations to compare their outcomes side by side.
+        {{ t('comparison.needTwoSimulationsHint') }}
       </p>
       <router-link
         to="/"
         class="inline-flex items-center gap-2 bg-[#2068FF] hover:bg-[#1a5ae0] text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors no-underline"
       >
-        Run a simulation
+        {{ t('comparison.runSimulation') }}
       </router-link>
     </div>
 
@@ -175,7 +177,7 @@ watch([selectedIdA, selectedIdB], () => {
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          Comparing simulations...
+          {{ t('comparison.comparing') }}
         </div>
       </div>
     </div>
@@ -239,7 +241,7 @@ watch([selectedIdA, selectedIdB], () => {
         </svg>
       </div>
       <p class="text-sm text-[var(--color-text-secondary)]">
-        Select two different simulations above to compare their outcomes.
+        {{ t('comparison.selectTwoPrompt') }}
       </p>
     </div>
   </div>

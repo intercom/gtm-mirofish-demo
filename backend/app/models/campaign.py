@@ -4,7 +4,37 @@ Dataclasses representing campaigns, cost breakdowns, and multi-touch attribution
 """
 
 from dataclasses import dataclass, field, asdict
+from enum import StrEnum
 from typing import List, Optional
+
+
+class CampaignType(StrEnum):
+    PAID = 'paid'
+    ORGANIC = 'organic'
+    EVENT = 'event'
+    EMAIL = 'email'
+    PARTNER = 'partner'
+
+
+class CampaignStatus(StrEnum):
+    ACTIVE = 'active'
+    COMPLETED = 'completed'
+    PLANNED = 'planned'
+
+
+class CostType(StrEnum):
+    AD_SPEND = 'ad_spend'
+    TOOLS = 'tools'
+    CONTENT = 'content'
+    EVENTS = 'events'
+    LABOR = 'labor'
+
+
+class AttributionModel(StrEnum):
+    FIRST_TOUCH = 'first_touch'
+    LAST_TOUCH = 'last_touch'
+    LINEAR = 'linear'
+    TIME_DECAY = 'time_decay'
 
 
 @dataclass

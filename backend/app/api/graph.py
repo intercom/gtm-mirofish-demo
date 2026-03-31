@@ -1052,7 +1052,7 @@ def search_knowledge_graph():
 
 
 @graph_bp.route('/communities', methods=['GET'])
-def get_communities():
+def list_communities():
     """
     Detect communities/clusters in the knowledge graph.
     Groups entities by type label and detects connected components.
@@ -1469,7 +1469,7 @@ def get_graph_entities(graph_id: str):
 # ============== Knowledge Graph: Search ==============
 
 @graph_bp.route('/search/<graph_id>', methods=['GET'])
-def search_graph(graph_id: str):
+def search_graph_by_id(graph_id: str):
     """
     Search entities and facts in the knowledge graph.
 

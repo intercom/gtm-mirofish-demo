@@ -233,3 +233,47 @@ def get_campaigns() -> list[Campaign]:
     if _campaigns_cache is None:
         _campaigns_cache = [_build_campaign(d) for d in _CAMPAIGN_DEFS]
     return _campaigns_cache
+
+
+# Aliases expected by the barrel file (services/__init__.py)
+generate_campaigns = get_campaigns
+
+
+def get_campaign_stats() -> dict:
+    """Aggregate stats across all campaigns."""
+    campaigns = get_campaigns()
+    total_spend = sum(c.spend_to_date for c in campaigns)
+    total_revenue = sum(c.closed_won_value for c in campaigns)
+    return {
+        'total_spend': total_spend,
+        'total_revenue': total_revenue,
+        'overall_roi': round((total_revenue - total_spend) / total_spend * 100, 2) if total_spend else 0,
+        'campaign_count': len(campaigns),
+    }
+
+
+def get_roi_comparison() -> list[dict]:
+    """All campaigns ranked by ROI percentage (descending)."""
+    return sorted(
+        [{'id': c.id, 'name': c.name, 'roi_percentage': c.roi_percentage} for c in get_campaigns()],
+        key=lambda x: x['roi_percentage'],
+        reverse=True,
+    )
+
+
+def get_budget_efficiency() -> list[dict]:
+    """Spend efficiency (CPL/CPA) grouped by channel."""
+    by_channel: dict[str, dict] = {}
+    for c in get_campaigns():
+        b = by_channel.setdefault(c.channel, {'spend': 0, 'leads': 0, 'opps': 0})
+        b['spend'] += c.spend_to_date
+        b['leads'] += c.leads_generated
+        b['opps'] += c.opportunities
+    return [
+        {
+            'channel': ch,
+            'cpl': round(v['spend'] / v['leads'], 2) if v['leads'] else 0,
+            'cpa': round(v['spend'] / v['opps'], 2) if v['opps'] else 0,
+        }
+        for ch, v in by_channel.items()
+    ]

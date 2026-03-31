@@ -2,23 +2,23 @@
 Integration tests for auth endpoints and middleware.
 
 Tests the require_auth decorator, validate_email_domain helper,
-and the /api/settings/auth-status endpoint through Flask's test client.
+and the /api/v1/settings/auth-status endpoint through Flask's test client.
 """
 
 import pytest
 from flask import Blueprint, jsonify, session
 
-from auth.oauth_middleware import require_auth, validate_email_domain
+from auth.middleware import auth_required, _validate_email_domain as validate_email_domain
 
 
 # ---------------------------------------------------------------------------
-# Test-only blueprint: a protected endpoint to exercise @require_auth
+# Test-only blueprint: a protected endpoint to exercise @auth_required
 # ---------------------------------------------------------------------------
 _test_bp = Blueprint('test_auth', __name__)
 
 
 @_test_bp.route('/api/test/protected')
-@require_auth
+@auth_required
 def protected_endpoint():
     return jsonify({'message': 'ok'})
 
@@ -72,13 +72,14 @@ class TestRequireAuthEnabled:
         )
         assert resp.status_code == 401
 
-    def test_browser_request_redirects_to_login(self, auth_client_with_protected):
+    def test_browser_request_returns_401(self, auth_client_with_protected):
+        """auth_required returns 401 JSON for all unauthenticated requests."""
         resp = auth_client_with_protected.get(
             '/api/test/protected',
             headers={'Accept': 'text/html'},
         )
-        assert resp.status_code == 302
-        assert '/login' in resp.headers['Location']
+        assert resp.status_code == 401
+        assert resp.get_json()['error'] == 'Authentication required'
 
     def test_authenticated_session_passes(self, auth_client_with_protected):
         with auth_client_with_protected.session_transaction() as sess:
@@ -112,7 +113,9 @@ class TestValidateEmailDomain:
 
     def test_none_email(self, app):
         with app.app_context():
-            assert validate_email_domain(None) is False
+            # _validate_email_domain expects a string; None is handled by callers
+            with pytest.raises(TypeError):
+                validate_email_domain(None)
 
     def test_no_at_sign(self, app):
         with app.app_context():
@@ -124,13 +127,13 @@ class TestValidateEmailDomain:
 
 
 # ===================================================================
-# /api/settings/auth-status endpoint
+# /api/v1/settings/auth-status endpoint
 # ===================================================================
 
 class TestAuthStatusEndpoint:
 
     def test_auth_disabled_returns_minimal(self, client):
-        resp = client.get('/api/settings/auth-status')
+        resp = client.get('/api/v1/settings/auth-status')
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['authEnabled'] is False
@@ -139,7 +142,7 @@ class TestAuthStatusEndpoint:
         assert data['user'] is None
 
     def test_auth_enabled_no_session(self, auth_client):
-        resp = auth_client.get('/api/settings/auth-status')
+        resp = auth_client.get('/api/v1/settings/auth-status')
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['authEnabled'] is True
@@ -154,7 +157,7 @@ class TestAuthStatusEndpoint:
                 'name': 'Test User',
                 'picture': 'https://example.com/avatar.png',
             }
-        resp = auth_client.get('/api/settings/auth-status')
+        resp = auth_client.get('/api/v1/settings/auth-status')
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['authEnabled'] is True
@@ -167,7 +170,7 @@ class TestAuthStatusEndpoint:
         """Session user missing optional fields should still work."""
         with auth_client.session_transaction() as sess:
             sess['user'] = {'email': 'dev@intercom.io'}
-        resp = auth_client.get('/api/settings/auth-status')
+        resp = auth_client.get('/api/v1/settings/auth-status')
         data = resp.get_json()
         assert data['user']['email'] == 'dev@intercom.io'
         assert data['user']['name'] is None

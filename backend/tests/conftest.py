@@ -37,6 +37,7 @@ class TestConfig(Config):
     TESTING = True
     DEBUG = False
     SECRET_KEY = 'test-secret'
+    WTF_CSRF_ENABLED = False
     LLM_API_KEY = "test-key"
     ZEP_API_KEY = "test-zep-key"
     LLM_BASE_URL = "https://api.openai.com/v1/"

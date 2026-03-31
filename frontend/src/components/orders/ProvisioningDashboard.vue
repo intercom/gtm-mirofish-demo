@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import * as d3 from 'd3'
-import Badge from '../common/Badge.vue'
+import Badge from '../common/AppBadge.vue'
 import { useLocale } from '../../composables/useLocale'
 
 const { formatCurrency: fmtCurrency, formatDate: fmtDate } = useLocale()

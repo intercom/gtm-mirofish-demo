@@ -23,7 +23,7 @@ FUNNEL_STAGES = PIPELINE_STAGES = [
 FUNNEL_STAGES = PIPELINE_STAGES
 
 
-def default_funnel_stages() -> list:
+def default_funnel_stages() -> List[Dict[str, Any]]:
     """Return a fresh copy of the default funnel stage definitions."""
     return [dict(s) for s in PIPELINE_STAGES]
 

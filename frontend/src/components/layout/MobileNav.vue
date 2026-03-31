@@ -75,8 +75,9 @@ function isActive(item) {
   align-items: center;
   justify-content: center;
   flex: 1;
-  gap: 2px;
-  padding: 8px 0 6px;
+  gap: 3px;
+  min-height: 44px;
+  padding: 10px 0 8px;
   color: rgba(255, 255, 255, 0.45);
   text-decoration: none;
   transition: color var(--transition-fast);

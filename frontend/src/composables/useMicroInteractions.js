@@ -2,10 +2,11 @@ import { onMounted, onUnmounted } from 'vue'
 
 /**
  * Adds a Material-style ripple effect to a template ref element.
+ * Uses pointerdown for instant feedback on touch devices (no click delay).
  * The element must have `position: relative; overflow: hidden` (or use .ripple-container class).
  */
 export function useRipple(elRef) {
-  function handleClick(e) {
+  function handlePointerDown(e) {
     const el = elRef.value?.$el || elRef.value
     if (!el || el.disabled) return
 
@@ -26,11 +27,11 @@ export function useRipple(elRef) {
 
   onMounted(() => {
     const el = elRef.value?.$el || elRef.value
-    el?.addEventListener('click', handleClick)
+    el?.addEventListener('pointerdown', handlePointerDown)
   })
 
   onUnmounted(() => {
     const el = elRef.value?.$el || elRef.value
-    el?.removeEventListener('click', handleClick)
+    el?.removeEventListener('pointerdown', handlePointerDown)
   })
 }

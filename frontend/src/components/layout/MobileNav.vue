@@ -7,6 +7,7 @@ const simulationStore = useSimulationStore()
 
 const navItems = [
   { to: '/', label: 'Home', icon: 'home', exact: true },
+  { to: '/m/dashboard', label: 'Dashboard', icon: 'dashboard', exact: false },
   { to: '/simulations', label: 'Simulations', icon: 'simulations', exact: false },
   { to: '/settings', label: 'Settings', icon: 'settings', exact: false },
 ]
@@ -30,6 +31,14 @@ function isActive(item) {
       <svg v-if="item.icon === 'home'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z" />
         <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+
+      <!-- Dashboard icon -->
+      <svg v-else-if="item.icon === 'dashboard'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="9" rx="1" />
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="12" width="7" height="9" rx="1" />
+        <rect x="3" y="16" width="7" height="5" rx="1" />
       </svg>
 
       <!-- Simulations icon -->

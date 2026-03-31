@@ -1,80 +1,43 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
+import { usePresenceStore } from '../../stores/presence'
+import { usePresence } from '../../composables/usePresence'
 
-const VIEWERS = [
-  { name: 'Alice Chen', initials: 'AC', color: '#2068FF' },
-  { name: 'Marcus Rodriguez', initials: 'MR', color: '#ff5600' },
-  { name: 'Sarah Kim', initials: 'SK', color: '#AA00FF' },
-]
+const store = usePresenceStore()
+usePresence({ pollInterval: 4000, cursorInterval: 2000 })
 
-const PAGES = [
-  'Dashboard', 'Scenarios', 'Workspace', 'Report', 'Chat', 'Settings',
-]
-
-const activeViewers = ref([])
-const viewerPages = ref({})
 const hoveredViewer = ref(null)
-let changeTimeout = null
 
-function randomPage() {
-  return PAGES[Math.floor(Math.random() * PAGES.length)]
+const STATUS_ICONS = {
+  active: '●',
+  viewing: '◉',
+  editing: '✎',
+  idle: '○',
 }
 
-function initViewers() {
-  const count = 2 + Math.floor(Math.random() * 2)
-  const shuffled = [...VIEWERS].sort(() => Math.random() - 0.5)
-  activeViewers.value = shuffled.slice(0, count)
-  const pages = {}
-  for (const v of activeViewers.value) {
-    pages[v.name] = randomPage()
-  }
-  viewerPages.value = pages
-}
-
-function changeRandomViewerPage() {
-  const viewers = activeViewers.value
-  if (!viewers.length) return
-  const viewer = viewers[Math.floor(Math.random() * viewers.length)]
-  const currentPage = viewerPages.value[viewer.name]
-  let newPage = randomPage()
-  while (newPage === currentPage && PAGES.length > 1) {
-    newPage = randomPage()
-  }
-  viewerPages.value = { ...viewerPages.value, [viewer.name]: newPage }
-}
-
-function scheduleChange() {
-  changeTimeout = setTimeout(() => {
-    changeRandomViewerPage()
-    scheduleChange()
-  }, 5000 + Math.random() * 7000)
-}
-
-onMounted(() => {
-  initViewers()
-  scheduleChange()
-})
-
-onUnmounted(() => {
-  clearTimeout(changeTimeout)
-})
+const viewers = computed(() => store.users)
 </script>
 
 <template>
   <div class="hidden sm:flex items-center">
     <div
-      v-for="(viewer, i) in activeViewers"
-      :key="viewer.name"
+      v-for="(viewer, i) in viewers"
+      :key="viewer.id"
       class="relative"
       :class="{ '-ml-1.5': i > 0 }"
-      @mouseenter="hoveredViewer = viewer.name"
+      @mouseenter="hoveredViewer = viewer.id"
       @mouseleave="hoveredViewer = null"
     >
       <div
         class="presence-avatar"
-        :style="{ backgroundColor: viewer.color, zIndex: activeViewers.length - i }"
+        :style="{ backgroundColor: viewer.color, zIndex: viewers.length - i }"
+        :class="{ 'ring-2 ring-emerald-400': viewer.status === 'editing' }"
       >
         {{ viewer.initials }}
+        <span
+          v-if="viewer.is_typing"
+          class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border border-[#050505] animate-pulse"
+        />
       </div>
 
       <Transition
@@ -86,18 +49,33 @@ onUnmounted(() => {
         leave-to-class="opacity-0 translate-y-1"
       >
         <div
-          v-if="hoveredViewer === viewer.name"
-          class="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[#050505] text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50 pointer-events-none border border-white/10"
+          v-if="hoveredViewer === viewer.id"
+          class="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-[#050505] text-white text-xs rounded-lg shadow-lg whitespace-nowrap z-50 pointer-events-none border border-white/10"
         >
-          <span class="font-medium">{{ viewer.name }}</span>
-          <span class="text-white/50"> is viewing </span>
-          <span class="text-[#2068FF]">{{ viewerPages[viewer.name] }}</span>
+          <div class="flex items-center gap-1.5 mb-1">
+            <span class="font-medium">{{ viewer.name }}</span>
+            <span class="text-white/30">{{ STATUS_ICONS[viewer.status] || '●' }}</span>
+          </div>
+          <div class="text-white/40 text-[10px]">{{ viewer.role }}</div>
+          <div class="flex items-center gap-1 mt-1">
+            <span class="text-white/50">{{ viewer.activity }}</span>
+            <span class="text-[#2068FF]">{{ viewer.current_page }}</span>
+          </div>
           <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#050505] border-l border-t border-white/10 rotate-45" />
         </div>
       </Transition>
     </div>
 
-    <span class="w-2 h-2 rounded-full bg-emerald-500 ml-1.5 animate-pulse" />
+    <span
+      v-if="store.totalOnline > 0"
+      class="w-2 h-2 rounded-full bg-emerald-500 ml-1.5 animate-pulse"
+    />
+    <span
+      v-if="store.totalOnline > 0"
+      class="text-[10px] text-white/40 ml-1 tabular-nums"
+    >
+      {{ store.totalOnline }}
+    </span>
   </div>
 </template>
 

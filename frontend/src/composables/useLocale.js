@@ -1,11 +1,19 @@
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLocaleStore } from '../stores/locale'
 
 export function useLocale() {
   const store = useLocaleStore()
-  const { t } = useI18n()
+  const { t, locale: i18nLocale } = useI18n()
   const locale = computed(() => store.locale)
+
+  // Keep vue-i18n translation locale in sync with the BCP 47 formatting locale
+  watch(locale, (bcp47) => {
+    const lang = bcp47.split('-')[0]
+    if (i18nLocale.value !== lang) {
+      i18nLocale.value = lang
+    }
+  }, { immediate: true })
 
   function setLocale(code) {
     store.setLocale(code)
@@ -30,8 +38,20 @@ export function useLocale() {
     return new Intl.NumberFormat(locale.value, { style: 'percent' }).format(value)
   }
 
+  function formatCurrency(value, currency = 'USD', options = {}) {
+    return new Intl.NumberFormat(locale.value, {
+      style: 'currency',
+      currency,
+      ...options,
+    }).format(value ?? 0)
+  }
+
   function formatDate(date, options) {
     return new Intl.DateTimeFormat(locale.value, options).format(date instanceof Date ? date : new Date(date))
+  }
+
+  function formatShortDate(date) {
+    return formatDate(date, { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
   function formatShortDateTime(date) {
@@ -65,7 +85,9 @@ export function useLocale() {
     formatCompactNumber,
     formatDecimal,
     formatPercent,
+    formatCurrency,
     formatDate,
+    formatShortDate,
     formatShortDateTime,
     formatRelativeTime,
     formatSignedDecimal,

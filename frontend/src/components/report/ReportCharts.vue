@@ -9,10 +9,12 @@ import { hierarchy, treemap } from 'd3-hierarchy'
 import 'd3-transition'
 import { getChartColors, useChartColors } from '../../lib/chartUtils'
 import { useMobileChart } from '../../composables/useMobileChart'
+import { useLocale } from '../../composables/useLocale'
 import { useD3PerfMonitor } from '@/composables/useD3PerfMonitor'
 
 const { isMobile } = useMobileChart()
 const { measure, countDomNodes } = useD3PerfMonitor()
+const { formatShortDateTime } = useLocale()
 
 const props = defineProps({
   chapterIndex: { type: Number, required: true },
@@ -21,9 +23,7 @@ const props = defineProps({
 
 const offlineDateLabel = computed(() => {
   if (!props.offlineCachedAt) return ''
-  return new Date(props.offlineCachedAt).toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  })
+  return formatShortDateTime(props.offlineCachedAt)
 })
 
 const chartRef = ref(null)

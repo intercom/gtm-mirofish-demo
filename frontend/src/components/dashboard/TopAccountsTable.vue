@@ -1,8 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { dashboardApi } from '../../api/dashboard'
+import { useLocale } from '../../composables/useLocale'
 import LoadingSpinner from '../ui/LoadingSpinner.vue'
 import EmptyState from '../ui/EmptyState.vue'
+
+const { formatDate: fmtDate } = useLocale()
 
 const accounts = ref([])
 const meta = ref({ total: 0, max_arr: 1, total_arr: 0, total_pipeline: 0 })
@@ -69,7 +72,7 @@ function formatCurrency(val) {
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  return fmtDate(d, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function healthColor(score) {

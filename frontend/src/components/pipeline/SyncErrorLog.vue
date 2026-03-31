@@ -1,7 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import * as d3 from 'd3'
+import { useLocale } from '../../composables/useLocale'
 import AppBadge from '../common/AppBadge.vue'
+
+const { formatDate: fmtDate } = useLocale()
 
 const props = defineProps({
   errors: {
@@ -212,7 +215,7 @@ function formatTimestamp(ts) {
   if (diffHrs < 24) return `${diffHrs}h ago`
   const diffDays = Math.floor(diffHrs / 24)
   if (diffDays < 7) return `${diffDays}d ago`
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return fmtDate(d, { month: 'short', day: 'numeric' })
 }
 
 function severityBadgeVariant(severity) {

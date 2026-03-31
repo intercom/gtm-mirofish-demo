@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import ConfirmDialog from '../ui/ConfirmDialog.vue'
 import AppBadge from '../common/AppBadge.vue'
 import AppButton from '../common/AppButton.vue'
+import { useLocale } from '../../composables/useLocale'
+
+const { formatCurrency: fmtCurrency, formatDate: fmtDate } = useLocale()
 
 const props = defineProps({
   discrepancy: {
@@ -117,17 +120,12 @@ function close() {
 
 function formatCurrency(val) {
   if (val == null) return '—'
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val)
+  return fmtCurrency(val)
 }
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return fmtDate(dateStr, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 </script>
 

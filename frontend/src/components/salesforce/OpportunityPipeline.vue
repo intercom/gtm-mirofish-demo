@@ -1,5 +1,8 @@
 <script setup>
 import { computed } from 'vue'
+import { useLocale } from '../../composables/useLocale'
+
+const { formatDate: fmtDate } = useLocale()
 
 const props = defineProps({
   opportunities: {
@@ -56,7 +59,7 @@ function formatCurrency(value) {
 function formatDate(dateStr) {
   if (!dateStr) return '—'
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return fmtDate(d, { month: 'short', day: 'numeric' })
 }
 </script>
 

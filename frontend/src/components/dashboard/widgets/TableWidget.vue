@@ -1,5 +1,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useLocale } from '../../../composables/useLocale'
+
+const { formatCurrency: fmtCurrency, formatDate: fmtDate, formatNumber: fmtNumber } = useLocale()
 
 const props = defineProps({
   config: {
@@ -77,13 +80,13 @@ function formatCell(value, col) {
   if (value == null) return '—'
   switch (col.format) {
     case 'currency':
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: col.currency || 'USD' }).format(value)
+      return fmtCurrency(value, col.currency || 'USD')
     case 'percentage':
       return `${(typeof value === 'number' && value <= 1 ? value * 100 : value).toFixed(1)}%`
     case 'date':
-      return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      return fmtDate(value, { month: 'short', day: 'numeric', year: 'numeric' })
     case 'number':
-      return new Intl.NumberFormat('en-US').format(value)
+      return fmtNumber(value)
     default:
       return String(value)
   }

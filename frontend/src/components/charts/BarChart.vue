@@ -1,13 +1,16 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import * as d3 from 'd3'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const {
+  isMobile, animationDuration, staggerDelay, fontSize, tickCount,
+} = useMobileChart()
 
 const props = defineProps({
   data: {
     type: Array,
     required: true,
-    // Simple: [{ label: 'A', value: 10 }, ...]
-    // Grouped: [{ label: 'A', values: { open: 34, spam: 8 } }, ...]
   },
   title: { type: String, default: '' },
   subtitle: { type: String, default: '' },
@@ -48,15 +51,15 @@ function render() {
 
 function renderVertical(container) {
   const containerWidth = container.clientWidth
+  const mobile = isMobile.value
+  const dur = animationDuration.value
+  const stagger = staggerDelay.value
   const hasTitle = props.title || props.subtitle
-  const margin = {
-    top: hasTitle ? 52 : 16,
-    right: 24,
-    bottom: 40,
-    left: 48,
-  }
+  const margin = mobile
+    ? { top: hasTitle ? 40 : 12, right: 16, bottom: 32, left: 36 }
+    : { top: hasTitle ? 52 : 16, right: 24, bottom: 40, left: 48 }
   const width = containerWidth - margin.left - margin.right
-  const height = props.height
+  const height = mobile ? Math.min(props.height, 200) : props.height
   const totalHeight = height + margin.top + margin.bottom
 
   const svg = d3
@@ -82,8 +85,7 @@ function renderVertical(container) {
   const yMax = d3.max(props.data, (d) => d.value) * 1.1 || 10
   const y = d3.scaleLinear().domain([0, yMax]).nice().range([height, 0])
 
-  // Grid
-  const yTicks = y.ticks(5)
+  const yTicks = y.ticks(tickCount.value)
   g.selectAll('.grid')
     .data(yTicks)
     .join('line')
@@ -94,7 +96,6 @@ function renderVertical(container) {
     .attr('stroke', 'rgba(0,0,0,0.06)')
     .attr('stroke-dasharray', '2,3')
 
-  // Y labels
   g.selectAll('.y-label')
     .data(yTicks)
     .join('text')
@@ -102,70 +103,81 @@ function renderVertical(container) {
     .attr('y', (d) => y(d))
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
-    .attr('font-size', '10px')
+    .attr('font-size', fontSize.value.tick)
     .attr('fill', '#aaa')
     .text((d) => props.yFormat(d))
 
-  // X labels
   g.selectAll('.x-label')
     .data(props.data)
     .join('text')
     .attr('x', (d) => x(d.label) + x.bandwidth() / 2)
     .attr('y', height + 20)
     .attr('text-anchor', 'middle')
-    .attr('font-size', '10px')
+    .attr('font-size', fontSize.value.tick)
     .attr('fill', '#888')
-    .text((d) => d.label)
+    .text((d) => {
+      if (mobile && d.label.length > 8) return d.label.slice(0, 7) + '\u2026'
+      return d.label
+    })
 
-  // Bars
-  g.selectAll('.bar')
+  const bars = g.selectAll('.bar')
     .data(props.data)
     .join('rect')
     .attr('x', (d) => x(d.label))
-    .attr('y', height)
     .attr('width', x.bandwidth())
-    .attr('height', 0)
     .attr('rx', 3)
     .attr('fill', (d, i) => props.colors[i % props.colors.length])
     .attr('opacity', 0.85)
-    .transition()
-    .duration(600)
-    .delay((d, i) => i * 80)
-    .ease(d3.easeCubicOut)
-    .attr('y', (d) => y(d.value))
-    .attr('height', (d) => height - y(d.value))
 
-  // Value labels
-  g.selectAll('.val')
+  if (dur > 0) {
+    bars
+      .attr('y', height)
+      .attr('height', 0)
+      .transition()
+      .duration(dur)
+      .delay((d, i) => i * stagger)
+      .ease(d3.easeCubicOut)
+      .attr('y', (d) => y(d.value))
+      .attr('height', (d) => height - y(d.value))
+  } else {
+    bars
+      .attr('y', (d) => y(d.value))
+      .attr('height', (d) => height - y(d.value))
+  }
+
+  const vals = g.selectAll('.val')
     .data(props.data)
     .join('text')
     .attr('x', (d) => x(d.label) + x.bandwidth() / 2)
     .attr('y', (d) => y(d.value) - 6)
     .attr('text-anchor', 'middle')
-    .attr('font-size', '11px')
+    .attr('font-size', fontSize.value.value)
     .attr('font-weight', '600')
     .attr('fill', '#050505')
-    .style('opacity', 0)
     .text((d) => props.yFormat(d.value))
-    .transition()
-    .duration(300)
-    .delay((d, i) => 600 + i * 80)
-    .style('opacity', 1)
+
+  if (dur > 0) {
+    vals
+      .style('opacity', 0)
+      .transition()
+      .duration(dur / 2)
+      .delay((d, i) => dur + i * stagger)
+      .style('opacity', 1)
+  }
 }
 
 function renderHorizontal(container) {
   const containerWidth = container.clientWidth
+  const mobile = isMobile.value
+  const dur = animationDuration.value
+  const stagger = staggerDelay.value
   const hasTitle = props.title || props.subtitle
-  const barHeight = 36
-  const barGap = 12
-  const calcHeight =
-    props.data.length * (barHeight + barGap) - barGap
-  const margin = {
-    top: hasTitle ? 52 : 16,
-    right: 60,
-    bottom: 24,
-    left: 100,
-  }
+  const barHeight = mobile ? 28 : 36
+  const barGap = mobile ? 8 : 12
+  const calcHeight = props.data.length * (barHeight + barGap) - barGap
+  const margin = mobile
+    ? { top: hasTitle ? 40 : 12, right: 40, bottom: 20, left: 72 }
+    : { top: hasTitle ? 52 : 16, right: 60, bottom: 24, left: 100 }
   const width = containerWidth - margin.left - margin.right
   const totalHeight = calcHeight + margin.top + margin.bottom
 
@@ -191,8 +203,7 @@ function renderHorizontal(container) {
     .range([0, calcHeight])
     .padding(barGap / (barHeight + barGap))
 
-  // Grid
-  const xTicks = x.ticks(5)
+  const xTicks = x.ticks(tickCount.value)
   g.selectAll('.grid')
     .data(xTicks)
     .join('line')
@@ -203,18 +214,16 @@ function renderHorizontal(container) {
     .attr('stroke', 'rgba(0,0,0,0.06)')
     .attr('stroke-dasharray', '2,3')
 
-  // X labels
   g.selectAll('.x-label')
     .data(xTicks)
     .join('text')
     .attr('x', (d) => x(d))
     .attr('y', calcHeight + 16)
     .attr('text-anchor', 'middle')
-    .attr('font-size', '10px')
+    .attr('font-size', fontSize.value.tick)
     .attr('fill', '#aaa')
     .text((d) => props.yFormat(d))
 
-  // Y labels
   g.selectAll('.bar-label')
     .data(props.data)
     .join('text')
@@ -222,11 +231,13 @@ function renderHorizontal(container) {
     .attr('y', (d) => y(d.label) + y.bandwidth() / 2)
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
-    .attr('font-size', '12px')
+    .attr('font-size', fontSize.value.label)
     .attr('fill', '#555')
-    .text((d) => d.label)
+    .text((d) => {
+      if (mobile && d.label.length > 10) return d.label.slice(0, 9) + '\u2026'
+      return d.label
+    })
 
-  // Bar backgrounds
   g.selectAll('.bar-bg')
     .data(props.data)
     .join('rect')
@@ -237,52 +248,60 @@ function renderHorizontal(container) {
     .attr('rx', 4)
     .attr('fill', 'rgba(0,0,0,0.03)')
 
-  // Bars
-  g.selectAll('.bar')
+  const bars = g.selectAll('.bar')
     .data(props.data)
     .join('rect')
     .attr('x', 0)
     .attr('y', (d) => y(d.label))
-    .attr('width', 0)
     .attr('height', y.bandwidth())
     .attr('rx', 4)
     .attr('fill', (d, i) => props.colors[i % props.colors.length])
     .attr('opacity', 0.85)
-    .transition()
-    .duration(600)
-    .delay((d, i) => i * 80)
-    .ease(d3.easeCubicOut)
-    .attr('width', (d) => x(d.value))
 
-  // Value labels
-  g.selectAll('.bar-value')
+  if (dur > 0) {
+    bars
+      .attr('width', 0)
+      .transition()
+      .duration(dur)
+      .delay((d, i) => i * stagger)
+      .ease(d3.easeCubicOut)
+      .attr('width', (d) => x(d.value))
+  } else {
+    bars.attr('width', (d) => x(d.value))
+  }
+
+  const vals = g.selectAll('.bar-value')
     .data(props.data)
     .join('text')
     .attr('x', (d) => x(d.value) + 8)
     .attr('y', (d) => y(d.label) + y.bandwidth() / 2)
     .attr('dy', '0.35em')
-    .attr('font-size', '12px')
+    .attr('font-size', fontSize.value.label)
     .attr('font-weight', '600')
     .attr('fill', '#050505')
-    .style('opacity', 0)
     .text((d) => props.yFormat(d.value))
-    .transition()
-    .duration(300)
-    .delay((d, i) => 600 + i * 80)
-    .style('opacity', 1)
+
+  if (dur > 0) {
+    vals
+      .style('opacity', 0)
+      .transition()
+      .duration(dur / 2)
+      .delay((d, i) => dur + i * stagger)
+      .style('opacity', 1)
+  }
 }
 
 function renderGrouped(container) {
   const containerWidth = container.clientWidth
+  const mobile = isMobile.value
+  const dur = animationDuration.value
+  const stagger = staggerDelay.value
   const hasTitle = props.title || props.subtitle
-  const margin = {
-    top: hasTitle ? 52 : 16,
-    right: 24,
-    bottom: 60,
-    left: 48,
-  }
+  const margin = mobile
+    ? { top: hasTitle ? 40 : 12, right: 16, bottom: 48, left: 36 }
+    : { top: hasTitle ? 52 : 16, right: 24, bottom: 60, left: 48 }
   const width = containerWidth - margin.left - margin.right
-  const height = props.height
+  const height = mobile ? Math.min(props.height, 200) : props.height
   const totalHeight = height + margin.top + margin.bottom
 
   const groupKeys = Object.keys(props.data[0].values)
@@ -318,8 +337,7 @@ function renderGrouped(container) {
   const yMax = d3.max(allVals) * 1.2 || 10
   const y = d3.scaleLinear().domain([0, yMax]).nice().range([height, 0])
 
-  // Grid
-  const yTicks = y.ticks(5)
+  const yTicks = y.ticks(tickCount.value)
   g.selectAll('.grid')
     .data(yTicks)
     .join('line')
@@ -330,7 +348,6 @@ function renderGrouped(container) {
     .attr('stroke', 'rgba(0,0,0,0.06)')
     .attr('stroke-dasharray', '2,3')
 
-  // Y labels
   g.selectAll('.y-label')
     .data(yTicks)
     .join('text')
@@ -338,22 +355,23 @@ function renderGrouped(container) {
     .attr('y', (d) => y(d))
     .attr('dy', '0.35em')
     .attr('text-anchor', 'end')
-    .attr('font-size', '10px')
+    .attr('font-size', fontSize.value.tick)
     .attr('fill', '#aaa')
     .text((d) => props.yFormat(d))
 
-  // X labels
   g.selectAll('.x-label')
     .data(props.data)
     .join('text')
     .attr('x', (d) => x0(d.label) + x0.bandwidth() / 2)
     .attr('y', height + 20)
     .attr('text-anchor', 'middle')
-    .attr('font-size', '10px')
+    .attr('font-size', fontSize.value.tick)
     .attr('fill', '#888')
-    .text((d) => d.label)
+    .text((d) => {
+      if (mobile && d.label.length > 8) return d.label.slice(0, 7) + '\u2026'
+      return d.label
+    })
 
-  // Grouped bars
   const groups = g
     .selectAll('.group')
     .data(props.data)
@@ -363,36 +381,50 @@ function renderGrouped(container) {
   groupKeys.forEach((key, ki) => {
     const color = props.colors[ki % props.colors.length]
 
-    groups
+    const rects = groups
       .append('rect')
       .attr('x', x1(key))
-      .attr('y', height)
       .attr('width', x1.bandwidth())
-      .attr('height', 0)
       .attr('rx', 3)
       .attr('fill', color)
       .attr('opacity', 0.85)
-      .transition()
-      .duration(600)
-      .delay((d, i) => i * 100 + ki * 50)
-      .ease(d3.easeCubicOut)
-      .attr('y', (d) => y(d.values[key]))
-      .attr('height', (d) => height - y(d.values[key]))
 
-    groups
-      .append('text')
-      .attr('x', x1(key) + x1.bandwidth() / 2)
-      .attr('y', (d) => y(d.values[key]) - 6)
-      .attr('text-anchor', 'middle')
-      .attr('font-size', '10px')
-      .attr('font-weight', '600')
-      .attr('fill', color)
-      .style('opacity', 0)
-      .text((d) => props.yFormat(d.values[key]))
-      .transition()
-      .duration(300)
-      .delay((d, i) => 600 + i * 100)
-      .style('opacity', 1)
+    if (dur > 0) {
+      rects
+        .attr('y', height)
+        .attr('height', 0)
+        .transition()
+        .duration(dur)
+        .delay((d, i) => i * (stagger + 20) + ki * stagger)
+        .ease(d3.easeCubicOut)
+        .attr('y', (d) => y(d.values[key]))
+        .attr('height', (d) => height - y(d.values[key]))
+    } else {
+      rects
+        .attr('y', (d) => y(d.values[key]))
+        .attr('height', (d) => height - y(d.values[key]))
+    }
+
+    if (!mobile) {
+      const labels = groups
+        .append('text')
+        .attr('x', x1(key) + x1.bandwidth() / 2)
+        .attr('y', (d) => y(d.values[key]) - 6)
+        .attr('text-anchor', 'middle')
+        .attr('font-size', '10px')
+        .attr('font-weight', '600')
+        .attr('fill', color)
+        .text((d) => props.yFormat(d.values[key]))
+
+      if (dur > 0) {
+        labels
+          .style('opacity', 0)
+          .transition()
+          .duration(dur / 2)
+          .delay((d, i) => dur + i * (stagger + 20))
+          .style('opacity', 1)
+      }
+    }
   })
 
   // Legend
@@ -422,7 +454,7 @@ function renderGrouped(container) {
       .append('text')
       .attr('x', -offsetX - textWidth + 16)
       .attr('y', 9)
-      .attr('font-size', '11px')
+      .attr('font-size', fontSize.value.value)
       .attr('fill', '#555')
       .text(key)
 
@@ -431,12 +463,13 @@ function renderGrouped(container) {
 }
 
 function appendTitles(svg, margin) {
+  const fs = fontSize.value
   if (props.title) {
     svg
       .append('text')
       .attr('x', margin.left)
-      .attr('y', 22)
-      .attr('font-size', '14px')
+      .attr('y', isMobile.value ? 16 : 22)
+      .attr('font-size', fs.title)
       .attr('font-weight', '600')
       .attr('fill', '#050505')
       .text(props.title)
@@ -445,8 +478,8 @@ function appendTitles(svg, margin) {
     svg
       .append('text')
       .attr('x', margin.left)
-      .attr('y', 40)
-      .attr('font-size', '11px')
+      .attr('y', isMobile.value ? 30 : 40)
+      .attr('font-size', fs.subtitle)
       .attr('fill', '#888')
       .text(props.subtitle)
   }
@@ -457,6 +490,8 @@ watch(
   () => nextTick(render),
   { deep: true },
 )
+
+watch(isMobile, () => nextTick(render))
 
 onMounted(() => {
   render()

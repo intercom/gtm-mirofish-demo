@@ -1,6 +1,9 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick, computed } from 'vue'
 import * as d3 from 'd3'
+import { useMobileChart } from '../../composables/useMobileChart'
+
+const { isMobile, animationDuration, fontSize } = useMobileChart()
 
 const props = defineProps({
   data: { type: Object, required: true },
@@ -71,7 +74,9 @@ function renderChart() {
   const containerWidth = container.clientWidth
   if (containerWidth === 0) return
 
-  const size = Math.min(containerWidth, 500)
+  const mobile = isMobile.value
+  const dur = animationDuration.value
+  const size = Math.min(containerWidth, mobile ? 340 : 500)
   const radius = size / 6
 
   // Build hierarchy
@@ -148,20 +153,27 @@ function renderChart() {
     .on('mouseenter', (event, d) => showTooltip(event, d, container))
     .on('mousemove', (event) => moveTooltip(event, container))
     .on('mouseleave', () => hideTooltip())
+    .on('touchstart', function (event, d) {
+      event.preventDefault()
+      showTooltip(event.touches[0], d, container)
+    }, { passive: false })
+    .on('touchend', () => hideTooltip())
 
-  // Labels on arcs
-  arcGroup.selectAll('text')
-    .data(rootNode.descendants().slice(1))
-    .join('text')
-    .attr('class', 'arc-label')
-    .attr('dy', '0.35em')
-    .attr('fill-opacity', d => +labelVisible(d.current))
-    .attr('transform', d => labelTransform(d.current, radius))
-    .attr('text-anchor', 'middle')
-    .attr('font-size', '10px')
-    .attr('fill', 'var(--color-text, #050505)')
-    .attr('pointer-events', 'none')
-    .text(d => d.data.name)
+  // Labels on arcs (skip on mobile for cleaner rendering)
+  if (!mobile) {
+    arcGroup.selectAll('text')
+      .data(rootNode.descendants().slice(1))
+      .join('text')
+      .attr('class', 'arc-label')
+      .attr('dy', '0.35em')
+      .attr('fill-opacity', d => +labelVisible(d.current))
+      .attr('transform', d => labelTransform(d.current, radius))
+      .attr('text-anchor', 'middle')
+      .attr('font-size', '10px')
+      .attr('fill', 'var(--color-text, #050505)')
+      .attr('pointer-events', 'none')
+      .text(d => d.data.name)
+  }
 
   // Center circle (click to zoom out)
   svg.append('circle')
@@ -183,7 +195,7 @@ function renderChart() {
   centerGroup.append('text')
     .attr('class', 'center-value')
     .attr('dy', '-0.2em')
-    .attr('font-size', '18px')
+    .attr('font-size', mobile ? '15px' : '18px')
     .attr('font-weight', '700')
     .attr('fill', 'var(--color-text, #050505)')
     .text(formatValue(rootNode.value))
@@ -191,7 +203,7 @@ function renderChart() {
   centerGroup.append('text')
     .attr('class', 'center-label')
     .attr('dy', '1.2em')
-    .attr('font-size', '11px')
+    .attr('font-size', fontSize.value.subtitle)
     .attr('fill', 'var(--color-text-muted, #888)')
     .text(props.centerLabel)
 
@@ -211,13 +223,15 @@ function renderChart() {
     .style('max-width', '220px')
 
   // Entrance animation: arcs grow from center
-  arcPaths
-    .attr('fill-opacity', 0)
-    .transition()
-    .duration(600)
-    .delay((d, i) => i * 3)
-    .ease(d3.easeCubicOut)
-    .attr('fill-opacity', d => arcVisible(d.current) ? (d.children ? 0.7 : 0.5) : 0)
+  if (dur > 0) {
+    arcPaths
+      .attr('fill-opacity', 0)
+      .transition()
+      .duration(dur)
+      .delay((d, i) => i * (mobile ? 1 : 3))
+      .ease(d3.easeCubicOut)
+      .attr('fill-opacity', d => arcVisible(d.current) ? (d.children ? 0.7 : 0.5) : 0)
+  }
 }
 
 function clicked(p, radius) {
@@ -250,7 +264,8 @@ function clicked(p, radius) {
     }
   })
 
-  const t = arcGroup.transition().duration(500).ease(d3.easeCubicInOut)
+  const zoomDur = animationDuration.value > 0 ? (isMobile.value ? 300 : 500) : 0
+  const t = arcGroup.transition().duration(zoomDur).ease(d3.easeCubicInOut)
 
   arcPaths.transition(t)
     .tween('data', d => {
@@ -264,9 +279,11 @@ function clicked(p, radius) {
     .attr('pointer-events', d => arcVisible(d.target) ? 'auto' : 'none')
     .attrTween('d', d => () => arcGen(d.current))
 
-  arcGroup.selectAll('.arc-label').transition(t)
-    .attr('fill-opacity', d => +labelVisible(d.target))
-    .attrTween('transform', d => () => labelTransform(d.current, radius))
+  if (!isMobile.value) {
+    arcGroup.selectAll('.arc-label').transition(t)
+      .attr('fill-opacity', d => +labelVisible(d.target))
+      .attrTween('transform', d => () => labelTransform(d.current, radius))
+  }
 }
 
 function showTooltip(event, d, container) {
@@ -306,6 +323,7 @@ function navigateTo(crumb) {
 // Reactivity
 watch(() => props.data, () => nextTick(renderChart), { deep: true })
 watch(() => props.colorScheme, () => nextTick(renderChart))
+watch(isMobile, () => nextTick(renderChart))
 
 onMounted(() => {
   renderChart()

@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '../stores/auth'
 import AppButton from '../components/common/AppButton.vue'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
@@ -17,11 +19,11 @@ async function loginWithEmail() {
   error.value = ''
   const addr = email.value.trim().toLowerCase()
   if (!addr) {
-    error.value = 'Please enter your email address.'
+    error.value = t('login.emailRequired')
     return
   }
   if (!addr.endsWith(`@${allowedDomain}`)) {
-    error.value = `Only @${allowedDomain} accounts are allowed.`
+    error.value = t('login.domainRestricted', { domain: allowedDomain })
     return
   }
   loading.value = true
@@ -45,7 +47,7 @@ onMounted(async () => {
     if (ok) {
       router.replace(route.query.redirect || '/')
     } else {
-      error.value = `Sign-in failed. Only @${allowedDomain} accounts are allowed.`
+      error.value = t('login.signInFailed', { domain: allowedDomain })
     }
   }
 })
@@ -73,8 +75,8 @@ onMounted(async () => {
         </div>
       </div>
 
-      <h1 class="login-title">Sign in to MiroFish</h1>
-      <p class="login-subtitle">GTM simulation powered by swarm intelligence</p>
+      <h1 class="login-title">{{ t('login.title') }}</h1>
+      <p class="login-subtitle">{{ t('login.subtitle') }}</p>
 
       <!-- Error message -->
       <Transition name="fade">
@@ -90,7 +92,7 @@ onMounted(async () => {
       <form @submit.prevent="loginWithEmail" class="space-y-4">
         <div>
           <label for="login-email" class="block text-xs font-semibold text-[var(--color-text)] mb-1.5">
-            Work email
+            {{ t('login.workEmail') }}
           </label>
           <input
             id="login-email"
@@ -112,12 +114,12 @@ onMounted(async () => {
           :disabled="loading"
           class="w-full"
         >
-          Continue
+          {{ t('login.continue') }}
         </AppButton>
       </form>
 
       <p class="login-domain-note">
-        Restricted to <strong>@{{ allowedDomain }}</strong> accounts
+        {{ t('login.restrictedTo') }} <strong>@{{ allowedDomain }}</strong> {{ t('login.accounts') }}
       </p>
     </div>
   </div>

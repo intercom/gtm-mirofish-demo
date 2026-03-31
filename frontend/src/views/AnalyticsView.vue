@@ -1,7 +1,10 @@
 <script setup>
 import { defineAsyncComponent, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import InsightCards from '../components/analytics/InsightCards.vue'
 import AiAnalyst from '../components/analytics/AiAnalyst.vue'
+
+const { t } = useI18n()
 
 function placeholder(title) {
   return {
@@ -11,7 +14,7 @@ function placeholder(title) {
           <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0-1 3m8.5-3 1 3m0 0 .5 1.5m-.5-1.5h-9.5m0 0-.5 1.5m.75-9 3-3 2.148 2.148A12.061 12.061 0 0 1 16.5 7.605" />
         </svg>
         <p class="text-sm font-medium text-[var(--color-text-secondary)]">${title}</p>
-        <p class="text-xs text-[var(--color-text-muted)] mt-1">Component coming soon</p>
+        <p class="text-xs text-[var(--color-text-muted)] mt-1">${t('common.comingSoon')}</p>
       </div>
     `,
   }
@@ -43,8 +46,8 @@ const sidebarCollapsed = ref(false)
           </svg>
         </div>
         <div>
-          <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">Analytics</h1>
-          <p class="text-xs text-[var(--color-text-muted)] mt-0.5">Cohort trends, attribution, and segment insights</p>
+          <h1 class="text-xl md:text-2xl font-semibold text-[var(--color-text)]">{{ t('analytics.title') }}</h1>
+          <p class="text-xs text-[var(--color-text-muted)] mt-0.5">{{ t('analytics.subtitle') }}</p>
         </div>
       </div>
       <button
@@ -54,7 +57,7 @@ const sidebarCollapsed = ref(false)
         <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
         </svg>
-        {{ sidebarCollapsed ? 'Show Insights' : 'Hide Insights' }}
+        {{ sidebarCollapsed ? t('analytics.showInsights') : t('analytics.hideInsights') }}
       </button>
     </div>
 

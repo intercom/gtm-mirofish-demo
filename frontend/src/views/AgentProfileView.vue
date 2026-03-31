@@ -1,11 +1,14 @@
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { marked } from 'marked'
 import client from '../api/client'
 import { AppBreadcrumb } from '../components/common'
 import { useBreadcrumbs } from '../composables/useBreadcrumbs'
 import RichTextEditor from '../components/common/RichTextEditor.vue'
+
+const { t } = useI18n()
 
 const props = defineProps({
   taskId: { type: String, required: true },
@@ -15,11 +18,11 @@ const props = defineProps({
 const route = useRoute()
 
 const activeTab = ref('overview')
-const tabs = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'activity', label: 'Activity' },
-  { id: 'interview', label: 'Interview' },
-]
+const tabs = computed(() => [
+  { id: 'overview', label: t('agentProfile.overview') },
+  { id: 'activity', label: t('agentProfile.activity') },
+  { id: 'interview', label: t('agentProfile.interview') },
+])
 
 const rawName = computed(() => route.query.name || `Agent ${props.agentId}`)
 
@@ -277,33 +280,33 @@ async function sendMessage() {
       <div class="grid grid-cols-3 gap-4 mb-6">
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
           <div class="text-2xl font-bold text-[var(--color-text)]">{{ stats.total }}</div>
-          <div class="text-xs text-[var(--color-text-muted)] mt-1">Total Actions</div>
+          <div class="text-xs text-[var(--color-text-muted)] mt-1">{{ t('agentProfile.totalActions') }}</div>
         </div>
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
           <div class="text-2xl font-bold text-[#1DA1F2]">{{ stats.twitter }}</div>
-          <div class="text-xs text-[var(--color-text-muted)] mt-1">Twitter</div>
+          <div class="text-xs text-[var(--color-text-muted)] mt-1">{{ t('agentProfile.twitter') }}</div>
         </div>
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-4 text-center">
           <div class="text-2xl font-bold text-[#FF4500]">{{ stats.reddit }}</div>
-          <div class="text-xs text-[var(--color-text-muted)] mt-1">Reddit</div>
+          <div class="text-xs text-[var(--color-text-muted)] mt-1">{{ t('agentProfile.reddit') }}</div>
         </div>
       </div>
 
       <!-- Backstory -->
       <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5 mb-4">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-[var(--color-text)]">Backstory</h3>
+          <h3 class="text-sm font-semibold text-[var(--color-text)]">{{ t('agentProfile.backstory') }}</h3>
           <button
             @click="editingBackstory = !editingBackstory"
             class="text-xs font-medium text-[var(--color-primary)] hover:underline"
           >
-            {{ editingBackstory ? 'Done' : (backstory ? 'Edit' : 'Add backstory') }}
+            {{ editingBackstory ? t('agentProfile.done') : (backstory ? t('agentProfile.edit') : t('agentProfile.addBackstory')) }}
           </button>
         </div>
         <RichTextEditor
           v-if="editingBackstory"
           v-model="backstory"
-          placeholder="Describe this agent's background, experience, and perspective..."
+          :placeholder="t('agentProfile.backstoryPlaceholder')"
           :char-limit="500"
         />
         <div
@@ -312,14 +315,14 @@ async function sendMessage() {
           v-html="backstory"
         />
         <p v-else class="text-sm text-[var(--color-text-muted)] italic">
-          No backstory added yet. Click "Add backstory" to describe this agent's background.
+          {{ t('agentProfile.noBackstory') }}
         </p>
       </div>
 
       <!-- Persona traits -->
       <div class="space-y-4">
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
-          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">Priorities</h3>
+          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">{{ t('agentProfile.priorities') }}</h3>
           <div class="flex flex-wrap gap-2">
             <span
               v-for="p in persona.priorities"
@@ -332,7 +335,7 @@ async function sendMessage() {
         </div>
 
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
-          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">Likely Objections</h3>
+          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">{{ t('agentProfile.likelyObjections') }}</h3>
           <div class="flex flex-wrap gap-2">
             <span
               v-for="o in persona.objections"
@@ -345,12 +348,12 @@ async function sendMessage() {
         </div>
 
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
-          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">Communication Style</h3>
+          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">{{ t('agentProfile.communicationStyle') }}</h3>
           <p class="text-sm text-[var(--color-text-secondary)]">{{ persona.communication_style }}</p>
         </div>
 
         <div class="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-xl p-5">
-          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">Decision Factors</h3>
+          <h3 class="text-sm font-semibold text-[var(--color-text)] mb-3">{{ t('agentProfile.decisionFactors') }}</h3>
           <div class="flex flex-wrap gap-2">
             <span
               v-for="d in persona.decision_factors"
@@ -379,7 +382,7 @@ async function sendMessage() {
           <div class="flex-1 min-w-0">
             <span class="text-sm text-[var(--color-text)]">{{ action.action }}</span>
             <span class="text-xs text-[var(--color-text-muted)] ml-2">
-              on {{ action.platform }}
+              {{ t('common.on') }} {{ action.platform }}
             </span>
           </div>
           <span class="text-xs text-[var(--color-text-muted)] shrink-0">{{ action.timestamp }}</span>
@@ -434,7 +437,7 @@ async function sendMessage() {
             v-model="input"
             @keydown.enter.exact="sendMessage"
             :disabled="sending"
-            placeholder="Ask this agent anything..."
+            :placeholder="t('agentProfile.askAnything')"
             class="flex-1 bg-[var(--input-bg)] border border-[var(--input-border)] rounded-lg px-4 py-2.5 text-sm text-[var(--input-text)] placeholder:text-[var(--input-placeholder)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent disabled:opacity-60 transition-[border-color,box-shadow]"
           />
           <button
@@ -442,7 +445,7 @@ async function sendMessage() {
             :disabled="sending || !input.trim()"
             class="bg-[var(--btn-primary-bg)] hover:bg-[var(--btn-primary-bg-hover)] active:bg-[var(--btn-primary-bg-active)] disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors"
           >
-            {{ sending ? 'Sending...' : 'Send' }}
+            {{ sending ? t('common.sending') : t('common.send') }}
           </button>
         </div>
       </div>

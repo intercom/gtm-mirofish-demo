@@ -14,6 +14,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  overscroll-behavior: contain;
 }
 
 h1, h2, h3, h4 {
@@ -196,6 +197,21 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   transform: translateX(calc(30px * var(--panel-inline-end, 1)));
 }
 
+/* ── Touch device optimizations ────────────────────────────────────────── */
+
+/* Touch devices: stronger active feedback since hover isn't available */
+@media (hover: none) {
+  .card-interactive:active {
+    transform: scale(0.98);
+    transition-duration: 80ms;
+  }
+
+  .card-interactive-dark:active {
+    transform: scale(0.98);
+    transition-duration: 80ms;
+  }
+}
+
 /* Respect reduced-motion preference */
 @media (prefers-reduced-motion: reduce) {
   .page-fade-enter-active,
@@ -338,9 +354,11 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   will-change: transform;
 }
 
-.card-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--card-shadow-hover);
+@media (hover: hover) {
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+  }
 }
 
 .card-interactive:active {
@@ -355,9 +373,11 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   will-change: transform;
 }
 
-.card-interactive-dark:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+@media (hover: hover) {
+  .card-interactive-dark:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  }
 }
 
 .card-interactive-dark:active {
@@ -375,13 +395,15 @@ button:active:not(:disabled), [role="button"]:active:not(:disabled) {
   transform: scale(0.97);
 }
 
-/* Card hover lift: subtle vertical shift + shadow increase */
+/* Card hover lift: subtle vertical shift + shadow increase (pointer devices only) */
 .hover-lift {
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+@media (hover: hover) {
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+  }
 }
 
 /* Focus ring pulse: animated ring on focus */

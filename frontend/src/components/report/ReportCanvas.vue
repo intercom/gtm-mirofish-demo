@@ -22,7 +22,7 @@ const chapters = computed(() =>
   })
 )
 
-const { dragIndex, dropIndicatorIndex, onDragStart, onDragOver, onDrop, onDragEnd } =
+const { dragIndex, dropIndicatorIndex, onDragStart, onDragOver, onDrop, onDragEnd, onTouchStart } =
   useListReorder({
     onReorder: (from, to) => emit('reorder', from, to),
   })
@@ -49,10 +49,12 @@ const { dragIndex, dropIndicatorIndex, onDragStart, onDragOver, onDrop, onDragEn
         <div
           class="section-card"
           :class="{ 'is-dragging': dragIndex === i }"
+          :data-reorder-index="i"
           draggable="true"
           @dragstart="onDragStart($event, i)"
           @dragover="onDragOver($event, i)"
           @dragend="onDragEnd"
+          @touchstart="onTouchStart($event, i)"
         >
           <!-- Drag handle (6-dot grip) -->
           <div class="drag-handle" @mousedown.stop>

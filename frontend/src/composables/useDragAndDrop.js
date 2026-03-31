@@ -383,12 +383,14 @@ export function useDragAndDrop() {
 
 /**
  * Reusable composable for HTML5 drag-and-drop list reordering.
+ * Includes touch fallback for mobile devices.
  * @param {Object} options
  * @param {Function} options.onReorder - Called with (fromIndex, toIndex) on successful drop
  */
 export function useListReorder({ onReorder } = {}) {
   const dragIndex = ref(null)
   const dropIndicatorIndex = ref(null)
+  let touchState = null
 
   function onDragStart(e, index) {
     dragIndex.value = index
@@ -436,6 +438,98 @@ export function useListReorder({ onReorder } = {}) {
     dropIndicatorIndex.value = null
   }
 
+  // --- Touch fallback ---
+
+  function findSortableCard(el) {
+    while (el) {
+      if (el.dataset?.reorderIndex != null) return el
+      el = el.parentElement
+    }
+    return null
+  }
+
+  function getInsertIndex(clientY, targetEl) {
+    if (!targetEl) return null
+    const card = findSortableCard(targetEl)
+    if (!card) return null
+    const index = parseInt(card.dataset.reorderIndex, 10)
+    const rect = card.getBoundingClientRect()
+    const midY = rect.top + rect.height / 2
+    const insertAt = clientY < midY ? index : index + 1
+    if (insertAt === dragIndex.value || insertAt === dragIndex.value + 1) return null
+    return insertAt
+  }
+
+  function onTouchMove(e) {
+    if (!touchState) return
+    const touch = e.touches[0]
+    const { clone, offsetX, offsetY } = touchState
+    clone.style.left = (touch.clientX - offsetX) + 'px'
+    clone.style.top = (touch.clientY - offsetY) + 'px'
+
+    clone.style.display = 'none'
+    const target = document.elementFromPoint(touch.clientX, touch.clientY)
+    clone.style.display = ''
+    dropIndicatorIndex.value = getInsertIndex(touch.clientY, target)
+    e.preventDefault()
+  }
+
+  function onTouchEnd() {
+    if (!touchState) return
+    touchState.clone.remove()
+    touchState.sourceEl.style.opacity = ''
+    touchState = null
+
+    if (dragIndex.value !== null && dropIndicatorIndex.value !== null) {
+      let from = dragIndex.value
+      let to = dropIndicatorIndex.value
+      if (from < to) to--
+      if (from !== to) onReorder?.(from, to)
+    }
+
+    dragIndex.value = null
+    dropIndicatorIndex.value = null
+    document.removeEventListener('touchmove', onTouchMove)
+    document.removeEventListener('touchend', onTouchEnd)
+  }
+
+  function onTouchStart(e, index) {
+    if (e.touches.length !== 1) return
+    e.preventDefault()
+    const el = e.currentTarget
+    const touch = e.touches[0]
+    const rect = el.getBoundingClientRect()
+
+    dragIndex.value = index
+    el.style.opacity = '0.35'
+
+    const clone = el.cloneNode(true)
+    Object.assign(clone.style, {
+      position: 'fixed', pointerEvents: 'none', zIndex: '9999',
+      opacity: '0.85', width: rect.width + 'px',
+      left: rect.left + 'px', top: rect.top + 'px',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    })
+    document.body.appendChild(clone)
+
+    touchState = {
+      clone, sourceEl: el,
+      offsetX: touch.clientX - rect.left,
+      offsetY: touch.clientY - rect.top,
+    }
+    document.addEventListener('touchmove', onTouchMove, { passive: false })
+    document.addEventListener('touchend', onTouchEnd)
+  }
+
+  onUnmounted(() => {
+    if (touchState) {
+      touchState.clone.remove()
+      document.removeEventListener('touchmove', onTouchMove)
+      document.removeEventListener('touchend', onTouchEnd)
+      touchState = null
+    }
+  })
+
   return {
     dragIndex,
     dropIndicatorIndex,
@@ -443,5 +537,6 @@ export function useListReorder({ onReorder } = {}) {
     onDragOver,
     onDrop,
     onDragEnd,
+    onTouchStart,
   }
 }

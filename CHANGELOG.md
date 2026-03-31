@@ -4,264 +4,169 @@ All notable changes to the GTM MiroFish Demo project are documented in this file
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+---
 
-### Added
+## March 30, 2026
 
-#### Core Platform
-- Vue 3 + Vite + Tailwind frontend with Intercom branding (#2068FF blue, #050505 navy)
-- Flask backend with Blueprint-based API architecture
-- Multi-LLM provider support (Anthropic Claude, OpenAI, Google Gemini) via `LLM_PROVIDER` env var
-- Demo/mock mode for all endpoints when no LLM key is configured
-- Docker Compose local development setup with per-service Dockerfiles
-- Railway deployment configuration for backend and frontend services
+### New
 
-#### GTM Simulation Engine
-- OASIS swarm intelligence simulation orchestrator with LLM-driven agents
-- Agent factory for creating simulation agents from GTM persona archetypes
-- Agent prompt engineering module for OASIS simulation agents
-- Interaction protocol service for agent-to-agent communication
-- Environment manager for simulation lifecycle
-- OASIS metrics collector with backend API and frontend display
-- Simulation execution engine for in-memory LLM-driven GTM simulations
-- Real-time simulation progress via Server-Sent Events (SSE)
-- Simulation state manager composable with finite state machine
-- Simulation controls panel with start/stop and configuration
-- Simulation scenario templates service with 6 pre-built GTM demo scenarios
-- Simulation replay viewer and comparison (side-by-side analysis)
-- Simulation result caching for offline replay
-- Simulation presets (quick configs) in ScenarioBuilderView
-- AI narration mode during simulation
-- Deterministic agent avatar generation from persona data
+- **Interactive Tutorial System** — First-time visitors get a guided spotlight tour, contextual help tooltips, and a walkthrough overlay to learn the platform step-by-step.
+- **Keyboard Shortcut Quick Reference** — Press `?` to see a comprehensive reference card for all available shortcuts.
+- **Performance Benchmarks** — New benchmark pages show API response times and frontend page load metrics with D3 visualizations.
+- **Dynamic API Documentation** — Browse all API endpoints from an auto-discovered documentation page with live route details.
+- **Demo Data Preset** — One-click demo data wiring for curated presentation mode directly in the Flask backend.
 
-#### Knowledge Graph
-- Zep Cloud SDK integration for knowledge graph operations
-- Zep-powered knowledge graph API with 6 endpoints
-- Entity extraction service for simulation interactions
-- Graph memory service for knowledge graph operations
-- Interactive D3.js force-directed knowledge graph visualization
-- Community detection visualization with clustered graph
-- Temporal knowledge timeline component
-- Graph search interface component
-- Standalone Knowledge Graph visualization view
+### Improved
 
-#### Agent Memory System
-- Agent memory abstraction layer with Zep/in-memory backends
-- Temporal memory service with Zep integration
-- Cross-simulation memory transfer system
-- Memory persistence API endpoints
-- Memory configuration panel for agent memory behavior
-- Agent memory viewer component with D3 visualization
-- Agent knowledge graph component
-- Memory diff visualization feature
-
-#### Report Generation
-- ReportAgent engine with ReACT pattern for autonomous report generation
-- GTM tool definitions and execution handlers for report generation
-- Report generation wizard with template selection
-- Multi-format report export (HTML, PDF, JSON)
-- Intercom-branded PDF export endpoint
-- Report comparison view with side-by-side chapter navigation
-- Executive summary one-pager generation
-- Report annotations/notes per chapter
-- Shareable report URLs with 24-hour expiring tokens
-- Report sharing component with share link generation
-- Pre-built report templates with template selector UI
-- ToolCallLog component for ReportAgent reasoning transparency
-- Interactive data tables with sorting, filtering, and pagination
-- 95% confidence intervals on simulation metrics and report charts
-- Print-optimized report styles
-
-#### Data Visualizations (D3.js v7)
-- Agent sentiment timeline visualization
-- Geographic engagement heatmap with world map
-- Treemap visualization for topic distribution
-- Sankey diagram for agent journey visualization
-- Agent influence network force-directed graph
-- Word cloud visualization from agent posts
-- Engagement heatmap visualization
-- Competitive mention tracking visualization
-- Decision journey funnel visualization
-- Sparkline mini-charts for metric cards
-- Chart export buttons (PNG/SVG)
-- Scatter and horizontal bar chart types
-- Hover tooltips and click-to-drill on all charts
-- Chart entrance animations with staggered D3 transitions
-- D3 rendering performance monitoring
-- Count-up animations for SimulationPanel metrics
-
-#### GTM Data Modules
-- **Pipeline Analytics** — funnel visualization, waterfall chart, velocity heatmap, forecast, conversion trends
-- **Revenue Analytics** — MRR waterfall, ARR trends, cohort retention heatmap, customer revenue treemap, churn analysis
-- **Order-to-Cash** — order timeline, flow Sankey diagram, billing overview, provisioning status, order validation
-- **GTM Dashboard** — command center layout with executive KPIs, health scorecard, activity feed, revenue pipeline chart, deal velocity gauge, top accounts table, recent deals ticker
-- **Data Pipeline Monitor** — dbt DAG visualization (D3 + dagre), connector health cards, sync timeline, data freshness monitor, sync error log
-- **MRR Reconciliation** — three-way comparison table, source comparison Venn diagram, reconciliation trend chart, discrepancy distribution, resolution workflow
-- **Salesforce CRM Data** — overview dashboard with stat cards, lead funnel, opportunity pipeline Kanban, account cards
-- **CPQ (Configure, Price, Quote)** — product catalog, quote management, discount analysis scatter plot
-- **Analytics View** — InsightCards sidebar, AI analyst chat bubble, segment performance, cohort analysis, attribution analysis
-- **Predictive Analytics** — forecasts, goal tracking with bullet charts, anomaly detection dashboard
-
-#### Agent Interaction
-- LLM-backed chat and interview system
-- SSE streaming chat with progressive token rendering
-- Streaming interview responses in AgentProfileView
-- Agent click-through panel with full profile view
-- Batch interview mode to ask all agents simultaneously
-- Suggested interview questions per persona
-- Interview and chat export as markdown
-- Agent comparison view (side-by-side for 2-3 agents)
-- Animated engagement timeline replay component
-
-#### Authentication & Authorization
-- JWT auth middleware with `auth_required` and `auth_optional` decorators
-- OAuth flow endpoints (Google + Okta OIDC)
-- Session management (backend model + API, frontend store + composable)
-- Auth guards on Vue Router with route meta and navigation guard
-- Login page Vue component with auth guard
-- UserMenu component in navbar
-- Role-based access control model with role hierarchy
-- Permission checking middleware with decorators
-- User management API with CRUD endpoints and frontend component
-- Role indicators in UI with permission-aware API responses
-- Audit logging for role changes
-
-#### Security
-- Security headers middleware (Flask backend)
-- API key authentication middleware with server-side persistence
-- CSRF protection with Flask-WTF and double-submit cookie pattern
-- Rate limiting on all API endpoints using Flask-Limiter
-- Comprehensive audit log with full-stack implementation
-- CORS explicit origin allowlist (replaced wildcard)
-- Environment validation on startup
-
-#### Real-Time Features
-- Flask-SocketIO backend for real-time simulation updates
-- WebSocket composable with socket.io-client
-- WebSocket authentication with token-based connect validation
-- WebSocket connection status indicator
-- Real-time event emitter service
-- WebSocket event handlers for simulation updates
-- Connected data views and simulation to WebSocket push updates
-
-#### Offline Support
-- Service worker for caching static assets and API responses
-- IndexedDB offline data store with idb wrapper
-- OfflineBanner component for connectivity feedback
-- Offline support in Pinia stores
-- Background sync queue for offline change replay
-- Offline-first report viewing with IndexedDB caching
-- useOfflineMode composable for offline detection
-
-#### Performance Optimization
-- Route-based code splitting for all views
-- Component lazy loading for heavy Vue components
-- Request deduplication in API client
-- Client-side performance monitoring
-- API response caching (backend + frontend)
-- Data pagination for large lists
-- API request batching to reduce HTTP overhead during polling
-- Image and asset lazy loading with IntersectionObserver
-- Vite build optimization with vendor chunk splitting
-- Resource preloading hints
-- D3 tree-shaking with sub-package imports
-- CSS cleanup: removed ~60 unused custom properties and 5 dead animation blocks
-- Build-time optimization checks as postbuild script
-- GZIP compression middleware via flask-compress
-- ETag caching for GTM scenario data endpoints
-
-#### Theming & Branding
-- Theme data model with 4 default themes (Intercom, Dark, Corporate, Minimal)
-- Theme persistence and system preference detection
-- ThemeSwitcher component with navbar integration
-- Custom theme editor with live preview
-- Dark mode toggle and theme-aware chart colors
-- CSS custom properties replacing all hardcoded colors
-- High contrast mode with independent toggle
-- Intercom design tokens in Tailwind config and brand-tokens.css
-
-#### UX Enhancements
-- Keyboard shortcut system with useKeyboardShortcuts composable
-- G-prefix navigation shortcuts and view-specific shortcuts
-- Keyboard shortcuts help modal and quick reference card
-- Ctrl+K command palette for quick navigation and actions
-- Drag-and-drop reordering (dashboard cards, report sections, navigation, graph nodes, team composer)
-- useDragAndDrop composable with drag source, drop target, and sortable
-- Breadcrumb navigation across all views
-- Notification center with persistent history
-- Focus management for modals with useFocusTrap composable
-- Skeleton loading states replacing spinners
-- Rich text editor (Tiptap) for scenario descriptions, agent backstories, report text, and annotations
-- Auto-save in ScenarioBuilderView editor
-- MarkdownEditor component with import/export and preview
-- Onboarding tour for first-time visitors
-- One-click quick-start demo flow
-- Guided tour walkthrough for new users
-
-#### Animations & Transitions
-- Animation utility library with Web Animations API
-- Direction-aware page transitions with route-depth awareness
-- Card hover and interaction animations
-- Loading skeleton components for content-aware states
-- Button and form interaction animations
-- List item stagger animations via useStaggerAnimation composable
-- Modal and panel transition animations
-- Notification and toast animations
-- Parallax hero scroll effect on landing page
-
-#### Observability & Monitoring
-- Structured logging throughout the app
-- Backend health monitoring service with health dashboard in Settings
-- Startup diagnostics service with pre-flight checks
-- Frontend error tracking service with backend logging endpoint
-- ErrorBoundary component for Vue rendering errors
-- Request/response logging middleware with request IDs and timing
-- Token usage tracking and display in SettingsView
-- Performance benchmark pages for API response time and page load tracking
-
-#### Testing
-- **E2E (Playwright):** Landing page, navigation, scenario creation, simulation launch, GTM dashboard, agent management, report generation, settings, data views
-- **API Integration:** Simulation endpoints (79 tests), report and GTM template endpoints, auth endpoints, GTM data endpoints (42 tests), demo_app.py (100 tests)
-- **Unit (Backend):** Comprehensive backend service tests (118 tests)
-- **Unit (Frontend):** Pinia stores, simulation components, chart components
-- **Visual Regression:** Baseline screenshots for all 8 views
-
-#### Accessibility
-- ARIA roles, labels, and landmarks across frontend
-- Keyboard navigation support for all interactive elements
-- Comprehensive accessibility audit pass
-
-#### Documentation
-- Architecture Decision Records (ADRs) for 6 key decisions
-- Architecture documentation covering system design, data flow, and key decisions
-- API documentation page
-- Deployment documentation for all deployment targets
-- Troubleshooting FAQ
-- Marp presentation slides for GTM demo
-- Demo script document for live presentations
-- Demo data preset for curated presentation mode
-- Interactive tutorial system with spotlight tour, guided walkthrough, and contextual help
-
-#### Configuration & Settings
-- LLM temperature slider and model selection in SettingsView
-- Import/export settings as JSON
-- Custom persona type creation with CRUD endpoints
-- Inline validation feedback for API key fields
-- Screenshot-ready presentation mode
-- Pydantic request validation for all POST endpoints
-
-### Changed
-- Refactored config.py to class-based hierarchy with environment-aware selection
-- Consolidated demo_app.py routes into Flask Blueprints
-- Replaced barrel D3 import with sub-packages for explicit dependency tracking
-- Expanded agent action content from 19 to 64 unique templates
-- Expanded landing page into full scrollable experience with 13 sections and footer
-- Consolidated report navigation and routing under /reports namespace
-- Added API versioning with /api/v1/ prefix to all endpoints
+- **Accessibility** — Comprehensive audit pass with ARIA roles, labels, and landmarks across all frontend components.
+- **Architecture Documentation** — Updated docs reflecting current codebase, plus consolidated Architecture Decision Records (ADRs) and Zep Cloud + Railway deployment records.
+- **Demo Script** — Updated with current features, all 6 scenarios, and deployment info.
 
 ### Fixed
-- Simulations not appearing when user navigates away early
-- CTA button scroll behavior and global cursor-pointer for interactive elements
-- Chart rendering issues and bold findings formatting
-- Railway deploy configuration (railway.toml, auth env vars)
-- CLAUDE.md documentation drift (view count, package manager, API routes, Tailwind config reference)
+
+- Resolved build errors across frontend and backend from parallel agent merges.
+
+### Testing
+
+- **E2E (Playwright):** Landing page, navigation, scenario creation, simulation launch, GTM dashboard, agent management, settings, report generation, and data view tests.
+- **API Integration:** Simulation endpoints, report/GTM template endpoints, auth endpoints (41 tests), GTM data endpoints.
+- **Unit (Frontend):** 10 simulation components (153 tests), 17 Pinia stores (368 tests), all 11 chart components.
+- **Unit (Backend):** 6 backend services (145 tests).
+- **Visual Regression:** Baseline screenshots captured for 17 pages.
+
+---
+
+## March 27, 2026
+
+### New
+
+- **Custom Theme Engine** — Choose from 4 built-in themes (Intercom, Dark, Corporate, Minimal) or create your own with a live-preview theme editor. Dark mode is now fully supported across all views.
+- **Rich Text Editing** — Scenario descriptions, agent backstories, report annotations, and notes now use a Tiptap-powered rich text editor with markdown import/export and auto-save.
+- **Keyboard Shortcuts** — Navigate with `G`-prefix shortcuts, use view-specific shortcuts in the report builder and dashboard, and see indicator badges in the command palette and workspace tabs.
+- **Drag-and-Drop Everywhere** — Reorder dashboard widgets, report sections, navigation items, graph nodes, and team compositions with drag-and-drop (including touch support).
+- **Animation System** — Smooth page transitions, card hover effects, skeleton loading states, chart entrance animations, staggered list reveals, modal transitions, and toast notifications.
+- **Real-Time WebSocket Updates** — Simulation data streams live via Flask-SocketIO with a connection status indicator, JWT authentication, and automatic SSE fallback.
+- **Offline Support** — Service worker caches static assets and API responses. IndexedDB stores data for offline viewing. Background sync replays queued changes when you're back online.
+- **Authentication & Authorization** — OAuth login (Google + Okta), JWT session management, route-level auth guards, role-based access control, user management with admin UI, and audit logging for role changes.
+- **API Key Management** — Generate and manage API keys with file-based persistence, auth middleware, and a frontend management component.
+- **CSRF Protection** — Double-submit cookie pattern with Flask-WTF across all POST endpoints.
+- **Audit Log System** — Full-stack audit logging with a dedicated viewer component for tracking all system changes.
+- **System Health Dashboard** — Monitor backend service health, startup diagnostics, and structured JSON logging from the Settings page.
+- **Error Boundary** — Vue rendering errors are caught gracefully with accessible fallback UI and backend error tracking.
+
+### Improved
+
+- **Performance** — Route-based code splitting, component lazy loading, image lazy loading with IntersectionObserver, API response caching, request deduplication, client-side pagination, Vite vendor chunk splitting, D3 tree-shaking with sub-package imports, and resource preloading hints.
+- **Security** — Security headers middleware, explicit CORS origin allowlist, rate limiting on all API endpoints, and environment-aware settings with `APP_ENV`.
+- **Deployment** — Hardened Railway configuration, docker-compose production profile, and updated deployment guide with nginx proxy setup.
+- **CSS Cleanup** — Removed ~60 unused custom properties and 5 dead animation blocks. All hardcoded colors replaced with CSS theme tokens.
+
+### Fixed
+
+- Resolved build errors from parallel overnight agent merges.
+- Fixed remaining hardcoded color values in LiveFeed and PersonalityRadar components.
+- Corrected rate limiting paths and auth tier for all API endpoints.
+
+---
+
+## March 25–26, 2026
+
+### New
+
+- **Agent Intelligence** — Agents now have belief systems, personality dynamics with trait evolution, sentiment engines, long-term memory consolidation, and memory-augmented prompt building. Watch relationships evolve with animated network visualizations.
+- **Coalition Detection** — Automatic coalition detection algorithm with D3 force-directed visualization, evolution timeline, consensus tracking, polarization gauge, and swing-agent profiles.
+- **Behavior Prediction** — Markov chain-based agent behavior prediction model with anomaly detection, influence flow charts, and what-if prediction panels.
+- **Reasoning Transparency** — See how agents think with reasoning trace viewer, decision tree visualization, argument maps, counterfactual comparison, and a transparency toggle in the live feed.
+- **Agent Creation Wizard** — Build custom agents step-by-step: basic info, personality vector configuration, expertise selection, and live preview before saving.
+- **Structured Debates** — Set up formal debates between agents with topic configuration, orchestration engine, scoring system, and scorecard visualization.
+- **Scenario Marketplace** — Browse, preview, rate, and import/export from a catalog of 10+ GTM scenario templates with category filtering and usage tracking.
+- **Campaign Analytics** — ROI comparison charts, spend allocation treemaps, attribution model comparison, and a cost modeling calculator across 15 realistic GTM campaigns.
+- **What-If Analysis** — Explore parameter sensitivity with tornado charts, parameter sweep visualizations, variant comparison grids, and a full analysis engine.
+- **Scenario Branching** — Fork simulations at decision points, visualize branch trees, compare branches side-by-side, and get merge/recommendation insights.
+- **Multi-Scenario Dashboard** — Compare simulations across a calendar view, scenario performance leaderboard, cross-scenario trend charts, and outcome distribution bubble charts.
+- **A/B Scenario Comparison** — Side-by-side comparison layout with radar charts, comparison tables, timeline overlays, and comparative chart overlays.
+- **Charts Gallery** — 8 new advanced D3 chart types: Sunburst, Chord Diagram, Parallel Coordinates, Bullet Chart, Radar, Calendar Heatmap, Stream Graph, and Small Multiples.
+- **Network Analysis View** — Agent interaction graphs, centrality analysis, cluster visualization, communication pattern timeline, adjacency matrix heatmap, and information flow diagrams.
+- **Animated Visualizations** — Revenue waterfall, pipeline flow, org chart, Sankey flow, deal lifecycle, and counter animations powered by a reusable flow animation engine.
+- **Dashboard Builder** — Drag-and-drop widget grid with 9 widget types (KPI cards, charts, tables, text), persistence API, and a widget picker panel.
+- **Timeline Scrubber** — Navigate simulation rounds with a scrubber bar, snapshot comparisons, event markers, multi-metric synchronized views, and timeline annotations.
+- **Navigation Enhancements** — Mini-map showing workflow progress, global activity feed, system status bar, and enhanced command palette.
+
+### Improved
+
+- **GTM Data Modules** — Expanded Salesforce CRM (account detail view, opportunity pipeline, lead funnel), CPQ (quote management fixes, discount analysis), and data pipeline monitoring with full-stack integration and test coverage.
+- **Landing Page** — Scenario template gallery cards integrated into landing page for easy discovery.
+
+### Fixed
+
+- Resolved merge conflicts and broken imports from parallel PRD agent work.
+- Fixed Salesforce Pinia store response parsing and demo fallback.
+- Fixed CPQ API client URL paths to match baseURL convention.
+- Fixed OG meta image URLs to use absolute paths for social sharing.
+
+---
+
+## March 24, 2026
+
+### New
+
+- **GTM Dashboard** — Command center layout with executive KPIs, health scorecard, activity feed, revenue pipeline chart, deal velocity gauge, top accounts table, and recent deals ticker.
+- **Pipeline Analytics** — Funnel visualization, waterfall chart, velocity heatmap, forecast view, and conversion trends for your GTM pipeline.
+- **Revenue Analytics** — MRR waterfall, ARR trends, cohort retention heatmap, customer revenue treemap, and churn analysis with D3 visualizations.
+- **Order-to-Cash** — Order timeline, flow Sankey diagram, billing overview, provisioning status dashboard, and order validation panel.
+- **Data Pipeline Monitor** — dbt DAG visualization (D3 + dagre), connector health cards, sync timeline, data freshness monitor, and sync error log.
+- **MRR Reconciliation** — Three-way comparison table, source comparison Venn diagram, reconciliation trend chart, discrepancy distribution, and resolution workflow.
+- **Salesforce CRM Data** — Overview dashboard with stat cards, lead funnel, opportunity pipeline Kanban, and account cards.
+- **CPQ Module** — Product catalog browser, quote management, and discount analysis scatter plot.
+- **Analytics View** — Insight cards sidebar, AI analyst chat bubble, segment performance, cohort analysis, and attribution analysis.
+- **Predictive Analytics** — Forecast visualizations, goal tracking with bullet charts, and anomaly detection dashboard.
+- **OASIS Simulation Engine** — Full OASIS integration with agent factory, interaction protocols, environment manager, metrics collector, and real-time SSE progress streaming. Includes simulation replay, comparison, presets, and AI narration mode.
+- **Knowledge Graph** — Zep Cloud integration with entity extraction, community detection, temporal timeline, graph search, and interactive D3 force-directed visualization.
+- **Agent Memory System** — Memory abstraction layer with Zep/in-memory backends, temporal memory, cross-simulation transfer, memory diff visualization, and configuration panel.
+- **Report Engine** — ReACT-pattern ReportAgent with GTM tools, generation wizard, multi-format export (HTML, PDF, JSON, CSV), comparison view, executive summary generator, annotations, shareable URLs with 24-hour tokens, and confidence intervals on metrics.
+- **LLM-Backed Chat** — Streaming chat and interview system with SSE progressive token rendering, batch interview mode, suggested questions per persona, and markdown export.
+- **Data Visualizations** — Sentiment timeline, geographic heatmap, treemap, Sankey diagram, influence network, word cloud, engagement heatmap, competitive mentions, decision funnel, sparklines, and chart export (PNG/SVG).
+- **Agent Profiles** — Deterministic avatar generation, agent comparison (side-by-side for 2–3 agents), and animated engagement timeline replay.
+- **Simulation Workspace** — Split-panel layout with active/review modes, live metrics dashboard, live feed with SSE streaming, and persona customization with LLM-powered generation.
+- **UX Features** — Breadcrumb navigation, Ctrl+K command palette, notification center, focus-trapped modals, skeleton loading states, ARIA labels, high contrast mode, print-optimized reports, guided tour, one-click quick-start, and screenshot-ready presentation mode.
+- **Settings Enhancements** — LLM temperature slider, model selection, token usage display, import/export settings as JSON, custom persona CRUD, and inline API key validation.
+- **Production Hardening** — Production Dockerfile with gunicorn, detailed health endpoint, environment validation, explicit CORS allowlist, docker-compose.production.yml, Gemini provider support, request logging middleware, and Pydantic validation for all POST endpoints.
+
+### Improved
+
+- Expanded landing page into a full scrollable experience with 13 sections and footer.
+- Expanded agent action content from 19 to 64 unique templates for richer simulations.
+- Refactored config.py to class-based hierarchy with environment-aware selection.
+- Consolidated demo_app.py routes into Flask Blueprints.
+- Standardized all API routes under `/api/v1/` prefix.
+- Added API versioning, GZIP compression, ETag caching, and rate limiting.
+
+### Fixed
+
+- Fixed simulations not appearing when user navigates away early.
+- Fixed CTA button scroll behavior and global cursor-pointer for interactive elements.
+- Fixed chart rendering issues and bold findings formatting.
+
+---
+
+## March 23, 2026
+
+### New
+
+- **Initial Platform** — Vue 3 + Vite + Tailwind CSS v4 frontend with Intercom branding (primary blue `#2068FF`, navy `#050505`, orange `#ff5600`).
+- **Flask Backend** — Blueprint-based API architecture with multi-LLM provider support (Anthropic Claude, OpenAI, Google Gemini) via `LLM_PROVIDER` environment variable.
+- **Demo Mode** — All endpoints return mock data when no LLM key is configured, with frontend UI indicators showing demo status.
+- **Docker Setup** — Per-service Dockerfiles for backend and frontend with docker-compose for local development.
+- **Railway Deployment** — Both services deployed to Railway with cross-origin API routing and OG meta tags for social sharing.
+- **Phase Navigation** — Tab-based workflow navigation (Build → Simulate → Report → Chat) integrated across Graph and Simulation views.
+- **Intercom Fin.ai** — Fin widget integrated for in-app support and feedback.
+- **Progressive Graph Build** — Knowledge graph builds incrementally with skeleton loading, shared simulation state, and session dashboard.
+- **Unified Workspace** — Single workspace view combining graph, simulation, and report with persistent history.
+
+### Fixed
+
+- Fixed `fetchOne → fetchScenarioById` method name mismatch in ScenarioBuilderView.
+- Fixed `startBuild → startGraphBuild` method name in ScenarioBuilderView.
+- Fixed API routing for cross-origin Railway deployment.
+- Fixed Railway deploy configuration with `railway.toml` and auth env vars in Dockerfile.
+- Fixed graph contrast and enabled chat markdown rendering.

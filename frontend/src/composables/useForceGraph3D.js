@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { useGraph3DAnimations } from './useGraph3DAnimations'
 
 const ALPHA_DECAY = 0.028
 const ALPHA_MIN = 0.001
@@ -28,6 +29,10 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
   let simLinks = []
   let alpha = 1.0
   let prevHoveredMesh = null
+
+  const anim = useGraph3DAnimations()
+  let starFieldEffect = null
+  let edgeParticleEffect = null
 
   function init(el) {
     container = el
@@ -67,6 +72,8 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
     nodeGroup = new THREE.Group()
     scene.add(nodeGroup)
 
+    starFieldEffect = anim.createStarField(scene)
+
     renderer.domElement.addEventListener('pointermove', handlePointerMove)
     renderer.domElement.addEventListener('click', handleClick)
 
@@ -79,7 +86,7 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
   function setData(nodes, edges) {
     clearObjects()
 
-    simNodes = nodes.map((n) => {
+    simNodes = nodes.map((n, i) => {
       const phi = Math.random() * Math.PI * 2
       const theta = Math.acos(2 * Math.random() - 1)
       const r = 30 + Math.random() * 80
@@ -110,6 +117,15 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
       mesh.add(new THREE.Mesh(haloGeo, haloMat))
 
       nodeGroup.add(mesh)
+
+      anim.entrance(mesh, i * 0.03)
+      anim.haloPulse(haloMat, {
+        speed: 1 + Math.random(),
+        min: 0.04,
+        max: 0.15,
+        phase: Math.random() * Math.PI * 2,
+      })
+
       return { id: n.id, x, y, z, vx: 0, vy: 0, vz: 0, mesh, data: n }
     })
 
@@ -136,6 +152,16 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
     edgeLine = new THREE.LineSegments(geo, mat)
     scene.add(edgeLine)
 
+    if (edgeParticleEffect) edgeParticleEffect.dispose()
+    edgeParticleEffect = anim.createEdgeParticles(
+      scene,
+      () => simLinks.map(l => ({
+        source: { x: l.source.x, y: l.source.y, z: l.source.z },
+        target: { x: l.target.x, y: l.target.y, z: l.target.z },
+      })),
+      { count: Math.min(simLinks.length * 2, 80), color: isDark ? 0x4488ff : 0x2068ff },
+    )
+
     alpha = 1.0
   }
 
@@ -159,6 +185,8 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
       scene?.remove(edgeLine)
       edgeLine = null
     }
+    if (edgeParticleEffect) { edgeParticleEffect.dispose(); edgeParticleEffect = null }
+    anim.stopAll()
     simNodes = []
     simLinks = []
     edgePositions = null
@@ -226,6 +254,7 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
   function animate() {
     animFrameId = requestAnimationFrame(animate)
     simulationTick()
+    anim.tick()
     controls?.update()
     renderer?.render(scene, camera)
   }
@@ -308,7 +337,9 @@ export function useForceGraph3D({ onNodeClick, onNodeHover } = {}) {
     renderer?.domElement?.removeEventListener('click', handleClick)
     if (resizeObserver) { resizeObserver.disconnect(); resizeObserver = null }
     controls?.dispose()
+    if (starFieldEffect) { starFieldEffect.dispose(); starFieldEffect = null }
     clearObjects()
+    anim.dispose()
     renderer?.dispose()
     if (container && renderer?.domElement?.parentNode === container) {
       container.removeChild(renderer.domElement)

@@ -14,6 +14,11 @@ ADRs capture the key architectural decisions made during the project, along with
 | [004](004-async-task-based-simulation.md) | Async Task-Based Simulation with Polling | Accepted | 2026-03-25 |
 | [005](005-lightweight-demo-mode-docker.md) | Lightweight Demo Mode Docker Deployment | Accepted | 2026-03-25 |
 | [006](006-optional-oauth-domain-enforcement.md) | Optional OAuth with Domain Enforcement | Accepted | 2026-03-25 |
+| [007](007-vue3-vite-frontend-framework.md) | Vue 3 + Vite for Frontend Framework | Accepted | 2026-03-25 |
+| [008](008-flask-backend-framework.md) | Flask for Backend Framework | Accepted | 2026-03-25 |
+| [009](009-d3-data-visualizations.md) | D3.js v7 for Data Visualizations | Accepted | 2026-03-25 |
+| [010](010-zep-cloud-knowledge-graph.md) | Zep Cloud for Knowledge Graph Storage | Accepted | 2026-03-25 |
+| [011](011-railway-per-service-deployment.md) | Railway Per-Service Docker Deployment | Accepted | 2026-03-25 |
 
 ## Creating a New ADR
 

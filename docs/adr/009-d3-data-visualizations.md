@@ -1,8 +1,12 @@
-# ADR 003: D3.js for Data Visualizations
+# ADR-009: D3.js v7 for Data Visualizations
 
 ## Status
 
 Accepted
+
+## Date
+
+2026-03-25
 
 ## Context
 

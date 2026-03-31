@@ -1,8 +1,12 @@
-# ADR 001: Vue 3 + Vite for Frontend Framework
+# ADR-007: Vue 3 + Vite for Frontend Framework
 
 ## Status
 
 Accepted
+
+## Date
+
+2026-03-25
 
 ## Context
 
